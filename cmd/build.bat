@@ -1,8 +1,10 @@
 @echo off
-
-mkdir build
+if not exist build (
+    mkdir build;
+)
 pushd build
 
+echo Compiling...
 zig c++ -g ..\sources\main.cpp -o out.exe User32.lib
 if %ERRORLEVEL% NEQ 0 (
     echo.
