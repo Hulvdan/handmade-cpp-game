@@ -7,7 +7,7 @@ vim.keymap.set("n", "\\b", function()
 end, opts)
 
 vim.keymap.set("n", "<f5>", function()
-    vim.fn.execute("wincmd n term\\ cmd\\build.bat\\ &&\\ cmd\\run.bat Build")
+    vim.fn.execute("term cmd\\build.bat && cmd\\run.bat")
 end, opts)
 
 vim.keymap.set("n", "<f6>", function()
