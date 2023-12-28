@@ -3,23 +3,49 @@
 
 const auto BFG_CLASS_NAME = "BFGWindowClass";
 
-
 LRESULT WindowEventsHandler(
     HWND   hInstance,
-    UINT   message_type,
+    UINT   messageType,
     WPARAM wParam,
     LPARAM lParam
 ) {
-    switch (message_type) {
-        case (WM_CLOSE): {
+
+    switch (messageType) {
+        case WM_CLOSE: {
             DestroyWindow(hInstance);
         } break;
 
-        case (WM_DESTROY): {
+        case WM_DESTROY: {
             PostQuitMessage(0);
         } break;
 
-        case (WM_SIZE): {
+        // case WM_SIZE: {
+        // } break;
+        //
+        // case WM_MOVE: {
+        // } break;
+        //
+        // case WM_MOVING: {
+        // } break;
+
+        case WM_PAINT: {
+            static bool white = true;
+            static HBRUSH WHITENESSS = CreateSolidBrush(RGB(255, 255, 255));
+            static HBRUSH BLACKNESSS = CreateSolidBrush(RGB(0, 0, 0));
+
+            PAINTSTRUCT ps;
+            auto hdc = BeginPaint(hInstance, &ps);
+
+            HBRUSH brush;
+            if (white) {
+                brush = WHITENESSS;
+            } else {
+                brush = BLACKNESSS;
+            }
+            FillRect(hdc, &ps.rcPaint, brush);
+            EndPaint(hInstance, &ps);
+
+            white = !white;
         } break;
 
         // case WM_SIZE: {
@@ -29,7 +55,7 @@ LRESULT WindowEventsHandler(
         // } break;
 
         default:
-            return DefWindowProc(hInstance, message_type, wParam, lParam);
+            return DefWindowProc(hInstance, messageType, wParam, lParam);
     }
     return 0;
 }
@@ -41,8 +67,8 @@ int WinMain(
     int       nShowCmd
 ) {
     WNDCLASSA wc = {};
-    wc.style = CS_OWNDC; // UINT      style;
-    wc.lpfnWndProc = *WindowEventsHandler; // WNDPROC   lpfnWndProc;
+    wc.style = CS_OWNDC;
+    wc.lpfnWndProc = *WindowEventsHandler;
     wc.lpszClassName = BFG_CLASS_NAME;
     // int       cbClsExtra;
     // int       cbWndExtra;
