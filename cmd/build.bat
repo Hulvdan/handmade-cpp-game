@@ -5,7 +5,7 @@ if not exist build (
 pushd build
 
 echo Compiling...
-zig c++ -g ..\sources\main.cpp -o out.exe User32.lib
+zig c++ -g ..\sources\main.cpp -o main.exe User32.lib
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo Compilation [31mFailed[0m
