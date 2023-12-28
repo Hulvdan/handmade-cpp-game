@@ -4,7 +4,7 @@
 const auto BFG_CLASS_NAME = "BFGWindowClass";
 
 
-LRESULT windowEventsHandler(
+LRESULT WindowEventsHandler(
     HWND   hInstance,
     UINT   message_type,
     WPARAM wParam,
@@ -12,7 +12,11 @@ LRESULT windowEventsHandler(
 ) {
     switch (message_type) {
         case (WM_CLOSE): {
-            return DefWindowProc(hInstance, message_type, wParam, lParam);
+            DestroyWindow(hInstance);
+        } break;
+
+        case (WM_DESTROY): {
+            PostQuitMessage(0);
         } break;
 
         case (WM_SIZE): {
@@ -38,7 +42,7 @@ int WinMain(
 ) {
     WNDCLASSA wc = {};
     wc.style = CS_OWNDC; // UINT      style;
-    wc.lpfnWndProc = *windowEventsHandler; // WNDPROC   lpfnWndProc;
+    wc.lpfnWndProc = *WindowEventsHandler; // WNDPROC   lpfnWndProc;
     wc.lpszClassName = BFG_CLASS_NAME;
     // int       cbClsExtra;
     // int       cbWndExtra;

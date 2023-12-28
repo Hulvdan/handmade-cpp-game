@@ -1,4 +1,4 @@
 @echo off
 
-.\build\out.exe
+.\build\main.exe
 
