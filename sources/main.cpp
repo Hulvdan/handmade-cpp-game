@@ -11,10 +11,6 @@ LRESULT WindowEventsHandler(
 ) {
     switch (messageType) {
         case WM_CLOSE: {
-            DestroyWindow(hInstance);
-        } break;
-
-        case WM_DESTROY: {
             PostQuitMessage(0);
         } break;
 
