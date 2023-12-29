@@ -54,14 +54,10 @@ int WinMain(
     windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = BFG_CLASS_NAME;
-    // int       cbClsExtra;
-    // int       cbWndExtra;
-    windowClass.hInstance = hInstance; //  HINSTANCE hInstance;
+    windowClass.hInstance = hInstance;
+
+    // TODO(Hulvdan): Icon!
     // HICON     hIcon;
-    // HCURSOR   hCursor;
-    // HBRUSH    hbrBackground;
-    // LPCSTR    lpszMenuName;
-    // LPCSTR    lpszClassName;
 
     if (RegisterClassA(&windowClass) == NULL) {
         // TODO(Hulvdan): Logging
