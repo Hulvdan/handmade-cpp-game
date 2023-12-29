@@ -22,18 +22,12 @@ global_variable int bitmap_height = 600;
 const auto BFG_CLASS_NAME = "BFGWindowClass";
 
 void Win32UpdateWindow() {
-    // bitmap_info.bmiHeader.biSize = bits_per_pixel / 8 * bitmap_width * bitmap_height;
     bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
     bitmap_info.bmiHeader.biWidth = bitmap_width;
     bitmap_info.bmiHeader.biHeight = bitmap_height;
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = bits_per_pixel;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
-    // bitmap_info.bmiHeader.biSizeImage = 0;
-    // bitmap_info.bmiHeader.biXPelsPerMeter = 0;
-    // bitmap_info.bmiHeader.biYPelsPerMeter = 0;
-    // bitmap_info.bmiHeader.biClrUsed = 0;
-    // bitmap_info.bmiHeader.biClrImportant = 0;
 
     if (bitmap_memory) {
         VirtualFree(bitmap_memory, 0, MEM_RELEASE);
@@ -51,17 +45,11 @@ void Win32UpdateWindow() {
     }
 
     independent_bitmap_handle = CreateDIBitmap(
-        // HDC                    hdc,
         main_window_device_context,
-        // const BITMAPINFOHEADER *pbmih,
         &bitmap_info.bmiHeader,
-        // DWORD                  flInit,
         0,
-        // const VOID             *pjBits,
         bitmap_memory,
-        // const BITMAPINFO       *pbmi,
         &bitmap_info,
-        // UINT                   iUsage
         DIB_RGB_COLORS
     );
 }
@@ -80,31 +68,12 @@ void Win32PaintWindow() {
     }
 
     StretchDIBits(
-        // HDC              hdc,
         main_window_device_context,
-        // int              xDest,
-        0,
-        // int              yDest,
-        0,
-        // int              DestWidth,
-        client_width,
-        // int              DestHeight,
-        client_height,
-        // int              xSrc,
-        0,
-        // int              ySrc,
-        0,
-        // int              SrcWidth,
-        bitmap_width,
-        // int              SrcHeight,
-        bitmap_height,
-        // const VOID       *lpBits,
+        0, 0, client_width, client_height,
+        0, 0, bitmap_width, bitmap_height,
         bitmap_memory,
-        // const BITMAPINFO *lpbmi,
         &bitmap_info,
-        // UINT             iUsage,
         DIB_RGB_COLORS,
-        // DWORD            rop
         SRCCOPY
     );
 }
@@ -135,11 +104,6 @@ LRESULT WindowEventsHandler(
         case WM_PAINT: {
             PAINTSTRUCT paint_struct;
             main_window_device_context = BeginPaint(hInstance, &paint_struct);
-
-            // auto x = paint_struct.rcPaint.left;
-            // auto y = paint_struct.rcPaint.top;
-            // auto client_width = paint_struct.rcPaint.right - x;
-            // auto client_height = paint_struct.rcPaint.bottom - y;
 
             Win32PaintWindow();
 
