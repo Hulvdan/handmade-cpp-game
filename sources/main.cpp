@@ -1,6 +1,11 @@
 #include <iostream>
 #include "windows.h"
 
+#define local_persist static
+#define global_variable static
+
+global_variable bool running = false;
+
 const auto BFG_CLASS_NAME = "BFGWindowClass";
 
 LRESULT WindowEventsHandler(
@@ -11,11 +16,16 @@ LRESULT WindowEventsHandler(
 ) {
     switch (messageType) {
         case WM_CLOSE: {
-            PostQuitMessage(0);
+            running = false;
+        } break;
+
+        case WM_DESTROY: {
+            // TODO(hulvdan): It was an error. Should we try to recreate the window?
+            running = false;
         } break;
 
         case WM_PAINT: {
-            static DWORD operation = WHITENESS;
+            local_persist DWORD operation = WHITENESS;
 
             PAINTSTRUCT paint_struct;
             HDC device_context = BeginPaint(hInstance, &paint_struct);
@@ -50,17 +60,17 @@ int WinMain(
 ) {
     WNDCLASSA windowClass = {};
 
-    // TODO(Hulvdan): Learn more about these styles. Are they relevant nowadays?
+    // TODO(hulvdan): Learn more about these styles. Are they relevant nowadays?
     windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = BFG_CLASS_NAME;
     windowClass.hInstance = hInstance;
 
-    // TODO(Hulvdan): Icon!
+    // TODO(hulvdan): Icon!
     // HICON     hIcon;
 
     if (RegisterClassA(&windowClass) == NULL) {
-        // TODO(Hulvdan): Logging
+        // TODO(hulvdan): Logging
         return 0;
     }
 
@@ -77,13 +87,14 @@ int WinMain(
     );
 
     if (window_handle == NULL) {
-        // TODO(Hulvdan): Logging
+        // TODO(hulvdan): Logging
         return 0;
     }
     ShowWindow(window_handle, nShowCmd);
 
+    running = true;
     MSG message = {};
-    while (GetMessage(&message, NULL, 0, 0) > 0) {
+    while (running && GetMessage(&message, NULL, 0, 0) > 0) {
         TranslateMessage(&message);
         DispatchMessage(&message);
     }
