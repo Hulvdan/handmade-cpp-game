@@ -14,29 +14,6 @@ LRESULT WindowEventsHandler(
             PostQuitMessage(0);
         } break;
 
-        // case WM_SIZE:
-        // case WM_MOVE:
-        // case WM_MOVING: {
-        //     static DWORD operation = WHITENESS;
-        //
-        //     PAINTSTRUCT paint_struct;
-        //     HDC device_context = BeginPaint(hInstance, &paint_struct);
-        //
-        //     auto x = paint_struct.rcPaint.left;
-        //     auto y = paint_struct.rcPaint.top;
-        //     auto width = paint_struct.rcPaint.right - x;
-        //     auto height = paint_struct.rcPaint.bottom - y;
-        //
-        //     PatBlt(device_context, x, y, width, height, operation);
-        //
-        //     EndPaint(hInstance, &paint_struct);
-        //     if (operation == WHITENESS) {
-        //         operation = WHITENESS;
-        //     } else {
-        //         operation = BLACKNESS;
-        //     }
-        // } break;
-
         case WM_PAINT: {
             static DWORD operation = WHITENESS;
 
@@ -57,12 +34,6 @@ LRESULT WindowEventsHandler(
                 operation = WHITENESS;
             }
         } break;
-
-        // case WM_SIZE: {
-        // } break;
-        //
-        // case WM_SIZE: {
-        // } break;
 
         default: {
             return DefWindowProc(hInstance, messageType, wParam, lParam);
