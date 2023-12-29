@@ -9,7 +9,6 @@ LRESULT WindowEventsHandler(
     WPARAM wParam,
     LPARAM lParam
 ) {
-
     switch (messageType) {
         case WM_CLOSE: {
             DestroyWindow(hInstance);
@@ -19,33 +18,48 @@ LRESULT WindowEventsHandler(
             PostQuitMessage(0);
         } break;
 
-        // case WM_SIZE: {
-        // } break;
-        //
-        // case WM_MOVE: {
-        // } break;
-        //
+        // case WM_SIZE:
+        // case WM_MOVE:
         // case WM_MOVING: {
+        //     static DWORD operation = WHITENESS;
+        //
+        //     PAINTSTRUCT paint_struct;
+        //     HDC device_context = BeginPaint(hInstance, &paint_struct);
+        //
+        //     auto x = paint_struct.rcPaint.left;
+        //     auto y = paint_struct.rcPaint.top;
+        //     auto width = paint_struct.rcPaint.right - x;
+        //     auto height = paint_struct.rcPaint.bottom - y;
+        //
+        //     PatBlt(device_context, x, y, width, height, operation);
+        //
+        //     EndPaint(hInstance, &paint_struct);
+        //     if (operation == WHITENESS) {
+        //         operation = WHITENESS;
+        //     } else {
+        //         operation = BLACKNESS;
+        //     }
         // } break;
 
         case WM_PAINT: {
-            static bool white = true;
-            static HBRUSH WHITENESSS = CreateSolidBrush(RGB(255, 255, 255));
-            static HBRUSH BLACKNESSS = CreateSolidBrush(RGB(0, 0, 0));
+            static DWORD operation = WHITENESS;
 
-            PAINTSTRUCT ps;
-            auto hdc = BeginPaint(hInstance, &ps);
+            PAINTSTRUCT paint_struct;
+            HDC device_context = BeginPaint(hInstance, &paint_struct);
 
-            HBRUSH brush;
-            if (white) {
-                brush = WHITENESSS;
+            auto x = paint_struct.rcPaint.left;
+            auto y = paint_struct.rcPaint.top;
+            auto width = paint_struct.rcPaint.right - x;
+            auto height = paint_struct.rcPaint.bottom - y;
+
+            PatBlt(device_context, x, y, width, height, operation);
+
+            EndPaint(hInstance, &paint_struct);
+            if (operation == WHITENESS) {
+                operation = BLACKNESS;
             } else {
-                brush = BLACKNESSS;
+                operation = WHITENESS;
             }
-            FillRect(hdc, &ps.rcPaint, brush);
-            EndPaint(hInstance, &ps);
-
-            white = !white;
         } break;
 
         // case WM_SIZE: {
@@ -54,8 +68,9 @@ LRESULT WindowEventsHandler(
         // case WM_SIZE: {
         // } break;
 
-        default:
+        default: {
             return DefWindowProc(hInstance, messageType, wParam, lParam);
+        }
     }
     return 0;
 }
@@ -66,20 +81,25 @@ int WinMain(
     LPSTR     lpCmdLine,
     int       nShowCmd
 ) {
-    WNDCLASSA wc = {};
-    wc.style = CS_OWNDC;
-    wc.lpfnWndProc = *WindowEventsHandler;
-    wc.lpszClassName = BFG_CLASS_NAME;
+    WNDCLASSA windowClass = {};
+
+    // TODO(Hulvdan): Learn more about these styles. Are they relevant nowadays?
+    windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+    windowClass.lpfnWndProc = *WindowEventsHandler;
+    windowClass.lpszClassName = BFG_CLASS_NAME;
     // int       cbClsExtra;
     // int       cbWndExtra;
-    wc.hInstance = hInstance; //  HINSTANCE hInstance;
+    windowClass.hInstance = hInstance; //  HINSTANCE hInstance;
     // HICON     hIcon;
     // HCURSOR   hCursor;
     // HBRUSH    hbrBackground;
     // LPCSTR    lpszMenuName;
     // LPCSTR    lpszClassName;
 
-    RegisterClassA(&wc);
+    if (RegisterClassA(&windowClass) == NULL) {
+        // TODO(Hulvdan): Logging
+        return 0;
+    }
 
     auto window_handle = CreateWindowExA(
         0,
@@ -94,9 +114,9 @@ int WinMain(
     );
 
     if (window_handle == NULL) {
+        // TODO(Hulvdan): Logging
         return 0;
     }
-
     ShowWindow(window_handle, nShowCmd);
 
     MSG message = {};
