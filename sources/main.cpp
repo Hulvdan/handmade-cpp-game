@@ -5,68 +5,72 @@
 #define local_persist static
 #define global_variable static
 
+struct BFBitmap {
+    HBITMAP handle;
+    BITMAPINFO info;
+
+    int bits_per_pixel;
+    int width;
+    int height;
+    void *memory;
+};
+
 global_variable bool running = false;
 
-const auto bits_per_pixel = 32;
+global_variable bool should_recreate_bitmap_after_client_area_resize;
+global_variable BFBitmap screen_bitmap;
 
-global_variable bool should_recreate_bitmap;
 global_variable int client_width;
 global_variable int client_height;
-global_variable int bitmap_width;
-global_variable int bitmap_height;
-
-global_variable HBITMAP bitmap_handle;
-global_variable BITMAPINFO bitmap_info;
-global_variable void *bitmap_memory;
 
 global_variable int Goffset_x = 0;
 
-const auto BFG_CLASS_NAME = "BFGWindowClass";
 
 void Win32UpdateBitmap(HDC device_context) {
     assert(client_width >= 0);
     assert(client_height >= 0);
 
-    bitmap_width = client_width;
-    bitmap_height = client_height;
+    screen_bitmap.width = client_width;
+    screen_bitmap.height = client_height;
 
-    bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
-    bitmap_info.bmiHeader.biWidth = client_width;
-    bitmap_info.bmiHeader.biHeight = -client_height;
-    bitmap_info.bmiHeader.biPlanes = 1;
-    bitmap_info.bmiHeader.biBitCount = bits_per_pixel;
-    bitmap_info.bmiHeader.biCompression = BI_RGB;
+    screen_bitmap.bits_per_pixel = 32;
+    screen_bitmap.info.bmiHeader.biSize = sizeof(screen_bitmap.info.bmiHeader);
+    screen_bitmap.info.bmiHeader.biWidth = client_width;
+    screen_bitmap.info.bmiHeader.biHeight = -client_height;
+    screen_bitmap.info.bmiHeader.biPlanes = 1;
+    screen_bitmap.info.bmiHeader.biBitCount = screen_bitmap.bits_per_pixel;
+    screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
 
-    if (bitmap_memory) {
-        VirtualFree(bitmap_memory, 0, MEM_RELEASE);
+    if (screen_bitmap.memory) {
+        VirtualFree(screen_bitmap.memory, 0, MEM_RELEASE);
     }
 
-    bitmap_memory = VirtualAlloc(
+    screen_bitmap.memory = VirtualAlloc(
         0,
-        bitmap_width * bitmap_height * bits_per_pixel / 8,
+        screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
         MEM_COMMIT,
         PAGE_EXECUTE_READWRITE
     );
 
-    if (bitmap_handle) {
-        DeleteObject(bitmap_handle);
+    if (screen_bitmap.handle) {
+        DeleteObject(screen_bitmap.handle);
     }
 
-    bitmap_handle = CreateDIBitmap(
+    screen_bitmap.handle = CreateDIBitmap(
         device_context,
-        &bitmap_info.bmiHeader,
+        &screen_bitmap.info.bmiHeader,
         0,
-        bitmap_memory,
-        &bitmap_info,
+        screen_bitmap.memory,
+        &screen_bitmap.info,
         DIB_RGB_COLORS
     );
 }
 
 void Win32RenderWeirdGradient(int offset_x, int offset_y) {
-    auto pixelc = (uint8_t *)bitmap_memory;
+    auto pixelc = (uint8_t *)screen_bitmap.memory;
 
-    for (int y = 0; y < bitmap_height; y++) {
-        for (int x = 0; x < bitmap_width; x++) {
+    for (int y = 0; y < screen_bitmap.height; y++) {
+        for (int x = 0; x < screen_bitmap.width; x++) {
             // Blue
             (*pixelc++) = (uint8_t)(y + offset_y);
             // Green
@@ -83,17 +87,23 @@ void Win32BlitBitmapToTheWindow(HDC device_context) {
     StretchDIBits(
         device_context,
         0, 0, client_width, client_height,
-        0, 0, bitmap_width, bitmap_height,
-        bitmap_memory,
-        &bitmap_info,
+        0, 0, screen_bitmap.width, screen_bitmap.height,
+        screen_bitmap.memory,
+        &screen_bitmap.info,
         DIB_RGB_COLORS,
         SRCCOPY
     );
 }
 
 void Win32Paint(HWND window_handle, HDC device_context) {
-    Win32RenderWeirdGradient(Goffset_x++, 0);
+    if (should_recreate_bitmap_after_client_area_resize) {
+        Win32UpdateBitmap(device_context);
+    }
+
+    Win32RenderWeirdGradient(Goffset_x, Goffset_x);
     Win32BlitBitmapToTheWindow(device_context);
+
+    Goffset_x++;
 }
 
 LRESULT WindowEventsHandler(
@@ -103,29 +113,25 @@ LRESULT WindowEventsHandler(
     LPARAM lParam
 ) {
     switch (messageType) {
-        case WM_CLOSE: 
+        case WM_CLOSE:
         {
             running = false;
         } break;
 
-        case WM_DESTROY: 
+        case WM_DESTROY:
         {
             // TODO(hulvdan): It was an error. Should we try to recreate the window?
             running = false;
         } break;
 
-        case WM_SIZE: 
+        case WM_SIZE:
         {
             client_width = LOWORD(lParam);
             client_height = HIWORD(lParam);
-            should_recreate_bitmap = true;
-
-            auto device_context = GetDC(window_handle);
-            Win32UpdateBitmap(device_context);
-            ReleaseDC(window_handle, device_context);
+            should_recreate_bitmap_after_client_area_resize = true;
         } break;
 
-        case WM_PAINT: 
+        case WM_PAINT:
         {
             assert(client_width != 0);
             assert(client_height != 0);
@@ -133,15 +139,11 @@ LRESULT WindowEventsHandler(
             PAINTSTRUCT paint_struct;
             auto device_context = BeginPaint(window_handle, &paint_struct);
 
-            if (should_recreate_bitmap) {
-                Win32UpdateBitmap(device_context);
-            }
-
             Win32Paint(window_handle, device_context);
             EndPaint(window_handle, &paint_struct);
         } break;
 
-        default: 
+        default:
         {
             return DefWindowProc(window_handle, messageType, wParam, lParam);
         }
@@ -158,9 +160,9 @@ int WinMain(
     WNDCLASSA windowClass = {};
 
     // TODO(hulvdan): Learn more about these styles. Are they even relevant nowadays?
-    windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+    windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
     windowClass.lpfnWndProc = *WindowEventsHandler;
-    windowClass.lpszClassName = BFG_CLASS_NAME;
+    windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
 
     // TODO(hulvdan): Icon!
@@ -173,7 +175,7 @@ int WinMain(
 
     auto window_handle = CreateWindowExA(
         0,
-        BFG_CLASS_NAME,
+        windowClass.lpszClassName,
         "The Big Fuken Game",
         WS_TILEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 640, 480,
@@ -189,10 +191,12 @@ int WinMain(
     }
 
     ShowWindow(window_handle, show_command);
-    bitmap_info = BITMAPINFO();
+    screen_bitmap = BFBitmap();
 
     running = true;
     MSG message = {};
+
+    auto device_context = GetDC(window_handle);
     while (running) {
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
@@ -205,11 +209,7 @@ int WinMain(
         }
 
         if (running) {
-            auto device_context = GetDC(window_handle);
-
-            Win32RenderWeirdGradient(Goffset_x++, 0);
-            Win32BlitBitmapToTheWindow(device_context);
-
+            Win32Paint(window_handle, device_context);
             ReleaseDC(window_handle, device_context);
         }
     }
