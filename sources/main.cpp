@@ -9,7 +9,7 @@ global_variable bool running = false;
 
 const auto bits_per_pixel = 32;
 
-global_variable HDC main_window_device_context;
+global_variable HDC device_context;
 global_variable HBITMAP independent_bitmap_handle;
 global_variable BITMAPINFO bitmap_info;
 global_variable void *bitmap_memory;
@@ -22,9 +22,15 @@ global_variable int bitmap_height = 600;
 const auto BFG_CLASS_NAME = "BFGWindowClass";
 
 void Win32UpdateWindow() {
+    assert(client_width >= 0);
+    assert(client_height >= 0);
+
+    bitmap_width = client_width;
+    bitmap_height = client_height;
+
     bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
-    bitmap_info.bmiHeader.biWidth = bitmap_width;
-    bitmap_info.bmiHeader.biHeight = bitmap_height;
+    bitmap_info.bmiHeader.biWidth = client_width;
+    bitmap_info.bmiHeader.biHeight = -client_height;
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = bits_per_pixel;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
@@ -45,7 +51,7 @@ void Win32UpdateWindow() {
     }
 
     independent_bitmap_handle = CreateDIBitmap(
-        main_window_device_context,
+        device_context,
         &bitmap_info.bmiHeader,
         0,
         bitmap_memory,
@@ -55,20 +61,23 @@ void Win32UpdateWindow() {
 }
 
 void Win32PaintWindow() {
-    assert(bitmap_memory != 0);
     auto pixelc = (uint8_t *)bitmap_memory;
 
     for (int y = 0; y < bitmap_height; y++) {
         for (int x = 0; x < bitmap_width; x++) {
+            // Blue
             (*pixelc++) = (uint8_t)x;
+            // Green
             (*pixelc++) = (uint8_t)y;
+            // Red
             (*pixelc++) = 0;
+            // XX
             (*pixelc++) = 0;
         }
     }
 
     StretchDIBits(
-        main_window_device_context,
+        device_context,
         0, 0, client_width, client_height,
         0, 0, bitmap_width, bitmap_height,
         bitmap_memory,
@@ -98,15 +107,20 @@ LRESULT WindowEventsHandler(
             client_width = LOWORD(lParam);
             client_height = HIWORD(lParam);
             Win32UpdateWindow();
+
+            PAINTSTRUCT paint_struct;
+            device_context = BeginPaint(hInstance, &paint_struct);
             Win32PaintWindow();
+            EndPaint(hInstance, &paint_struct);
         } break;
 
         case WM_PAINT: {
+            assert(client_width != 0);
+            assert(client_height != 0);
+
             PAINTSTRUCT paint_struct;
-            main_window_device_context = BeginPaint(hInstance, &paint_struct);
-
+            device_context = BeginPaint(hInstance, &paint_struct);
             Win32PaintWindow();
-
             EndPaint(hInstance, &paint_struct);
         } break;
 
@@ -125,7 +139,7 @@ int WinMain(
 ) {
     WNDCLASSA windowClass = {};
 
-    // TODO(hulvdan): Learn more about these styles. Are they relevant nowadays?
+    // TODO(hulvdan): Learn more about these styles. Are they even relevant nowadays?
     windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = BFG_CLASS_NAME;
@@ -158,7 +172,7 @@ int WinMain(
 
     ShowWindow(window_handle, nShowCmd);
     bitmap_info = BITMAPINFO();
-    main_window_device_context = GetDC(window_handle);
+    device_context = GetDC(window_handle);
 
     running = true;
     MSG message = {};
