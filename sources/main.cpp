@@ -7,7 +7,6 @@
 #define internal static
 
 struct BFBitmap {
-
     HBITMAP handle;
     BITMAPINFO info;
     int bits_per_pixel;
@@ -25,7 +24,6 @@ global_variable int client_width;
 global_variable int client_height;
 
 global_variable int Goffset_x = 0;
-
 
 void Win32UpdateBitmap(HDC device_context) {
     assert(client_width >= 0);
