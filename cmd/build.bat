@@ -1,4 +1,7 @@
 @echo off
+
+REM TODO(hulvdan): Make the build time counter
+
 echo [33mINFO: Running build.bat...[0m
 
 echo [33mINFO: Remaking CMake files...[0m
