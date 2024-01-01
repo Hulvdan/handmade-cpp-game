@@ -6,12 +6,13 @@ pushd build
 
 echo Compiling...
 zig c++ -g ..\sources\main.cpp -o main.exe user32.lib gdi32.lib
-if %ERRORLEVEL% NEQ 0 (
+
+if %errorlevel% neq 0 (
     echo.
     echo Compilation [31mFailed[0m
 
     popd
-    exit %ERRORLEVEL%
+    exit /b %errorlevel%
 )
 
 echo.
