@@ -1,11 +1,19 @@
 @echo off
-if not exist build (
-    mkdir build;
-)
-pushd build
+echo [33mINFO: Running build.bat...[0m
 
-echo Compiling...
-zig c++ -g ..\sources\main.cpp -o main.exe user32.lib gdi32.lib
+echo [33mINFO: Remaking CMake files...[0m
+cmake ^
+    -G "Visual Studio 17 2022" ^
+    -B .cmake\vs17 ^
+    -Wdev ^
+    -Wdeprecated ^
+    -Werror=dev ^
+    -Werror-deprecated ^
+    --log-level=WARNING
+
+echo.
+echo [33mINFO: Building the project...[0m
+MSBuild .cmake\vs17\game.sln -v:minimal
 
 if %errorlevel% neq 0 (
     echo.
@@ -17,6 +25,4 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Compilation [32mSucceeded[0m
-
-popd
 
