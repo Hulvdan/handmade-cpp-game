@@ -1,12 +1,13 @@
-#include <iostream>
-#include <assert.h>
 #include "windows.h"
+#include <assert.h>
+#include <iostream>
 
 #define local_persist static
 #define global_variable static
 #define internal static
 
 struct BFBitmap {
+
     HBITMAP handle;
     BITMAPINFO info;
     int bits_per_pixel;

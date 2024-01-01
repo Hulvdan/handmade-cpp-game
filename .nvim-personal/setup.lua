@@ -2,7 +2,7 @@
 -- ================== --
 vim.fn.execute(":set nornu")
 vim.fn.execute(":set nonumber")
-vim.fn.execute(":set signcolumn=no")
+-- vim.fn.execute(":set signcolumn=no")
 
 -- Keyboard Shortcuts --
 -- ================== --
@@ -24,12 +24,4 @@ end, opts)
 vim.keymap.set("n", "<f6>", function()
     -- vim.fn.execute(":w")
     vim.fn.execute("term cmd\\build.bat && cmd\\debug.bat")
-end, opts)
-
-vim.keymap.set("n", "<C-\\>", function()
-    vim.fn.execute("vs")
-end, opts)
-vim.keymap.set("n", "<C-S-\\>", function()
-    vim.fn.execute("vs")
-    vim.fn.execute("wincmd l")
 end, opts)

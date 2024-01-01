@@ -14,8 +14,16 @@ cmake ^
     -Werror-deprecated ^
     --log-level=WARNING
 
+if %errorlevel% neq 0 (
+    echo.
+    echo Remaking CMake files [31mFailed[0m
+
+    popd
+    exit /b %errorlevel%
+)
+
 echo.
-echo [33mINFO: Building the project...[0m
+echo [33mINFO: Compiling...[0m
 MSBuild .cmake\vs17\game.sln -v:minimal
 
 if %errorlevel% neq 0 (

@@ -33,5 +33,5 @@
 
 /.cmake/
 /build/
+/Ninja/
 /compile_commands.json
-
