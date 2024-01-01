@@ -4,11 +4,11 @@
 
 #define local_persist static
 #define global_variable static
+#define internal static
 
 struct BFBitmap {
     HBITMAP handle;
     BITMAPINFO info;
-
     int bits_per_pixel;
     int width;
     int height;
@@ -67,18 +67,13 @@ void Win32UpdateBitmap(HDC device_context) {
 }
 
 void Win32RenderWeirdGradient(int offset_x, int offset_y) {
-    auto pixelc = (uint8_t *)screen_bitmap.memory;
+    auto pixel = (uint32_t *)screen_bitmap.memory;
 
     for (int y = 0; y < screen_bitmap.height; y++) {
         for (int x = 0; x < screen_bitmap.width; x++) {
-            // Blue
-            (*pixelc++) = (uint8_t)(y + offset_y);
-            // Green
-            (*pixelc++) = 0;
-            // Red
-            (*pixelc++) = (uint8_t)(x + offset_x);
-            // XX
-            (*pixelc++) = 0;
+            uint32_t blue = (uint8_t)(y + offset_y);
+            uint32_t red  = (uint8_t)(x + offset_x);
+            (*pixel++) = (blue) | (red << 16);
         }
     }
 }
