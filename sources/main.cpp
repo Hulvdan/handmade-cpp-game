@@ -36,23 +36,15 @@ XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
 void LoadXInputDll()
 {
-#if 1
-    if (auto library = LoadLibrary("xinput1_4.dll")) {
-        XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
-        XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
-        controller_support_loaded = true;
-        return;
-    }
-#endif
+    auto library = LoadLibrary("xinput1_4.dll");
+    if (!library)
+        library = LoadLibrary("xinput1_3.dll");
 
-#if 1
-    if (auto library = LoadLibrary("xinput1_3.dll")) {
+    if (!library) {
         XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
         XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
         controller_support_loaded = true;
-        return;
     }
-#endif
 }
 // -- CONTROLLER STUFF END
 
@@ -180,13 +172,16 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
             return 0;
         }
 
+        bool alt_is_down = (lParam & (1 << 29)) != 0;
+
         if (vk_code == 'W') {
         } else if (vk_code == 'A') {
         } else if (vk_code == 'S') {
         } else if (vk_code == 'D') {
-        } else if (vk_code == VK_ESCAPE) {
-            running = false;
-        } else if (vk_code == 'Q') {
+        } else if (
+            vk_code == VK_ESCAPE  //
+            || vk_code == 'Q'  //
+            || vk_code == VK_F4 && alt_is_down) {
             running = false;
         }
 
