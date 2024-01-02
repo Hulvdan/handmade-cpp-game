@@ -1,0 +1,16 @@
+﻿---
+BasedOnStyle: Chromium
+AlignAfterOpenBracket: AlwaysBreak
+AlignConsecutiveAssignments: 'false'
+AlignConsecutiveDeclarations: 'false'
+AlignOperands: 'false'
+AlignTrailingComments: 'false'
+BreakBeforeBraces: Linux
+ColumnLimit: '100'
+ContinuationIndentWidth: '4'
+IndentCaseLabels: 'false'
+IndentWidth: '4'
+Language: Cpp
+ReflowComments: 'true'
+
+...

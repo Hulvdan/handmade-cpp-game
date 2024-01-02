@@ -1,7 +1,7 @@
-#include "windows.h"
-#include "xinput.h"
 #include <cassert>
 #include <iostream>
+#include "windows.h"
+#include "xinput.h"
 
 #define local_persist static
 #define global_variable static
@@ -13,18 +13,20 @@ struct BFBitmap {
     int bits_per_pixel;
     int width;
     int height;
-    void *memory;
+    void* memory;
 };
 
 // -- CONTROLLER STUFF
-using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE *pState);
-using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
+using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
+using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration);
 
 // NOTE(hulvdan): These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
-DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE *pState) {
+DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState)
+{
     return 0;
 }
-DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration) {
+DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
+{
     return 0;
 }
 
@@ -32,11 +34,12 @@ bool controller_support_loaded = false;
 XInputGetStateType XInputGetState_ = XInputGetStateStub;
 XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
-void LoadXInputDll() {
+void LoadXInputDll()
+{
 #if 1
     if (auto library = LoadLibrary("xinput1_4.dll")) {
-        XInputGetState_ = (XInputGetStateType) GetProcAddress(library, "XInputGetState");
-        XInputSetState_ = (XInputSetStateType) GetProcAddress(library, "XInputSetState");
+        XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
+        XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
         controller_support_loaded = true;
         return;
     }
@@ -44,8 +47,8 @@ void LoadXInputDll() {
 
 #if 1
     if (auto library = LoadLibrary("xinput1_3.dll")) {
-        XInputGetState_ = (XInputGetStateType) GetProcAddress(library, "XInputGetState");
-        XInputSetState_ = (XInputSetStateType) GetProcAddress(library, "XInputSetState");
+        XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
+        XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
         controller_support_loaded = true;
         return;
     }
@@ -64,7 +67,8 @@ global_variable int client_height;
 global_variable float Goffset_x = 0;
 global_variable float Goffset_y = 0;
 
-void Win32UpdateBitmap(HDC device_context) {
+void Win32UpdateBitmap(HDC device_context)
+{
     assert(client_width >= 0);
     assert(client_height >= 0);
 
@@ -84,33 +88,26 @@ void Win32UpdateBitmap(HDC device_context) {
     }
 
     screen_bitmap.memory = VirtualAlloc(
-        0,
-        screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
-        MEM_COMMIT,
-        PAGE_EXECUTE_READWRITE
-    );
+        0, screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
+        MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
     if (screen_bitmap.handle) {
         DeleteObject(screen_bitmap.handle);
     }
 
     screen_bitmap.handle = CreateDIBitmap(
-        device_context,
-        &screen_bitmap.info.bmiHeader,
-        0,
-        screen_bitmap.memory,
-        &screen_bitmap.info,
-        DIB_RGB_COLORS
-    );
+        device_context, &screen_bitmap.info.bmiHeader, 0, screen_bitmap.memory, &screen_bitmap.info,
+        DIB_RGB_COLORS);
 }
 
-void Win32RenderWeirdGradient(int offset_x, int offset_y) {
-    auto pixel = (uint32_t *)screen_bitmap.memory;
+void Win32RenderWeirdGradient(int offset_x, int offset_y)
+{
+    auto pixel = (uint32_t*)screen_bitmap.memory;
 
     for (int y = 0; y < screen_bitmap.height; y++) {
         for (int x = 0; x < screen_bitmap.width; x++) {
             // uint32_t red  = 0;
-            uint32_t red  = (uint8_t)(x + offset_x);
+            uint32_t red = (uint8_t)(x + offset_x);
             // uint32_t red  = (uint8_t)(y + offset_y);
             uint32_t green = 0;
             // uint32_t green = (uint8_t)(x + offset_x);
@@ -123,69 +120,57 @@ void Win32RenderWeirdGradient(int offset_x, int offset_y) {
     }
 }
 
-void Win32BlitBitmapToTheWindow(HDC device_context) {
+void Win32BlitBitmapToTheWindow(HDC device_context)
+{
     StretchDIBits(
-        device_context,
-        0, 0, client_width, client_height,
-        0, 0, screen_bitmap.width, screen_bitmap.height,
-        screen_bitmap.memory,
-        &screen_bitmap.info,
-        DIB_RGB_COLORS,
-        SRCCOPY
-    );
+        device_context,  //
+        0, 0, client_width, client_height,  //
+        0, 0, screen_bitmap.width, screen_bitmap.height,  //
+        screen_bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
 }
 
-void Win32Paint(HWND window_handle, HDC device_context) {
+void Win32Paint(HWND window_handle, HDC device_context)
+{
     if (should_recreate_bitmap_after_client_area_resize) {
         Win32UpdateBitmap(device_context);
     }
 
     Win32RenderWeirdGradient(Goffset_x, Goffset_y);
     Win32BlitBitmapToTheWindow(device_context);
-
 }
 
-LRESULT WindowEventsHandler(
-    HWND   window_handle,
-    UINT   messageType,
-    WPARAM wParam,
-    LPARAM lParam
-) {
+LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
+{
     switch (messageType) {
-        case WM_CLOSE:
-        {
-            running = false;
-        } break;
+    case WM_CLOSE: {
+        running = false;
+    } break;
 
-        case WM_DESTROY:
-        {
-            // TODO(hulvdan): It was an error. Should we try to recreate the window?
-            running = false;
-        } break;
+    case WM_DESTROY: {
+        // TODO(hulvdan): It was an error. Should we try to recreate the window?
+        running = false;
+    } break;
 
-        case WM_SIZE:
-        {
-            client_width = LOWORD(lParam);
-            client_height = HIWORD(lParam);
-            should_recreate_bitmap_after_client_area_resize = true;
-        } break;
+    case WM_SIZE: {
+        client_width = LOWORD(lParam);
+        client_height = HIWORD(lParam);
+        should_recreate_bitmap_after_client_area_resize = true;
+    } break;
 
-        case WM_PAINT:
-        {
-            assert(client_width != 0);
-            assert(client_height != 0);
+    case WM_PAINT: {
+        assert(client_width != 0);
+        assert(client_height != 0);
 
-            PAINTSTRUCT paint_struct;
-            auto device_context = BeginPaint(window_handle, &paint_struct);
+        PAINTSTRUCT paint_struct;
+        auto device_context = BeginPaint(window_handle, &paint_struct);
 
-            Win32Paint(window_handle, device_context);
-            EndPaint(window_handle, &paint_struct);
-        } break;
+        Win32Paint(window_handle, device_context);
+        EndPaint(window_handle, &paint_struct);
+    } break;
 
-        default:
-        {
-            return DefWindowProc(window_handle, messageType, wParam, lParam);
-        }
+    default: {
+        return DefWindowProc(window_handle, messageType, wParam, lParam);
+    }
     }
     return 0;
 }
@@ -193,9 +178,9 @@ LRESULT WindowEventsHandler(
 int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
-    LPSTR     command_line,
-    int       show_command
-) {
+    LPSTR command_line,
+    int show_command)
+{
     WNDCLASSA windowClass = {};
     LoadXInputDll();
 
@@ -215,15 +200,12 @@ int WinMain(
     }
 
     auto window_handle = CreateWindowExA(
-        0,
-        windowClass.lpszClassName,
-        "The Big Fuken Game",
-        WS_TILEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 640, 480,
-        NULL,       // [in, optional] HWND      hWndParent,
-        NULL,       // [in, optional] HMENU     hMenu,
+        0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
+        CW_USEDEFAULT, 640, 480,
+        NULL,  // [in, optional] HWND      hWndParent,
+        NULL,  // [in, optional] HMENU     hMenu,
         application_handle,  // [in, optional] HINSTANCE hInstance,
-        NULL        // [in, optional] LPVOID    lpParam
+        NULL  // [in, optional] LPVOID    lpParam
     );
 
     if (window_handle == NULL) {
@@ -252,7 +234,7 @@ int WinMain(
         if (running) {
             // CONTROLLER STUFF
             // TODO(hulvdan): Measure latency?
-            for (DWORD i = 0; i < XUSER_MAX_COUNT; i++ ) {
+            for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
                 XINPUT_STATE state;
                 ZeroMemory(&state, sizeof(XINPUT_STATE));
 

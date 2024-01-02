@@ -25,3 +25,8 @@ vim.keymap.set("n", "<f6>", function()
     -- vim.fn.execute(":w")
     vim.fn.execute("term cmd\\build.bat && cmd\\debug.bat")
 end, opts)
+
+vim.keymap.set("n", "<C-S-f>", function()
+    vim.fn.execute(":w")
+    vim.fn.jobstart("cmd\\format.bat", {on_exit = function() vim.fn.execute(":e") end })
+end, opts)
