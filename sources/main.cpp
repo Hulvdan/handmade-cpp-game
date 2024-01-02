@@ -168,6 +168,35 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         EndPaint(window_handle, &paint_struct);
     } break;
 
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP: {
+        bool previous_was_down = lParam & (1 << 30);
+        bool is_up = lParam & (1 << 31);
+        uint32_t vk_code = wParam;
+
+        if (is_up != previous_was_down) {
+            return 0;
+        }
+
+        if (vk_code == 'W') {
+        } else if (vk_code == 'A') {
+        } else if (vk_code == 'S') {
+        } else if (vk_code == 'D') {
+        } else if (vk_code == VK_ESCAPE) {
+            running = false;
+        } else if (vk_code == 'Q') {
+            running = false;
+        }
+
+        if (is_up) {
+            // OnKeyReleased
+        } else {
+            // OnKeyPressed
+        }
+    } break;
+
     default: {
         return DefWindowProc(window_handle, messageType, wParam, lParam);
     }
