@@ -1,6 +1,6 @@
 #include "windows.h"
 #include "xinput.h"
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 
 #define local_persist static
@@ -17,8 +17,8 @@ struct BFBitmap {
 };
 
 // -- CONTROLLER STUFF
-typedef DWORD (__cdecl *XInputGetStateType)(DWORD dwUserIndex, XINPUT_STATE *pState);
-typedef DWORD (__cdecl *XInputSetStateType)(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
+using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE *pState);
+using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
 
 // NOTE(hulvdan): These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
 DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE *pState) {
