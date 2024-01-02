@@ -109,9 +109,16 @@ void Win32RenderWeirdGradient(int offset_x, int offset_y) {
 
     for (int y = 0; y < screen_bitmap.height; y++) {
         for (int x = 0; x < screen_bitmap.width; x++) {
-            uint32_t blue = (uint8_t)(y + offset_y);
+            // uint32_t red  = 0;
             uint32_t red  = (uint8_t)(x + offset_x);
-            (*pixel++) = (blue) | (red << 16);
+            // uint32_t red  = (uint8_t)(y + offset_y);
+            uint32_t green = 0;
+            // uint32_t green = (uint8_t)(x + offset_x);
+            // uint32_t green = (uint8_t)(y + offset_y);
+            // uint32_t blue = 0;
+            // uint32_t blue = (uint8_t)(x + offset_x);
+            uint32_t blue = (uint8_t)(y + offset_y);
+            (*pixel++) = (blue) | (green << 8) | (red << 16);
         }
     }
 }
@@ -192,7 +199,8 @@ int WinMain(
     WNDCLASSA windowClass = {};
     LoadXInputDll();
 
-    // TODO(hulvdan): Learn more about these styles. Are they even relevant nowadays?
+    // NOTE(hulvdan): Casey says that OWNDC is what makes us able
+    // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
@@ -243,13 +251,12 @@ int WinMain(
 
         if (running) {
             // CONTROLLER STUFF
-            DWORD dwResult;
+            // TODO(hulvdan): Measure latency?
             for (DWORD i = 0; i < XUSER_MAX_COUNT; i++ ) {
                 XINPUT_STATE state;
                 ZeroMemory(&state, sizeof(XINPUT_STATE));
 
-                // Simply get the state of the controller from XInput.
-                dwResult = XInputGetState_(i, &state);
+                DWORD dwResult = XInputGetState_(i, &state);
 
                 if (dwResult == ERROR_SUCCESS) {
                     // Controller is connected
@@ -260,7 +267,7 @@ int WinMain(
                     Goffset_x += LX / scale;
                     Goffset_y -= LY / scale;
                 } else {
-                    // Controller is not connected
+                    // TODO(hulvdan): handling disconnects
                 }
             }
             // CONTROLLER STUFF END
