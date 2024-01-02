@@ -1,4 +1,3 @@
 @echo off
 
-devenv build\main.exe
-
+devenv .cmake\vs17\Debug\game.exe

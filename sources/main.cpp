@@ -1,4 +1,5 @@
 #include "windows.h"
+#include "xinput.h"
 #include <assert.h>
 #include <iostream>
 
@@ -15,6 +16,43 @@ struct BFBitmap {
     void *memory;
 };
 
+// -- CONTROLLER STUFF
+typedef DWORD (__cdecl *XInputGetStateType)(DWORD dwUserIndex, XINPUT_STATE *pState);
+typedef DWORD (__cdecl *XInputSetStateType)(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
+
+// NOTE(hulvdan): These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
+DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE *pState) {
+    return 0;
+}
+DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration) {
+    return 0;
+}
+
+bool controller_support_loaded = false;
+XInputGetStateType XInputGetState_ = XInputGetStateStub;
+XInputSetStateType XInputSetState_ = XInputSetStateStub;
+
+void LoadXInputDll() {
+#if 1
+    if (auto library = LoadLibrary("xinput1_4.dll")) {
+        XInputGetState_ = (XInputGetStateType) GetProcAddress(library, "XInputGetState");
+        XInputSetState_ = (XInputSetStateType) GetProcAddress(library, "XInputSetState");
+        controller_support_loaded = true;
+        return;
+    }
+#endif
+
+#if 1
+    if (auto library = LoadLibrary("xinput1_3.dll")) {
+        XInputGetState_ = (XInputGetStateType) GetProcAddress(library, "XInputGetState");
+        XInputSetState_ = (XInputSetStateType) GetProcAddress(library, "XInputSetState");
+        controller_support_loaded = true;
+        return;
+    }
+#endif
+}
+// -- CONTROLLER STUFF END
+
 global_variable bool running = false;
 
 global_variable bool should_recreate_bitmap_after_client_area_resize;
@@ -23,7 +61,8 @@ global_variable BFBitmap screen_bitmap;
 global_variable int client_width;
 global_variable int client_height;
 
-global_variable int Goffset_x = 0;
+global_variable float Goffset_x = 0;
+global_variable float Goffset_y = 0;
 
 void Win32UpdateBitmap(HDC device_context) {
     assert(client_width >= 0);
@@ -94,10 +133,9 @@ void Win32Paint(HWND window_handle, HDC device_context) {
         Win32UpdateBitmap(device_context);
     }
 
-    Win32RenderWeirdGradient(Goffset_x, Goffset_x);
+    Win32RenderWeirdGradient(Goffset_x, Goffset_y);
     Win32BlitBitmapToTheWindow(device_context);
 
-    Goffset_x++;
 }
 
 LRESULT WindowEventsHandler(
@@ -152,6 +190,7 @@ int WinMain(
     int       show_command
 ) {
     WNDCLASSA windowClass = {};
+    LoadXInputDll();
 
     // TODO(hulvdan): Learn more about these styles. Are they even relevant nowadays?
     windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -203,6 +242,29 @@ int WinMain(
         }
 
         if (running) {
+            // CONTROLLER STUFF
+            DWORD dwResult;
+            for (DWORD i = 0; i < XUSER_MAX_COUNT; i++ ) {
+                XINPUT_STATE state;
+                ZeroMemory(&state, sizeof(XINPUT_STATE));
+
+                // Simply get the state of the controller from XInput.
+                dwResult = XInputGetState_(i, &state);
+
+                if (dwResult == ERROR_SUCCESS) {
+                    // Controller is connected
+                    float LX = state.Gamepad.sThumbLX;
+                    float LY = state.Gamepad.sThumbLY;
+                    float scale = 32000;
+
+                    Goffset_x += LX / scale;
+                    Goffset_y -= LY / scale;
+                } else {
+                    // Controller is not connected
+                }
+            }
+            // CONTROLLER STUFF END
+
             Win32Paint(window_handle, device_context);
             ReleaseDC(window_handle, device_context);
         }
