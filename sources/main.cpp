@@ -23,11 +23,11 @@ using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibra
 // NOTE(hulvdan): These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
 DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState)
 {
-    return 0;
+    return ERROR_DEVICE_NOT_CONNECTED;
 }
 DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
 {
-    return 0;
+    return ERROR_DEVICE_NOT_CONNECTED;
 }
 
 bool controller_support_loaded = false;
