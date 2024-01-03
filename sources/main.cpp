@@ -81,7 +81,7 @@ void Win32UpdateBitmap(HDC device_context)
 
     screen_bitmap.memory = VirtualAlloc(
         0, screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
-        MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
     if (screen_bitmap.handle) {
         DeleteObject(screen_bitmap.handle);
