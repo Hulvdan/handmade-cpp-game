@@ -259,7 +259,7 @@ int WinMain(
                 uint32_t duration_sec = 2;
                 uint32_t bits_per_sample = 16;
                 uint32_t bytes_per_sample = bits_per_sample / 8;
-                uint32_t channels = 2;
+                uint32_t channels = 4;
 
                 WAVEFORMATEX voice_struct = {};
                 voice_struct.wFormatTag = WAVE_FORMAT_PCM;
@@ -296,9 +296,19 @@ int WinMain(
 
                         const int volume = 6400;
                         int16_t val = volume * sin(period * current_cycle / samples_per_cycle);
-                        for (int k = 0; k < channels; k++) {
-                            samples[i * channels + k] = val;
-                        }
+                        int16_t val2 = volume * sin(period * (current_cycle * 2) / samples_per_cycle);
+                        int16_t val3 = volume * sin(period * (current_cycle * 3) / samples_per_cycle);
+                        int16_t val4 = volume * sin(period * (current_cycle * 4) / samples_per_cycle);
+                        // for (int k = 0; k < channels; k++) {
+                        samples[i * channels + 0] = val; // LEFT
+                        samples[i * channels + 0] = 0;
+                        samples[i * channels + 1] = val2; // RIGHT
+                        samples[i * channels + 1] = 0;
+                        samples[i * channels + 2] = val3; // LEFT RIGHT
+                        samples[i * channels + 2] = 0;
+                        samples[i * channels + 3] = val4; // LEFT RIGHT
+                        samples[i * channels + 3] = 0;
+                        // }
                     }
 
                     buffer = new XAUDIO2_BUFFER();
@@ -312,6 +322,8 @@ int WinMain(
                     buffer->LoopCount = XAUDIO2_LOOP_INFINITE;
                     buffer->pContext = nullptr;
 
+                    // TODO(hulvdan): CHECK ANY WAY OF MAKING US ABLE TO WRITE INTO THIS BUFFER
+                    // DURING RUNTIME!
                     auto res2 = source_voice->SubmitSourceBuffer(buffer);
                     if (SUCCEEDED(res2)) {
                         audio_support_loaded = true;
