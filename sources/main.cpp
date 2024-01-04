@@ -247,14 +247,14 @@ int WinMain(
     IXAudio2SourceVoice* source_voice = nullptr;
 
     XAUDIO2_BUFFER* buffer = nullptr;
-    uint16_t* samples = nullptr;
+    int16_t* samples = nullptr;
 
     // TODO(hulvdan): Am I supposed to dynamically load xaudio2.dll?
     // What about targeting different versions of xaudio on different OS?
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                uint32_t frequency = 256;
+                uint32_t frequency = 512;
                 uint32_t samples_hz = 48000;
                 uint32_t duration_sec = 2;
                 uint32_t bits_per_sample = 16;
@@ -263,12 +263,13 @@ int WinMain(
 
                 WAVEFORMATEX voice_struct = {};
                 voice_struct.wFormatTag = WAVE_FORMAT_PCM;
+                // voice_struct.wFormatTag = WAVEFORMATEXTENSIBLE;
                 voice_struct.nChannels = channels;
                 voice_struct.nSamplesPerSec = samples_hz;
                 voice_struct.nAvgBytesPerSec = channels * samples_hz * bytes_per_sample;
                 voice_struct.nBlockAlign = channels * bytes_per_sample;
                 voice_struct.wBitsPerSample = bits_per_sample;
-                // voice_struct.cbSize = 0;
+                voice_struct.cbSize = 0;
 
                 auto res = xaudio->CreateSourceVoice(
                     &source_voice, &voice_struct, 0,
@@ -277,25 +278,28 @@ int WinMain(
                     XAUDIO2_MAX_FREQ_RATIO, nullptr, nullptr, nullptr);
 
                 if (SUCCEEDED(res)) {
-                    uint32_t samples_count = samples_hz * duration_sec;
+                    uint32_t samples_count = channels * samples_hz * duration_sec;
                     assert(samples_count > 0);
 
-                    samples = new uint16_t[samples_count]();
+                    samples = new int16_t[samples_count]();
 
                     int32_t onoff = 1;
                     int32_t sign = 1;
                     int32_t samples_per_cycle = samples_hz / frequency;
+
                     for (int i = 0; i < samples_count / channels; i++) {
                         samples_per_cycle--;
                         if (samples_per_cycle <= 0) {
-                            sign *= 1;
-                            if (sign == -1)
-                                onoff ^= 1;
+                            sign *= -1;
+                            // if (sign == -1)
+                            //     onoff ^= 1;
 
                             samples_per_cycle = samples_hz / frequency;
                         }
 
-                        int16_t val = sign * 1600 * onoff;
+                        // int16_t val = sign * 1600 * onoff;
+                        int16_t val = sign * 6400 * onoff;
+                        // val = 0;
 
                         for (int k = 0; k < channels; k++) {
                             samples[i * channels + k] = val;
@@ -303,7 +307,6 @@ int WinMain(
                     }
 
                     buffer = new XAUDIO2_BUFFER();
-
                     buffer->Flags = 0;
                     buffer->AudioBytes = samples_count * channels * bytes_per_sample;
                     buffer->pAudioData = (uint8_t*)samples;
@@ -346,6 +349,8 @@ int WinMain(
 
     if (source_voice != nullptr) {
         auto res = source_voice->Start(0);
+        // TODO(hulvdan): Diagnostic
+        assert(SUCCEEDED(res));
     }
 
     // TODO(hulvdan): Icon!
