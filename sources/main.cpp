@@ -254,7 +254,7 @@ int WinMain(
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                uint32_t frequency = 512;
+                uint32_t frequency = 192;
                 uint32_t samples_hz = 48000;
                 uint32_t duration_sec = 2;
                 uint32_t bits_per_sample = 16;
@@ -283,24 +283,19 @@ int WinMain(
 
                     samples = new int16_t[samples_count]();
 
-                    int32_t onoff = 1;
-                    int32_t sign = 1;
-                    int32_t samples_per_cycle = samples_hz / frequency;
+                    const int32_t samples_per_cycle = samples_hz / frequency;
+                    const float pi = 3.1415926535898f;
+                    const float period = 2 * pi;
 
+                    int current_cycle = 0;
                     for (int i = 0; i < samples_count / channels; i++) {
-                        samples_per_cycle--;
-                        if (samples_per_cycle <= 0) {
-                            sign *= -1;
-                            // if (sign == -1)
-                            //     onoff ^= 1;
-
-                            samples_per_cycle = samples_hz / frequency;
+                        current_cycle++;
+                        if (current_cycle >= samples_per_cycle) {
+                            current_cycle = 0;
                         }
 
-                        // int16_t val = sign * 1600 * onoff;
-                        int16_t val = sign * 6400 * onoff;
-                        // val = 0;
-
+                        const int volume = 6400;
+                        int16_t val = volume * sin(period * current_cycle / samples_per_cycle);
                         for (int k = 0; k < channels; k++) {
                             samples[i * channels + k] = val;
                         }
