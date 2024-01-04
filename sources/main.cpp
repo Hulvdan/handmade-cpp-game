@@ -246,17 +246,20 @@ int WinMain(
     IXAudio2MasteringVoice* master_voice = nullptr;
     IXAudio2SourceVoice* source_voice = nullptr;
 
+    XAUDIO2_BUFFER* buffer = nullptr;
+    uint16_t* samples = nullptr;
+
     // TODO(hulvdan): Am I supposed to dynamically load xaudio2.dll?
     // What about targeting different versions of xaudio on different OS?
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                int frequency = 256;
-                int samples_hz = 48000;
-                int duration_sec = 2;
-                int bits_per_sample = 16;
-                int bytes_per_sample = bits_per_sample / 8;
-                int channels = 2;
+                uint32_t frequency = 256;
+                uint32_t samples_hz = 48000;
+                uint32_t duration_sec = 2;
+                uint32_t bits_per_sample = 16;
+                uint32_t bytes_per_sample = bits_per_sample / 8;
+                uint32_t channels = 2;
 
                 WAVEFORMATEX voice_struct = {};
                 voice_struct.wFormatTag = WAVE_FORMAT_PCM;
@@ -272,8 +275,53 @@ int WinMain(
                     // TODO(hulvdan): Revise max frequency ratio
                     // https://learn.microsoft.com/en-us/windows/win32/api/xaudio2/nf-xaudio2-ixaudio2-createsourcevoice
                     XAUDIO2_MAX_FREQ_RATIO, nullptr, nullptr, nullptr);
+
                 if (SUCCEEDED(res)) {
-                    audio_support_loaded = true;
+                    uint32_t samples_count = samples_hz * duration_sec;
+                    assert(samples_count > 0);
+
+                    samples = new uint16_t[samples_count]();
+
+                    int32_t onoff = 1;
+                    int32_t sign = 1;
+                    int32_t samples_per_cycle = samples_hz / frequency;
+                    for (int i = 0; i < samples_count / channels; i++) {
+                        samples_per_cycle--;
+                        if (samples_per_cycle <= 0) {
+                            sign *= 1;
+                            if (sign == -1)
+                                onoff ^= 1;
+
+                            samples_per_cycle = samples_hz / frequency;
+                        }
+
+                        int16_t val = sign * 1600 * onoff;
+
+                        for (int k = 0; k < channels; k++) {
+                            samples[i * channels + k] = val;
+                        }
+                    }
+
+                    buffer = new XAUDIO2_BUFFER();
+
+                    buffer->Flags = 0;
+                    buffer->AudioBytes = samples_count * channels * bytes_per_sample;
+                    buffer->pAudioData = (uint8_t*)samples;
+                    buffer->PlayBegin = 0;
+                    buffer->PlayLength = samples_hz * duration_sec;
+                    buffer->LoopBegin = 0;
+                    buffer->LoopLength = 0;
+                    buffer->LoopCount = XAUDIO2_LOOP_INFINITE;
+                    buffer->pContext = nullptr;
+
+                    auto res2 = source_voice->SubmitSourceBuffer(buffer);
+                    if (SUCCEEDED(res2)) {
+                        audio_support_loaded = true;
+                    } else {
+                        delete samples;
+                        samples = nullptr;
+                        // TODO(hulvdan): Diagnostic
+                    }
                 } else {
                     // TODO(hulvdan): Diagnostic
                     assert(source_voice == nullptr);
@@ -295,6 +343,10 @@ int WinMain(
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
+
+    if (source_voice != nullptr) {
+        auto res = source_voice->Start(0);
+    }
 
     // TODO(hulvdan): Icon!
     // HICON     hIcon;
@@ -363,6 +415,11 @@ int WinMain(
             ReleaseDC(window_handle, device_context);
         }
     }
+
+    if (samples != nullptr)
+        delete samples;
+    if (buffer != nullptr)
+        delete buffer;
 
     // TODO(hulvdan): How am I supposed to release it?
     // source_voice
