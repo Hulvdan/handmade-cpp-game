@@ -32,7 +32,6 @@ DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
 }
 
 bool controller_support_loaded = false;
-bool audio_support_loaded = false;
 XInputGetStateType XInputGetState_ = XInputGetStateStub;
 XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
@@ -42,13 +41,43 @@ void LoadXInputDll()
     if (!library)
         library = LoadLibrary("xinput1_3.dll");
 
-    if (!library) {
+    if (library) {
         XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
         XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
+
         controller_support_loaded = true;
     }
 }
 // -- CONTROLLER STUFF END
+
+// -- XAUDIO STUFF
+bool audio_support_loaded = false;
+
+using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
+
+HRESULT XAudio2CreateStub(IXAudio2** ppXAudio2, UINT32 Flags, XAUDIO2_PROCESSOR XAudio2Processor)
+{
+    // TODO(hulvdan): Diagnostic
+    return XAUDIO2_E_INVALID_CALL;
+}
+
+XAudio2CreateType XAudio2Create_ = XAudio2CreateStub;
+
+void LoadXAudioDll()
+{
+    auto library = LoadLibrary("xaudio2_9.dll");
+    if (!library)
+        library = LoadLibrary("xaudio2_8.dll");
+    if (!library)
+        library = LoadLibrary("xaudio2_7.dll");
+
+    if (library) {
+        XAudio2Create_ = (XAudio2CreateType)GetProcAddress(library, "XAudio2Create");
+    }
+
+    // TODO(hulvdan): Diagnostic
+}
+// -- XAUDIO STUFF END
 
 global_variable bool running = false;
 
@@ -211,23 +240,53 @@ int WinMain(
     LoadXInputDll();
 
     // --- XAudio stuff ---
+    LoadXAudioDll();
+
     IXAudio2* xaudio = nullptr;
     IXAudio2MasteringVoice* master_voice = nullptr;
+    IXAudio2SourceVoice* source_voice = nullptr;
 
     // TODO(hulvdan): Am I supposed to dynamically load xaudio2.dll?
     // What about targeting different versions of xaudio on different OS?
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
-        if (SUCCEEDED(XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
+        if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                audio_support_loaded = true;
+                int frequency = 256;
+                int samples_hz = 48000;
+                int duration_sec = 2;
+                int bits_per_sample = 16;
+                int bytes_per_sample = bits_per_sample / 8;
+                int channels = 2;
+
+                WAVEFORMATEX voice_struct = {};
+                voice_struct.wFormatTag = WAVE_FORMAT_PCM;
+                voice_struct.nChannels = channels;
+                voice_struct.nSamplesPerSec = samples_hz;
+                voice_struct.nAvgBytesPerSec = channels * samples_hz * bytes_per_sample;
+                voice_struct.nBlockAlign = channels * bytes_per_sample;
+                voice_struct.wBitsPerSample = bits_per_sample;
+                // voice_struct.cbSize = 0;
+
+                auto res = xaudio->CreateSourceVoice(
+                    &source_voice, &voice_struct, 0,
+                    // TODO(hulvdan): Revise max frequency ratio
+                    // https://learn.microsoft.com/en-us/windows/win32/api/xaudio2/nf-xaudio2-ixaudio2-createsourcevoice
+                    XAUDIO2_MAX_FREQ_RATIO, nullptr, nullptr, nullptr);
+                if (SUCCEEDED(res)) {
+                    audio_support_loaded = true;
+                } else {
+                    // TODO(hulvdan): Diagnostic
+                    assert(source_voice == nullptr);
+                }
             } else {
+                // TODO(hulvdan): Diagnostic
                 assert(master_voice == nullptr);
             }
         } else {
+            // TODO(hulvdan): Diagnostic
             assert(xaudio == nullptr);
         }
     }
-
     // --- XAudio stuff end ---
 
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
@@ -241,7 +300,7 @@ int WinMain(
     // HICON     hIcon;
 
     if (RegisterClassA(&windowClass) == NULL) {
-        // TODO(hulvdan): Logging
+        // TODO(hulvdan): Diagnostic
         return 0;
     }
 
@@ -295,7 +354,7 @@ int WinMain(
                     Goffset_x += LX / scale;
                     Goffset_y -= LY / scale;
                 } else {
-                    // TODO(hulvdan): handling disconnects
+                    // TODO(hulvdan): Handling disconnects
                 }
             }
             // CONTROLLER STUFF END
@@ -304,6 +363,9 @@ int WinMain(
             ReleaseDC(window_handle, device_context);
         }
     }
+
+    // TODO(hulvdan): How am I supposed to release it?
+    // source_voice
 
     if (master_voice != nullptr) {
         // TODO(hulvdan): How am I supposed to release it?
