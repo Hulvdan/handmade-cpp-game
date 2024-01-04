@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include "windows.h"
+#include "xaudio2.h"
 #include "xinput.h"
 
 #define local_persist static
@@ -31,6 +32,7 @@ DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
 }
 
 bool controller_support_loaded = false;
+bool audio_support_loaded = false;
 XInputGetStateType XInputGetState_ = XInputGetStateStub;
 XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
@@ -208,6 +210,26 @@ int WinMain(
     WNDCLASSA windowClass = {};
     LoadXInputDll();
 
+    // --- XAudio stuff ---
+    IXAudio2* xaudio = nullptr;
+    IXAudio2MasteringVoice* master_voice = nullptr;
+
+    // TODO(hulvdan): Am I supposed to dynamically load xaudio2.dll?
+    // What about targeting different versions of xaudio on different OS?
+    if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
+        if (SUCCEEDED(XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
+            if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
+                audio_support_loaded = true;
+            } else {
+                assert(master_voice == nullptr);
+            }
+        } else {
+            assert(xaudio == nullptr);
+        }
+    }
+
+    // --- XAudio stuff end ---
+
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -282,6 +304,19 @@ int WinMain(
             ReleaseDC(window_handle, device_context);
         }
     }
+
+    if (master_voice != nullptr) {
+        // TODO(hulvdan): How am I supposed to release it?
+        //
+        // https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--initialize-xaudio2
+        // > Ensure that all XAUDIO2 child objects are fully released
+        // > before you release the IXAudio2 object.
+
+        // master_voice->Release();
+    }
+
+    if (xaudio != nullptr)
+        xaudio->Release();
 
     return 0;
 }
