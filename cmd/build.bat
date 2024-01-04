@@ -1,9 +1,12 @@
 @echo off
 
-REM TODO(hulvdan): Make the build time counter
+REM TODO(hulvdan): Display the duration of the build time in the end
 
-echo [33mINFO: Running build.bat...[0m
+pushd %0\..\..
 
+echo [32mINFO: Running build.bat...[0m
+
+echo.
 echo [33mINFO: Remaking CMake files...[0m
 cmake ^
     -G "Visual Studio 17 2022" ^
@@ -37,3 +40,4 @@ if %errorlevel% neq 0 (
 echo.
 echo Compilation [32mSucceeded[0m
 
+popd

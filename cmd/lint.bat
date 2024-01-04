@@ -1,5 +1,7 @@
 @echo off
 
+pushd %0\..\..
+
 cmake ^
     -D CMAKE_CXX_COMPILER=cl ^
     -D CMAKE_C_COMPILER=cl ^
@@ -7,3 +9,5 @@ cmake ^
     -B .cmake\ninja ^
     --log-level=ERROR ^
     && "C:/Program Files/LLVM/bin/clang-tidy.exe" sources\main.cpp -checks=llvm-include-order
+
+popd
