@@ -7,7 +7,6 @@ vim.fn.execute(":set nonumber")
 -- Helper Functions --
 -- ================ --
 function launch_tab(command)
-    local command = [[cmd\build.bat && cmd\run.bat]]
     vim.fn.execute([[term ]] .. command)
 end
 
@@ -55,4 +54,9 @@ end, opts)
 vim.keymap.set("n", "<C-S-f>", function()
     vim.fn.execute(":w")
     launch_background([[cmd\format.bat]], reload_file)
+end, opts)
+
+vim.keymap.set("n", "<C-S-b>", function()
+    vim.fn.execute(":w")
+    launch_tab([[cmd\remake_cmake.bat]])
 end, opts)
