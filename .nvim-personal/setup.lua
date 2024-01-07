@@ -3,6 +3,7 @@
 vim.fn.execute(":set nornu")
 vim.fn.execute(":set nonumber")
 -- vim.fn.execute(":set signcolumn=no")
+vim.fn.execute(":set colorcolumn=")
 
 -- Helper Functions --
 -- ================ --
