@@ -15,5 +15,5 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo Running run.bat [31mSucceeded[0m
+echo Running run.bat [32mSucceeded[0m
 popd
