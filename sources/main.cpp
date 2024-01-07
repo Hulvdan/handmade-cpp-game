@@ -8,6 +8,21 @@
 #define global_variable static
 #define internal static
 
+typedef uint8_t u8;
+typedef int8_t i8;
+typedef uint16_t u16;
+typedef int16_t i16;
+typedef uint32_t u32;
+typedef int32_t i32;
+typedef int32_t b32;
+typedef uint64_t u64;
+typedef int64_t i64;
+typedef float f32;
+typedef double f64;
+
+static constexpr f32 BF_PI = 3.14159265358979f;
+static constexpr f32 BF_2PI = 2 * 3.14159265358979f;
+
 struct BFBitmap {
     HBITMAP handle;
     BITMAPINFO info;
@@ -51,6 +66,7 @@ void LoadXInputDll()
 // -- CONTROLLER STUFF END
 
 // -- XAUDIO STUFF
+const u32 SAMPLES_HZ = 48000;
 bool audio_support_loaded = false;
 
 using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
@@ -76,6 +92,81 @@ void LoadXAudioDll()
     }
 
     // TODO(hulvdan): Diagnostic
+}
+
+f32 fillSamples(
+    i16* samples,
+    u32 samples_count_per_second,
+    u32 samples_count_per_channel,
+    u8 channels,
+    f32 frequency,
+    f32 last_angle)
+{
+    assert(frequency > 0);
+
+    // NOTE(hulvdan): samples_count mustn't be multiplied by channels
+    const i16 volume = 6400;
+
+    f32 angle_step = 2.0f * BF_PI * frequency / (f32)samples_count_per_second;
+
+    for (int i = 0; i < samples_count_per_channel; i++) {
+        last_angle += angle_step;
+
+        // TODO(hulvdan): Implement our own sin function
+        i16 val = volume * sin(last_angle);
+        // i16 val = abs(volume * sin(last_angle));
+
+        for (int k = 0; k < channels; k++) {
+            samples[i * channels + k] = val;
+        }
+
+        // i16 val = volume * sin(last_angle);
+        // i16 val2 = volume * sin(last_angle * 2);
+        // for (int k = 0; k < channels; k++) {
+        //     samples[i * channels + 0] = val;  // LEFT
+        //     samples[i * channels + 1] = val2;  // RIGHT
+        // }
+    }
+
+    while (last_angle > BF_2PI) {
+        last_angle -= BF_2PI;
+    }
+
+    // TODO(hulvdan): angle_step is a bit inaccurate.
+    // Maybe we should return a sum
+    return last_angle;
+}
+
+struct CreateBufferRes {
+    XAUDIO2_BUFFER* buffer;
+    u8* samples;
+};
+
+CreateBufferRes
+CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample, i32 samples_per_second)
+{
+    assert(channels > 0);
+    assert(bytes_per_sample > 0);
+    assert(samples_per_second > 0);
+    i32 duration = samples_per_channel / samples_per_second;
+
+    auto buffer = new XAUDIO2_BUFFER();
+
+    i64 total_bytes = samples_per_channel * channels * bytes_per_sample;
+    auto samples = new u8[total_bytes]();
+
+    buffer->Flags = XAUDIO2_END_OF_STREAM;
+    buffer->AudioBytes = total_bytes;
+    buffer->pAudioData = (uint8_t*)samples;
+    buffer->PlayBegin = 0;
+    buffer->PlayLength = 0;
+    buffer->LoopBegin = 0;
+    buffer->LoopLength = 0;
+    // buffer->LoopCount = XAUDIO2_LOOP_INFINITE;
+    buffer->LoopCount = 1;
+    buffer->pContext = nullptr;
+
+    return {buffer, samples};
 }
 // -- XAUDIO STUFF END
 
@@ -230,7 +321,69 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
     return 0;
 }
 
-int WinMain(
+class BFVoiceCallback : public IXAudio2VoiceCallback
+{
+   public:
+    f32 frequency = -1;
+    i32 samples_count_per_channel = -1;
+    i8 channels = -1;
+    f32 last_angle = 0;
+
+    XAUDIO2_BUFFER* b1 = nullptr;
+    XAUDIO2_BUFFER* b2 = nullptr;
+    u8* s1 = nullptr;
+    u8* s2 = nullptr;
+
+    IXAudio2SourceVoice* voice = nullptr;
+
+    // void recalculate()
+    // {
+    // }
+
+    void recalculate_and_swap()
+    {
+        validate();
+
+        last_angle = fillSamples(
+            (i16*)s1, SAMPLES_HZ, samples_count_per_channel, channels, frequency, last_angle);
+        auto res1 = voice->SubmitSourceBuffer(b1);
+
+        std::swap(b1, b2);
+
+        std::swap(s1, s2);
+    }
+
+    void OnStreamEnd()
+    {
+        // validate();
+        recalculate_and_swap();
+        // recalculate();
+        // auto res1 = voice->SubmitSourceBuffer(b1);
+    }
+
+    void OnBufferEnd(void* pBufferContext) {}
+
+    void OnBufferStart(void* pBufferContext) {}
+    void OnLoopEnd(void* pBufferContext) {}
+    void OnVoiceError(void* pBufferContext, HRESULT Error) { __debugbreak(); }
+    void OnVoiceProcessingPassEnd() {}
+    void OnVoiceProcessingPassStart(UINT32 BytesRequired) {}
+
+    void validate()
+    {
+        assert(samples_count_per_channel > 0);
+        assert(channels > 0);
+        assert(last_angle >= 0);
+
+        assert(b1 != nullptr);
+        assert(b2 != nullptr);
+        assert(s1 != nullptr);
+        assert(s2 != nullptr);
+        assert(voice != nullptr);
+    }
+};
+
+global_variable int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
     LPSTR command_line,
@@ -246,27 +399,34 @@ int WinMain(
     IXAudio2MasteringVoice* master_voice = nullptr;
     IXAudio2SourceVoice* source_voice = nullptr;
 
-    XAUDIO2_BUFFER* buffer = nullptr;
-    int16_t* samples = nullptr;
+    const uint32_t duration_msec = 50;
+    const uint32_t bytes_per_sample = 2;
+    const uint32_t bits_per_sample = bytes_per_sample * 8;
+    const uint32_t channels = 2;
+
+    const f32 starting_frequency = 256;
+    const f32 frequency_amplitude = 128;
+
+    BFVoiceCallback voice_callback = {};
+    voice_callback.frequency = starting_frequency;
+    voice_callback.samples_count_per_channel = -1;
+    voice_callback.channels = channels;
+
+    XAUDIO2_BUFFER* buffer1 = nullptr;
+    XAUDIO2_BUFFER* buffer2 = nullptr;
+    u8* samples1 = nullptr;
+    u8* samples2 = nullptr;
 
     // TODO(hulvdan): Am I supposed to dynamically load xaudio2.dll?
     // What about targeting different versions of xaudio on different OS?
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                uint32_t frequency = 192;
-                uint32_t samples_hz = 48000;
-                uint32_t duration_sec = 2;
-                uint32_t bits_per_sample = 16;
-                uint32_t bytes_per_sample = bits_per_sample / 8;
-                uint32_t channels = 2;
-
                 WAVEFORMATEX voice_struct = {};
                 voice_struct.wFormatTag = WAVE_FORMAT_PCM;
-                // voice_struct.wFormatTag = WAVEFORMATEXTENSIBLE;
                 voice_struct.nChannels = channels;
-                voice_struct.nSamplesPerSec = samples_hz;
-                voice_struct.nAvgBytesPerSec = channels * samples_hz * bytes_per_sample;
+                voice_struct.nSamplesPerSec = SAMPLES_HZ;
+                voice_struct.nAvgBytesPerSec = channels * SAMPLES_HZ * bytes_per_sample;
                 voice_struct.nBlockAlign = channels * bytes_per_sample;
                 voice_struct.wBitsPerSample = bits_per_sample;
                 voice_struct.cbSize = 0;
@@ -275,58 +435,56 @@ int WinMain(
                     &source_voice, &voice_struct, 0,
                     // TODO(hulvdan): Revise max frequency ratio
                     // https://learn.microsoft.com/en-us/windows/win32/api/xaudio2/nf-xaudio2-ixaudio2-createsourcevoice
-                    XAUDIO2_MAX_FREQ_RATIO, nullptr, nullptr, nullptr);
+                    XAUDIO2_DEFAULT_FREQ_RATIO, &voice_callback, nullptr, nullptr);
 
                 if (SUCCEEDED(res)) {
-                    uint32_t samples_count = channels * samples_hz * duration_sec;
-                    assert(samples_count > 0);
+                    assert((SAMPLES_HZ * duration_msec) % 1000 == 0);
 
-                    samples = new int16_t[samples_count]();
+                    uint32_t samples_count_per_channel = SAMPLES_HZ * duration_msec / 1000;
+                    assert(samples_count_per_channel > 0);
 
-                    const int32_t samples_per_cycle = samples_hz / frequency;
-                    const float pi = 3.1415926535898f;
-                    const float period = 2 * pi;
+                    auto r1 = CreateBuffer(
+                        samples_count_per_channel, channels, bytes_per_sample, SAMPLES_HZ);
+                    auto r2 = CreateBuffer(
+                        samples_count_per_channel, channels, bytes_per_sample, SAMPLES_HZ);
 
-                    int current_cycle = 0;
-                    for (int i = 0; i < samples_count / channels; i++) {
-                        current_cycle++;
-                        if (current_cycle >= samples_per_cycle) {
-                            current_cycle = 0;
-                        }
+                    buffer1 = r1.buffer;
+                    samples1 = r1.samples;
+                    buffer2 = r2.buffer;
+                    samples2 = r2.samples;
 
-                        const int volume = 6400;
-                        int16_t val = volume * sin(period * current_cycle / samples_per_cycle);
-                        int16_t val2 = volume * sin(period * (current_cycle * 2) / samples_per_cycle);
+                    voice_callback.b1 = buffer1;
+                    voice_callback.b2 = buffer2;
+                    voice_callback.s1 = samples1;
+                    voice_callback.s2 = samples2;
+                    voice_callback.voice = source_voice;
+                    voice_callback.samples_count_per_channel = samples_count_per_channel;
+                    voice_callback.recalculate_and_swap();
+                    voice_callback.recalculate_and_swap();
 
-                        // for (int k = 0; k < channels; k++) {
-                        samples[i * channels + 0] = val; // LEFT
-                        // samples[i * channels + 0] = 0;
-                        samples[i * channels + 1] = val2; // RIGHT
-                        // samples[i * channels + 1] = 0;
-                        // }
-                    }
-
-                    buffer = new XAUDIO2_BUFFER();
-                    buffer->Flags = 0;
-                    buffer->AudioBytes = samples_count * channels * bytes_per_sample;
-                    buffer->pAudioData = (uint8_t*)samples;
-                    buffer->PlayBegin = 0;
-                    buffer->PlayLength = samples_hz * duration_sec;
-                    buffer->LoopBegin = 0;
-                    buffer->LoopLength = 0;
-                    buffer->LoopCount = XAUDIO2_LOOP_INFINITE;
-                    buffer->pContext = nullptr;
-
-                    // TODO(hulvdan): CHECK ANY WAY OF MAKING US ABLE TO WRITE INTO THIS BUFFER
                     // DURING RUNTIME!
-                    auto res2 = source_voice->SubmitSourceBuffer(buffer);
-                    if (SUCCEEDED(res2)) {
-                        audio_support_loaded = true;
-                    } else {
-                        delete samples;
-                        samples = nullptr;
-                        // TODO(hulvdan): Diagnostic
-                    }
+                    // auto res1 = source_voice->SubmitSourceBuffer(buffer1);
+                    // voice_callback.recalculate();
+                    // source_voice->SubmitSourceBuffer(buffer1);
+                    // if (SUCCEEDED(res1)) {
+                    //     audio_support_loaded = true;
+                    // } else {
+                    //     delete samples1;
+                    //     delete samples2;
+                    //     samples1 = nullptr;
+                    //     samples2 = nullptr;
+                    //     delete buffer1;
+                    //     delete buffer2;
+                    //     buffer1 = nullptr;
+                    //     buffer2 = nullptr;
+                    //     voice_callback.b1 = nullptr;
+                    //     voice_callback.b2 = nullptr;
+                    //     voice_callback.s1 = nullptr;
+                    //     voice_callback.s2 = nullptr;
+                    //
+                    //     // TODO(hulvdan): Diagnostic
+                    // }
+                    //
                 } else {
                     // TODO(hulvdan): Diagnostic
                     assert(source_voice == nullptr);
@@ -406,12 +564,15 @@ int WinMain(
 
                 if (dwResult == ERROR_SUCCESS) {
                     // Controller is connected
-                    float LX = state.Gamepad.sThumbLX;
-                    float LY = state.Gamepad.sThumbLY;
-                    float scale = 32000;
+                    const float scale = 32768;
+                    f32 stick_x_normalized = state.Gamepad.sThumbLX / scale;
+                    f32 stick_y_normalized = state.Gamepad.sThumbLY / scale;
 
-                    Goffset_x += LX / scale;
-                    Goffset_y -= LY / scale;
+                    Goffset_x += stick_x_normalized;
+                    Goffset_y -= stick_y_normalized;
+
+                    voice_callback.frequency =
+                        starting_frequency + frequency_amplitude * stick_y_normalized;
                 } else {
                     // TODO(hulvdan): Handling disconnects
                 }
@@ -423,10 +584,14 @@ int WinMain(
         }
     }
 
-    if (samples != nullptr)
-        delete samples;
-    if (buffer != nullptr)
-        delete buffer;
+    if (samples1 != nullptr)
+        delete samples1;
+    if (samples2 != nullptr)
+        delete samples2;
+    if (buffer1 != nullptr)
+        delete buffer1;
+    if (buffer2 != nullptr)
+        delete buffer2;
 
     // TODO(hulvdan): How am I supposed to release it?
     // source_voice
