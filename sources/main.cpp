@@ -120,14 +120,13 @@ f32 FillSamples(
 
         // TODO(hulvdan): Implement our own sin function
         for (int k = 0; k < channels; k++) {
-            auto val = volume * sin(last_angle * (f32)(k + 1));
+            auto val = volume * sinf(last_angle * (f32)(k + 1));
             samples[i * channels + k] = (i16)val;
         }
     }
 
-    while (last_angle > BF_2PI) {
+    while (last_angle > BF_2PI)
         last_angle -= BF_2PI;
-    }
 
     return last_angle;
 }
@@ -189,17 +188,15 @@ void Win32UpdateBitmap(HDC device_context)
     screen_bitmap.info.bmiHeader.biBitCount = screen_bitmap.bits_per_pixel;
     screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
 
-    if (screen_bitmap.memory) {
+    if (screen_bitmap.memory)
         VirtualFree(screen_bitmap.memory, 0, MEM_RELEASE);
-    }
 
     screen_bitmap.memory = VirtualAlloc(
         0, screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
         MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
-    if (screen_bitmap.handle) {
+    if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
-    }
 
     screen_bitmap.handle = CreateDIBitmap(
         device_context, &screen_bitmap.info.bmiHeader, 0, screen_bitmap.memory, &screen_bitmap.info,
@@ -237,9 +234,8 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
 
 void Win32Paint(HWND window_handle, HDC device_context)
 {
-    if (should_recreate_bitmap_after_client_area_resize) {
+    if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
-    }
 
     Win32RenderWeirdGradient((i32)Goffset_x, (i32)Goffset_y);
     Win32BlitBitmapToTheWindow(device_context);
@@ -248,7 +244,7 @@ void Win32Paint(HWND window_handle, HDC device_context)
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
 {
     switch (messageType) {
-    case WM_CLOSE: {
+    case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
         running = false;
     } break;
 
@@ -283,9 +279,8 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         bool alt_is_down = lParam & (1 << 29);
         u32 vk_code = wParam;
 
-        if (is_up != previous_was_down) {
+        if (is_up != previous_was_down)
             return 0;
-        }
 
         // if (vk_code == 'W') {
         // } else if (vk_code == 'A') {
@@ -335,8 +330,9 @@ public:
 
         last_angle = FillSamples(
             (i16*)samples, SAMPLES_HZ, samples_count_per_channel, channels, frequency, last_angle);
-        auto res1 = voice->SubmitSourceBuffer(buffer);
-        if (FAILED(res1)) {
+
+        auto res = voice->SubmitSourceBuffer(buffer);
+        if (FAILED(res)) {
             // TODO(hulvdan): Diagnostic
         }
 
@@ -349,7 +345,7 @@ public:
     void OnBufferEnd(void* pBufferContext) noexcept {}
     void OnBufferStart(void* pBufferContext) noexcept {}
     void OnLoopEnd(void* pBufferContext) noexcept {}
-    void OnVoiceError(void* pBufferContext, HRESULT Error) noexcept { __debugbreak(); }
+    void OnVoiceError(void* pBufferContext, HRESULT Error) noexcept {}
     void OnVoiceProcessingPassEnd() noexcept {}
     void OnVoiceProcessingPassStart(UINT32 BytesRequired) noexcept {}
 

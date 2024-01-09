@@ -54,11 +54,6 @@ vim.keymap.set("n", "<S-f6>", function()
     launch_tab([[cmd\debug.bat]])
 end, opts)
 
-vim.keymap.set("n", "<C-S-f>", function()
-    vim.fn.execute(":w")
-    launch_background([[cmd\format.bat]], reload_file)
-end, opts)
-
 vim.keymap.set("n", "<leader>w", function()
     vim.fn.execute(":w")
 
@@ -67,6 +62,15 @@ vim.keymap.set("n", "<leader>w", function()
 
         launch_background([[cmd\format.bat]], function()
             reload_file()
+
+            -- TODO(hulvdan): This horseshit of a function should take a callback
+            -- and call it upon finishing the linting.
+            -- We need to somehow indicate to user that file was saved and linted successfully.
+            -- Mb just use a print()
+            --
+            -- OR
+            --
+            -- PREFERRABLY: Make it able to work without generating errors on fast consecutive saves
             require("lint").try_lint()
 
             vim.fn.winrestview(view)
