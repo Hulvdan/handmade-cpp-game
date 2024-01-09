@@ -13,5 +13,6 @@ IndentCaseLabels: 'false'
 IndentWidth: '4'
 Language: Cpp
 ReflowComments: 'true'
+SortIncludes: 'false'
 
 ...

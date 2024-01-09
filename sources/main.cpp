@@ -1,8 +1,9 @@
-#include <cassert>
-#include <iostream>
 #include "windows.h"
 #include "xaudio2.h"
 #include "xinput.h"
+#include <cassert>
+#include <cmath>
+#include <iostream>
 
 #define local_persist static
 #define global_variable static
@@ -111,18 +112,16 @@ f32 FillSamples(
 
     const i16 volume = 6400;
 
-    f32 samples_per_oscillation = samples_count_per_second / frequency;
+    f32 samples_per_oscillation = (f32)samples_count_per_second / frequency;
     f32 angle_step = BF_2PI / samples_per_oscillation;
 
     for (int i = 0; i < samples_count_per_channel; i++) {
         last_angle += angle_step;
 
         // TODO(hulvdan): Implement our own sin function
-        i16 val = volume * sin(last_angle);
-        // val = abs(val);
-
         for (int k = 0; k < channels; k++) {
-            samples[i * channels + k] = val;
+            auto val = volume * sin(last_angle * (f32)(k + 1));
+            samples[i * channels + k] = (i16)val;
         }
     }
 
@@ -130,8 +129,6 @@ f32 FillSamples(
         last_angle -= BF_2PI;
     }
 
-    // TODO(hulvdan): angle_step is a bit inaccurate.
-    // Maybe we should return a sum
     return last_angle;
 }
 
@@ -148,7 +145,7 @@ CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_pe
     auto b = new XAUDIO2_BUFFER();
     auto& buffer = *b;
 
-    i64 total_bytes = samples_per_channel * channels * bytes_per_sample;
+    i64 total_bytes = (i64)samples_per_channel * channels * bytes_per_sample;
     auto samples = new u8[total_bytes]();
 
     buffer.Flags = XAUDIO2_END_OF_STREAM;
@@ -158,7 +155,6 @@ CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_pe
     buffer.PlayLength = samples_per_channel;
     buffer.LoopBegin = 0;
     buffer.LoopLength = 0;
-    // buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
     buffer.LoopCount = 0;
     buffer.pContext = nullptr;
 
@@ -174,8 +170,8 @@ global_variable BFBitmap screen_bitmap;
 global_variable int client_width;
 global_variable int client_height;
 
-global_variable float Goffset_x = 0;
-global_variable float Goffset_y = 0;
+global_variable f32 Goffset_x = 0;
+global_variable f32 Goffset_y = 0;
 
 void Win32UpdateBitmap(HDC device_context)
 {
@@ -210,7 +206,7 @@ void Win32UpdateBitmap(HDC device_context)
         DIB_RGB_COLORS);
 }
 
-void Win32RenderWeirdGradient(int offset_x, int offset_y)
+void Win32RenderWeirdGradient(i32 offset_x, i32 offset_y)
 {
     auto pixel = (u32*)screen_bitmap.memory;
 
@@ -245,7 +241,7 @@ void Win32Paint(HWND window_handle, HDC device_context)
         Win32UpdateBitmap(device_context);
     }
 
-    Win32RenderWeirdGradient(Goffset_x, Goffset_y);
+    Win32RenderWeirdGradient((i32)Goffset_x, (i32)Goffset_y);
     Win32BlitBitmapToTheWindow(device_context);
 }
 
@@ -291,22 +287,22 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
             return 0;
         }
 
-        if (vk_code == 'W') {
-        } else if (vk_code == 'A') {
-        } else if (vk_code == 'S') {
-        } else if (vk_code == 'D') {
-        } else if (
-            vk_code == VK_ESCAPE  //
+        // if (vk_code == 'W') {
+        // } else if (vk_code == 'A') {
+        // } else if (vk_code == 'S') {
+        // } else if (vk_code == 'D') {
+        // } else
+        if (vk_code == VK_ESCAPE  //
             || vk_code == 'Q'  //
             || vk_code == VK_F4 && alt_is_down) {
             running = false;
         }
 
-        if (is_up) {
-            // OnKeyReleased
-        } else {
-            // OnKeyPressed
-        }
+        // if (is_up) {
+        //     // OnKeyReleased
+        // } else {
+        //     // OnKeyPressed
+        // }
     } break;
 
     default: {
@@ -318,7 +314,7 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
 
 class BFVoiceCallback : public IXAudio2VoiceCallback
 {
-   public:
+public:
     f32 frequency = -1;
     i32 samples_count_per_channel = -1;
     i8 channels = -1;
@@ -328,39 +324,34 @@ class BFVoiceCallback : public IXAudio2VoiceCallback
     u8* s1 = nullptr;
     u8* s2 = nullptr;
 
-    bool swapped = false;
-
     IXAudio2SourceVoice* voice = nullptr;
-
-    // void recalculate()
-    // {
-    // }
 
     void RecalculateAndSwap()
     {
         Validate();
 
-        auto& samples = swapped ? s1 : s2;
-        auto& buffer = swapped ? b1 : b2;
+        auto& samples = s1;
+        auto& buffer = b1;
 
         last_angle = FillSamples(
             (i16*)samples, SAMPLES_HZ, samples_count_per_channel, channels, frequency, last_angle);
         auto res1 = voice->SubmitSourceBuffer(buffer);
+        if (FAILED(res1)) {
+            // TODO(hulvdan): Diagnostic
+        }
 
-        // std::swap(b1, b2);
-        // std::swap(s1, s2);
-
-        swapped = !swapped;
+        std::swap(b1, b2);
+        std::swap(s1, s2);
     }
 
-    void OnStreamEnd() { RecalculateAndSwap(); }
+    void OnStreamEnd() noexcept { RecalculateAndSwap(); }
 
-    void OnBufferEnd(void* pBufferContext) {}
-    void OnBufferStart(void* pBufferContext) {}
-    void OnLoopEnd(void* pBufferContext) {}
-    void OnVoiceError(void* pBufferContext, HRESULT Error) { __debugbreak(); }
-    void OnVoiceProcessingPassEnd() {}
-    void OnVoiceProcessingPassStart(UINT32 BytesRequired) {}
+    void OnBufferEnd(void* pBufferContext) noexcept {}
+    void OnBufferStart(void* pBufferContext) noexcept {}
+    void OnLoopEnd(void* pBufferContext) noexcept {}
+    void OnVoiceError(void* pBufferContext, HRESULT Error) noexcept { __debugbreak(); }
+    void OnVoiceProcessingPassEnd() noexcept {}
+    void OnVoiceProcessingPassStart(UINT32 BytesRequired) noexcept {}
 
     void Validate()
     {
@@ -375,7 +366,7 @@ class BFVoiceCallback : public IXAudio2VoiceCallback
         assert(voice != nullptr);
     }
 
-   private:
+private:
     f32 last_angle = 0;
 };
 
@@ -399,8 +390,7 @@ static int WinMain(
     const u32 bytes_per_sample = 2;
     const u32 channels = 2;
 
-    const f32 starting_frequency = 256;
-    const f32 frequency_amplitude = 128;
+    const f32 starting_frequency = 523.25f / 2;
 
     BFVoiceCallback voice_callback = {};
     voice_callback.frequency = starting_frequency;
@@ -435,7 +425,7 @@ static int WinMain(
                 if (SUCCEEDED(res)) {
                     assert((SAMPLES_HZ * duration_msec) % 1000 == 0);
 
-                    u32 samples_count_per_channel = SAMPLES_HZ * duration_msec / 1000;
+                    i32 samples_count_per_channel = SAMPLES_HZ * duration_msec / 1000;
                     assert(samples_count_per_channel > 0);
 
                     auto r1 = CreateBuffer(samples_count_per_channel, channels, bytes_per_sample);
@@ -558,15 +548,14 @@ static int WinMain(
 
                 if (dwResult == ERROR_SUCCESS) {
                     // Controller is connected
-                    const float scale = 32768;
-                    f32 stick_x_normalized = state.Gamepad.sThumbLX / scale;
-                    f32 stick_y_normalized = state.Gamepad.sThumbLY / scale;
+                    const f32 scale = 32768;
+                    f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
+                    f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
                     Goffset_x += stick_x_normalized;
                     Goffset_y -= stick_y_normalized;
 
-                    voice_callback.frequency =
-                        starting_frequency + frequency_amplitude * stick_y_normalized;
+                    voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
                 } else {
                     // TODO(hulvdan): Handling disconnects
                 }
