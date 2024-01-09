@@ -1,5 +1,5 @@
 ---
-Checks:          'clang-diagnostic-*'
+Checks:          'clang-diagnostic-*,bugprone-*,-bugprone-easily-swappable-parameters'
 WarningsAsErrors: true
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

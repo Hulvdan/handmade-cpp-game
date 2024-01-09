@@ -32,9 +32,9 @@ local ns = require("lint").get_namespace("myclangtidy")
 vim.diagnostic.config({ virtual_text = false }, ns)
 
 -- TODO(hulvdan): Move this to the main config
-vim.fn.sign_define("DiagnosticSignWarn", { text = "", texthl = "DiagnosticSignWarn" })
-vim.fn.sign_define("DiagnosticSignInfo", { text = "", texthl = "DiagnosticSignInfo" })
-vim.fn.sign_define("DiagnosticSignHint", { text = "", texthl = "DiagnosticSignHint" })
+-- vim.fn.sign_define("DiagnosticSignWarn", { text = "", texthl = "DiagnosticSignWarn" })
+-- vim.fn.sign_define("DiagnosticSignInfo", { text = "", texthl = "DiagnosticSignInfo" })
+-- vim.fn.sign_define("DiagnosticSignHint", { text = "", texthl = "DiagnosticSignHint" })
 
 vim.keymap.set("n", "<leader>l", function()
     vim.fn.execute("term cmd\\lint.bat")
