@@ -13,22 +13,22 @@ local severity_map = {
     ["note"] = vim.diagnostic.severity.HINT,
 }
 
-require("lint").linters.myclangtidy = {
+require("lint").linters.ct = {
     cmd = [[C:\Program Files\LLVM\bin\clang-tidy.exe]],
     stdin = false,
     append_fname = true,
     args = { "--quiet", "--config-file=.clang-tidy-minimal" },
     ignore_exitcode = true, -- true = a code != 0 considered normal.
     parser = require("lint.parser").from_pattern(
-        pattern, groups, severity_map, { ["source"] = "myclangtidy" }
+        pattern, groups, severity_map, { ["source"] = "ct" }
     )
 }
 
 require("lint").linters_by_ft = {
-  cpp = {"myclangtidy",}
+  cpp = {"ct",}
 }
 
-local ns = require("lint").get_namespace("myclangtidy")
+local ns = require("lint").get_namespace("ct")
 vim.diagnostic.config({ virtual_text = false }, ns)
 
 -- TODO(hulvdan): Move this to the main config

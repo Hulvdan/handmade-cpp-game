@@ -4,6 +4,8 @@ vim.fn.execute(":set nornu")
 vim.fn.execute(":set nonumber")
 -- vim.fn.execute(":set signcolumn=no")
 vim.fn.execute(":set colorcolumn=")
+vim.fn.execute(":set nobackup")
+vim.fn.execute(":set nowritebackup")
 
 -- Helper Functions --
 -- ================ --
