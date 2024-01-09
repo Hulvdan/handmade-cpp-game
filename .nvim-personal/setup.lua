@@ -59,6 +59,21 @@ vim.keymap.set("n", "<C-S-f>", function()
     launch_background([[cmd\format.bat]], reload_file)
 end, opts)
 
+vim.keymap.set("n", "<leader>w", function()
+    vim.fn.execute(":w")
+
+    if vim.bo.filetype == "cpp" then
+        local view = vim.fn.winsaveview()
+
+        launch_background([[cmd\format.bat]], function()
+            reload_file()
+            require("lint").try_lint()
+
+            vim.fn.winrestview(view)
+        end)
+    end
+end, opts)
+
 vim.keymap.set("n", "<C-S-b>", function()
     vim.fn.execute(":w")
     launch_tab([[cmd\remake_cmake.bat]])
