@@ -28,42 +28,85 @@ struct BFBitmap {
 };
 
 // -- GAME STUFF
-HMODULE game_lib = 0;
+HMODULE game_lib = nullptr;
 void* game_memory = nullptr;
+
+#if BFG_INTERNAL
+global_variable FILETIME last_game_dll_write_time;
+#endif
 
 using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
 void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
-HMODULE LoadGameDll()
+FILETIME PeekFiletime(const char* filename)
 {
+    WIN32_FIND_DATAA find_data;
+
+    auto handle = FindFirstFileA(filename, &find_data);
+    assert(handle != INVALID_HANDLE_VALUE);
+    assert(FindClose(handle));
+
+    return find_data.ftLastWriteTime;
+}
+
+void LoadOrUpdateGameDll()
+{
+    auto path = "game.dll";
+
+#if BFG_INTERNAL
+    auto filetime = PeekFiletime(path);
+    if (CompareFileTime(&last_game_dll_write_time, &filetime) == 0)
+        return;
+
+    SYSTEMTIME systemtime;
+    FileTimeToSystemTime(&filetime, &systemtime);
+
+    char systemtime_fmt[4096];
+    sprintf(
+        systemtime_fmt, "%d%d%d-%d%d%d", (int)systemtime.wYear, (int)systemtime.wMonth,
+        (int)systemtime.wDay, (int)systemtime.wHour, (int)systemtime.wMinute,
+        (int)systemtime.wSecond);
+
+    char temp_path[4096];
+    sprintf(temp_path, "game_%s.dll", systemtime_fmt);
+    if (CopyFileA(path, temp_path, FALSE) == FALSE)
+        return;
+
+    if (game_lib) {
+        assert(FreeLibrary(game_lib));
+        game_lib = 0;
+    }
+
+    path = temp_path;
+#endif
+
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
-    HMODULE lib = LoadLibrary("game.dll");
+    HMODULE lib = LoadLibrary(path);
     if (!lib) {
         // TODO(hulvdan): Diagnostic
-        return lib;
+        return;
     }
 
     auto loaded_Game_UpdateAndRender =
         (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
 
-    assert(loaded_Game_UpdateAndRender != nullptr);  // TODO(hulvdan): Remove this and amke a better
+    assert(loaded_Game_UpdateAndRender != nullptr);  // TODO(hulvdan): Remove this and make a better
                                                      // diagnostic below
 
     bool functions_loaded = loaded_Game_UpdateAndRender;
     if (!functions_loaded) {
         // TODO(hulvdan): Diagnostic
-        return lib;
+        return;
     }
 
-    if (game_lib)
-        FreeLibrary(game_lib);
+#if BFG_INTERNAL
+    last_game_dll_write_time = filetime;
+#endif
 
     game_lib = lib;
     Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
-
-    return lib;
 }
 // -- GAME STUFF END
 
@@ -144,7 +187,11 @@ f32 FillSamples(
     assert(frequency > 0);
     assert(last_angle >= 0);
 
+#if 0
     const i16 volume = 6400;
+#else
+    const i16 volume = 0;
+#endif
 
     f32 samples_per_oscillation = (f32)samples_count_per_second / frequency;
     f32 angle_step = BF_2PI / samples_per_oscillation;
@@ -250,8 +297,11 @@ void Win32Paint(HWND window_handle, HDC device_context)
         Win32UpdateBitmap(device_context);
 
     Game_UpdateAndRender_(game_memory, screen_bitmap.bitmap);
-
     Win32BlitBitmapToTheWindow(device_context);
+
+#if BFG_INTERNAL
+    LoadOrUpdateGameDll();
+#endif
 }
 
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
@@ -386,7 +436,7 @@ static int WinMain(
     int show_command)
 {
     WNDCLASSA windowClass = {};
-    LoadGameDll();
+    LoadOrUpdateGameDll();
     LoadXInputDll();
 
     game_memory =

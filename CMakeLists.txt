@@ -17,4 +17,5 @@ set_target_properties(game
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
+target_compile_definitions(win32 PRIVATE BFG_INTERNAL)
 target_link_libraries(win32 PUBLIC user32.lib gdi32.lib)
