@@ -57,7 +57,7 @@ end, opts)
 vim.keymap.set("n", "<leader>w", function()
     vim.fn.execute(":w")
 
-    if vim.bo.filetype == "cpp" then
+    if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
         local view = vim.fn.winsaveview()
 
         launch_background([[cmd\format.bat]], function()

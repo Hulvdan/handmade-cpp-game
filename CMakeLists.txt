@@ -2,10 +2,19 @@ cmake_minimum_required(VERSION 3.27)
 
 include(GenerateExportHeader)
 
-project(game)
+project(game LANGUAGES CXX)
 
+# === Building game.dll ===
+add_library(game SHARED)
+target_sources(game PUBLIC sources/game.h)
+target_sources(game PRIVATE sources/game.cpp)
+target_compile_definitions(game PRIVATE GAME_LIBRARY_BUILD)
+set_target_properties(game
+    PROPERTIES
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+)
+
+# === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
-add_library(game SHARED sources/game.cpp)
-generate_export_header(game)
-
-target_link_libraries(win32 user32.lib gdi32.lib)
+target_link_libraries(win32 PUBLIC user32.lib gdi32.lib)

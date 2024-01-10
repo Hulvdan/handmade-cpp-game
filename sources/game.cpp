@@ -1,14 +1,7 @@
 #include <cassert>
 
-#include "types.cpp"
-
-struct GameBitmap {
-    i32 width;
-    i32 height;
-
-    i32 bits_per_pixel;
-    void* memory;
-};
+#include "bftypes.h"
+#include "game.h"
 
 struct GameState {
     f32 offset_x;
@@ -20,7 +13,15 @@ struct GameMemory {
     GameState state;
 };
 
-extern "C" void Game_UpdateAndRender(void* memory_, GameBitmap& bitmap)
+// struct GameBitmap {
+//     i32 width;
+//     i32 height;
+//
+//     i32 bits_per_pixel;
+//     void* memory;
+// };
+
+extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, GameBitmap& bitmap)
 {
     auto& memory = *((GameMemory*)memory_);
     auto& state = memory.state;
@@ -31,7 +32,7 @@ extern "C" void Game_UpdateAndRender(void* memory_, GameBitmap& bitmap)
         memory.is_initialized = true;
     }
 
-    assert(bitmap.bits_per_pixel == 4);
+    assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
 
     auto offset_x = (i32)state.offset_x;

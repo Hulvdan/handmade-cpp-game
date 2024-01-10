@@ -25,7 +25,8 @@ require("lint").linters.ct = {
 }
 
 require("lint").linters_by_ft = {
-  cpp = {"ct",}
+  cpp = {"ct",},
+  h = {"ct",},
 }
 
 local ns = require("lint").get_namespace("ct")

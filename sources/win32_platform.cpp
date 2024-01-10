@@ -5,12 +5,17 @@
 #include <cmath>
 #include <iostream>
 
-#include "types.cpp"
-#include "game.cpp"
+#include "bftypes.h"
+#include "game.h"
 
 #define local_persist static
 #define global_variable static
 #define internal static
+
+#define Kilobytes(value) ((value) * 1024)
+#define Megabytes(value) (Kilobytes(value) * 1024)
+#define Gigabytes(value) (Megabytes(value) * 1024)
+#define Terabytes(value) (Gigabytes(value) * 1024)
 
 static constexpr f32 BF_PI = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
@@ -23,12 +28,14 @@ struct BFBitmap {
 };
 
 // -- GAME STUFF
+HMODULE game_lib = 0;
+void* game_memory = nullptr;
+
 using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
 void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
-HMODULE game_lib;
-HMODULE LoadGameLibrary()
+HMODULE LoadGameDll()
 {
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
@@ -40,6 +47,9 @@ HMODULE LoadGameLibrary()
 
     auto loaded_Game_UpdateAndRender =
         (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
+
+    assert(loaded_Game_UpdateAndRender != nullptr);  // TODO(hulvdan): Remove this and amke a better
+                                                     // diagnostic below
 
     bool functions_loaded = loaded_Game_UpdateAndRender;
     if (!functions_loaded) {
@@ -239,7 +249,7 @@ void Win32Paint(HWND window_handle, HDC device_context)
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    Game_UpdateAndRender();  // alloc memoyr, pass it here
+    Game_UpdateAndRender_(game_memory, screen_bitmap.bitmap);
 
     Win32BlitBitmapToTheWindow(device_context);
 }
@@ -376,9 +386,15 @@ static int WinMain(
     int show_command)
 {
     WNDCLASSA windowClass = {};
+    LoadGameDll();
     LoadXInputDll();
 
-    VirtualAlloc
+    game_memory =
+        VirtualAlloc(0, Megabytes(64LL), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!game_memory) {
+        // TODO(hulvdan): Diagnostic
+        return -1;
+    }
 
     // --- XAudio stuff ---
     LoadXAudioDll();
@@ -553,8 +569,9 @@ static int WinMain(
                     f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
                     f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                    Goffset_x += stick_x_normalized;
-                    Goffset_y -= stick_y_normalized;
+                    // TODO(hulvdan): Move to game
+                    // Goffset_x += stick_x_normalized;
+                    // Goffset_y -= stick_y_normalized;
 
                     voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
                 } else {
