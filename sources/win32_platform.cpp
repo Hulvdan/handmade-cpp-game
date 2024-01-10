@@ -5,33 +5,57 @@
 #include <cmath>
 #include <iostream>
 
+#include "types.cpp"
+#include "game.cpp"
+
 #define local_persist static
 #define global_variable static
 #define internal static
-
-using u8 = uint8_t;
-using i8 = int8_t;
-using u16 = uint16_t;
-using i16 = int16_t;
-using u32 = uint32_t;
-using i32 = int32_t;
-using b32 = int32_t;
-using u64 = uint64_t;
-using i64 = int64_t;
-using f32 = float;
-using f64 = double;
 
 static constexpr f32 BF_PI = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
 
 struct BFBitmap {
+    GameBitmap bitmap;
+
     HBITMAP handle;
     BITMAPINFO info;
-    int bits_per_pixel;
-    int width;
-    int height;
-    void* memory;
 };
+
+// -- GAME STUFF
+using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
+void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
+Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+
+HMODULE game_lib;
+HMODULE LoadGameLibrary()
+{
+    Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+
+    HMODULE lib = LoadLibrary("game.dll");
+    if (!lib) {
+        // TODO(hulvdan): Diagnostic
+        return lib;
+    }
+
+    auto loaded_Game_UpdateAndRender =
+        (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
+
+    bool functions_loaded = loaded_Game_UpdateAndRender;
+    if (!functions_loaded) {
+        // TODO(hulvdan): Diagnostic
+        return lib;
+    }
+
+    if (game_lib)
+        FreeLibrary(game_lib);
+
+    game_lib = lib;
+    Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
+
+    return lib;
+}
+// -- GAME STUFF END
 
 // -- CONTROLLER STUFF
 using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
@@ -169,58 +193,36 @@ global_variable BFBitmap screen_bitmap;
 global_variable int client_width;
 global_variable int client_height;
 
-global_variable f32 Goffset_x = 0;
-global_variable f32 Goffset_y = 0;
-
 void Win32UpdateBitmap(HDC device_context)
 {
     assert(client_width >= 0);
     assert(client_height >= 0);
 
-    screen_bitmap.width = client_width;
-    screen_bitmap.height = client_height;
+    auto& game_bitmap = screen_bitmap.bitmap;
+    game_bitmap.width = client_width;
+    game_bitmap.height = client_height;
 
-    screen_bitmap.bits_per_pixel = 32;
+    game_bitmap.bits_per_pixel = 32;
     screen_bitmap.info.bmiHeader.biSize = sizeof(screen_bitmap.info.bmiHeader);
     screen_bitmap.info.bmiHeader.biWidth = client_width;
     screen_bitmap.info.bmiHeader.biHeight = -client_height;
     screen_bitmap.info.bmiHeader.biPlanes = 1;
-    screen_bitmap.info.bmiHeader.biBitCount = screen_bitmap.bits_per_pixel;
+    screen_bitmap.info.bmiHeader.biBitCount = game_bitmap.bits_per_pixel;
     screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
 
-    if (screen_bitmap.memory)
-        VirtualFree(screen_bitmap.memory, 0, MEM_RELEASE);
+    if (game_bitmap.memory)
+        VirtualFree(game_bitmap.memory, 0, MEM_RELEASE);
 
-    screen_bitmap.memory = VirtualAlloc(
-        0, screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
+    game_bitmap.memory = VirtualAlloc(
+        0, game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
         MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
     if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
 
     screen_bitmap.handle = CreateDIBitmap(
-        device_context, &screen_bitmap.info.bmiHeader, 0, screen_bitmap.memory, &screen_bitmap.info,
+        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory, &screen_bitmap.info,
         DIB_RGB_COLORS);
-}
-
-void Win32RenderWeirdGradient(i32 offset_x, i32 offset_y)
-{
-    auto pixel = (u32*)screen_bitmap.memory;
-
-    for (int y = 0; y < screen_bitmap.height; y++) {
-        for (int x = 0; x < screen_bitmap.width; x++) {
-            // u32 red  = 0;
-            u32 red = (u8)(x + offset_x);
-            // u32 red  = (u8)(y + offset_y);
-            u32 green = 0;
-            // u32 green = (u8)(x + offset_x);
-            // u32 green = (u8)(y + offset_y);
-            // u32 blue = 0;
-            // u32 blue = (u8)(x + offset_x);
-            u32 blue = (u8)(y + offset_y);
-            (*pixel++) = (blue) | (green << 8) | (red << 16);
-        }
-    }
 }
 
 void Win32BlitBitmapToTheWindow(HDC device_context)
@@ -228,8 +230,8 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
     StretchDIBits(
         device_context,  //
         0, 0, client_width, client_height,  //
-        0, 0, screen_bitmap.width, screen_bitmap.height,  //
-        screen_bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
+        0, 0, screen_bitmap.bitmap.width, screen_bitmap.bitmap.height,  //
+        screen_bitmap.bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
 }
 
 void Win32Paint(HWND window_handle, HDC device_context)
@@ -237,7 +239,8 @@ void Win32Paint(HWND window_handle, HDC device_context)
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    Win32RenderWeirdGradient((i32)Goffset_x, (i32)Goffset_y);
+    Game_UpdateAndRender();  // alloc memoyr, pass it here
+
     Win32BlitBitmapToTheWindow(device_context);
 }
 
@@ -374,6 +377,8 @@ static int WinMain(
 {
     WNDCLASSA windowClass = {};
     LoadXInputDll();
+
+    VirtualAlloc
 
     // --- XAudio stuff ---
     LoadXAudioDll();
