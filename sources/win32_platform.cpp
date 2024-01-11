@@ -37,10 +37,9 @@ template <typename T>
 void push_event(T event)
 {
     events.push_back((u8)T::_event_type);
-
-    u8* data = (u8*)(&event);
-    for (int i = 0; i < sizeof(T); i++)
-        events.push_back(*data++);
+    // TODO(hulvdan): How do I ensure that game.dll has
+    // the same types, their field alignments as executable?
+    events.insert(events.end(), (u8*)(&event), (u8*)(&event) + sizeof(T));
 }
 
 #if BFG_INTERNAL
