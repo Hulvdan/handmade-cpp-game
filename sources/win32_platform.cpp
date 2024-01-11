@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "bftypes.h"
 #include "game.h"
@@ -28,8 +29,19 @@ struct BFBitmap {
 };
 
 // -- GAME STUFF
-HMODULE game_lib = nullptr;
-void* game_memory = nullptr;
+global_variable HMODULE game_lib = nullptr;
+global_variable void* game_memory = nullptr;
+global_variable std::vector<u8> events = {};
+
+template <typename T>
+void push_event(T event)
+{
+    events.push_back((u8)T::_event_type);
+
+    u8* data = (u8*)(&event);
+    for (int i = 0; i < sizeof(T); i++)
+        events.push_back(*data++);
+}
 
 #if BFG_INTERNAL
 global_variable FILETIME last_game_dll_write_time;
@@ -55,6 +67,10 @@ PeekFiletimeRes PeekFiletime(const char* filename)
     return res;
 }
 #endif
+
+using Game_ProcessEvents_Type = void (*)(void*, void*, size_t);
+void Game_ProcessEvents_Stub(void*, void*, size_t) {}
+Game_ProcessEvents_Type Game_ProcessEvents_ = Game_ProcessEvents_Stub;
 
 using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
 void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
@@ -94,6 +110,7 @@ void LoadOrUpdateGameDll()
 #endif
 
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+    Game_ProcessEvents_ = Game_ProcessEvents_Stub;
 
     HMODULE lib = LoadLibrary(path);
     if (!lib) {
@@ -103,11 +120,10 @@ void LoadOrUpdateGameDll()
 
     auto loaded_Game_UpdateAndRender =
         (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
+    auto loaded_Game_ProcessEvents =
+        (Game_ProcessEvents_Type)GetProcAddress(lib, "Game_ProcessEvents");
 
-    // TODO(hulvdan): Remove the line below and make a better diagnostic below
-    assert(loaded_Game_UpdateAndRender != nullptr);
-
-    bool functions_loaded = loaded_Game_UpdateAndRender;
+    bool functions_loaded = loaded_Game_UpdateAndRender && loaded_Game_ProcessEvents;
     if (!functions_loaded) {
         // TODO(hulvdan): Diagnostic
         return;
@@ -119,6 +135,7 @@ void LoadOrUpdateGameDll()
 
     game_lib = lib;
     Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
+    Game_ProcessEvents_ = loaded_Game_ProcessEvents;
 }
 // -- GAME STUFF END
 
@@ -308,6 +325,11 @@ void Win32Paint(HWND window_handle, HDC device_context)
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
+    if (!events.empty()) {
+        Game_ProcessEvents_(game_memory, events.data(), events.size());
+        events.clear();
+    }
+
     Game_UpdateAndRender_(game_memory, screen_bitmap.bitmap);
     Win32BlitBitmapToTheWindow(device_context);
 
@@ -450,6 +472,8 @@ static int WinMain(
     WNDCLASSA windowClass = {};
     LoadOrUpdateGameDll();
     LoadXInputDll();
+
+    events.reserve(64LL * 1024);
 
     game_memory =
         VirtualAlloc(0, Megabytes(64LL), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
@@ -631,9 +655,14 @@ static int WinMain(
                     f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
                     f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                    // TODO(hulvdan): Move to game
-                    // Goffset_x += stick_x_normalized;
-                    // Goffset_y -= stick_y_normalized;
+                    ControllerAxisChanged event = {};
+                    event.axis = 0;
+                    event.value = stick_x_normalized;
+                    push_event<ControllerAxisChanged>(event);
+
+                    event.axis = 1;
+                    event.value = stick_y_normalized;
+                    push_event<ControllerAxisChanged>(event);
 
                     voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
                 } else {

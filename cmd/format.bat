@@ -2,6 +2,6 @@
 
 pushd %0\..\..
 
-"C:/Program Files/LLVM/bin/clang-format.exe" -i sources\*.cpp
+"C:/Program Files/LLVM/bin/clang-format.exe" -i sources\*.cpp sources\*.h
 
 popd
