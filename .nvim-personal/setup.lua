@@ -52,7 +52,7 @@ end, opts)
 
 vim.keymap.set("n", "<f6>", function()
     save_file_if_needed()
-    launch_tab([[cmd\build.bat && cmd\debug.bat]])
+    launch_tab([[cmd\debug.bat]])
 end, opts)
 
 vim.keymap.set("n", "<S-f6>", function()

@@ -76,7 +76,7 @@ void LoadOrUpdateGameDll()
 
     char systemtime_fmt[4096];
     sprintf(
-        systemtime_fmt, "%d%d%d-%d%d%d", (int)systemtime.wYear, (int)systemtime.wMonth,
+        systemtime_fmt, "%04d%02d%02d-%02d%02d%02d", (int)systemtime.wYear, (int)systemtime.wMonth,
         (int)systemtime.wDay, (int)systemtime.wHour, (int)systemtime.wMinute,
         (int)systemtime.wSecond);
 

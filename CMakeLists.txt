@@ -6,17 +6,28 @@ project(game LANGUAGES CXX)
 
 # === Building game.dll ===
 add_library(game SHARED)
+
 target_sources(game PUBLIC sources/game.h)
 target_sources(game PRIVATE sources/game.cpp)
 target_compile_definitions(game PRIVATE GAME_LIBRARY_BUILD)
 
-string(TIMESTAMP timestamp "%Y%m%d-%H%M%S")
-set_target_properties(game
-    PROPERTIES
-        C_VISIBILITY_PRESET hidden
-        CXX_VISIBILITY_PRESET hidden
-        PDB_NAME game-${timestamp}
+set_target_properties(game PROPERTIES
+    C_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
 )
+
+IF (WIN32)
+    string(TIMESTAMP timestamp "%Y%m%d-%H%M%S" UTC)
+    set_target_properties(game PROPERTIES
+        PDB_NAME game_${timestamp}
+    )
+
+    file(GLOB files ${CMAKE_BINARY_DIR}/Debug/game_*.pdb ${CMAKE_BINARY_DIR}/Debug/game_*.dll)
+    list(LENGTH files files_length)
+    if (files_length GREATER 0)
+        file(REMOVE ${files})
+    endif()
+ENDIF()
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
