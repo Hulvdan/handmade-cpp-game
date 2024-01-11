@@ -5,8 +5,7 @@
 // https://blog.shaduri.dev/easily-create-shared-libraries-with-cmake-part-1
 // I just wanted to enable dll builds as fast as possible.
 // TODO(hulvdan): We need to find a better way of writing this BS.
-// Is it possible to write this without .h file? Will it be better
-// in terms of using in inside platform layers?
+// Is it possible to write this
 #ifdef GAME_LIBRARY_BUILD
     // Building the library
     #ifdef _WIN32

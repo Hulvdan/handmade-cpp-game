@@ -33,22 +33,32 @@ void* game_memory = nullptr;
 
 #if BFG_INTERNAL
 global_variable FILETIME last_game_dll_write_time;
+
+struct PeekFiletimeRes {
+    bool success;
+    FILETIME filetime;
+};
+
+PeekFiletimeRes PeekFiletime(const char* filename)
+{
+    PeekFiletimeRes res = {};
+
+    WIN32_FIND_DATAA find_data;
+    auto handle = FindFirstFileA(filename, &find_data);
+
+    if (handle != INVALID_HANDLE_VALUE) {
+        res.success = true;
+        res.filetime = find_data.ftLastWriteTime;
+        assert(FindClose(handle));
+    }
+
+    return res;
+}
 #endif
 
 using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
 void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
-
-FILETIME PeekFiletime(const char* filename)
-{
-    WIN32_FIND_DATAA find_data;
-
-    auto handle = FindFirstFileA(filename, &find_data);
-    assert(handle != INVALID_HANDLE_VALUE);
-    assert(FindClose(handle));
-
-    return find_data.ftLastWriteTime;
-}
 
 void LoadOrUpdateGameDll()
 {
@@ -56,11 +66,13 @@ void LoadOrUpdateGameDll()
 
 #if BFG_INTERNAL
     auto filetime = PeekFiletime(path);
-    if (CompareFileTime(&last_game_dll_write_time, &filetime) == 0)
+    if (!filetime.success)
+        return;
+    if (CompareFileTime(&last_game_dll_write_time, &filetime.filetime) == 0)
         return;
 
     SYSTEMTIME systemtime;
-    FileTimeToSystemTime(&filetime, &systemtime);
+    FileTimeToSystemTime(&filetime.filetime, &systemtime);
 
     char systemtime_fmt[4096];
     sprintf(
@@ -92,8 +104,8 @@ void LoadOrUpdateGameDll()
     auto loaded_Game_UpdateAndRender =
         (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
 
-    assert(loaded_Game_UpdateAndRender != nullptr);  // TODO(hulvdan): Remove this and make a better
-                                                     // diagnostic below
+    // TODO(hulvdan): Remove the line below and make a better diagnostic below
+    assert(loaded_Game_UpdateAndRender != nullptr);
 
     bool functions_loaded = loaded_Game_UpdateAndRender;
     if (!functions_loaded) {
@@ -102,7 +114,7 @@ void LoadOrUpdateGameDll()
     }
 
 #if BFG_INTERNAL
-    last_game_dll_write_time = filetime;
+    last_game_dll_write_time = filetime.filetime;
 #endif
 
     game_lib = lib;

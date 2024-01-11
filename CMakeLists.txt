@@ -9,10 +9,13 @@ add_library(game SHARED)
 target_sources(game PUBLIC sources/game.h)
 target_sources(game PRIVATE sources/game.cpp)
 target_compile_definitions(game PRIVATE GAME_LIBRARY_BUILD)
+
+string(TIMESTAMP timestamp "%Y%m%d-%H%M%S")
 set_target_properties(game
     PROPERTIES
         C_VISIBILITY_PRESET hidden
         CXX_VISIBILITY_PRESET hidden
+        PDB_NAME game-${timestamp}
 )
 
 # === Building win32_platform.exe ===

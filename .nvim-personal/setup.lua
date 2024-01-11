@@ -27,6 +27,12 @@ function launch_background(command, callback)
     vim.fn.jobstart(command, {on_exit = callback})
 end
 
+function save_file_if_needed()
+    if vim.bo.buftype == "" and vim.bo.modified == true then
+        vim.fn.execute(":w")
+    end
+end
+
 function reload_file()
     vim.fn.execute(":e")
 end
@@ -34,28 +40,28 @@ end
 -- Keyboard Shortcuts --
 -- ================== --
 local opts = { remap = false, silent = true }
-vim.keymap.set("n", "\\b", function()
-    -- vim.fn.execute(":w")
+vim.keymap.set("n", "<A-b>", function()
+    save_file_if_needed()
     launch_side([[cmd\build.bat]], true)
 end, opts)
 
 vim.keymap.set("n", "<f5>", function()
-    -- vim.fn.execute(":w")
+    save_file_if_needed()
     launch_side([[cmd\build.bat && cmd\run.bat]], true)
 end, opts)
 
 vim.keymap.set("n", "<f6>", function()
-    -- vim.fn.execute(":w")
+    save_file_if_needed()
     launch_tab([[cmd\build.bat && cmd\debug.bat]])
 end, opts)
 
 vim.keymap.set("n", "<S-f6>", function()
-    -- vim.fn.execute(":w")
+    save_file_if_needed()
     launch_tab([[cmd\debug.bat]])
 end, opts)
 
 vim.keymap.set("n", "<leader>w", function()
-    vim.fn.execute(":w")
+    save_file_if_needed()
 
     if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
         local view = vim.fn.winsaveview()
@@ -79,6 +85,6 @@ vim.keymap.set("n", "<leader>w", function()
 end, opts)
 
 vim.keymap.set("n", "<C-S-b>", function()
-    vim.fn.execute(":w")
+    save_file_if_needed()
     launch_tab([[cmd\remake_cmake.bat]])
 end, opts)
