@@ -5,33 +5,122 @@
 #include <cmath>
 #include <iostream>
 
+#include "bftypes.h"
+#include "game.h"
+
 #define local_persist static
 #define global_variable static
 #define internal static
 
-using u8 = uint8_t;
-using i8 = int8_t;
-using u16 = uint16_t;
-using i16 = int16_t;
-using u32 = uint32_t;
-using i32 = int32_t;
-using b32 = int32_t;
-using u64 = uint64_t;
-using i64 = int64_t;
-using f32 = float;
-using f64 = double;
+#define Kilobytes(value) ((value) * 1024)
+#define Megabytes(value) (Kilobytes(value) * 1024)
+#define Gigabytes(value) (Megabytes(value) * 1024)
+#define Terabytes(value) (Gigabytes(value) * 1024)
 
 static constexpr f32 BF_PI = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
 
 struct BFBitmap {
+    GameBitmap bitmap;
+
     HBITMAP handle;
     BITMAPINFO info;
-    int bits_per_pixel;
-    int width;
-    int height;
-    void* memory;
 };
+
+// -- GAME STUFF
+HMODULE game_lib = nullptr;
+void* game_memory = nullptr;
+
+#if BFG_INTERNAL
+global_variable FILETIME last_game_dll_write_time;
+
+struct PeekFiletimeRes {
+    bool success;
+    FILETIME filetime;
+};
+
+PeekFiletimeRes PeekFiletime(const char* filename)
+{
+    PeekFiletimeRes res = {};
+
+    WIN32_FIND_DATAA find_data;
+    auto handle = FindFirstFileA(filename, &find_data);
+
+    if (handle != INVALID_HANDLE_VALUE) {
+        res.success = true;
+        res.filetime = find_data.ftLastWriteTime;
+        assert(FindClose(handle));
+    }
+
+    return res;
+}
+#endif
+
+using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
+void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
+Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+
+void LoadOrUpdateGameDll()
+{
+    auto path = "game.dll";
+
+#if BFG_INTERNAL
+    auto filetime = PeekFiletime(path);
+    if (!filetime.success)
+        return;
+    if (CompareFileTime(&last_game_dll_write_time, &filetime.filetime) == 0)
+        return;
+
+    SYSTEMTIME systemtime;
+    FileTimeToSystemTime(&filetime.filetime, &systemtime);
+
+    char systemtime_fmt[4096];
+    sprintf(
+        systemtime_fmt, "%04d%02d%02d-%02d%02d%02d", (int)systemtime.wYear, (int)systemtime.wMonth,
+        (int)systemtime.wDay, (int)systemtime.wHour, (int)systemtime.wMinute,
+        (int)systemtime.wSecond);
+
+    char temp_path[4096];
+    sprintf(temp_path, "game_%s.dll", systemtime_fmt);
+    if (CopyFileA(path, temp_path, FALSE) == FALSE)
+        return;
+
+    if (game_lib) {
+        assert(FreeLibrary(game_lib));
+        game_lib = 0;
+    }
+
+    path = temp_path;
+#endif
+
+    Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+
+    HMODULE lib = LoadLibrary(path);
+    if (!lib) {
+        // TODO(hulvdan): Diagnostic
+        return;
+    }
+
+    auto loaded_Game_UpdateAndRender =
+        (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
+
+    // TODO(hulvdan): Remove the line below and make a better diagnostic below
+    assert(loaded_Game_UpdateAndRender != nullptr);
+
+    bool functions_loaded = loaded_Game_UpdateAndRender;
+    if (!functions_loaded) {
+        // TODO(hulvdan): Diagnostic
+        return;
+    }
+
+#if BFG_INTERNAL
+    last_game_dll_write_time = filetime.filetime;
+#endif
+
+    game_lib = lib;
+    Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
+}
+// -- GAME STUFF END
 
 // -- CONTROLLER STUFF
 using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
@@ -110,7 +199,11 @@ f32 FillSamples(
     assert(frequency > 0);
     assert(last_angle >= 0);
 
+#if 0
     const i16 volume = 6400;
+#else
+    const i16 volume = 0;
+#endif
 
     f32 samples_per_oscillation = (f32)samples_count_per_second / frequency;
     f32 angle_step = BF_2PI / samples_per_oscillation;
@@ -169,58 +262,36 @@ global_variable BFBitmap screen_bitmap;
 global_variable int client_width;
 global_variable int client_height;
 
-global_variable f32 Goffset_x = 0;
-global_variable f32 Goffset_y = 0;
-
 void Win32UpdateBitmap(HDC device_context)
 {
     assert(client_width >= 0);
     assert(client_height >= 0);
 
-    screen_bitmap.width = client_width;
-    screen_bitmap.height = client_height;
+    auto& game_bitmap = screen_bitmap.bitmap;
+    game_bitmap.width = client_width;
+    game_bitmap.height = client_height;
 
-    screen_bitmap.bits_per_pixel = 32;
+    game_bitmap.bits_per_pixel = 32;
     screen_bitmap.info.bmiHeader.biSize = sizeof(screen_bitmap.info.bmiHeader);
     screen_bitmap.info.bmiHeader.biWidth = client_width;
     screen_bitmap.info.bmiHeader.biHeight = -client_height;
     screen_bitmap.info.bmiHeader.biPlanes = 1;
-    screen_bitmap.info.bmiHeader.biBitCount = screen_bitmap.bits_per_pixel;
+    screen_bitmap.info.bmiHeader.biBitCount = game_bitmap.bits_per_pixel;
     screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
 
-    if (screen_bitmap.memory)
-        VirtualFree(screen_bitmap.memory, 0, MEM_RELEASE);
+    if (game_bitmap.memory)
+        VirtualFree(game_bitmap.memory, 0, MEM_RELEASE);
 
-    screen_bitmap.memory = VirtualAlloc(
-        0, screen_bitmap.width * screen_bitmap.height * screen_bitmap.bits_per_pixel / 8,
+    game_bitmap.memory = VirtualAlloc(
+        0, game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
         MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
     if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
 
     screen_bitmap.handle = CreateDIBitmap(
-        device_context, &screen_bitmap.info.bmiHeader, 0, screen_bitmap.memory, &screen_bitmap.info,
+        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory, &screen_bitmap.info,
         DIB_RGB_COLORS);
-}
-
-void Win32RenderWeirdGradient(i32 offset_x, i32 offset_y)
-{
-    auto pixel = (u32*)screen_bitmap.memory;
-
-    for (int y = 0; y < screen_bitmap.height; y++) {
-        for (int x = 0; x < screen_bitmap.width; x++) {
-            // u32 red  = 0;
-            u32 red = (u8)(x + offset_x);
-            // u32 red  = (u8)(y + offset_y);
-            u32 green = 0;
-            // u32 green = (u8)(x + offset_x);
-            // u32 green = (u8)(y + offset_y);
-            // u32 blue = 0;
-            // u32 blue = (u8)(x + offset_x);
-            u32 blue = (u8)(y + offset_y);
-            (*pixel++) = (blue) | (green << 8) | (red << 16);
-        }
-    }
 }
 
 void Win32BlitBitmapToTheWindow(HDC device_context)
@@ -228,8 +299,8 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
     StretchDIBits(
         device_context,  //
         0, 0, client_width, client_height,  //
-        0, 0, screen_bitmap.width, screen_bitmap.height,  //
-        screen_bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
+        0, 0, screen_bitmap.bitmap.width, screen_bitmap.bitmap.height,  //
+        screen_bitmap.bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
 }
 
 void Win32Paint(HWND window_handle, HDC device_context)
@@ -237,8 +308,12 @@ void Win32Paint(HWND window_handle, HDC device_context)
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    Win32RenderWeirdGradient((i32)Goffset_x, (i32)Goffset_y);
+    Game_UpdateAndRender_(game_memory, screen_bitmap.bitmap);
     Win32BlitBitmapToTheWindow(device_context);
+
+#if BFG_INTERNAL
+    LoadOrUpdateGameDll();
+#endif
 }
 
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
@@ -373,7 +448,15 @@ static int WinMain(
     int show_command)
 {
     WNDCLASSA windowClass = {};
+    LoadOrUpdateGameDll();
     LoadXInputDll();
+
+    game_memory =
+        VirtualAlloc(0, Megabytes(64LL), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!game_memory) {
+        // TODO(hulvdan): Diagnostic
+        return -1;
+    }
 
     // --- XAudio stuff ---
     LoadXAudioDll();
@@ -548,8 +631,9 @@ static int WinMain(
                     f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
                     f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                    Goffset_x += stick_x_normalized;
-                    Goffset_y -= stick_y_normalized;
+                    // TODO(hulvdan): Move to game
+                    // Goffset_x += stick_x_normalized;
+                    // Goffset_y -= stick_y_normalized;
 
                     voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
                 } else {
