@@ -33,6 +33,7 @@ global_variable HMODULE game_lib = nullptr;
 global_variable void* game_memory = nullptr;
 global_variable std::vector<u8> events = {};
 
+// TODO(hulvdan): How do I restrict the types to only allow those specified in game.h?
 template <typename T>
 void push_event(T event)
 {
