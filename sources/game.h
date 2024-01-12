@@ -138,5 +138,6 @@ struct ControllerAxisChanged {
 extern "C" GAME_LIBRARY_EXPORT inline void
 Game_ProcessEvents(void* memory_, void* events_, size_t n);
 
-extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, GameBitmap& bitmap);
+extern "C" GAME_LIBRARY_EXPORT inline void
+Game_UpdateAndRender(f32 dt, void* memory_, GameBitmap& bitmap);
 // --- EXPORTED FUNCTIONS END ---

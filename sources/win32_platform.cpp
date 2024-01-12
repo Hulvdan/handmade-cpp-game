@@ -80,8 +80,8 @@ using Game_ProcessEvents_Type = void (*)(void*, void*, size_t);
 void Game_ProcessEvents_Stub(void*, void*, size_t) {}
 Game_ProcessEvents_Type Game_ProcessEvents_ = Game_ProcessEvents_Stub;
 
-using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
-void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
+using Game_UpdateAndRender_Type = void (*)(f32, void*, GameBitmap&);
+void Game_UpdateAndRender_Stub(f32 dt, void* memory_, GameBitmap& bitmap) {}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
 void LoadOrUpdateGameDll()
@@ -328,7 +328,7 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         screen_bitmap.bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
 }
 
-void Win32Paint(HWND window_handle, HDC device_context)
+void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
 {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
@@ -339,7 +339,7 @@ void Win32Paint(HWND window_handle, HDC device_context)
         events.clear();
     }
 
-    Game_UpdateAndRender_(game_memory, screen_bitmap.bitmap);
+    Game_UpdateAndRender_(dt, game_memory, screen_bitmap.bitmap);
     Win32BlitBitmapToTheWindow(device_context);
 
 #if BFG_INTERNAL
@@ -371,8 +371,8 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
 
         PAINTSTRUCT paint_struct;
         auto device_context = BeginPaint(window_handle, &paint_struct);
-
-        Win32Paint(window_handle, device_context);
+        // TODO(hulvdan): Do we really need to redraw the game here?
+        Win32Paint(0, window_handle, device_context);
         EndPaint(window_handle, &paint_struct);
     } break;
 
@@ -638,7 +638,22 @@ static int WinMain(
     MSG message = {};
 
     auto device_context = GetDC(window_handle);
+    auto display_refresh_rate = GetDeviceCaps(device_context, VREFRESH);
+    assert(display_refresh_rate >= 0);
+
+    LARGE_INTEGER perf_counter_current, perf_counter_new, perf_counter_frequency;
+    LONGLONG frame_time_msec;
+    f32 frame_time;
+    QueryPerformanceCounter(&perf_counter_current);
+    QueryPerformanceFrequency(&perf_counter_frequency);
+
+    f32 last_frame_dt = 0;
+    f32 FPS = (f32)display_refresh_rate;
     while (running) {
+        LARGE_INTEGER next_frame_expected_perf_counter;
+        next_frame_expected_perf_counter.QuadPart =
+            perf_counter_current.QuadPart + (i64)((f32)(perf_counter_frequency.QuadPart) / FPS);
+
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;
@@ -649,39 +664,61 @@ static int WinMain(
             DispatchMessage(&message);
         }
 
-        if (running) {
-            // CONTROLLER STUFF
-            // TODO(hulvdan): Measure latency?
-            for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
-                XINPUT_STATE state = {};
+        if (!running)
+            break;
 
-                DWORD dwResult = XInputGetState_(i, &state);
+        // CONTROLLER STUFF
+        // TODO(hulvdan): Improve on latency?
+        for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
+            XINPUT_STATE state = {};
 
-                if (dwResult == ERROR_SUCCESS) {
-                    // Controller is connected
-                    const f32 scale = 32768;
-                    f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
-                    f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
+            DWORD dwResult = XInputGetState_(i, &state);
 
-                    ControllerAxisChanged event = {};
-                    event.axis = 0;
-                    event.value = stick_x_normalized;
-                    push_event<ControllerAxisChanged>(event);
+            if (dwResult == ERROR_SUCCESS) {
+                // Controller is connected
+                const f32 scale = 32768;
+                f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
+                f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                    event.axis = 1;
-                    event.value = stick_y_normalized;
-                    push_event<ControllerAxisChanged>(event);
+                ControllerAxisChanged event = {};
+                event.axis = 0;
+                event.value = stick_x_normalized;
+                push_event<ControllerAxisChanged>(event);
 
-                    voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
-                } else {
-                    // TODO(hulvdan): Handling disconnects
-                }
+                event.axis = 1;
+                event.value = stick_y_normalized;
+                push_event<ControllerAxisChanged>(event);
+
+                voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
+            } else {
+                // TODO(hulvdan): Handling disconnects
             }
-            // CONTROLLER STUFF END
-
-            Win32Paint(window_handle, device_context);
-            ReleaseDC(window_handle, device_context);
         }
+        // CONTROLLER STUFF END
+
+        Win32Paint(last_frame_dt, window_handle, device_context);
+        ReleaseDC(window_handle, device_context);
+
+        // TODO(hulvdan): Find a more precise way of calclating dt.
+        // Processor's frequency can change in the middle of the game
+        // due to battery saving or some other reasons
+        // QueryPerformanceCounter(&perf_counter_new);
+        // frame_time_msec = (perf_counter_new.QuadPart - perf_counter_current.QuadPart) * 1000 /
+        //     perf_counter_frequency.QuadPart;
+        // frame_time = ((f32) static_cast<double>(frame_time_msec)) / 1000.0f;
+        // frame_time = min(1.0f / 10.0f, frame_time);
+
+        QueryPerformanceCounter(&perf_counter_new);
+        while (perf_counter_new.QuadPart < next_frame_expected_perf_counter.QuadPart) {
+            // TODO(hulvdan): Stop melting the CPU! Sleep!
+            // Sleep(msec_before_new_frame - frame_time);
+            QueryPerformanceCounter(&perf_counter_new);
+        }
+
+        last_frame_dt = (f32)(perf_counter_new.QuadPart - perf_counter_current.QuadPart) /
+            (f32)perf_counter_frequency.QuadPart;
+        assert(last_frame_dt >= 0);
+        perf_counter_current = perf_counter_new;
     }
 
     if (samples1 != nullptr)

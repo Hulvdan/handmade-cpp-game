@@ -83,7 +83,8 @@ Game_ProcessEvents(void* memory_, void* events_, size_t n)
 }
 // --- EVENTS END
 
-extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, GameBitmap& bitmap)
+extern "C" GAME_LIBRARY_EXPORT inline void
+Game_UpdateAndRender(f32 dt, void* memory_, GameBitmap& bitmap)
 {
     auto& memory = *((GameMemory*)memory_);
     auto& state = memory.state;
@@ -100,8 +101,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, G
     auto offset_x = (i32)state.offset_x;
     auto offset_y = (i32)state.offset_y;
 
-    state.offset_y += .1f;
-    state.offset_x += .2f;
+    state.offset_y += dt * 256.0;
+    state.offset_x += dt * 256.0;
 
     const auto player_radius = 20;
 
