@@ -1,10 +1,11 @@
 @echo off
-
-REM TODO(hulvdan): Display the duration of the build time in the end
+setlocal EnableDelayedExpansion
 
 pushd %0\..\..
 
 echo [32mINFO: Running build.bat...[0m
+
+set "startTime=%time: =0%"
 
 echo.
 echo [33mINFO: Remaking CMake files...[0m
@@ -37,7 +38,16 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
+set "endTime=%time: =0%"
+rem Get elapsed time:
+set "end=!endTime:%time:~8,1%=%%100)*100+1!"  &  set "start=!startTime:%time:~8,1%=%%100)*100+1!"
+set /A "elap=((((10!end:%time:~2,1%=%%100)*60+1!%%100)-((((10!start:%time:~2,1%=%%100)*60+1!%%100), elap-=(elap>>31)*24*60*60*100"
+rem Convert elapsed time to HH:MM:SS:CC format:
+set /A "cc=elap%%100+100,elap/=100,ss=elap%%60+100,elap/=60,mm=elap%%60+100,hh=elap/60+100"
+
 echo.
-echo Compilation [32mSucceeded[0m
+echo Compilation [32mSucceeded[0m in %hh:~1%%time:~2,1%%mm:~1%%time:~2,1%%ss:~1%%time:~8,1%%cc:~1%
+REM echo --- Start:    %startTime%
+REM echo --- End:      %endTime%
 
 popd
