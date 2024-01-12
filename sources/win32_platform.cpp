@@ -472,6 +472,20 @@ private:
     f32 last_angle = 0;
 };
 
+u64 Win32Clock()
+{
+    LARGE_INTEGER res;
+    QueryPerformanceCounter(&res);
+    return res.QuadPart;
+}
+
+u64 Win32Frequency()
+{
+    LARGE_INTEGER res;
+    QueryPerformanceFrequency(&res);
+    return res.QuadPart;
+}
+
 static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
@@ -598,7 +612,7 @@ static int WinMain(
 
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
-    windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    windowClass.style = CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
@@ -635,25 +649,20 @@ static int WinMain(
     screen_bitmap = BFBitmap();
 
     running = true;
-    MSG message = {};
 
-    auto device_context = GetDC(window_handle);
-    auto display_refresh_rate = GetDeviceCaps(device_context, VREFRESH);
-    assert(display_refresh_rate >= 0);
-
-    LARGE_INTEGER perf_counter_current, perf_counter_new, perf_counter_frequency;
-    LONGLONG frame_time_msec;
-    f32 frame_time;
-    QueryPerformanceCounter(&perf_counter_current);
-    QueryPerformanceFrequency(&perf_counter_frequency);
+    u64 perf_counter_current = Win32Clock();
+    u64 perf_counter_frequency = Win32Frequency();
 
     f32 last_frame_dt = 0;
-    f32 FPS = (f32)display_refresh_rate;
-    while (running) {
-        LARGE_INTEGER next_frame_expected_perf_counter;
-        next_frame_expected_perf_counter.QuadPart =
-            perf_counter_current.QuadPart + (i64)((f32)(perf_counter_frequency.QuadPart) / FPS);
+    const f32 MAX_FRAME_DT = 1.0f / 10.0f;
+    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole mess
+    f32 REFRESH_RATE = 60.0f;
+    i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
 
+    while (running) {
+        u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
+
+        MSG message = {};
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;
@@ -696,28 +705,26 @@ static int WinMain(
         }
         // CONTROLLER STUFF END
 
-        Win32Paint(last_frame_dt, window_handle, device_context);
+        auto device_context = GetDC(window_handle);
+        Win32Paint(min(last_frame_dt, MAX_FRAME_DT), window_handle, device_context);
         ReleaseDC(window_handle, device_context);
 
-        // TODO(hulvdan): Find a more precise way of calclating dt.
-        // Processor's frequency can change in the middle of the game
-        // due to battery saving or some other reasons
-        // QueryPerformanceCounter(&perf_counter_new);
-        // frame_time_msec = (perf_counter_new.QuadPart - perf_counter_current.QuadPart) * 1000 /
-        //     perf_counter_frequency.QuadPart;
-        // frame_time = ((f32) static_cast<double>(frame_time_msec)) / 1000.0f;
-        // frame_time = min(1.0f / 10.0f, frame_time);
+        u64 perf_counter_new = Win32Clock();
+        last_frame_dt =
+            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        assert(last_frame_dt >= 0);
 
-        QueryPerformanceCounter(&perf_counter_new);
-        while (perf_counter_new.QuadPart < next_frame_expected_perf_counter.QuadPart) {
-            // TODO(hulvdan): Stop melting the CPU! Sleep!
-            // Sleep(msec_before_new_frame - frame_time);
-            QueryPerformanceCounter(&perf_counter_new);
+        if (perf_counter_new < next_frame_expected_perf_counter) {
+            while (perf_counter_new < next_frame_expected_perf_counter) {
+                // TODO(hulvdan): Stop melting the CPU! Sleep!
+                perf_counter_new = Win32Clock();
+            }
+        } else {
+            // TODO(hulvdan): There go your frameskips...
         }
 
-        last_frame_dt = (f32)(perf_counter_new.QuadPart - perf_counter_current.QuadPart) /
-            (f32)perf_counter_frequency.QuadPart;
-        assert(last_frame_dt >= 0);
+        last_frame_dt =
+            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
         perf_counter_current = perf_counter_new;
     }
 

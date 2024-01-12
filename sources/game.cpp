@@ -101,8 +101,8 @@ Game_UpdateAndRender(f32 dt, void* memory_, GameBitmap& bitmap)
     auto offset_x = (i32)state.offset_x;
     auto offset_y = (i32)state.offset_y;
 
-    state.offset_y += dt * 256.0;
-    state.offset_x += dt * 256.0;
+    state.offset_y += dt * 256.0f;
+    state.offset_x += dt * 256.0f;
 
     const auto player_radius = 20;
 
@@ -121,9 +121,10 @@ Game_UpdateAndRender(f32 dt, void* memory_, GameBitmap& bitmap)
             auto dx = x - (i32)state.player_pos.x;
             auto dy = y - (i32)state.player_pos.y;
             if (dx * dx + dy * dy < player_radius * player_radius) {
-                red = 255;
-                green = 255;
-                blue = 255;
+                const auto player_color = 255;
+                red = player_color;
+                green = player_color;
+                blue = player_color;
             }
 
             (*pixel++) = (blue << 0) | (green << 8) | (red << 16);
