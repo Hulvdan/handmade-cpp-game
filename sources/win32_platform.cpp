@@ -38,14 +38,17 @@ global_variable std::vector<u8> events = {};
 template <typename T>
 void push_event(T& event)
 {
+    auto can_push = events.capacity() >= events.size() + sizeof(T) + 1;
+    if (!can_push) {
+        // TODO(hulvdan): Diagnostic
+        assert(false);
+    }
+
     events_count++;
     events.push_back((u8)T::_event_type);
 
     auto data = (u8*)&event;
-    for (size_t i = 0; i < sizeof(T); i++) {
-        events.push_back(*data);
-        data++;
-    }
+    events.insert(events.end(), data, data + sizeof(T));
 }
 
 #if BFG_INTERNAL
@@ -479,7 +482,7 @@ static int WinMain(
     LoadOrUpdateGameDll();
     LoadXInputDll();
 
-    events.reserve(64LL * 1024);
+    events.reserve(Kilobytes(64LL));
 
     game_memory =
         VirtualAlloc(0, Megabytes(64LL), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
@@ -650,8 +653,7 @@ static int WinMain(
             // CONTROLLER STUFF
             // TODO(hulvdan): Measure latency?
             for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
-                XINPUT_STATE state;
-                ZeroMemory(&state, sizeof(XINPUT_STATE));
+                XINPUT_STATE state = {};
 
                 DWORD dwResult = XInputGetState_(i, &state);
 

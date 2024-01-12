@@ -16,7 +16,6 @@ struct GameMemory {
 };
 
 // --- EVENTS START
-
 extern "C" GAME_LIBRARY_EXPORT inline void
 Game_ProcessEvents(void* memory_, void* events_, size_t n)
 {
