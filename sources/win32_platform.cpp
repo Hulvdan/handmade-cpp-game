@@ -486,6 +486,9 @@ static int WinMain(
         return -1;
     }
 
+    const i32 SLEEP_MSEC_GRANULARITY = 1;
+    timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
+
     // --- XAudio stuff ---
     LoadXAudioDll();
 
@@ -697,7 +700,14 @@ static int WinMain(
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
             while (perf_counter_new < next_frame_expected_perf_counter) {
-                // TODO(hulvdan): Stop melting the CPU! Sleep!
+                i32 msec_to_sleep = (f32)(next_frame_expected_perf_counter - perf_counter_new) *
+                    1000.0f / (f32)perf_counter_frequency;
+                assert(msec_to_sleep >= 0);
+
+                if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
+                    Sleep(msec_to_sleep - SLEEP_MSEC_GRANULARITY);
+                }
+
                 perf_counter_new = Win32Clock();
             }
         } else {
