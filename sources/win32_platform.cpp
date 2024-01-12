@@ -35,6 +35,8 @@ global_variable void* game_memory = nullptr;
 global_variable size_t events_count = 0;
 global_variable std::vector<u8> events = {};
 
+// TODO(hulvdan): Is there any way to restrict T
+// to be only one of event structs specified in game.h?
 template <typename T>
 void push_event(T& event)
 {
