@@ -31,16 +31,21 @@ struct BFBitmap {
 // -- GAME STUFF
 global_variable HMODULE game_lib = nullptr;
 global_variable void* game_memory = nullptr;
+
+global_variable size_t events_count = 0;
 global_variable std::vector<u8> events = {};
 
-// TODO(hulvdan): How do I restrict the types to only allow those specified in game.h?
 template <typename T>
-void push_event(T event)
+void push_event(T& event)
 {
+    events_count++;
     events.push_back((u8)T::_event_type);
-    // TODO(hulvdan): How do I ensure that game.dll has
-    // the same types, their field alignments as executable?
-    events.insert(events.end(), (u8*)(&event), (u8*)(&event) + sizeof(T));
+
+    auto data = (u8*)&event;
+    for (size_t i = 0; i < sizeof(T); i++) {
+        events.push_back(*data);
+        data++;
+    }
 }
 
 #if BFG_INTERNAL
@@ -326,7 +331,8 @@ void Win32Paint(HWND window_handle, HDC device_context)
         Win32UpdateBitmap(device_context);
 
     if (!events.empty()) {
-        Game_ProcessEvents_(game_memory, events.data(), events.size());
+        Game_ProcessEvents_(game_memory, events.data(), events_count);
+        events_count = 0;
         events.clear();
     }
 

@@ -25,47 +25,48 @@ Game_ProcessEvents(void* memory_, void* events_, size_t n)
     auto& state = memory.state;
 
     auto events = (u8*)events_;
-    while (n--) {
-        EventType type = (EventType)(*events++);
+    while (n > 0) {
+        n--;
+        auto type = (EventType)(*events++);
 
         switch (type) {
         case EventType::MousePressed: {
-            auto& event = *((MousePressed*)events);
+            auto& event = *(MousePressed*)events;
             events += sizeof(MousePressed);
         } break;
 
         case EventType::MouseReleased: {
-            auto& event = *((MouseReleased*)events);
+            auto& event = *(MouseReleased*)events;
             events += sizeof(MouseReleased);
         } break;
 
         case EventType::MouseMoved: {
-            auto& event = *((MouseMoved*)events);
+            auto& event = *(MouseMoved*)events;
             events += sizeof(MouseMoved);
         } break;
 
         case EventType::KeyboardPressed: {
-            auto& event = *((KeyboardPressed*)events);
+            auto& event = *(KeyboardPressed*)events;
             events += sizeof(KeyboardPressed);
         } break;
 
         case EventType::KeyboardReleased: {
-            auto& event = *((KeyboardReleased*)events);
+            auto& event = *(KeyboardReleased*)events;
             events += sizeof(KeyboardReleased);
         } break;
 
         case EventType::ControllerButtonPressed: {
-            auto& event = *((ControllerButtonPressed*)events);
+            auto& event = *(ControllerButtonPressed*)events;
             events += sizeof(ControllerButtonPressed);
         } break;
 
         case EventType::ControllerButtonReleased: {
-            auto& event = *((ControllerButtonReleased*)events);
+            auto& event = *(ControllerButtonReleased*)events;
             events += sizeof(ControllerButtonReleased);
         } break;
 
         case EventType::ControllerAxisChanged: {
-            auto& event = *((ControllerAxisChanged*)events);
+            auto& event = *(ControllerAxisChanged*)events;
             events += sizeof(ControllerAxisChanged);
 
             assert(event.axis >= 0 && event.axis <= 1);
@@ -77,7 +78,7 @@ Game_ProcessEvents(void* memory_, void* events_, size_t n)
 
         default:
             // TODO(hulvdan): Diagnostic
-            break;
+            assert(false);
         }
     }
 }
