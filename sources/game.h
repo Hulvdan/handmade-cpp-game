@@ -42,7 +42,7 @@ struct v2f {
     f32 y;
 };
 
-// --- EVENTS ---
+// --- EVENTS START ---
 enum class EventType {
     MousePressed,
     MouseReleased,

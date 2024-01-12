@@ -601,18 +601,18 @@ static int WinMain(
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
 
-    if (source_voice != nullptr) {
-        auto res = source_voice->Start(0);
-        // TODO(hulvdan): Diagnostic
-        assert(SUCCEEDED(res));
-    }
-
     // TODO(hulvdan): Icon!
     // HICON     hIcon;
 
     if (RegisterClassA(&windowClass) == NULL) {
         // TODO(hulvdan): Diagnostic
         return 0;
+    }
+
+    if (source_voice != nullptr) {
+        auto res = source_voice->Start(0);
+        // TODO(hulvdan): Diagnostic
+        assert(SUCCEEDED(res));
     }
 
     auto window_handle = CreateWindowExA(
