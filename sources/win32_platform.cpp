@@ -76,12 +76,8 @@ PeekFiletimeRes PeekFiletime(const char* filename)
 }
 #endif
 
-using Game_ProcessEvents_Type = void (*)(void*, void*, size_t);
-void Game_ProcessEvents_Stub(void*, void*, size_t) {}
-Game_ProcessEvents_Type Game_ProcessEvents_ = Game_ProcessEvents_Stub;
-
-using Game_UpdateAndRender_Type = void (*)(f32, void*, GameBitmap&);
-void Game_UpdateAndRender_Stub(f32 dt, void* memory_, GameBitmap& bitmap) {}
+using Game_UpdateAndRender_Type = void (*)(f32, void*, GameBitmap&, void*, size_t);
+void Game_UpdateAndRender_Stub(f32 dt, void* memory_, GameBitmap& bitmap, void*, size_t) {}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
 void LoadOrUpdateGameDll()
@@ -118,7 +114,6 @@ void LoadOrUpdateGameDll()
 #endif
 
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
-    Game_ProcessEvents_ = Game_ProcessEvents_Stub;
 
     HMODULE lib = LoadLibrary(path);
     if (!lib) {
@@ -128,10 +123,8 @@ void LoadOrUpdateGameDll()
 
     auto loaded_Game_UpdateAndRender =
         (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
-    auto loaded_Game_ProcessEvents =
-        (Game_ProcessEvents_Type)GetProcAddress(lib, "Game_ProcessEvents");
 
-    bool functions_loaded = loaded_Game_UpdateAndRender && loaded_Game_ProcessEvents;
+    bool functions_loaded = loaded_Game_UpdateAndRender;
     if (!functions_loaded) {
         // TODO(hulvdan): Diagnostic
         return;
@@ -143,7 +136,6 @@ void LoadOrUpdateGameDll()
 
     game_lib = lib;
     Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
-    Game_ProcessEvents_ = loaded_Game_ProcessEvents;
 }
 // -- GAME STUFF END
 
@@ -333,14 +325,12 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    if (!events.empty()) {
-        Game_ProcessEvents_(game_memory, events.data(), events_count);
-        events_count = 0;
-        events.clear();
-    }
-
-    Game_UpdateAndRender_(dt, game_memory, screen_bitmap.bitmap);
+    Game_UpdateAndRender_(
+        dt, game_memory, screen_bitmap.bitmap, (void*)events.data(), events_count);
     Win32BlitBitmapToTheWindow(device_context);
+
+    events_count = 0;
+    events.clear();
 
 #if BFG_INTERNAL
     LoadOrUpdateGameDll();
@@ -363,17 +353,6 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         client_width = LOWORD(lParam);
         client_height = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
-    } break;
-
-    case WM_PAINT: {
-        assert(client_width != 0);
-        assert(client_height != 0);
-
-        PAINTSTRUCT paint_struct;
-        auto device_context = BeginPaint(window_handle, &paint_struct);
-        // TODO(hulvdan): Do we really need to redraw the game here?
-        Win32Paint(0, window_handle, device_context);
-        EndPaint(window_handle, &paint_struct);
     } break;
 
     case WM_KEYDOWN:
