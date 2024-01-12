@@ -15,17 +15,13 @@ struct GameMemory {
     GameState state;
 };
 
-// --- EVENTS START
-extern "C" GAME_LIBRARY_EXPORT inline void
-Game_ProcessEvents(void* memory_, void* events_, size_t n)
+void ProcessEvents(GameMemory& memory, u8* events, size_t input_events_count)
 {
-    auto& memory = *((GameMemory*)memory_);
     assert(memory.is_initialized);
     auto& state = memory.state;
 
-    auto events = (u8*)events_;
-    while (n > 0) {
-        n--;
+    while (input_events_count > 0) {
+        input_events_count--;
         auto type = (EventType)(*events++);
 
         switch (type) {
@@ -81,18 +77,25 @@ Game_ProcessEvents(void* memory_, void* events_, size_t n)
         }
     }
 }
-// --- EVENTS END
 
-extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, GameBitmap& bitmap)
+extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
+    f32 dt,
+    void* memory_ptr,
+    GameBitmap& bitmap,
+    void* input_events_bytes_ptr,
+    size_t input_events_count)
 {
-    auto& memory = *((GameMemory*)memory_);
+    auto& memory = *((GameMemory*)memory_ptr);
     auto& state = memory.state;
 
     if (!memory.is_initialized) {
+        auto& state = memory.state;
         state.offset_x = 0;
         state.offset_y = 0;
         memory.is_initialized = true;
     }
+
+    ProcessEvents(memory, (u8*)input_events_bytes_ptr, input_events_count);
 
     assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
@@ -100,8 +103,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, G
     auto offset_x = (i32)state.offset_x;
     auto offset_y = (i32)state.offset_y;
 
-    state.offset_y += .1f;
-    state.offset_x += .2f;
+    state.offset_y += dt * 256.0f;
+    state.offset_x += dt * 256.0f;
 
     const auto player_radius = 20;
 
@@ -120,9 +123,10 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(void* memory_, G
             auto dx = x - (i32)state.player_pos.x;
             auto dy = y - (i32)state.player_pos.y;
             if (dx * dx + dy * dy < player_radius * player_radius) {
-                red = 255;
-                green = 255;
-                blue = 255;
+                const auto player_color = 255;
+                red = player_color;
+                green = player_color;
+                blue = player_color;
             }
 
             (*pixel++) = (blue << 0) | (green << 8) | (red << 16);

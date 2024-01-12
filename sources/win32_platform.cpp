@@ -35,6 +35,8 @@ global_variable void* game_memory = nullptr;
 global_variable size_t events_count = 0;
 global_variable std::vector<u8> events = {};
 
+// TODO(hulvdan): Is there any way to restrict T
+// to be only one of event structs specified in game.h?
 template <typename T>
 void push_event(T& event)
 {
@@ -76,12 +78,8 @@ PeekFiletimeRes PeekFiletime(const char* filename)
 }
 #endif
 
-using Game_ProcessEvents_Type = void (*)(void*, void*, size_t);
-void Game_ProcessEvents_Stub(void*, void*, size_t) {}
-Game_ProcessEvents_Type Game_ProcessEvents_ = Game_ProcessEvents_Stub;
-
-using Game_UpdateAndRender_Type = void (*)(void*, GameBitmap&);
-void Game_UpdateAndRender_Stub(void* memory_, GameBitmap& bitmap) {}
+using Game_UpdateAndRender_Type = void (*)(f32, void*, GameBitmap&, void*, size_t);
+void Game_UpdateAndRender_Stub(f32 dt, void* memory_, GameBitmap& bitmap, void*, size_t) {}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
 void LoadOrUpdateGameDll()
@@ -118,7 +116,6 @@ void LoadOrUpdateGameDll()
 #endif
 
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
-    Game_ProcessEvents_ = Game_ProcessEvents_Stub;
 
     HMODULE lib = LoadLibrary(path);
     if (!lib) {
@@ -128,10 +125,8 @@ void LoadOrUpdateGameDll()
 
     auto loaded_Game_UpdateAndRender =
         (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
-    auto loaded_Game_ProcessEvents =
-        (Game_ProcessEvents_Type)GetProcAddress(lib, "Game_ProcessEvents");
 
-    bool functions_loaded = loaded_Game_UpdateAndRender && loaded_Game_ProcessEvents;
+    bool functions_loaded = loaded_Game_UpdateAndRender;
     if (!functions_loaded) {
         // TODO(hulvdan): Diagnostic
         return;
@@ -143,7 +138,6 @@ void LoadOrUpdateGameDll()
 
     game_lib = lib;
     Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
-    Game_ProcessEvents_ = loaded_Game_ProcessEvents;
 }
 // -- GAME STUFF END
 
@@ -328,19 +322,17 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         screen_bitmap.bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
 }
 
-void Win32Paint(HWND window_handle, HDC device_context)
+void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
 {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    if (!events.empty()) {
-        Game_ProcessEvents_(game_memory, events.data(), events_count);
-        events_count = 0;
-        events.clear();
-    }
-
-    Game_UpdateAndRender_(game_memory, screen_bitmap.bitmap);
+    Game_UpdateAndRender_(
+        dt, game_memory, screen_bitmap.bitmap, (void*)events.data(), events_count);
     Win32BlitBitmapToTheWindow(device_context);
+
+    events_count = 0;
+    events.clear();
 
 #if BFG_INTERNAL
     LoadOrUpdateGameDll();
@@ -363,17 +355,6 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         client_width = LOWORD(lParam);
         client_height = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
-    } break;
-
-    case WM_PAINT: {
-        assert(client_width != 0);
-        assert(client_height != 0);
-
-        PAINTSTRUCT paint_struct;
-        auto device_context = BeginPaint(window_handle, &paint_struct);
-
-        Win32Paint(window_handle, device_context);
-        EndPaint(window_handle, &paint_struct);
     } break;
 
     case WM_KEYDOWN:
@@ -472,6 +453,20 @@ private:
     f32 last_angle = 0;
 };
 
+u64 Win32Clock()
+{
+    LARGE_INTEGER res;
+    QueryPerformanceCounter(&res);
+    return res.QuadPart;
+}
+
+u64 Win32Frequency()
+{
+    LARGE_INTEGER res;
+    QueryPerformanceFrequency(&res);
+    return res.QuadPart;
+}
+
 static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
@@ -490,6 +485,9 @@ static int WinMain(
         // TODO(hulvdan): Diagnostic
         return -1;
     }
+
+    const i32 SLEEP_MSEC_GRANULARITY = 1;
+    timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
     // --- XAudio stuff ---
     LoadXAudioDll();
@@ -598,7 +596,7 @@ static int WinMain(
 
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
-    windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    windowClass.style = CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
@@ -635,10 +633,20 @@ static int WinMain(
     screen_bitmap = BFBitmap();
 
     running = true;
-    MSG message = {};
 
-    auto device_context = GetDC(window_handle);
+    u64 perf_counter_current = Win32Clock();
+    u64 perf_counter_frequency = Win32Frequency();
+
+    f32 last_frame_dt = 0;
+    const f32 MAX_FRAME_DT = 1.0f / 10.0f;
+    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole mess
+    f32 REFRESH_RATE = 60.0f;
+    i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
+
     while (running) {
+        u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
+
+        MSG message = {};
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;
@@ -649,39 +657,66 @@ static int WinMain(
             DispatchMessage(&message);
         }
 
-        if (running) {
-            // CONTROLLER STUFF
-            // TODO(hulvdan): Measure latency?
-            for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
-                XINPUT_STATE state = {};
+        if (!running)
+            break;
 
-                DWORD dwResult = XInputGetState_(i, &state);
+        // CONTROLLER STUFF
+        // TODO(hulvdan): Improve on latency?
+        for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
+            XINPUT_STATE state = {};
 
-                if (dwResult == ERROR_SUCCESS) {
-                    // Controller is connected
-                    const f32 scale = 32768;
-                    f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
-                    f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
+            DWORD dwResult = XInputGetState_(i, &state);
 
-                    ControllerAxisChanged event = {};
-                    event.axis = 0;
-                    event.value = stick_x_normalized;
-                    push_event<ControllerAxisChanged>(event);
+            if (dwResult == ERROR_SUCCESS) {
+                // Controller is connected
+                const f32 scale = 32768;
+                f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
+                f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                    event.axis = 1;
-                    event.value = stick_y_normalized;
-                    push_event<ControllerAxisChanged>(event);
+                ControllerAxisChanged event = {};
+                event.axis = 0;
+                event.value = stick_x_normalized;
+                push_event<ControllerAxisChanged>(event);
 
-                    voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
-                } else {
-                    // TODO(hulvdan): Handling disconnects
-                }
+                event.axis = 1;
+                event.value = stick_y_normalized;
+                push_event<ControllerAxisChanged>(event);
+
+                voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
+            } else {
+                // TODO(hulvdan): Handling disconnects
             }
-            // CONTROLLER STUFF END
-
-            Win32Paint(window_handle, device_context);
-            ReleaseDC(window_handle, device_context);
         }
+        // CONTROLLER STUFF END
+
+        auto device_context = GetDC(window_handle);
+        Win32Paint(min(last_frame_dt, MAX_FRAME_DT), window_handle, device_context);
+        ReleaseDC(window_handle, device_context);
+
+        u64 perf_counter_new = Win32Clock();
+        last_frame_dt =
+            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        assert(last_frame_dt >= 0);
+
+        if (perf_counter_new < next_frame_expected_perf_counter) {
+            while (perf_counter_new < next_frame_expected_perf_counter) {
+                i32 msec_to_sleep = (f32)(next_frame_expected_perf_counter - perf_counter_new) *
+                    1000.0f / (f32)perf_counter_frequency;
+                assert(msec_to_sleep >= 0);
+
+                if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
+                    Sleep(msec_to_sleep - SLEEP_MSEC_GRANULARITY);
+                }
+
+                perf_counter_new = Win32Clock();
+            }
+        } else {
+            // TODO(hulvdan): There go your frameskips...
+        }
+
+        last_frame_dt =
+            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        perf_counter_current = perf_counter_new;
     }
 
     if (samples1 != nullptr)
