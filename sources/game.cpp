@@ -15,7 +15,7 @@ struct GameMemory {
     GameState state;
 };
 
-void ProcessEvents(GameMemory& memory, u8* events, size_t input_events_count)
+void ProcessEvents(GameMemory& __restrict memory, u8* __restrict events, size_t input_events_count)
 {
     assert(memory.is_initialized);
     auto& state = memory.state;
@@ -80,9 +80,9 @@ void ProcessEvents(GameMemory& memory, u8* events, size_t input_events_count)
 
 extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
     f32 dt,
-    void* memory_ptr,
-    GameBitmap& bitmap,
-    void* input_events_bytes_ptr,
+    void* __restrict memory_ptr,
+    GameBitmap& __restrict bitmap,
+    void* __restrict input_events_bytes_ptr,
     size_t input_events_count)
 {
     auto& memory = *((GameMemory*)memory_ptr);

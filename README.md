@@ -22,7 +22,7 @@ cmake -G "Visual Studio 17 2022" -B .cmake\vs17 -DCMAKE_UNITY_BUILD=ON
 .\cmd\run.bat
 ```
 
-Linting. Having `compile_commands.json` will allow the use of `clang-tidy`.
+Linting. In order to use `clang-tidy`, `compile_commands.json` needs to be present.
 
 ```
 cmake -G Ninja -B .cmake\ninja -DCMAKE_UNITY_BUILD=ON
