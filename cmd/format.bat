@@ -2,6 +2,10 @@
 
 pushd %0\..\..
 
-"C:/Program Files/LLVM/bin/clang-format.exe" -i sources\*.cpp sources\*.h
+if [%1]==[] (
+    "C:/Program Files/LLVM/bin/clang-format.exe" -i sources\*.cpp sources\*.h
+) else (
+    "C:/Program Files/LLVM/bin/clang-format.exe" -i "%1"
+)
 
 popd

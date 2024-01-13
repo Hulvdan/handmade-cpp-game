@@ -45,6 +45,11 @@ vim.keymap.set("n", "<A-b>", function()
     launch_side([[cmd\build.bat]], true)
 end, opts)
 
+vim.keymap.set("n", "<f4>", function()
+    save_file_if_needed()
+    launch_side([[cmd\build.bat]], true)
+end, opts)
+
 vim.keymap.set("n", "<f5>", function()
     save_file_if_needed()
     launch_side([[cmd\build.bat && cmd\run.bat]], true)
@@ -66,7 +71,8 @@ vim.keymap.set("n", "<leader>w", function()
     if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
         local view = vim.fn.winsaveview()
 
-        launch_background([[cmd\format.bat]], function()
+        local buf_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
+        launch_background([[cmd\format.bat "]] .. buf_path .. '"', function()
             reload_file()
 
             -- TODO(hulvdan): This horseshit of a function should take a callback
