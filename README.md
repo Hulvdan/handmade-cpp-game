@@ -16,7 +16,7 @@ call "c:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build
 
 set CC="cl"
 set CXX="cl"
-cmake -G "Visual Studio 17 2022" -B .cmake\vs17
+cmake -G "Visual Studio 17 2022" -B .cmake\vs17 -DCMAKE_UNITY_BUILD=ON
 
 .\cmd\build.bat
 .\cmd\run.bat
@@ -25,6 +25,6 @@ cmake -G "Visual Studio 17 2022" -B .cmake\vs17
 Linting. Having `compile_commands.json` will allow the use of `clang-tidy`.
 
 ```
-cmake -G Ninja -B .cmake\ninja
+cmake -G Ninja -B .cmake\ninja -DCMAKE_UNITY_BUILD=ON
 ninja -C .cmake\ninja -f build.ninja -t compdb > compile_commands.json
 ```

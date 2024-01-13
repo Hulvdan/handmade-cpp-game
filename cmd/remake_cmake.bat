@@ -21,7 +21,7 @@ set CXX=cl
 
 echo.
 echo [33mINFO: Remaking CMake files for Visual Studio...[0m
-cmake -G "Visual Studio 17 2022" -B .cmake\vs17
+cmake -G "Visual Studio 17 2022" -B .cmake\vs17 -DCMAKE_UNITY_BUILD=ON
 if %errorlevel% neq 0 (
     echo.
     echo Remaking CMake files [31mFailed[0m
@@ -33,7 +33,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [33mINFO: Remaking CMake files for Ninja...[0m
-cmake -G Ninja -B .cmake\ninja
+cmake -G Ninja -B .cmake\ninja -DCMAKE_UNITY_BUILD=ON
 if %errorlevel% neq 0 (
     echo.
     echo Remaking CMake files [31mFailed[0m

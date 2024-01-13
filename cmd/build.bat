@@ -16,7 +16,8 @@ cmake ^
     -Wdeprecated ^
     -Werror=dev ^
     -Werror-deprecated ^
-    --log-level=WARNING
+    --log-level=WARNING ^
+    -DCMAKE_UNITY_BUILD=ON
 
 if %errorlevel% neq 0 (
     echo.
