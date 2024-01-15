@@ -80,9 +80,9 @@ void ProcessEvents(GameMemory& __restrict memory, u8* __restrict events, size_t 
 
 extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
     f32 dt,
-    void* __restrict memory_ptr,
-    GameBitmap& __restrict bitmap,
-    void* __restrict input_events_bytes_ptr,
+    void* memory_ptr,
+    GameBitmap& bitmap,
+    void* input_events_bytes_ptr,
     size_t input_events_count)
 {
     auto& memory = *((GameMemory*)memory_ptr);
@@ -129,7 +129,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                 blue = player_color;
             }
 
-            (*pixel++) = (blue << 0) | (green << 8) | (red << 16);
+            (*pixel++) = (blue << 0) | (green << 8) | (red << 8);
         }
     }
 }

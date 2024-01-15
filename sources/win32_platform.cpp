@@ -5,6 +5,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <GL/gl.h>
+#include <GL/glu.h>
 
 #include "bftypes.h"
 #include "game.h"
@@ -278,8 +280,8 @@ global_variable bool running = false;
 global_variable bool should_recreate_bitmap_after_client_area_resize;
 global_variable BFBitmap screen_bitmap;
 
-global_variable int client_width;
-global_variable int client_height;
+global_variable int client_width = -1;
+global_variable int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context)
 {
@@ -315,11 +317,61 @@ void Win32UpdateBitmap(HDC device_context)
 
 void Win32BlitBitmapToTheWindow(HDC device_context)
 {
-    StretchDIBits(
-        device_context,  //
-        0, 0, client_width, client_height,  //
-        0, 0, screen_bitmap.bitmap.width, screen_bitmap.bitmap.height,  //
-        screen_bitmap.bitmap.memory, &screen_bitmap.info, DIB_RGB_COLORS, SRCCOPY);
+    glClear(GL_COLOR_BUFFER_BIT);
+    assert(!glGetError());
+
+    GLuint texture_name;
+    glGenTextures(1, &texture_name);
+    glBindTexture(GL_TEXTURE_2D, texture_name);
+    assert(!glGetError());
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    assert(!glGetError());
+
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA8, screen_bitmap.bitmap.width, screen_bitmap.bitmap.height, 0,
+        GL_BGRA_EXT, GL_UNSIGNED_BYTE, screen_bitmap.bitmap.memory);
+    assert(!glGetError());
+
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    assert(!glGetError());
+
+    glEnable(GL_TEXTURE_2D);
+    assert(!glGetError());
+    {
+        glBegin(GL_TRIANGLES);
+
+        glTexCoord2f(0, 0);
+        glVertex2f(0, 0);
+
+        glTexCoord2f(0, 1);
+        glVertex2f(0, 1);
+
+        glTexCoord2f(1, 0);
+        glVertex2f(1, 0);
+
+        glTexCoord2f(1, 0);
+        glVertex2f(1, 0);
+
+        glTexCoord2f(0, 1);
+        glVertex2f(0, 1);
+
+        glTexCoord2f(1, 1);
+        glVertex2f(1, 1);
+
+        glEnd();
+    }
+    glDisable(GL_TEXTURE_2D);
+    assert(!glGetError());
+
+    SwapBuffers(device_context);
+    assert(!glGetError());
+
+    glDeleteTextures(1, (GLuint*)&texture_name);
+    assert(!glGetError());
 }
 
 void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
@@ -355,6 +407,8 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         client_width = LOWORD(lParam);
         client_height = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
+
+        glViewport(0, 0, client_width, client_height);
     } break;
 
     case WM_KEYDOWN:
@@ -581,15 +635,15 @@ static int WinMain(
                     //
                 } else {
                     // TODO(hulvdan): Diagnostic
-                    assert(source_voice == nullptr);
+                    assert(!source_voice);
                 }
             } else {
                 // TODO(hulvdan): Diagnostic
-                assert(master_voice == nullptr);
+                assert(!master_voice);
             }
         } else {
             // TODO(hulvdan): Diagnostic
-            assert(xaudio == nullptr);
+            assert(!xaudio);
         }
     }
     // --- XAudio stuff end ---
@@ -597,6 +651,7 @@ static int WinMain(
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
+    // windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
     windowClass.lpfnWndProc = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
@@ -624,12 +679,60 @@ static int WinMain(
         NULL  // [in, optional] LPVOID    lpParam
     );
 
-    if (window_handle == NULL) {
-        // TODO(hulvdan): Logging
-        return 0;
+    if (!window_handle) {
+        // TODO(hulvdan): Diagnostic
+        return FALSE;
     }
 
     ShowWindow(window_handle, show_command);
+    UpdateWindow(window_handle);
+
+    assert(client_width >= 0);
+    assert(client_height >= 0);
+    // --- Initializing OpenGL Start ---
+    {
+        auto hdc = GetDC(window_handle);
+
+        // --- Setting up pixel format start ---
+        PIXELFORMATDESCRIPTOR pfd = {};
+        pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion = 1;
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.dwLayerMask = PFD_MAIN_PLANE;
+        pfd.iPixelType = PFD_TYPE_RGBA;
+        pfd.cColorBits = 24;
+        pfd.cAlphaBits = 8;
+        // pfd.cDepthBits = 0;
+        // pfd.cAccumBits = 0;
+        // pfd.cStencilBits = 0;
+
+        auto pixelformat = ChoosePixelFormat(hdc, &pfd);
+        if (!pixelformat) {
+            // TODO(hulvdan): Diagnostic
+            return FALSE;
+        }
+
+        DescribePixelFormat(hdc, pixelformat, pfd.nSize, &pfd);
+
+        if (SetPixelFormat(hdc, pixelformat, &pfd) == FALSE) {
+            // TODO(hulvdan): Diagnostic
+            return FALSE;
+        }
+        // --- Setting up pixel format end ---
+
+        auto ghRC = wglCreateContext(hdc);
+        wglMakeCurrent(hdc, ghRC);
+
+        glClearColor(1, 0, 1, 1);
+        assert(!glGetError());
+
+        glShadeModel(GL_SMOOTH);
+        assert(!glGetError());
+
+        ReleaseDC(window_handle, hdc);
+    }
+    // --- Initializing OpenGL End ---
+
     screen_bitmap = BFBitmap();
 
     running = true;
@@ -700,8 +803,9 @@ static int WinMain(
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
             while (perf_counter_new < next_frame_expected_perf_counter) {
-                i32 msec_to_sleep = (f32)(next_frame_expected_perf_counter - perf_counter_new) *
-                    1000.0f / (f32)perf_counter_frequency;
+                i32 msec_to_sleep =
+                    (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) * 1000.0f /
+                          (f32)perf_counter_frequency);
                 assert(msec_to_sleep >= 0);
 
                 if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
@@ -719,29 +823,29 @@ static int WinMain(
         perf_counter_current = perf_counter_new;
     }
 
-    if (samples1 != nullptr)
-        delete[] samples1;
-    if (samples2 != nullptr)
-        delete[] samples2;
-    if (buffer1 != nullptr)
-        delete buffer1;
-    if (buffer2 != nullptr)
-        delete buffer2;
-
+    // if (samples1 != nullptr)
+    //     delete[] samples1;
+    // if (samples2 != nullptr)
+    //     delete[] samples2;
+    // if (buffer1 != nullptr)
+    //     delete buffer1;
+    // if (buffer2 != nullptr)
+    //     delete buffer2;
+    //
     // TODO(hulvdan): How am I supposed to release it?
     // source_voice
+    //
+    // if (master_voice != nullptr) {
+    //     // TODO(hulvdan): How am I supposed to release it?
+    //     //
+    //     // https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--initialize-xaudio2
+    //     // > Ensure that all XAUDIO2 child objects are fully released
+    //     // > before you release the IXAudio2 object.
+    //
+    //     // master_voice->Release();
+    // }
 
-    if (master_voice != nullptr) {
-        // TODO(hulvdan): How am I supposed to release it?
-        //
-        // https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--initialize-xaudio2
-        // > Ensure that all XAUDIO2 child objects are fully released
-        // > before you release the IXAudio2 object.
-
-        // master_voice->Release();
-    }
-
-    if (xaudio != nullptr)
+    if (xaudio)
         xaudio->Release();
 
     return 0;
