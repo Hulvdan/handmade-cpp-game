@@ -391,6 +391,14 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
 #endif
 }
 
+void Win32GLResize()
+{
+    glViewport(0, 0, client_width, client_height);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, 1, 1, 0, -1, 1);
+}
+
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
 {
     switch (messageType) {
@@ -407,8 +415,7 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         client_width = LOWORD(lParam);
         client_height = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
-
-        glViewport(0, 0, client_width, client_height);
+        Win32GLResize();
     } break;
 
     case WM_KEYDOWN:
@@ -730,6 +737,7 @@ static int WinMain(
         assert(!glGetError());
 
         ReleaseDC(window_handle, hdc);
+        Win32GLResize();
     }
     // --- Initializing OpenGL End ---
 
