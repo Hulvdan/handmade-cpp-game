@@ -6,9 +6,7 @@
 #include <iostream>
 #include <vector>
 
-#define GLEW_STATIC
 #include <glew.h>
-
 #include "bftypes.h"
 #include "game.h"
 
