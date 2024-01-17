@@ -6,7 +6,8 @@
 #include <iostream>
 #include <vector>
 
-#include <glew.h>
+#include "glew.h"
+#include "wglew.h"
 #include "bftypes.h"
 #include "game.h"
 
@@ -733,6 +734,13 @@ static int WinMain(
             // TODO(hulvdan): Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
             assert(false);
+        }
+
+        if (WGLEW_EXT_swap_control) {
+            if (WGLEW_EXT_swap_control_tear)
+                wglSwapIntervalEXT(-1);
+            else
+                wglSwapIntervalEXT(1);
         }
 
         glClearColor(1, 0, 1, 1);
