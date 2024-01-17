@@ -5,8 +5,9 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include <GL/gl.h>
-#include <GL/glu.h>
+
+#define GLEW_STATIC
+#include <glew.h>
 
 #include "bftypes.h"
 #include "game.h"
@@ -119,7 +120,7 @@ void LoadOrUpdateGameDll()
 
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
-    HMODULE lib = LoadLibrary(path);
+    HMODULE lib = LoadLibraryA(path);
     if (!lib) {
         // TODO(hulvdan): Diagnostic
         return;
@@ -163,9 +164,9 @@ XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
 void LoadXInputDll()
 {
-    auto library = LoadLibrary("xinput1_4.dll");
+    auto library = LoadLibraryA("xinput1_4.dll");
     if (!library)
-        library = LoadLibrary("xinput1_3.dll");
+        library = LoadLibraryA("xinput1_3.dll");
 
     if (library) {
         XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
@@ -192,11 +193,11 @@ XAudio2CreateType XAudio2Create_ = XAudio2CreateStub;
 
 void LoadXAudioDll()
 {
-    auto library = LoadLibrary("xaudio2_9.dll");
+    auto library = LoadLibraryA("xaudio2_9.dll");
     if (!library)
-        library = LoadLibrary("xaudio2_8.dll");
+        library = LoadLibraryA("xaudio2_8.dll");
     if (!library)
-        library = LoadLibrary("xaudio2_7.dll");
+        library = LoadLibraryA("xaudio2_7.dll");
 
     if (!library) {
         // TODO(hulvdan): Diagnostic
@@ -729,6 +730,12 @@ static int WinMain(
 
         auto ghRC = wglCreateContext(hdc);
         wglMakeCurrent(hdc, ghRC);
+
+        if (glewInit() != GLEW_OK) {
+            // TODO(hulvdan): Diagnostic
+            // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+            assert(false);
+        }
 
         glClearColor(1, 0, 1, 1);
         assert(!glGetError());
