@@ -317,13 +317,17 @@ void Win32UpdateBitmap(HDC device_context)
         DIB_RGB_COLORS);
 }
 
+void* human_sprite = nullptr;
+i32 human_sprite_width = 0;
+i32 human_sprite_height = 0;
+
 void Win32BlitBitmapToTheWindow(HDC device_context)
 {
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
 
-    GLuint texture_name;
-    glGenTextures(1, &texture_name);
+    GLuint texture_name = 1;
+    // glGenTextures(1, &texture_name);
     glBindTexture(GL_TEXTURE_2D, texture_name);
     assert(!glGetError());
 
@@ -338,12 +342,29 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         GL_BGRA_EXT, GL_UNSIGNED_BYTE, screen_bitmap.bitmap.memory);
     assert(!glGetError());
 
+    GLuint human_texture = 2;
+    if (human_sprite) {
+        glBindTexture(GL_TEXTURE_2D, human_texture);
+        assert(!glGetError());
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        assert(!glGetError());
+
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA8, human_sprite_width, human_sprite_height, 0, GL_BGRA_EXT,
+            GL_UNSIGNED_BYTE, human_sprite);
+    }
+
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     assert(!glGetError());
 
     glEnable(GL_TEXTURE_2D);
     assert(!glGetError());
     {
+        glBindTexture(GL_TEXTURE_2D, texture_name);
         glBegin(GL_TRIANGLES);
 
         glTexCoord2f(0, 0);
@@ -366,6 +387,48 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
 
         glEnd();
     }
+
+    if (human_sprite) {
+        glBindTexture(GL_TEXTURE_2D, human_texture);
+        glBegin(GL_TRIANGLES);
+
+        auto hwidth = 64.0f;
+        auto hheight = 64.0f;
+
+        auto swidth = (f32)screen_bitmap.bitmap.width;
+        auto sheight = (f32)screen_bitmap.bitmap.height;
+
+        auto a = 1 / swidth;
+        auto b = -1 / sheight;
+
+        auto hposx = swidth / 2 - 100;
+        auto hposy = sheight / 2 - 100;
+        auto vx0 = hposx - hwidth / 2;
+        auto vx1 = hposx + hwidth / 2;
+        auto vy0 = hposy - hheight / 2;
+        auto vy1 = hposy + hheight / 2;
+        vx0 = a * vx0 - 0;
+        vx1 = a * vx1 - 0;
+        vy0 = b * vy0 + 1;
+        vy1 = b * vy1 + 1;
+
+        glTexCoord2f(0, 0);
+        glVertex2f(vx0, vy0);
+        glTexCoord2f(0, 1);
+        glVertex2f(vx0, vy1);
+        glTexCoord2f(1, 0);
+        glVertex2f(vx1, vy0);
+
+        glTexCoord2f(1, 0);
+        glVertex2f(vx1, vy0);
+        glTexCoord2f(0, 1);
+        glVertex2f(vx0, vy1);
+        glTexCoord2f(1, 1);
+        glVertex2f(vx1, vy1);
+
+        glEnd();
+    }
+
     glDisable(GL_TEXTURE_2D);
     assert(!glGetError());
 
@@ -373,6 +436,8 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
     assert(!glGetError());
 
     glDeleteTextures(1, (GLuint*)&texture_name);
+    if (human_sprite)
+        glDeleteTextures(1, (GLuint*)&human_texture);
     assert(!glGetError());
 }
 
@@ -619,6 +684,7 @@ LoadBMPFile_RGBA_Result LoadBMPFile_RGBA(const char* filename, u8* output, size_
     assert(read_pixels == pixels_count);
 
     assert(fclose(file) == 0);
+    res.success = true;
     return res;
 }
 
@@ -773,9 +839,15 @@ static int WinMain(
 
     const auto bmp_size = 64 * 4;
     u8 bmp_bytes[bmp_size] = {};
-    LoadBMPFile_RGBA(
+    auto loading_result = LoadBMPFile_RGBA(
         R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\sprites\human.bmp)PATH",
         bmp_bytes, bmp_size);
+
+    if (loading_result.success) {
+        human_sprite = bmp_bytes;
+        human_sprite_width = loading_result.width;
+        human_sprite_height = loading_result.height;
+    }
 
     auto window_handle = CreateWindowExA(
         0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
