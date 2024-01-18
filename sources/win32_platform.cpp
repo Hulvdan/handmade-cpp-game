@@ -23,12 +23,14 @@
 static constexpr f32 BF_PI = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
 
+// -- RENDERING STUFF
 struct BFBitmap {
     GameBitmap bitmap;
 
     HBITMAP handle;
     BITMAPINFO info;
 };
+// -- RENDERING STUFF END
 
 // -- GAME STUFF
 global_variable HMODULE game_lib = nullptr;
@@ -528,6 +530,98 @@ u64 Win32Frequency()
     return res.QuadPart;
 }
 
+struct LoadBMPFile_RGBA_Result {
+    bool success;
+    u16 width;
+    u16 height;
+};
+
+LoadBMPFile_RGBA_Result LoadBMPFile_RGBA(const char* filename, u8* output, size_t output_max_bytes)
+{
+    LoadBMPFile_RGBA_Result res = {};
+
+    auto file = fopen(filename, "r");
+    assert(file);
+
+    // Reading the header
+    // https://en.wikipedia.org/wiki/BMP_file_format#Bitmap_file_header
+    const auto BMP_HEADER_SIZE = 12;
+
+    // NOTE(hulvdan): Adding 6 to get the size of the DIB header
+    const auto offset = 6;
+    const auto header_bytes_to_read = BMP_HEADER_SIZE + offset;
+    u8 header[header_bytes_to_read];
+
+    auto read_bytes = fread(header, 1, header_bytes_to_read, file);
+    if (read_bytes != header_bytes_to_read) {
+        // TODO(hulvdan): Diagnostic
+        assert(fclose(file) != 0);
+        return res;
+    }
+
+    auto is_bmp = header[0] == 'B' && header[1] == 'M';
+    if (!is_bmp) {
+        // TODO(hulvdan): Diagnostic. Not a BMP file
+        assert(false);
+        return res;
+    }
+
+    auto file_size_from_header = *(u32*)(header + 2);
+    auto pixel_array_starting_address = *(u32*)(header + 10);
+
+    const auto DIB_HEADER_MAX_SIZE = 124;
+    u8 dib_header[DIB_HEADER_MAX_SIZE];
+    // NOTE(hulvdan): Copying size of dib_header from the end of header
+    memcpy(dib_header, header + BMP_HEADER_SIZE, offset);
+
+    auto dib_header_size = *(u32*)(header + 14);
+    assert(dib_header_size == DIB_HEADER_MAX_SIZE);
+    auto dib_header_size2 = *(u32*)(dib_header + 2);
+    assert(dib_header_size2 == DIB_HEADER_MAX_SIZE);
+
+    const auto DIB_HEADER_OFFSET = 12;
+    const auto bytes_to_read = dib_header_size - offset;
+    read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
+    assert(read_bytes == bytes_to_read);
+
+    const auto dib_header_shifted = dib_header - DIB_HEADER_OFFSET;
+
+    res.width = *(u16*)(dib_header_shifted + 18);
+    res.height = *(u16*)(dib_header_shifted + 22);
+    if ((size_t)res.width * res.height * 4 > output_max_bytes) {
+        // TODO(hulvdan): Diagnostic
+        assert(false);
+        return res;
+    }
+
+    auto number_of_color_planes = *(u16*)(dib_header_shifted + 26);
+    assert(number_of_color_planes == 1);
+
+    auto bits_per_pixel = *(u16*)(dib_header_shifted + 28);
+    auto compression_method = *(u32*)(dib_header_shifted + 30);
+
+    // TODO(hulvdan): Even though it's Huffman's compression,
+    // why weren't color palette used?
+    assert(compression_method == 3);  // 3 => Huffman 1D compression
+
+    // NOTE(hulvdan): palette_colors_number = 2**n, if it's == 0
+    // (where `n` is the number of bits per pixel)
+    auto palette_colors_number = *(u32*)(dib_header_shifted + 46);
+    auto important_colors_number = *(u32*)(dib_header_shifted + 50);
+
+    assert(bits_per_pixel == 32);
+    auto pixels_count = (u32)res.width * res.height;
+    assert(file_size_from_header - pixel_array_starting_address == pixels_count * 4);
+
+    fseek(file, (long)pixel_array_starting_address, SEEK_SET);
+    // read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
+    auto read_pixels = fread((void*)output, 4, pixels_count, file);
+    assert(read_pixels == pixels_count);
+
+    assert(fclose(file) == 0);
+    return res;
+}
+
 static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
@@ -677,6 +771,12 @@ static int WinMain(
         assert(SUCCEEDED(res));
     }
 
+    const auto bmp_size = 64 * 4;
+    u8 bmp_bytes[bmp_size] = {};
+    LoadBMPFile_RGBA(
+        R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\sprites\human.bmp)PATH",
+        bmp_bytes, bmp_size);
+
     auto window_handle = CreateWindowExA(
         0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
         CW_USEDEFAULT, 640, 480,
@@ -736,12 +836,13 @@ static int WinMain(
             assert(false);
         }
 
-        if (WGLEW_EXT_swap_control) {
-            if (WGLEW_EXT_swap_control_tear)
-                wglSwapIntervalEXT(-1);
-            else
-                wglSwapIntervalEXT(1);
-        }
+        // NOTE(hulvdan): Enabling VSync
+        // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
+        // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control_tear.txt
+        if (WGLEW_EXT_swap_control_tear)
+            wglSwapIntervalEXT(-1);
+        else if (WGLEW_EXT_swap_control)
+            wglSwapIntervalEXT(1);
 
         glClearColor(1, 0, 1, 1);
         assert(!glGetError());

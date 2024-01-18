@@ -129,7 +129,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                 blue = player_color;
             }
 
-            (*pixel++) = (blue << 0) | (green << 8) | (red << 8);
+            (*pixel++) = (blue << 0) | (green << 8) | (red << 16);
         }
     }
 }
