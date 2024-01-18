@@ -364,6 +364,7 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
     glEnable(GL_TEXTURE_2D);
     assert(!glGetError());
     {
+        glBlendFunc(GL_ONE, GL_ZERO);
         glBindTexture(GL_TEXTURE_2D, texture_name);
         glBegin(GL_TRIANGLES);
 
@@ -390,6 +391,7 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
 
     if (human_sprite) {
         glBindTexture(GL_TEXTURE_2D, human_texture);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glBegin(GL_TRIANGLES);
 
         auto hwidth = 64.0f;
@@ -407,10 +409,12 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         auto vx1 = hposx + hwidth / 2;
         auto vy0 = hposy - hheight / 2;
         auto vy1 = hposy + hheight / 2;
-        vx0 = a * vx0 - 0;
-        vx1 = a * vx1 - 0;
-        vy0 = b * vy0 + 1;
-        vy1 = b * vy1 + 1;
+        auto c = 0.0f;
+        auto d = 1.0f;
+        vx0 = vx0 * a + c;
+        vx1 = vx1 * a + c;
+        vy0 = vy0 * b + d;
+        vy1 = vy1 * b + d;
 
         glTexCoord2f(0, 0);
         glVertex2f(vx0, vy0);
@@ -640,51 +644,56 @@ LoadBMPFile_RGBA_Result LoadBMPFile_RGBA(const char* filename, u8* output, size_
     memcpy(dib_header, header + BMP_HEADER_SIZE, offset);
 
     auto dib_header_size = *(u32*)(header + 14);
-    assert(dib_header_size == DIB_HEADER_MAX_SIZE);
-    auto dib_header_size2 = *(u32*)(dib_header + 2);
-    assert(dib_header_size2 == DIB_HEADER_MAX_SIZE);
+    if (dib_header_size == DIB_HEADER_MAX_SIZE || dib_header_size == 56) {
+        auto dib_header_size2 = *(u32*)(dib_header + 2);
+        assert(dib_header_size == dib_header_size2);
 
-    const auto DIB_HEADER_OFFSET = 12;
-    const auto bytes_to_read = dib_header_size - offset;
-    read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
-    assert(read_bytes == bytes_to_read);
+        const auto DIB_HEADER_OFFSET = 12;
+        const auto bytes_to_read = dib_header_size - offset;
+        read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
+        assert(read_bytes == bytes_to_read);
 
-    const auto dib_header_shifted = dib_header - DIB_HEADER_OFFSET;
+        const auto dib_header_shifted = dib_header - DIB_HEADER_OFFSET;
 
-    res.width = *(u16*)(dib_header_shifted + 18);
-    res.height = *(u16*)(dib_header_shifted + 22);
-    if ((size_t)res.width * res.height * 4 > output_max_bytes) {
-        // TODO(hulvdan): Diagnostic
+        res.width = *(u16*)(dib_header_shifted + 18);
+        res.height = *(u16*)(dib_header_shifted + 22);
+        if ((size_t)res.width * res.height * 4 > output_max_bytes) {
+            // TODO(hulvdan): Diagnostic
+            assert(false);
+            return res;
+        }
+
+        auto number_of_color_planes = *(u16*)(dib_header_shifted + 26);
+        assert(number_of_color_planes == 1);
+
+        auto bits_per_pixel = *(u16*)(dib_header_shifted + 28);
+        auto compression_method = *(u32*)(dib_header_shifted + 30);
+
+        // TODO(hulvdan): Even though it's Huffman's compression,
+        // why weren't color palette used?
+        assert(compression_method == 3);  // 3 => Huffman 1D compression
+
+        // NOTE(hulvdan): palette_colors_number = 2**n, if it's == 0
+        // (where `n` is the number of bits per pixel)
+        auto palette_colors_number = *(u32*)(dib_header_shifted + 46);
+        auto important_colors_number = *(u32*)(dib_header_shifted + 50);
+
+        assert(bits_per_pixel == 32);
+        auto pixels_count = (u32)res.width * res.height;
+        assert(file_size_from_header - pixel_array_starting_address == pixels_count * 4);
+
+        fseek(file, (long)pixel_array_starting_address, SEEK_SET);
+        // read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
+        auto read_pixels = fread((void*)output, 4, pixels_count, file);
+        assert(read_pixels == pixels_count);
+    } else {
+        // TODO(hulvdan): Is not yet implemented algorithm
         assert(false);
-        return res;
     }
-
-    auto number_of_color_planes = *(u16*)(dib_header_shifted + 26);
-    assert(number_of_color_planes == 1);
-
-    auto bits_per_pixel = *(u16*)(dib_header_shifted + 28);
-    auto compression_method = *(u32*)(dib_header_shifted + 30);
-
-    // TODO(hulvdan): Even though it's Huffman's compression,
-    // why weren't color palette used?
-    assert(compression_method == 3);  // 3 => Huffman 1D compression
-
-    // NOTE(hulvdan): palette_colors_number = 2**n, if it's == 0
-    // (where `n` is the number of bits per pixel)
-    auto palette_colors_number = *(u32*)(dib_header_shifted + 46);
-    auto important_colors_number = *(u32*)(dib_header_shifted + 50);
-
-    assert(bits_per_pixel == 32);
-    auto pixels_count = (u32)res.width * res.height;
-    assert(file_size_from_header - pixel_array_starting_address == pixels_count * 4);
-
-    fseek(file, (long)pixel_array_starting_address, SEEK_SET);
-    // read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
-    auto read_pixels = fread((void*)output, 4, pixels_count, file);
-    assert(read_pixels == pixels_count);
 
     assert(fclose(file) == 0);
     res.success = true;
+
     return res;
 }
 
@@ -916,6 +925,7 @@ static int WinMain(
         else if (WGLEW_EXT_swap_control)
             wglSwapIntervalEXT(1);
 
+        glEnable(GL_BLEND);
         glClearColor(1, 0, 1, 1);
         assert(!glGetError());
 
