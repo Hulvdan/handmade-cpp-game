@@ -5,7 +5,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-
+#include "glm/glm.hpp"
+#include "glm/ext.hpp"
 #include "glew.h"
 #include "wglew.h"
 #include "bftypes.h"
@@ -347,8 +348,8 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         glBindTexture(GL_TEXTURE_2D, human_texture);
         assert(!glGetError());
 
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
         assert(!glGetError());
@@ -394,41 +395,40 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glBegin(GL_TRIANGLES);
 
-        auto hwidth = 64.0f;
-        auto hheight = 64.0f;
+        auto angle = BF_PI / 4;
+
+        auto sprite_pos = glm::vec3(200, 200, 0);
+        auto sprite_size = glm::vec3(64, 64, 0);
 
         auto swidth = (f32)screen_bitmap.bitmap.width;
         auto sheight = (f32)screen_bitmap.bitmap.height;
 
-        auto a = 1 / swidth;
-        auto b = -1 / sheight;
+        glm::vec4 vertices[] = {
+            glm::vec4(glm::vec2(-1, -1), 0, 1),
+            glm::vec4(glm::vec2(-1, 1), 0, 1),
+            glm::vec4(glm::vec2(1, -1), 0, 1),
+            glm::vec4(glm::vec2(1, 1), 0, 1),
+        };
 
-        auto hposx = swidth / 2 - 100;
-        auto hposy = sheight / 2 - 100;
-        auto vx0 = hposx - hwidth / 2;
-        auto vx1 = hposx + hwidth / 2;
-        auto vy0 = hposy - hheight / 2;
-        auto vy1 = hposy + hheight / 2;
-        auto c = 0.0f;
-        auto d = 1.0f;
-        vx0 = vx0 * a + c;
-        vx1 = vx1 * a + c;
-        vy0 = vy0 * b + d;
-        vy1 = vy1 * b + d;
+        auto model = glm::mat4(1);
+        model = glm::translate(model, sprite_pos);
+        model = glm::scale(model, glm::vec3(sprite_size.x / 2, sprite_size.y / 2, 0));
+        // model = glm::rotate(model, Rotate.z, glm::vec3(-1, -1, 0));
 
-        glTexCoord2f(0, 0);
-        glVertex2f(vx0, vy0);
-        glTexCoord2f(0, 1);
-        glVertex2f(vx0, vy1);
-        glTexCoord2f(1, 0);
-        glVertex2f(vx1, vy0);
+        auto projection = glm::mat4(1);
+        projection = glm::translate(projection, glm::vec3(0, 1, 0));
+        projection = glm::scale(projection, glm::vec3(1 / swidth, -1 / sheight, 0));
 
-        glTexCoord2f(1, 0);
-        glVertex2f(vx1, vy0);
-        glTexCoord2f(0, 1);
-        glVertex2f(vx0, vy1);
-        glTexCoord2f(1, 1);
-        glVertex2f(vx1, vy1);
+        for (auto& vertex : vertices) {
+            vertex = model * vertex;
+            vertex = projection * vertex;
+        }
+
+        glm::ivec2 texture_coords[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+        for (auto i : {0, 1, 2, 2, 1, 3}) {
+            glTexCoord2f(texture_coords[i].x, texture_coords[i].y);
+            glVertex2f(vertices[i].x, vertices[i].y);
+        }
 
         glEnd();
     }
@@ -997,7 +997,9 @@ static int WinMain(
         // CONTROLLER STUFF END
 
         auto device_context = GetDC(window_handle);
-        Win32Paint(min(last_frame_dt, MAX_FRAME_DT), window_handle, device_context);
+
+        auto capped_dt = last_frame_dt > MAX_FRAME_DT ? MAX_FRAME_DT : last_frame_dt;
+        Win32Paint(capped_dt, window_handle, device_context);
         ReleaseDC(window_handle, device_context);
 
         u64 perf_counter_new = Win32Clock();

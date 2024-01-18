@@ -11,6 +11,7 @@ vim.fn.execute(":set nowritebackup")
 -- ================ --
 function launch_tab(command)
     vim.fn.execute([[term ]] .. command)
+    vim.fn.execute("norm G")
 end
 
 function launch_side(command, switch)
@@ -20,6 +21,7 @@ function launch_side(command, switch)
     if switch == true then
         vim.fn.execute("wincmd x")
         vim.fn.execute("wincmd l")
+        vim.fn.execute("norm G")
     end
 end
 
