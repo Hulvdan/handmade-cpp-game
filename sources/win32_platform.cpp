@@ -325,11 +325,18 @@ i32 human_sprite_height = 0;
 
 void DrawSprite(
     GLuint texture_name,
+    u16 x0,
+    u16 y0,
+    u16 x1,
+    u16 y1,
     glm::vec2 pos,
     glm::vec2 size,
     float rotation,
     const glm::mat3& projection)
 {
+    assert(x0 < x1);
+    assert(y0 < y1);
+
     auto model = glm::mat3(1);
     model = glm::translate(model, pos);
     model = glm::scale(model, size / 2.0f);
@@ -341,10 +348,10 @@ void DrawSprite(
     for (auto& vertex : vertices)
         vertex = matrix * vertex;
 
-    glm::ivec2 texture_vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+    u16 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
     for (auto i : {0, 1, 2, 2, 1, 3}) {
         // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
-        glTexCoord2f(texture_vertices[i].x, texture_vertices[i].y);
+        glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
         glVertex2f(vertices[i].x, vertices[i].y);
     }
 };
@@ -423,7 +430,7 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         projection = glm::translate(projection, glm::vec2(0, 1));
         projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
 
-        DrawSprite(human_texture, sprite_pos, sprite_size, angle, projection);
+        DrawSprite(human_texture, 0, 0, 1, 1, sprite_pos, sprite_size, angle, projection);
 
         glEnd();
     }
