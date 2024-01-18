@@ -413,7 +413,7 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         auto model = glm::mat4(1);
         model = glm::translate(model, sprite_pos);
         model = glm::scale(model, glm::vec3(sprite_size.x / 2, sprite_size.y / 2, 0));
-        // model = glm::rotate(model, Rotate.z, glm::vec3(-1, -1, 0));
+        model = glm::rotate(model, BF_PI / 4, glm::vec3(0, 0, 1));
 
         auto projection = glm::mat4(1);
         projection = glm::translate(projection, glm::vec3(0, 1, 0));
