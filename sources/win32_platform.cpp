@@ -7,6 +7,7 @@
 #include <vector>
 #include "glm/glm.hpp"
 #include "glm/ext.hpp"
+#include "glm/gtx/matrix_transform_2d.hpp"
 #include "glew.h"
 #include "wglew.h"
 #include "bftypes.h"
@@ -322,6 +323,32 @@ void* human_sprite = nullptr;
 i32 human_sprite_width = 0;
 i32 human_sprite_height = 0;
 
+void DrawSprite(
+    GLuint texture_name,
+    glm::vec2 pos,
+    glm::vec2 size,
+    float rotation,
+    const glm::mat3& projection)
+{
+    auto model = glm::mat3(1);
+    model = glm::translate(model, pos);
+    model = glm::scale(model, size / 2.0f);
+    model = glm::rotate(model, rotation);
+
+    auto matrix = projection * model;
+    // TODO(hulvdan): How bad is it that there are vec3, but not vec2?
+    glm::vec3 vertices[] = {{-1, -1, 1}, {-1, 1, 1}, {1, -1, 1}, {1, 1, 1}};
+    for (auto& vertex : vertices)
+        vertex = matrix * vertex;
+
+    glm::ivec2 texture_vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+    for (auto i : {0, 1, 2, 2, 1, 3}) {
+        // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
+        glTexCoord2f(texture_vertices[i].x, texture_vertices[i].y);
+        glVertex2f(vertices[i].x, vertices[i].y);
+    }
+};
+
 void Win32BlitBitmapToTheWindow(HDC device_context)
 {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -369,23 +396,12 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         glBindTexture(GL_TEXTURE_2D, texture_name);
         glBegin(GL_TRIANGLES);
 
-        glTexCoord2f(0, 0);
-        glVertex2f(0, 0);
-
-        glTexCoord2f(0, 1);
-        glVertex2f(0, 1);
-
-        glTexCoord2f(1, 0);
-        glVertex2f(1, 0);
-
-        glTexCoord2f(1, 0);
-        glVertex2f(1, 0);
-
-        glTexCoord2f(0, 1);
-        glVertex2f(0, 1);
-
-        glTexCoord2f(1, 1);
-        glVertex2f(1, 1);
+        glm::ivec2 vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+        for (auto i : {0, 1, 2, 2, 1, 3}) {
+            auto& v = vertices[i];
+            glTexCoord2f(v.x, v.y);
+            glVertex2f(v.x, v.y);
+        }
 
         glEnd();
     }
@@ -395,40 +411,19 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glBegin(GL_TRIANGLES);
 
-        auto angle = BF_PI / 4;
+        auto angle = BF_PI / 8;
 
-        auto sprite_pos = glm::vec3(200, 200, 0);
-        auto sprite_size = glm::vec3(64, 64, 0);
+        auto sprite_pos = glm::vec2(200, 200);
+        auto sprite_size = glm::vec2(64, 64);
 
         auto swidth = (f32)screen_bitmap.bitmap.width;
         auto sheight = (f32)screen_bitmap.bitmap.height;
 
-        glm::vec4 vertices[] = {
-            glm::vec4(glm::vec2(-1, -1), 0, 1),
-            glm::vec4(glm::vec2(-1, 1), 0, 1),
-            glm::vec4(glm::vec2(1, -1), 0, 1),
-            glm::vec4(glm::vec2(1, 1), 0, 1),
-        };
+        auto projection = glm::mat3(1);
+        projection = glm::translate(projection, glm::vec2(0, 1));
+        projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
 
-        auto model = glm::mat4(1);
-        model = glm::translate(model, sprite_pos);
-        model = glm::scale(model, glm::vec3(sprite_size.x / 2, sprite_size.y / 2, 0));
-        model = glm::rotate(model, BF_PI / 4, glm::vec3(0, 0, 1));
-
-        auto projection = glm::mat4(1);
-        projection = glm::translate(projection, glm::vec3(0, 1, 0));
-        projection = glm::scale(projection, glm::vec3(1 / swidth, -1 / sheight, 0));
-
-        for (auto& vertex : vertices) {
-            vertex = model * vertex;
-            vertex = projection * vertex;
-        }
-
-        glm::ivec2 texture_coords[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
-        for (auto i : {0, 1, 2, 2, 1, 3}) {
-            glTexCoord2f(texture_coords[i].x, texture_coords[i].y);
-            glVertex2f(vertices[i].x, vertices[i].y);
-        }
+        DrawSprite(human_texture, sprite_pos, sprite_size, angle, projection);
 
         glEnd();
     }
