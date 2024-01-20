@@ -64,6 +64,7 @@ struct GameState {
     // LoadedTexture* grass_textures;
 
     LoadedTexture human_texture;
+    LoadedTexture grass_textures[17];
 };
 
 struct PlatformFunctions {
@@ -271,14 +272,35 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             file_loading_arena.size - file_loading_arena.used);
 
         if (load_result.success) {
-            auto filedata = AllocateArray(file_loading_arena, u8, load_result.size);
-
+            auto filedata = file_loading_arena.base + file_loading_arena.used;
             auto loading_address = arena.base + arena.used;
             auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
             if (bmp_result.success) {
                 state.human_texture.size = glm::ivec2(bmp_result.width, bmp_result.height);
                 state.human_texture.address = loading_address;
                 AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
+            }
+        }
+
+        char buffer[512] = {};
+        for (int i = 0; i < 17; i++) {
+            const auto pattern =
+                R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\tiles\grass_%d.bmp)PATH";
+            sprintf(buffer, pattern, i + 1);
+
+            auto load_result = Debug_LoadFile(
+                buffer, file_loading_arena.base + file_loading_arena.used,
+                file_loading_arena.size - file_loading_arena.used);
+
+            if (load_result.success) {
+                auto filedata = file_loading_arena.base + file_loading_arena.used;
+                auto loading_address = arena.base + arena.used;
+                auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
+                if (bmp_result.success) {
+                    state.grass_textures[i].size = glm::ivec2(bmp_result.width, bmp_result.height);
+                    state.grass_textures[i].address = loading_address;
+                    AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
+                }
             }
         }
 
@@ -349,7 +371,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         assert(!glGetError());
 
         GLuint human_texture_name = 2;
-        if (state.human_texture.address) {
+        auto& debug_texture = state.grass_textures[13];
+        if (debug_texture.address) {
             glBindTexture(GL_TEXTURE_2D, human_texture_name);
             assert(!glGetError());
 
@@ -360,8 +383,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             assert(!glGetError());
 
             glTexImage2D(
-                GL_TEXTURE_2D, 0, GL_RGBA8, state.human_texture.size.x, state.human_texture.size.y,
-                0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, state.human_texture.address);
+                GL_TEXTURE_2D, 0, GL_RGBA8, debug_texture.size.x, debug_texture.size.y, 0,
+                GL_BGRA_EXT, GL_UNSIGNED_BYTE, debug_texture.address);
         }
 
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -384,7 +407,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             glEnd();
         }
 
-        if (state.human_texture.address) {
+        if (debug_texture.address) {
             glBindTexture(GL_TEXTURE_2D, human_texture_name);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glBegin(GL_TRIANGLES);
