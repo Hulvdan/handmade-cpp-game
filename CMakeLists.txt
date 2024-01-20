@@ -33,6 +33,7 @@ set_target_properties(bf_game PROPERTIES
 )
 # TODO(hulvdan): How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
+set_property(TARGET bf_game PROPERTY CXX_STANDARD 23)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
@@ -41,6 +42,7 @@ target_compile_definitions(win32 PRIVATE
 )
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm)
+set_property(TARGET win32 PROPERTY CXX_STANDARD 23)
 
 # === Cleaning Up Stale Files ===
 # Kinda related information:
@@ -53,7 +55,6 @@ IF (WIN32)
     set_target_properties(bf_game PROPERTIES
         PDB_NAME bf_game_${V_TIMESTAMP}
     )
-
     file(GLOB files_to_delete
         ${CMAKE_BINARY_DIR}/Debug/bf_game_*.pdb
         ${CMAKE_BINARY_DIR}/Debug/bf_game_*.dll

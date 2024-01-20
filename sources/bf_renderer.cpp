@@ -1,12 +1,8 @@
-#include <initializer_list>
-#include "glm/glm.hpp"
 #include "glew.h"
 #include "wglew.h"
-#include "glm/vec2.hpp"
-#include "glm/mat3x3.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
-
-#include "bf_types.h"
+#include "glm/mat3x3.hpp"
+#include "glm/vec2.hpp"
 
 void DrawSprite(
     u16 x0,

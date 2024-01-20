@@ -1,14 +1,19 @@
 #include <cassert>
-#include <vector>
 #include <cstdlib>
+#include <vector>
 
 #include "glew.h"
 #include "wglew.h"
+
+#include "glm/gtx/matrix_transform_2d.hpp"
+#include "glm/mat3x3.hpp"
+#include "glm/vec2.hpp"
+
 // #include "GL/gl.h"  // TODO(hulvdan): Learn how to decouple from Windows-specific OpenGL
 
-#include "bf_types.h"
+#include "bf_base.h"
 #include "bf_game.h"
-#include "glm/vec2.hpp"
+#include "bf_renderer.cpp"
 
 struct LoadedTexture {
     glm::ivec2 size;
@@ -268,12 +273,12 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         if (load_result.success) {
             auto filedata = AllocateArray(file_loading_arena, u8, load_result.size);
 
-            auto bmp_result =
-                LoadBMP_RGBA(arena.base + arena.used, filedata, arena.size - arena.used);
+            auto loading_address = arena.base + arena.used;
+            auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
             if (bmp_result.success) {
                 state.human_texture.size = glm::ivec2(bmp_result.width, bmp_result.height);
-                state.human_texture.address = arena.base + arena.used;
-                AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height);
+                state.human_texture.address = loading_address;
+                AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
             }
         }
 
@@ -343,6 +348,22 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             GL_UNSIGNED_BYTE, bitmap.memory);
         assert(!glGetError());
 
+        GLuint human_texture_name = 2;
+        if (state.human_texture.address) {
+            glBindTexture(GL_TEXTURE_2D, human_texture_name);
+            assert(!glGetError());
+
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+            assert(!glGetError());
+
+            glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGBA8, state.human_texture.size.x, state.human_texture.size.y,
+                0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, state.human_texture.address);
+        }
+
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         assert(!glGetError());
 
@@ -363,10 +384,34 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             glEnd();
         }
 
+        if (state.human_texture.address) {
+            glBindTexture(GL_TEXTURE_2D, human_texture_name);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glBegin(GL_TRIANGLES);
+
+            auto angle = BF_PI / 8;
+
+            auto sprite_pos = glm::vec2(200, 200);
+            auto sprite_size = glm::vec2(64, 64);
+
+            auto swidth = (f32)bitmap.width;
+            auto sheight = (f32)bitmap.height;
+
+            auto projection = glm::mat3(1);
+            projection = glm::translate(projection, glm::vec2(0, 1));
+            projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+
+            DrawSprite(0, 0, 1, 1, sprite_pos, sprite_size, angle, projection);
+
+            glEnd();
+        }
+
         glDisable(GL_TEXTURE_2D);
         assert(!glGetError());
 
         glDeleteTextures(1, (GLuint*)&texture_name);
+        if (state.human_texture.address)
+            glDeleteTextures(1, (GLuint*)&human_texture_name);
         assert(!glGetError());
         // --- RENDERING END
     }

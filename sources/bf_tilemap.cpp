@@ -1,4 +1,4 @@
-#include "bf_types.h"
+#include "bf_base.h"
 
 enum class TileState {
     NONE,

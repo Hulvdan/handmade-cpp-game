@@ -1,5 +1,5 @@
 #pragma once
-#include "bf_types.h"
+#include "bf_base.h"
 
 #define Kilobytes(value) ((value) * 1024)
 #define Megabytes(value) (Kilobytes(value) * 1024)

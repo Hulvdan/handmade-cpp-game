@@ -10,17 +10,12 @@
 // #include "glm/ext.hpp"
 #include "glew.h"
 #include "wglew.h"
-#include "bf_types.h"
+#include "bf_base.h"
 #include "bf_game.h"
-
-#include "bf_renderer.cpp"
 
 #define local_persist static
 #define global_variable static
 #define internal static
-
-static constexpr f32 BF_PI = 3.14159265359f;
-static constexpr f32 BF_2PI = 6.28318530718f;
 
 // -- RENDERING STUFF
 struct BFBitmap {
@@ -325,56 +320,6 @@ void Win32UpdateBitmap(HDC device_context)
         DIB_RGB_COLORS);
 }
 
-void Win32BlitBitmapToTheWindow(HDC device_context)
-{
-    glClear(GL_COLOR_BUFFER_BIT);
-    assert(!glGetError());
-
-    GLuint texture_name = 1;
-    glBindTexture(GL_TEXTURE_2D, texture_name);
-    assert(!glGetError());
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    assert(!glGetError());
-
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, screen_bitmap.bitmap.width, screen_bitmap.bitmap.height, 0,
-        GL_BGRA_EXT, GL_UNSIGNED_BYTE, screen_bitmap.bitmap.memory);
-    assert(!glGetError());
-
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    assert(!glGetError());
-
-    glEnable(GL_TEXTURE_2D);
-    assert(!glGetError());
-    {
-        glBlendFunc(GL_ONE, GL_ZERO);
-        glBindTexture(GL_TEXTURE_2D, texture_name);
-        glBegin(GL_TRIANGLES);
-
-        glm::vec2 vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
-        for (auto i : {0, 1, 2, 2, 1, 3}) {
-            auto& v = vertices[i];
-            glTexCoord2f(v.x, v.y);
-            glVertex2f(v.x, v.y);
-        }
-
-        glEnd();
-    }
-
-    glDisable(GL_TEXTURE_2D);
-    assert(!glGetError());
-
-    SwapBuffers(device_context);
-    assert(!glGetError());
-
-    glDeleteTextures(1, (GLuint*)&texture_name);
-    assert(!glGetError());
-}
-
 void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
 {
     if (should_recreate_bitmap_after_client_area_resize)
@@ -384,10 +329,8 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
         dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(),
         events_count);
 
-    // SwapBuffers(device_context);
-    // assert(!glGetError());
-
-    Win32BlitBitmapToTheWindow(device_context);
+    SwapBuffers(device_context);
+    assert(!glGetError());
 
     events_count = 0;
     events.clear();
