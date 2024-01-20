@@ -17,7 +17,7 @@ require("lint").linters.ct = {
     cmd = [[C:\Program Files\LLVM\bin\clang-tidy.exe]],
     stdin = false,
     append_fname = true,
-    args = { "--quiet", "--config-file=.clang-tidy-minimal" },
+    args = { "--quiet", "--config-file=.clang-tidy-minimal", "-extra-arg=-std=c++23" },
     ignore_exitcode = true, -- true = a code != 0 considered normal.
     parser = require("lint.parser").from_pattern(
         pattern, groups, severity_map, { ["source"] = "ct" }
