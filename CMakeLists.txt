@@ -20,17 +20,19 @@ set_target_properties(glew PROPERTIES
 target_include_directories(glew INTERFACE "${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
 target_compile_definitions(glew INTERFACE GLEW_STATIC)
 
-# === Building game.dll ===
-add_library(game SHARED)
-target_sources(game PUBLIC sources/game.h)
-target_sources(game PRIVATE sources/game.cpp)
-target_compile_definitions(game
+# === Building bf_game.dll ===
+add_library(bf_game SHARED)
+target_sources(bf_game PUBLIC sources/bf_game.h)
+target_sources(bf_game PRIVATE sources/bf_game.cpp)
+target_compile_definitions(bf_game
     PRIVATE GAME_LIBRARY_BUILD
 )
-set_target_properties(game PROPERTIES
+set_target_properties(bf_game PROPERTIES
     C_VISIBILITY_PRESET hidden
     CXX_VISIBILITY_PRESET hidden
 )
+# TODO(hulvdan): How to decouple from windows OpenGL?
+target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
@@ -45,19 +47,34 @@ target_link_libraries(win32 PRIVATE glew glm)
 # - Casey Muratori: MSVC PDBs Are Filled With Stale Debug Info:
 #   https://www.computerenhance.com/p/msvc-pdbs-are-filled-with-stale-debug
 IF (WIN32)
-    # NOTE(hulvdan): Visual Studio won't let us delete old game.dll PDB files.
+    # NOTE(hulvdan): Visual Studio won't let us delete old bf_game.dll PDB files.
     # This is why we are creating PDBs with timestamped names.
     string(TIMESTAMP V_TIMESTAMP "%Y%m%d-%H%M%S" UTC)
-    set_target_properties(game PROPERTIES
-        PDB_NAME game_${V_TIMESTAMP}
+    set_target_properties(bf_game PROPERTIES
+        PDB_NAME bf_game_${V_TIMESTAMP}
     )
 
     file(GLOB files_to_delete
-        ${CMAKE_BINARY_DIR}/Debug/game_*.pdb
-        ${CMAKE_BINARY_DIR}/Debug/game_*.dll
+        ${CMAKE_BINARY_DIR}/Debug/bf_game_*.pdb
+        ${CMAKE_BINARY_DIR}/Debug/bf_game_*.dll
     )
     list(LENGTH files_to_delete files_to_delete_length)
     if (files_to_delete_length GREATER 0)
         file(REMOVE ${files_to_delete})
     endif()
 ENDIF()
+
+# === Enabling Linting On Win32 ===
+# It affects only ninja build that is currently ued for generating compile_commands.json
+if(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
+    include_directories("${PROJECT_SOURCE_DIR}/.cmake/ninja/_deps/glm-src")
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
+endif()
+
+# === Other Win32 Bullshiet ===
+set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT win32)
+# Now VS will be able to load generated dll file if opened cmake-generated sln file.
+set_target_properties(win32 PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:win32>"
+    VS_DEBUGGER_COMMAND           "$<TARGET_FILE:win32>"
+    VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin")

@@ -5,22 +5,19 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include "glm/glm.hpp"
-#include "glm/ext.hpp"
-#include "glm/gtx/matrix_transform_2d.hpp"
+
+// #include "glm/vec2.hpp"
+// #include "glm/ext.hpp"
 #include "glew.h"
 #include "wglew.h"
-#include "bftypes.h"
-#include "game.h"
+#include "bf_types.h"
+#include "bf_game.h"
+
+#include "bf_renderer.cpp"
 
 #define local_persist static
 #define global_variable static
 #define internal static
-
-#define Kilobytes(value) ((value) * 1024)
-#define Megabytes(value) (Kilobytes(value) * 1024)
-#define Gigabytes(value) (Megabytes(value) * 1024)
-#define Terabytes(value) (Gigabytes(value) * 1024)
 
 static constexpr f32 BF_PI = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
@@ -36,6 +33,7 @@ struct BFBitmap {
 
 // -- GAME STUFF
 global_variable HMODULE game_lib = nullptr;
+global_variable size_t game_memory_size;
 global_variable void* game_memory = nullptr;
 
 global_variable size_t events_count = 0;
@@ -84,13 +82,21 @@ PeekFiletimeRes PeekFiletime(const char* filename)
 }
 #endif
 
-using Game_UpdateAndRender_Type = void (*)(f32, void*, GameBitmap&, void*, size_t);
-void Game_UpdateAndRender_Stub(f32 dt, void* memory_, GameBitmap& bitmap, void*, size_t) {}
+using Game_UpdateAndRender_Type = void (*)(f32, void*, size_t, GameBitmap&, void*, size_t);
+void Game_UpdateAndRender_Stub(
+    f32 dt,
+    void* memory_ptr,
+    size_t memory_size,
+    GameBitmap& bitmap,
+    void* input_events_bytes_ptr,
+    size_t input_events_count)
+{
+}
 Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
 void LoadOrUpdateGameDll()
 {
-    auto path = "game.dll";
+    auto path = "bf_game.dll";
 
 #if BFG_INTERNAL
     auto filetime = PeekFiletime(path);
@@ -319,50 +325,12 @@ void Win32UpdateBitmap(HDC device_context)
         DIB_RGB_COLORS);
 }
 
-void* human_sprite = nullptr;
-i32 human_sprite_width = 0;
-i32 human_sprite_height = 0;
-
-void DrawSprite(
-    GLuint texture_name,
-    u16 x0,
-    u16 y0,
-    u16 x1,
-    u16 y1,
-    glm::vec2 pos,
-    glm::vec2 size,
-    float rotation,
-    const glm::mat3& projection)
-{
-    assert(x0 < x1);
-    assert(y0 < y1);
-
-    auto model = glm::mat3(1);
-    model = glm::translate(model, pos);
-    model = glm::scale(model, size / 2.0f);
-    model = glm::rotate(model, rotation);
-
-    auto matrix = projection * model;
-    // TODO(hulvdan): How bad is it that there are vec3, but not vec2?
-    glm::vec3 vertices[] = {{-1, -1, 1}, {-1, 1, 1}, {1, -1, 1}, {1, 1, 1}};
-    for (auto& vertex : vertices)
-        vertex = matrix * vertex;
-
-    u16 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
-    for (auto i : {0, 1, 2, 2, 1, 3}) {
-        // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
-        glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
-        glVertex2f(vertices[i].x, vertices[i].y);
-    }
-};
-
 void Win32BlitBitmapToTheWindow(HDC device_context)
 {
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
 
     GLuint texture_name = 1;
-    // glGenTextures(1, &texture_name);
     glBindTexture(GL_TEXTURE_2D, texture_name);
     assert(!glGetError());
 
@@ -377,22 +345,6 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         GL_BGRA_EXT, GL_UNSIGNED_BYTE, screen_bitmap.bitmap.memory);
     assert(!glGetError());
 
-    GLuint human_texture = 2;
-    if (human_sprite) {
-        glBindTexture(GL_TEXTURE_2D, human_texture);
-        assert(!glGetError());
-
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        assert(!glGetError());
-
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, human_sprite_width, human_sprite_height, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, human_sprite);
-    }
-
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     assert(!glGetError());
 
@@ -403,34 +355,12 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
         glBindTexture(GL_TEXTURE_2D, texture_name);
         glBegin(GL_TRIANGLES);
 
-        glm::ivec2 vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+        glm::vec2 vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
         for (auto i : {0, 1, 2, 2, 1, 3}) {
             auto& v = vertices[i];
             glTexCoord2f(v.x, v.y);
             glVertex2f(v.x, v.y);
         }
-
-        glEnd();
-    }
-
-    if (human_sprite) {
-        glBindTexture(GL_TEXTURE_2D, human_texture);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glBegin(GL_TRIANGLES);
-
-        auto angle = BF_PI / 8;
-
-        auto sprite_pos = glm::vec2(200, 200);
-        auto sprite_size = glm::vec2(64, 64);
-
-        auto swidth = (f32)screen_bitmap.bitmap.width;
-        auto sheight = (f32)screen_bitmap.bitmap.height;
-
-        auto projection = glm::mat3(1);
-        projection = glm::translate(projection, glm::vec2(0, 1));
-        projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-
-        DrawSprite(human_texture, 0, 0, 1, 1, sprite_pos, sprite_size, angle, projection);
 
         glEnd();
     }
@@ -442,8 +372,6 @@ void Win32BlitBitmapToTheWindow(HDC device_context)
     assert(!glGetError());
 
     glDeleteTextures(1, (GLuint*)&texture_name);
-    if (human_sprite)
-        glDeleteTextures(1, (GLuint*)&human_texture);
     assert(!glGetError());
 }
 
@@ -453,7 +381,12 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
         Win32UpdateBitmap(device_context);
 
     Game_UpdateAndRender_(
-        dt, game_memory, screen_bitmap.bitmap, (void*)events.data(), events_count);
+        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(),
+        events_count);
+
+    // SwapBuffers(device_context);
+    // assert(!glGetError());
+
     Win32BlitBitmapToTheWindow(device_context);
 
     events_count = 0;
@@ -601,104 +534,7 @@ u64 Win32Frequency()
     return res.QuadPart;
 }
 
-struct LoadBMPFile_RGBA_Result {
-    bool success;
-    u16 width;
-    u16 height;
-};
-
-LoadBMPFile_RGBA_Result LoadBMPFile_RGBA(const char* filename, u8* output, size_t output_max_bytes)
-{
-    LoadBMPFile_RGBA_Result res = {};
-
-    auto file = fopen(filename, "r");
-    assert(file);
-
-    // Reading the header
-    // https://en.wikipedia.org/wiki/BMP_file_format#Bitmap_file_header
-    const auto BMP_HEADER_SIZE = 12;
-
-    // NOTE(hulvdan): Adding 6 to get the size of the DIB header
-    const auto offset = 6;
-    const auto header_bytes_to_read = BMP_HEADER_SIZE + offset;
-    u8 header[header_bytes_to_read];
-
-    auto read_bytes = fread(header, 1, header_bytes_to_read, file);
-    if (read_bytes != header_bytes_to_read) {
-        // TODO(hulvdan): Diagnostic
-        assert(fclose(file) != 0);
-        return res;
-    }
-
-    auto is_bmp = header[0] == 'B' && header[1] == 'M';
-    if (!is_bmp) {
-        // TODO(hulvdan): Diagnostic. Not a BMP file
-        assert(false);
-        return res;
-    }
-
-    auto file_size_from_header = *(u32*)(header + 2);
-    auto pixel_array_starting_address = *(u32*)(header + 10);
-
-    const auto DIB_HEADER_MAX_SIZE = 124;
-    u8 dib_header[DIB_HEADER_MAX_SIZE];
-    // NOTE(hulvdan): Copying size of dib_header from the end of header
-    memcpy(dib_header, header + BMP_HEADER_SIZE, offset);
-
-    auto dib_header_size = *(u32*)(header + 14);
-    if (dib_header_size == DIB_HEADER_MAX_SIZE || dib_header_size == 56) {
-        auto dib_header_size2 = *(u32*)(dib_header + 2);
-        assert(dib_header_size == dib_header_size2);
-
-        const auto DIB_HEADER_OFFSET = 12;
-        const auto bytes_to_read = dib_header_size - offset;
-        read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
-        assert(read_bytes == bytes_to_read);
-
-        const auto dib_header_shifted = dib_header - DIB_HEADER_OFFSET;
-
-        res.width = *(u16*)(dib_header_shifted + 18);
-        res.height = *(u16*)(dib_header_shifted + 22);
-        if ((size_t)res.width * res.height * 4 > output_max_bytes) {
-            // TODO(hulvdan): Diagnostic
-            assert(false);
-            return res;
-        }
-
-        auto number_of_color_planes = *(u16*)(dib_header_shifted + 26);
-        assert(number_of_color_planes == 1);
-
-        auto bits_per_pixel = *(u16*)(dib_header_shifted + 28);
-        auto compression_method = *(u32*)(dib_header_shifted + 30);
-
-        // TODO(hulvdan): Even though it's Huffman's compression,
-        // why weren't color palette used?
-        assert(compression_method == 3);  // 3 => Huffman 1D compression
-
-        // NOTE(hulvdan): palette_colors_number = 2**n, if it's == 0
-        // (where `n` is the number of bits per pixel)
-        auto palette_colors_number = *(u32*)(dib_header_shifted + 46);
-        auto important_colors_number = *(u32*)(dib_header_shifted + 50);
-
-        assert(bits_per_pixel == 32);
-        auto pixels_count = (u32)res.width * res.height;
-        assert(file_size_from_header - pixel_array_starting_address == pixels_count * 4);
-
-        fseek(file, (long)pixel_array_starting_address, SEEK_SET);
-        // read_bytes = fread(dib_header + offset, 1, bytes_to_read, file);
-        auto read_pixels = fread((void*)output, 4, pixels_count, file);
-        assert(read_pixels == pixels_count);
-    } else {
-        // TODO(hulvdan): Is not yet implemented algorithm
-        assert(false);
-    }
-
-    assert(fclose(file) == 0);
-    res.success = true;
-
-    return res;
-}
-
+// NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
@@ -711,8 +547,9 @@ static int WinMain(
 
     events.reserve(Kilobytes(64LL));
 
+    game_memory_size = Megabytes(64LL);
     game_memory =
-        VirtualAlloc(0, Megabytes(64LL), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        VirtualAlloc(0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     if (!game_memory) {
         // TODO(hulvdan): Diagnostic
         return -1;
@@ -848,18 +685,6 @@ static int WinMain(
         assert(SUCCEEDED(res));
     }
 
-    const auto bmp_size = 64 * 4;
-    u8 bmp_bytes[bmp_size] = {};
-    auto loading_result = LoadBMPFile_RGBA(
-        R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\sprites\human.bmp)PATH",
-        bmp_bytes, bmp_size);
-
-    if (loading_result.success) {
-        human_sprite = bmp_bytes;
-        human_sprite_width = loading_result.width;
-        human_sprite_height = loading_result.height;
-    }
-
     auto window_handle = CreateWindowExA(
         0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
         CW_USEDEFAULT, 640, 480,
@@ -871,7 +696,7 @@ static int WinMain(
 
     if (!window_handle) {
         // TODO(hulvdan): Diagnostic
-        return FALSE;
+        return -1;
     }
 
     ShowWindow(window_handle, show_command);
@@ -899,14 +724,14 @@ static int WinMain(
         auto pixelformat = ChoosePixelFormat(hdc, &pfd);
         if (!pixelformat) {
             // TODO(hulvdan): Diagnostic
-            return FALSE;
+            return -1;
         }
 
         DescribePixelFormat(hdc, pixelformat, pfd.nSize, &pfd);
 
         if (SetPixelFormat(hdc, pixelformat, &pfd) == FALSE) {
             // TODO(hulvdan): Diagnostic
-            return FALSE;
+            return -1;
         }
         // --- Setting up pixel format end ---
 
@@ -1058,3 +883,4 @@ static int WinMain(
 
     return 0;
 }
+// NOLINTEND(clang-analyzer-core.StackAddressEscape)

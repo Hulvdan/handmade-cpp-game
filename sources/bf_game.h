@@ -1,5 +1,10 @@
 #pragma once
-#include "bftypes.h"
+#include "bf_types.h"
+
+#define Kilobytes(value) ((value) * 1024)
+#define Megabytes(value) (Kilobytes(value) * 1024)
+#define Gigabytes(value) (Megabytes(value) * 1024)
+#define Terabytes(value) (Gigabytes(value) * 1024)
 
 // NOTE(hulvdan): This importing nonsense was hastily taken from
 // https://blog.shaduri.dev/easily-create-shared-libraries-with-cmake-part-1
@@ -138,6 +143,7 @@ struct ControllerAxisChanged {
 extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
     f32 dt,
     void* __restrict memory_ptr,
+    size_t memory_size,
     GameBitmap& __restrict bitmap,
     void* __restrict input_events_bytes_ptr,
     size_t input_events_count);
