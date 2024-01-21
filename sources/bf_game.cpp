@@ -9,11 +9,15 @@
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
 
-// #include "GL/gl.h"  // TODO(hulvdan): Learn how to decouple from Windows-specific OpenGL
-
 #include "bf_base.h"
 #include "bf_game.h"
+
+// NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_strings.cpp"
 #include "bf_renderer.cpp"
+#include "bf_hash.cpp"
+#include "bf_tilemap.cpp"
+// NOLINTEND(bugprone-suspicious-include)
 
 struct LoadedTexture {
     glm::ivec2 size;
@@ -371,7 +375,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         assert(!glGetError());
 
         GLuint human_texture_name = 2;
-        auto& debug_texture = state.grass_textures[13];
+        auto& debug_texture = state.grass_textures[14];
         if (debug_texture.address) {
             glBindTexture(GL_TEXTURE_2D, human_texture_name);
             assert(!glGetError());

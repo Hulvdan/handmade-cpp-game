@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.27)
 
 project(game LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 include(FetchContent)
 
 # === glm library ===
@@ -33,7 +36,6 @@ set_target_properties(bf_game PROPERTIES
 )
 # TODO(hulvdan): How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
-set_property(TARGET bf_game PROPERTY CXX_STANDARD 23)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
@@ -42,7 +44,22 @@ target_compile_definitions(win32 PRIVATE
 )
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm)
-set_property(TARGET win32 PROPERTY CXX_STANDARD 23)
+
+# === googletest library ===
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# === Tests ===
+add_executable(tests tests/main.cpp)
+target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
+target_link_libraries(tests GTest::gtest_main glm)
+include(GoogleTest)
+gtest_discover_tests(tests)
 
 # === Cleaning Up Stale Files ===
 # Kinda related information:
@@ -66,9 +83,9 @@ IF (WIN32)
 ENDIF()
 
 # === Enabling Linting On Win32 ===
-# It affects only ninja build that is currently ued for generating compile_commands.json
 if(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/.cmake/ninja/_deps/glm-src")
+    include_directories("${PROJECT_SOURCE_DIR}/.cmake/ninja/_deps/googletest-src/googletest/include")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
 endif()
 

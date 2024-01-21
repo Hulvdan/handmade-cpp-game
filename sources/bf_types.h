@@ -16,4 +16,4 @@ using f64 = double;
 static constexpr f32 BF_PI = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
 
-// using TextureID = u16;
+using BFTextureID = u32;

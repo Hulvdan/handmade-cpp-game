@@ -61,6 +61,11 @@ vim.keymap.set("n", "<f5>", function()
     launch_side([[cmd\build.bat && cmd\run.bat]], true)
 end, opts)
 
+vim.keymap.set("n", "<A-t>", function()
+    save_files()
+    launch_side([[cmd\build.bat && cmd\run_unit_tests.bat]], true)
+end, opts)
+
 vim.keymap.set("n", "<f6>", function()
     save_files()
     launch_tab([[cmd\debug.bat]])
