@@ -266,6 +266,25 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             }
         }
 
+        terrain_tile = state.game_map.terrain_tiles;
+        auto stride = state.game_map.size.x;
+        for (int y = 0; y < state.game_map.size.y; y++) {
+            for (int x = 0; x < state.game_map.size.x; x++) {
+                auto is_grass = (Terrain)(*terrain_tile) == Terrain::GRASS;
+                auto above_is_grass = false;
+                auto below_is_grass = false;
+                if (y < state.game_map.size.y - 1)
+                    above_is_grass = (Terrain)(*(terrain_tile + stride)) == Terrain::GRASS;
+                if (y > 0)
+                    below_is_grass = (Terrain)(*(terrain_tile - stride)) == Terrain::GRASS;
+
+                if (is_grass && !above_is_grass && !below_is_grass)
+                    *terrain_tile = (TileID)Terrain::NONE;
+
+                terrain_tile++;
+            }
+        }
+
         auto load_result = Debug_LoadFile(
             R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\human.bmp)PATH",
             file_loading_arena.base + file_loading_arena.used,
@@ -276,7 +295,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             auto loading_address = arena.base + arena.used;
             auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
             if (bmp_result.success) {
-                state.human_texture.size = glm::ivec2(bmp_result.width, bmp_result.height);
+                state.human_texture.size = v2i(bmp_result.width, bmp_result.height);
                 state.human_texture.address = loading_address;
                 AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
             }
