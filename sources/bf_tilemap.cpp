@@ -43,7 +43,7 @@ struct SmartTile {
 
 struct LoadSmartTile_Result {
     bool success;
-    // SmartTile tile;
+    size_t size;
 };
 
 LoadSmartTile_Result LoadSmartTileRules(
@@ -99,12 +99,18 @@ LoadSmartTile_Result LoadSmartTileRules(
     //     Parsing state
     // rules_output
     // output_max_bytes
+    int rules_count = 0;
     while (true) {
-        TileRule& rule = *(TileRule*)rules_output;
+        if (sizeof(TileRule) * (rules_count + 1) > output_max_bytes) {
+            assert(false);
+            return res;
+        }
+
+        TileRule& rule = *(TileRule*)(rules_output + sizeof(TileRule) * rules_count);
         {
             auto offset = FindNewline(filedata, filesize);
-            // TODO(hulvdan): Here is the return;
-            assert(offset > 0);
+            if (offset < 0)
+                break;
 
             rule.texture_id = static_cast<BFTextureID>(Hash32(filedata, offset));
 
@@ -122,7 +128,7 @@ LoadSmartTile_Result LoadSmartTileRules(
         assert(*filedata == '|');
         {
             auto offset = FindNewline(filedata, filesize);
-            assert(offset > 0);
+            assert(offset == 5);
 
             rule.states[0] = ParseTileState(*(filedata + 1));
             rule.states[1] = ParseTileState(*(filedata + 2));
@@ -141,7 +147,7 @@ LoadSmartTile_Result LoadSmartTileRules(
 
         {
             auto offset = FindNewline(filedata, filesize);
-            assert(offset > 0);
+            assert(offset == 5);
 
             rule.states[3] = ParseTileState(*(filedata + 1));
             rule.states[4] = ParseTileState(*(filedata + 3));
@@ -157,8 +163,8 @@ LoadSmartTile_Result LoadSmartTileRules(
             filesize -= offset;
         }
         {
-            auto offset = FindNewline(filedata, filesize);
-            assert(offset > 0);
+            auto offset = FindNewlineOrEOF(filedata, filesize);
+            assert(offset == 5);
 
             rule.states[5] = ParseTileState(*(filedata + 1));
             rule.states[6] = ParseTileState(*(filedata + 2));
@@ -166,10 +172,17 @@ LoadSmartTile_Result LoadSmartTileRules(
 
             filedata += offset;
             filesize -= offset;
+            rules_count++;
         }
 
         {
+            if (filesize == 0)
+                break;
+
             auto offset = FindNotNewline(filedata, filesize);
+            if (offset < 0)
+                break;
+
             assert(offset > 0);
             filedata += offset;
             filesize -= offset;
@@ -177,6 +190,9 @@ LoadSmartTile_Result LoadSmartTileRules(
     }
 
     res.success = true;
+    tile.rules_count = rules_count;
+    tile.rules = (TileRule*)rules_output;
+    res.size = tile.rules_count * sizeof(TileRule);
     return res;
 }
 

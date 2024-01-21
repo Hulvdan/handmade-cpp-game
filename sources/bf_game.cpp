@@ -20,6 +20,7 @@
 // NOLINTEND(bugprone-suspicious-include)
 
 struct LoadedTexture {
+    BFTextureID id;
     glm::ivec2 size;
     u8* address;
 };
@@ -64,17 +65,10 @@ struct GameState {
     Arena memory_arena;
     Arena file_loading_arena;
 
-    // i32 textures_count;
-    // LoadedTexture* grass_textures;
-
+    SmartTile grass_smart_tile;
     LoadedTexture human_texture;
     LoadedTexture grass_textures[17];
 };
-
-struct PlatformFunctions {
-    void LoadTexture(const char*, u32, u32, u8*, u32);
-};
-void LoadTextureStub(const char*, u32, u32, u8*, u32) {}
 
 struct GameMemory {
     bool is_initialized;
@@ -250,7 +244,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         auto initial_offset = sizeof(GameMemory);
         auto file_loading_arena_size = Megabytes((size_t)1);
 
-        auto& file_loading_arena = state.memory_arena;
+        auto& file_loading_arena = state.file_loading_arena;
         file_loading_arena.size = file_loading_arena_size;
         file_loading_arena.base = (u8*)memory_ptr + initial_offset;
 
@@ -300,19 +294,40 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                 auto filedata = file_loading_arena.base + file_loading_arena.used;
                 auto loading_address = arena.base + arena.used;
                 auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
+
                 if (bmp_result.success) {
-                    state.grass_textures[i].size = glm::ivec2(bmp_result.width, bmp_result.height);
-                    state.grass_textures[i].address = loading_address;
+                    LoadedTexture& texture = state.grass_textures[i];
+
+                    constexpr size_t NAME_SIZE = 256;
+                    char name[NAME_SIZE] = {};
+                    sprintf(name, "grass_%d", i + 1);
+                    auto name_size = FindNewlineOrEOF((u8*)name, 12);
+                    assert(name_size > 0);
+                    assert(name_size < NAME_SIZE);
+
+                    texture.id = Hash32((u8*)name, name_size);
+                    texture.size = glm::ivec2(bmp_result.width, bmp_result.height);
+                    texture.address = loading_address;
                     AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
                 }
             }
         }
 
-        // load textures
-        // auto textures = AllocateArray(arena, u32, (size_t)64 * 1024);
-        // auto columns = 4;
-        // auto rows = 4;
+        auto tilerule_result = Debug_LoadFile(
+            R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\tiles\tilerule_grass.txt)PATH",
+            file_loading_arena.base + file_loading_arena.used,
+            file_loading_arena.size - file_loading_arena.used);
+        assert(tilerule_result.success);
 
+        auto rule_result = LoadSmartTileRules(
+            state.grass_smart_tile,  //
+            state.memory_arena.base + state.memory_arena.used,
+            state.memory_arena.size - state.memory_arena.used,  //
+            state.file_loading_arena.base + state.file_loading_arena.used,  //
+            tilerule_result.size);
+        assert(rule_result.success);
+
+        AllocateArray(arena, u8, rule_result.size);
         memory.is_initialized = true;
     }
 

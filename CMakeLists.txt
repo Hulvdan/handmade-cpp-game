@@ -55,7 +55,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # === Tests ===
-add_executable(tests tests/main.cpp)
+add_executable(tests tests/tests.cpp)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
 target_link_libraries(tests GTest::gtest_main glm)
 include(GoogleTest)
