@@ -27,6 +27,8 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
+cls
+
 echo.
 echo [33mINFO: Compiling...[0m
 MSBuild .cmake\vs17\game.sln -v:minimal

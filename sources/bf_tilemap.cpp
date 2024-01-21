@@ -97,8 +97,6 @@ LoadSmartTile_Result LoadSmartTileRules(
     //     Parsing state
     //     Parsing state while ignoring the middle cell because of the always-present `@`
     //     Parsing state
-    // rules_output
-    // output_max_bytes
     int rules_count = 0;
     while (true) {
         if (sizeof(TileRule) * (rules_count + 1) > output_max_bytes) {
@@ -206,9 +204,10 @@ TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos, Sma
 {
     // TODO(hulvdan): Probably need to reverse these
     v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+    // v2i offsets[] = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, -1}, {1, 1}};
 
     for (int r = 0; r < tile.rules_count; r++) {
-        auto& rule = *tile.rules++;
+        auto& rule = *(tile.rules + r);
 
         b32 found = true;
         for (int i = 0; (i < 8) && found; i++) {
@@ -220,12 +219,13 @@ TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos, Sma
             auto new_pos = pos + offset;
 
             if (!InBounds(new_pos, size)) {
-                found &= state == TileState::INCLUDED;
+                found &= state != TileState::INCLUDED;
                 continue;
             }
 
-            auto scaled_dist = tile_ids_distance * (offset.y * size.x + offset.x);
-            auto tile_id = *(TileID*)((u8*)tile_ids + scaled_dist);
+            // auto tile_y_dist = size.x;
+            auto scaled_dist = tile_ids_distance * (size.x * new_pos.y + new_pos.x);
+            auto tile_id = *(TileID*)(((u8*)tile_ids) + scaled_dist);
 
             if (state == TileState::INCLUDED)
                 found &= tile_id == tile.id;

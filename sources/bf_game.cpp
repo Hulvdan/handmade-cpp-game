@@ -31,8 +31,8 @@ enum class Terrain {
 };
 
 struct GameMap {
-    glm::ivec2 size;
-    Terrain* terrain_tiles;
+    v2i size;
+    TileID* terrain_tiles;
 };
 
 struct Arena {
@@ -256,12 +256,14 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         state.game_map.size = {32, 24};
         auto& dim = state.game_map.size;
 
-        state.game_map.terrain_tiles = AllocateArray(arena, Terrain, (size_t)dim.x * dim.y);
+        state.game_map.terrain_tiles = AllocateArray(arena, TileID, (size_t)dim.x * dim.y);
 
-        Terrain* terrain_tile = state.game_map.terrain_tiles;
+        auto* terrain_tile = state.game_map.terrain_tiles;
         for (int y = 0; y < state.game_map.size.y; y++) {
-            for (int x = 0; x < state.game_map.size.x; x++)
-                *terrain_tile++ = rand() % 4 ? Terrain::GRASS : Terrain::NONE;
+            for (int x = 0; x < state.game_map.size.x; x++) {
+                auto val = rand() % 4 ? Terrain::GRASS : Terrain::NONE;
+                *terrain_tile++ = (TileID)val;
+            }
         }
 
         auto load_result = Debug_LoadFile(
@@ -279,6 +281,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                 AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
             }
         }
+
+        glEnable(GL_TEXTURE_2D);
 
         char buffer[512] = {};
         for (int i = 0; i < 17; i++) {
@@ -305,29 +309,45 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                     assert(name_size > 0);
                     assert(name_size < NAME_SIZE);
 
-                    texture.id = Hash32((u8*)name, name_size);
-                    texture.size = glm::ivec2(bmp_result.width, bmp_result.height);
+                    // texture.id = state.texture_ids[i] + 10;
+                    texture.id = static_cast<BFTextureID>(Hash32((u8*)name, name_size));
+                    texture.size = v2i(bmp_result.width, bmp_result.height);
                     texture.address = loading_address;
                     AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
+
+                    glBindTexture(GL_TEXTURE_2D, texture.id);
+
+                    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+                    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+                    assert(!glGetError());
+
+                    glTexImage2D(
+                        GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
+                        GL_UNSIGNED_BYTE, texture.address);
+                    assert(!glGetError());
                 }
             }
         }
 
-        auto tilerule_result = Debug_LoadFile(
+        auto rule_file_result = Debug_LoadFile(
             R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\tiles\tilerule_grass.txt)PATH",
             file_loading_arena.base + file_loading_arena.used,
             file_loading_arena.size - file_loading_arena.used);
-        assert(tilerule_result.success);
+        assert(rule_file_result.success);
 
-        auto rule_result = LoadSmartTileRules(
+        state.grass_smart_tile.id = (TileID)Terrain::GRASS;
+        auto rule_loading_result = LoadSmartTileRules(
             state.grass_smart_tile,  //
             state.memory_arena.base + state.memory_arena.used,
             state.memory_arena.size - state.memory_arena.used,  //
             state.file_loading_arena.base + state.file_loading_arena.used,  //
-            tilerule_result.size);
-        assert(rule_result.success);
+            rule_file_result.size);
 
-        AllocateArray(arena, u8, rule_result.size);
+        assert(rule_loading_result.success);
+
+        AllocateArray(state.memory_arena, u8, rule_loading_result.size);
         memory.is_initialized = true;
     }
 
@@ -342,7 +362,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
     state.offset_y += dt * 256.0f;
     state.offset_x += dt * 256.0f;
 
-    const auto player_radius = 20;
+    const auto player_radius = 24;
 
     for (i32 y = 0; y < bitmap.height; y++) {
         for (i32 x = 0; x < bitmap.width; x++) {
@@ -409,8 +429,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         assert(!glGetError());
 
-        glEnable(GL_TEXTURE_2D);
-        assert(!glGetError());
         {
             glBlendFunc(GL_ONE, GL_ZERO);
             glBindTexture(GL_TEXTURE_2D, texture_name);
@@ -448,8 +466,44 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             glEnd();
         }
 
-        glDisable(GL_TEXTURE_2D);
-        assert(!glGetError());
+        auto gsize = state.game_map.size;
+        for (int y = 0; y < gsize.y; y++) {
+            for (int x = 0; x < gsize.x; x++) {
+                // TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos,
+                // SmartTile& tile)
+                auto terrain_tiles = state.game_map.terrain_tiles;
+                Terrain tile = *(Terrain*)(terrain_tiles + gsize.x * y + x);
+                if (tile != Terrain::GRASS)
+                    continue;
+
+                auto texture_id = TestSmartTile(
+                    state.game_map.terrain_tiles, sizeof(TileID), state.game_map.size, v2i(x, y),
+                    state.grass_smart_tile);
+
+                glBindTexture(GL_TEXTURE_2D, texture_id);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                // glBlendFunc(GL_ONE, GL_ZERO);
+                glBegin(GL_TRIANGLES);
+
+                auto cell_size = 32;
+                auto sprite_pos =
+                    v2i((x + 1) * cell_size,  //
+                        (y + 4) * cell_size);
+                auto sprite_size = v2i(cell_size, cell_size);
+
+                auto swidth = (f32)bitmap.width;
+                auto sheight = (f32)bitmap.height;
+
+                auto projection = glm::mat3(1);
+                projection = glm::translate(projection, glm::vec2(0, 1));
+                projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+                projection = glm::rotate(projection, -0.2f);
+
+                DrawSprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+
+                glEnd();
+            }
+        }
 
         glDeleteTextures(1, (GLuint*)&texture_name);
         if (state.human_texture.address)
