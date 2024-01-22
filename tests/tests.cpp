@@ -1,4 +1,5 @@
-#include <gtest/gtest.h>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest.h"
 
 #include "bf_base.h"
 
@@ -8,16 +9,17 @@
 #include "bf_tilemap.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-TEST(Hash32, EmptyIsCorrect)
+TEST_CASE("Hash32, EmptyIsCorrect")
 {
-    EXPECT_EQ(Hash32((u8*)"", 0), 2166136261);
-}
-TEST(Hash32, TestValue)
-{
-    EXPECT_EQ(Hash32((u8*)"test", 4), 2949673445);
+    CHECK(Hash32((u8*)"", 0) == 2166136261);
 }
 
-TEST(LoadSmartTileRules, ItWorks)
+TEST_CASE("Hash32, TestValue")
+{
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+}
+
+TEST_CASE("LoadSmartTileRules, ItWorks")
 {
     constexpr u64 size = 512;
     u8 output[size] = {};
@@ -31,12 +33,12 @@ TEST(LoadSmartTileRules, ItWorks)
     SmartTile tile = {};
     auto result = LoadSmartTileRules(tile, output, size, (u8*)rules_data, rules_data_size);
 
-    EXPECT_EQ(result.success, true);
-    EXPECT_EQ(tile.rules_count, 2);
-    EXPECT_EQ(Hash32((u8*)"test", 4), 2949673445);
+    CHECK(result.success == true);
+    CHECK(tile.rules_count == 2);
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST(LoadSmartTileRules, ItWorksWithANewlineOnTheEnd)
+TEST_CASE("LoadSmartTileRules, ItWorksWithANewlineOnTheEnd")
 {
     constexpr u64 size = 512;
     u8 output[size] = {};
@@ -50,7 +52,18 @@ TEST(LoadSmartTileRules, ItWorksWithANewlineOnTheEnd)
     SmartTile tile = {};
     auto result = LoadSmartTileRules(tile, output, size, (u8*)rules_data, rules_data_size);
 
-    EXPECT_EQ(result.success, true);
-    EXPECT_EQ(tile.rules_count, 2);
-    EXPECT_EQ(Hash32((u8*)"test", 4), 2949673445);
+    CHECK(result.success == true);
+    CHECK(tile.rules_count == 2);
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+}
+
+TEST_CASE("ProtoTest, Proto")
+{
+    CHECK(0xFF == 255);
+    CHECK(0x00FF == 255);
+    CHECK(0xFF00 == 65280);
+
+    CHECK(0b11111111 == 255);
+    CHECK(0b0000000011111111 == 255);
+    CHECK(0b1111111100000000 == 65280);
 }
