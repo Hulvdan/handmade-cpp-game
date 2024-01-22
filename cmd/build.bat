@@ -17,7 +17,8 @@ cmake ^
     -Werror=dev ^
     -Werror-deprecated ^
     --log-level=WARNING ^
-    -DCMAKE_UNITY_BUILD=ON
+    -DCMAKE_UNITY_BUILD=ON ^
+    -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
 
 if %errorlevel% neq 0 (
     echo.
