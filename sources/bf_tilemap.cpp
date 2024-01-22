@@ -1,36 +1,35 @@
 #include "bf_base.h"
 
-// TODO(hulvdan): Rename To TileStateCheck
-enum class TileState {
-    NONE,  // TODO(hulvdan): Rename To SKIP
+enum class TileStateCheck {
+    SKIP,
     EXCLUDED,
     INCLUDED,
 };
 
-TileState ParseTileState(u8 data)
+TileStateCheck ParseTileStateCheck(u8 data)
 {
     switch (data) {
     case '@':
-        return TileState::INCLUDED;
+        return TileStateCheck::INCLUDED;
 
     case ' ':
-        return TileState::NONE;
+        return TileStateCheck::SKIP;
 
     case '*':
-        return TileState::EXCLUDED;
+        return TileStateCheck::EXCLUDED;
 
     default:
         assert(false);
     }
 
-    return TileState::NONE;
+    return TileStateCheck::SKIP;
 }
 
 using TileID = u32;
 
 struct TileRule {
     BFTextureID texture_id;
-    TileState states[8];
+    TileStateCheck states[8];
 };
 
 struct SmartTile {
@@ -128,9 +127,9 @@ LoadSmartTile_Result LoadSmartTileRules(
             auto offset = FindNewline(filedata, filesize);
             assert(offset == 5);
 
-            rule.states[0] = ParseTileState(*(filedata + 1));
-            rule.states[1] = ParseTileState(*(filedata + 2));
-            rule.states[2] = ParseTileState(*(filedata + 3));
+            rule.states[0] = ParseTileStateCheck(*(filedata + 1));
+            rule.states[1] = ParseTileStateCheck(*(filedata + 2));
+            rule.states[2] = ParseTileStateCheck(*(filedata + 3));
 
             filedata += offset;
             filesize -= offset;
@@ -147,8 +146,8 @@ LoadSmartTile_Result LoadSmartTileRules(
             auto offset = FindNewline(filedata, filesize);
             assert(offset == 5);
 
-            rule.states[3] = ParseTileState(*(filedata + 1));
-            rule.states[4] = ParseTileState(*(filedata + 3));
+            rule.states[3] = ParseTileStateCheck(*(filedata + 1));
+            rule.states[4] = ParseTileStateCheck(*(filedata + 3));
 
             filedata += offset;
             filesize -= offset;
@@ -164,9 +163,9 @@ LoadSmartTile_Result LoadSmartTileRules(
             auto offset = FindNewlineOrEOF(filedata, filesize);
             assert(offset == 5);
 
-            rule.states[5] = ParseTileState(*(filedata + 1));
-            rule.states[6] = ParseTileState(*(filedata + 2));
-            rule.states[7] = ParseTileState(*(filedata + 3));
+            rule.states[5] = ParseTileStateCheck(*(filedata + 1));
+            rule.states[6] = ParseTileStateCheck(*(filedata + 2));
+            rule.states[7] = ParseTileStateCheck(*(filedata + 3));
 
             filedata += offset;
             filesize -= offset;
@@ -202,24 +201,22 @@ LoadSmartTile_Result LoadSmartTileRules(
 BFTextureID
 TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos, SmartTile& tile)
 {
-    // TODO(hulvdan): Probably need to reverse these
     v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
-    // v2i offsets[] = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, -1}, {1, 1}};
 
     for (int r = 0; r < tile.rules_count; r++) {
         auto& rule = *(tile.rules + r);
 
         b32 found = true;
         for (int i = 0; (i < 8) && found; i++) {
-            TileState state = *(rule.states + i);
-            if (state == TileState::NONE)
+            TileStateCheck state = *(rule.states + i);
+            if (state == TileStateCheck::SKIP)
                 continue;
 
             auto& offset = offsets[i];
             auto new_pos = pos + offset;
 
             if (!InBounds(new_pos, size)) {
-                found &= state != TileState::INCLUDED;
+                found &= state != TileStateCheck::INCLUDED;
                 continue;
             }
 
@@ -227,9 +224,9 @@ TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos, Sma
             auto scaled_dist = tile_ids_distance * (size.x * new_pos.y + new_pos.x);
             auto tile_id = *(TileID*)(((u8*)tile_ids) + scaled_dist);
 
-            if (state == TileState::INCLUDED)
+            if (state == TileStateCheck::INCLUDED)
                 found &= tile_id == tile.id;
-            else if (state == TileState::EXCLUDED)
+            else if (state == TileStateCheck::EXCLUDED)
                 found &= tile_id != tile.id;
         }
 

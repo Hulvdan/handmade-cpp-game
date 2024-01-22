@@ -191,7 +191,7 @@ LoadBMP_RGBA_Result LoadBMP_RGBA(u8* output, const u8* filedata, size_t output_m
 
     auto& header = *(Debug_BMP_Header*)filedata;
 
-    if (header.signature != *(u16*)("BM")) {
+    if (header.signature != *(u16*)"BM") {
         // TODO(hulvdan): Diagnostic. Not a BMP file
         assert(false);
         return res;
