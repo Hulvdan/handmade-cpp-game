@@ -5,15 +5,8 @@ project(game LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(FetchContent)
-
 # === glm library ===
-FetchContent_Declare(
-  glm
-  GIT_REPOSITORY https://github.com/g-truc/glm.git
-  GIT_TAG        bf71a834948186f4097caa076cd2663c69a10e1e # 0.9.9.8
-)
-FetchContent_MakeAvailable(glm)
+add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
 # === GLEW library ===
 add_library(glew STATIC IMPORTED)
@@ -74,7 +67,7 @@ ENDIF()
 
 # === Enabling Linting On Win32 ===
 if(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
-    include_directories("${PROJECT_SOURCE_DIR}/.cmake/ninja/_deps/glm-src")
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glm-0.9.9.8")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 endif()
