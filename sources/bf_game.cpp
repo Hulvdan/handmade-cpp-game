@@ -145,8 +145,19 @@ struct Debug_LoadFileResult {
 
 Debug_LoadFileResult Debug_LoadFile(const char* filename, u8* output, size_t output_max_bytes)
 {
+    char absolute_file_path[512];
+    // TODO(hulvdan): Make the path relative to the executable
+    const auto pattern = R"PATH(c:\Users\user\dev\home\handmade-cpp-game\%s)PATH";
+    sprintf(absolute_file_path, pattern, filename);
+#if WIN32
+    for (auto& character : absolute_file_path) {
+        if (character == '/')
+            character = '\\';
+    }
+#endif
+
     FILE* file = 0;
-    auto failed = fopen_s(&file, filename, "r");
+    auto failed = fopen_s(&file, absolute_file_path, "r");
     assert(!failed);
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);
@@ -286,8 +297,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         }
 
         auto load_result = Debug_LoadFile(
-            R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\human.bmp)PATH",
-            file_loading_arena.base + file_loading_arena.used,
+            "assets/art/human.bmp", file_loading_arena.base + file_loading_arena.used,
             file_loading_arena.size - file_loading_arena.used);
 
         if (load_result.success) {
@@ -305,9 +315,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
 
         char buffer[512] = {};
         for (int i = 0; i < 17; i++) {
-            const auto pattern =
-                R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\tiles\grass_%d.bmp)PATH";
-            sprintf(buffer, pattern, i + 1);
+            sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
 
             auto load_result = Debug_LoadFile(
                 buffer, file_loading_arena.base + file_loading_arena.used,
@@ -351,7 +359,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         }
 
         auto rule_file_result = Debug_LoadFile(
-            R"PATH(c:\Users\user\dev\home\handmade-cpp-game\assets\art\tiles\tilerule_grass.txt)PATH",
+            "assets/art/tiles/tilerule_grass.txt",
             file_loading_arena.base + file_loading_arena.used,
             file_loading_arena.size - file_loading_arena.used);
         assert(rule_file_result.success);
