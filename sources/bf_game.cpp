@@ -1,3 +1,4 @@
+#pragma once
 #include <cassert>
 #include <cstdlib>
 #include <vector>
@@ -9,6 +10,9 @@
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
 
+#include "range.h"
+using cpp_range::range;
+
 #include "bf_base.h"
 #include "bf_game.h"
 
@@ -16,23 +20,20 @@
 #include "bf_strings.cpp"
 #include "bf_renderer.cpp"
 #include "bf_hash.cpp"
-#include "bf_tilemap.cpp"
+#include "bf_gamemap.cpp"
+
+#ifdef BF_CLIENT
+#include "bfc_tilemap.cpp"
+#endif  // BF_CLIENT
+
+#ifdef BF_SERVER
+#endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
 struct LoadedTexture {
     BFTextureID id;
     glm::ivec2 size;
     u8* address;
-};
-
-enum class Terrain {
-    NONE,
-    GRASS,
-};
-
-struct GameMap {
-    v2i size;
-    TileID* terrain_tiles;
 };
 
 struct Arena {
@@ -60,7 +61,7 @@ struct GameState {
     f32 offset_y;
 
     v2f player_pos;
-    GameMap game_map;
+    GameMap gamemap;
 
     Arena memory_arena;
     Arena file_loading_arena;
@@ -263,38 +264,12 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         arena.size = memory_size - initial_offset - file_loading_arena_size;
         arena.base = (u8*)memory_ptr + initial_offset + file_loading_arena_size;
 
-        state.game_map = {};
-        state.game_map.size = {32, 24};
-        auto& dim = state.game_map.size;
+        state.gamemap = {};
+        state.gamemap.size = {32, 24};
+        auto& dim = state.gamemap.size;
 
-        state.game_map.terrain_tiles = AllocateArray(arena, TileID, (size_t)dim.x * dim.y);
-
-        auto* terrain_tile = state.game_map.terrain_tiles;
-        for (int y = 0; y < state.game_map.size.y; y++) {
-            for (int x = 0; x < state.game_map.size.x; x++) {
-                auto val = rand() % 4 ? Terrain::GRASS : Terrain::NONE;
-                *terrain_tile++ = (TileID)val;
-            }
-        }
-
-        terrain_tile = state.game_map.terrain_tiles;
-        auto stride = state.game_map.size.x;
-        for (int y = 0; y < state.game_map.size.y; y++) {
-            for (int x = 0; x < state.game_map.size.x; x++) {
-                auto is_grass = (Terrain)(*terrain_tile) == Terrain::GRASS;
-                auto above_is_grass = false;
-                auto below_is_grass = false;
-                if (y < state.game_map.size.y - 1)
-                    above_is_grass = (Terrain)(*(terrain_tile + stride)) == Terrain::GRASS;
-                if (y > 0)
-                    below_is_grass = (Terrain)(*(terrain_tile - stride)) == Terrain::GRASS;
-
-                if (is_grass && !above_is_grass && !below_is_grass)
-                    *terrain_tile = (TileID)Terrain::NONE;
-
-                terrain_tile++;
-            }
-        }
+        state.gamemap.terrain_tiles = AllocateArray(arena, TerrainTile, (size_t)dim.x * dim.y);
+        RegenerateTerrainTiles(state.gamemap);
 
         auto load_result = Debug_LoadFile(
             "assets/art/human.bmp", file_loading_arena.base + file_loading_arena.used,
@@ -305,7 +280,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             auto loading_address = arena.base + arena.used;
             auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
             if (bmp_result.success) {
-                state.human_texture.size = v2i(bmp_result.width, bmp_result.height);
+                state.human_texture.size = {bmp_result.width, bmp_result.height};
                 state.human_texture.address = loading_address;
                 AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
             }
@@ -314,7 +289,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         glEnable(GL_TEXTURE_2D);
 
         char buffer[512] = {};
-        for (int i = 0; i < 17; i++) {
+        for (int i : range(17)) {
             sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
 
             auto load_result = Debug_LoadFile(
@@ -338,7 +313,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
 
                     // texture.id = state.texture_ids[i] + 10;
                     texture.id = static_cast<BFTextureID>(Hash32((u8*)name, name_size));
-                    texture.size = v2i(bmp_result.width, bmp_result.height);
+                    texture.size = {bmp_result.width, bmp_result.height};
                     texture.address = loading_address;
                     AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
 
@@ -391,8 +366,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
 
     const auto player_radius = 24;
 
-    for (i32 y = 0; y < bitmap.height; y++) {
-        for (i32 x = 0; x < bitmap.width; x++) {
+    for (i32 y : range(bitmap.height)) {
+        for (i32 x : range(bitmap.width)) {
             // u32 red  = 0;
             u32 red = (u8)(x + offset_x);
             // u32 red  = (u8)(y + offset_y);
@@ -471,20 +446,21 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             glEnd();
         }
 
-        auto gsize = state.game_map.size;
-        for (int y = 0; y < gsize.y; y++) {
-            for (int x = 0; x < gsize.x; x++) {
-                auto tile = *(Terrain*)(state.game_map.terrain_tiles + gsize.x * y + x);
-                if (tile != Terrain::GRASS)
+        auto gsize = state.gamemap.size;
+        for (int y : range(gsize.y)) {
+            for (int x : range(gsize.x)) {
+                auto& tile = GetTerrainTile(state.gamemap, {x, y});
+                if (tile.terrain != Terrain::GRASS)
                     continue;
 
-                auto texture_id = TestSmartTile(
-                    state.game_map.terrain_tiles, sizeof(TileID), state.game_map.size, v2i(x, y),
-                    state.grass_smart_tile);
+                auto texture_id = 2;
+                // TODO(hulvdan): Make a proper game renderer
+                // auto texture_id = TestSmartTile(
+                //     state.gamemap.terrain_tiles, sizeof(TileID), state.gamemap.size, {x, y},
+                //     state.grass_smart_tile);
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                // glBlendFunc(GL_ONE, GL_ZERO);
                 glBegin(GL_TRIANGLES);
 
                 auto cell_size = 32;

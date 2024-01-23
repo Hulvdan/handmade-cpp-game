@@ -1,12 +1,17 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#include "range.h"
+
 #include "bf_base.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_hash.cpp"
 #include "bf_strings.cpp"
-#include "bf_tilemap.cpp"
+#include "bf_rand.cpp"
+
+#define BF_CLIENT
+#include "bfc_tilemap.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
 TEST_CASE("Hash32, EmptyIsCorrect")
@@ -66,4 +71,13 @@ TEST_CASE("ProtoTest, Proto")
     CHECK(0b11111111 == 255);
     CHECK(0b0000000011111111 == 255);
     CHECK(0b1111111100000000 == 65280);
+}
+
+TEST_CASE("frand, interval")
+{
+    for (int i = 0; i < 10000; i++) {
+        auto value = frand();
+        CHECK(value >= 0);
+        CHECK(value < 1);
+    }
 }

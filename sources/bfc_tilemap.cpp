@@ -1,3 +1,9 @@
+#pragma once
+
+#ifndef BF_CLIENT
+#error "This code should not run on a server! BF_CLIENT must be defined!"
+#endif
+
 enum class TileStateCheck {
     SKIP,
     EXCLUDED,
@@ -191,46 +197,51 @@ LoadSmartTile_Result LoadSmartTileRules(
     return res;
 }
 
-#define InBounds(pos, bounds) \
-    (!((pos).x < 0 || (pos).x >= (bounds).x || (pos).y < 0 || (pos).y >= (bounds).y))
+struct Tilemap {
+    v2i size;
+    TileID* tiles;
+};
+
+void SetTile(Tilemap& tilemap, v2i pos, TileID tile_id)
+{
+    assert(PosIsInBounds(pos, tilemap.size));
+    *(tilemap.tiles + tilemap.size.x * pos.y + pos.x) = tile_id;
+}
 
 // NOTE(hulvdan): `tile_ids_distance` is the distance
 // (in bytes) between two adjacent TileIDs in `tile_ids`
-BFTextureID
-TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos, SmartTile& tile)
-{
-    v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
-
-    for (int r = 0; r < tile.rules_count; r++) {
-        auto& rule = *(tile.rules + r);
-
-        b32 found = true;
-        for (int i = 0; (i < 8) && found; i++) {
-            TileStateCheck state = *(rule.states + i);
-            if (state == TileStateCheck::SKIP)
-                continue;
-
-            auto& offset = offsets[i];
-            auto new_pos = pos + offset;
-
-            if (!InBounds(new_pos, size)) {
-                found &= state != TileStateCheck::INCLUDED;
-                continue;
-            }
-
-            // auto tile_y_dist = size.x;
-            auto scaled_dist = tile_ids_distance * (size.x * new_pos.y + new_pos.x);
-            auto tile_id = *(TileID*)(((u8*)tile_ids) + scaled_dist);
-
-            if (state == TileStateCheck::INCLUDED)
-                found &= tile_id == tile.id;
-            else if (state == TileStateCheck::EXCLUDED)
-                found &= tile_id != tile.id;
-        }
-
-        if (found)
-            return rule.texture_id;
-    }
-
-    return tile.fallback_texture_id;
-}
+// BFTextureID TestSmartTile(Tilemap& tilemap, v2i pos, SmartTile& tile)
+// {
+//     v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+//
+//     for (int r = 0; r < tile.rules_count; r++) {
+//         auto& rule = *(tile.rules + r);
+//
+//         b32 found = true;
+//         for (int i = 0; (i < 8) && found; i++) {
+//             TileStateCheck state = *(rule.states + i);
+//             if (state == TileStateCheck::SKIP)
+//                 continue;
+//
+//             auto& offset = offsets[i];
+//             auto new_pos = pos + offset;
+//
+//             if (!PosIsInBounds(new_pos, size)) {
+//                 found &= state != TileStateCheck::INCLUDED;
+//                 continue;
+//             }
+//
+//             auto tile = tilemap.terrain_tiles + size.x * new_pos.y + new_pos.x;
+//
+//             if (state == TileStateCheck::INCLUDED)
+//                 found &= tile_id == (TileID)tile.id;
+//             else if (state == TileStateCheck::EXCLUDED)
+//                 found &= tile_id != (TileID)tile.id;
+//         }
+//
+//         if (found)
+//             return rule.texture_id;
+//     }
+//
+//     return tile.fallback_texture_id;
+// }
