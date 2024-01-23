@@ -28,10 +28,8 @@ function launch_side(command, options)
     options = options or { go_down = true }
     if options.go_down == nil then options.go_down = true end
 
-    vim.fn.execute("vs")
-    vim.fn.execute("wincmd x")
-    vim.fn.execute("wincmd l")
-    vim.fn.execute("term " .. command)
+    local esc_command = command:gsub([[%\]], [[\\]]):gsub([[% ]], [[\ ]])
+    vim.fn.execute([[vs +term\ ]] .. esc_command)
 
     if options.go_down then
         vim.fn.execute("norm G")
