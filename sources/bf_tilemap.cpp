@@ -1,5 +1,3 @@
-#include "bf_base.h"
-
 enum class TileStateCheck {
     SKIP,
     EXCLUDED,

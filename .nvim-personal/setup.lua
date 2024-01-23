@@ -2,25 +2,38 @@
 -- ================== --
 vim.fn.execute(":set nornu")
 vim.fn.execute(":set nonumber")
--- vim.fn.execute(":set signcolumn=no")
+vim.fn.execute(":set signcolumn=no")
 vim.fn.execute(":set colorcolumn=")
 vim.fn.execute(":set nobackup")
 vim.fn.execute(":set nowritebackup")
 
 -- Helper Functions --
 -- ================ --
-function launch_tab(command)
+
+-- Options:
+-- go_down - default: true - Places a cursor at the bottom upon launching the command
+function launch_tab(command, options)
+    options = options or { go_down = true }
+    if options.go_down == nil then options.go_down = true end
+
     vim.fn.execute([[term ]] .. command)
-    vim.fn.execute("norm G")
+    if options.go_down then
+        vim.fn.execute("norm G")
+    end
 end
 
-function launch_side(command, switch)
-    local esc_command = command:gsub([[%\]], [[\\]]):gsub([[% ]], [[\ ]])
-    vim.fn.execute([[vs +term\ ]] .. esc_command)
+-- Options:
+-- go_down - default: true - Places a cursor at the bottom upon launching the command
+function launch_side(command, options)
+    options = options or { go_down = true }
+    if options.go_down == nil then options.go_down = true end
 
-    if switch == true then
-        vim.fn.execute("wincmd x")
-        vim.fn.execute("wincmd l")
+    vim.fn.execute("vs")
+    vim.fn.execute("wincmd x")
+    vim.fn.execute("wincmd l")
+    vim.fn.execute("term " .. command)
+
+    if options.go_down then
         vim.fn.execute("norm G")
     end
 end
@@ -46,24 +59,30 @@ end
 -- Keyboard Shortcuts --
 -- ================== --
 local opts = { remap = false, silent = true }
+
+vim.keymap.set("n", "<leader>l", function()
+    save_files()
+    launch_tab([[cmd\lint.bat]], { go_down = false })
+end, opts)
+
 vim.keymap.set("n", "<A-b>", function()
     save_files()
-    launch_side([[cmd\build.bat]], true)
+    launch_side([[cmd\build.bat]])
 end, opts)
 
 vim.keymap.set("n", "<f4>", function()
     save_files()
-    launch_side([[cmd\build.bat]], true)
+    launch_side([[cmd\build.bat]])
 end, opts)
 
 vim.keymap.set("n", "<f5>", function()
     save_files()
-    launch_side([[cmd\build.bat && cmd\run.bat]], true)
+    launch_side([[cmd\build.bat && cmd\run.bat]])
 end, opts)
 
 vim.keymap.set("n", "<A-t>", function()
     save_files()
-    launch_side([[cmd\build.bat && cmd\run_unit_tests.bat]], true)
+    launch_side([[cmd\build.bat && cmd\run_unit_tests.bat]], { go_down = false })
 end, opts)
 
 vim.keymap.set("n", "<f6>", function()

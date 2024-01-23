@@ -378,8 +378,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
     auto offset_x = (i32)state.offset_x;
     auto offset_y = (i32)state.offset_y;
 
-    state.offset_y += dt * 256.0f;
-    state.offset_x += dt * 256.0f;
+    state.offset_y += dt * 24.0f;
+    state.offset_x += dt * 32.0f;
 
     const auto player_radius = 24;
 
@@ -404,7 +404,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                 blue = player_color;
             }
 
-            (*pixel++) = (blue << 0) | (green << 8) | (red << 16);
+            (*pixel++) = (blue << 0) | (green << 8) | (red << 0);
         }
     }
 
@@ -463,35 +463,10 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
             glEnd();
         }
 
-        if (debug_texture.address) {
-            glBindTexture(GL_TEXTURE_2D, human_texture_name);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glBegin(GL_TRIANGLES);
-
-            auto angle = BF_PI / 8;
-
-            auto sprite_pos = glm::vec2(200, 200);
-            auto sprite_size = glm::vec2(64, 64);
-
-            auto swidth = (f32)bitmap.width;
-            auto sheight = (f32)bitmap.height;
-
-            auto projection = glm::mat3(1);
-            projection = glm::translate(projection, glm::vec2(0, 1));
-            projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-
-            DrawSprite(0, 0, 1, 1, sprite_pos, sprite_size, angle, projection);
-
-            glEnd();
-        }
-
         auto gsize = state.game_map.size;
         for (int y = 0; y < gsize.y; y++) {
             for (int x = 0; x < gsize.x; x++) {
-                // TestSmartTile(TileID* tile_ids, size_t tile_ids_distance, v2i size, v2i pos,
-                // SmartTile& tile)
-                auto terrain_tiles = state.game_map.terrain_tiles;
-                Terrain tile = *(Terrain*)(terrain_tiles + gsize.x * y + x);
+                auto tile = *(Terrain*)(state.game_map.terrain_tiles + gsize.x * y + x);
                 if (tile != Terrain::GRASS)
                     continue;
 
@@ -505,10 +480,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
                 glBegin(GL_TRIANGLES);
 
                 auto cell_size = 32;
-                auto sprite_pos =
-                    v2i((x + 1) * cell_size,  //
-                        (y + 4) * cell_size);
-                auto sprite_size = v2i(cell_size, cell_size);
+                auto sprite_pos = v2i(x + 2, y + 2) * cell_size;
+                auto sprite_size = v2i(1, 1) * cell_size;
 
                 auto swidth = (f32)bitmap.width;
                 auto sheight = (f32)bitmap.height;
