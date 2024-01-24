@@ -13,8 +13,3 @@ using i64 = int64_t;
 using f32 = float;
 using f64 = double;
 using ptrd = ptrdiff_t;
-
-static constexpr f32 BF_PI = 3.14159265359f;
-static constexpr f32 BF_2PI = 6.28318530718f;
-
-using BFTextureID = u32;

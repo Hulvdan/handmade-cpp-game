@@ -40,8 +40,17 @@ target_compile_definitions(win32 PRIVATE
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm)
 
+# === Building meta_tools.exe ===
+add_executable(meta_tools sources/meta_tools.cpp)
+# target_compile_definitions(win32 PRIVATE
+#     BFG_INTERNAL
+# )
+# target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
+# target_link_libraries(win32 PRIVATE glew glm)
+
 # === Tests ===
 add_executable(tests tests/tests.cpp)
+target_link_libraries(tests PRIVATE opengl32.lib)
 target_link_libraries(tests PRIVATE glew glm)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")

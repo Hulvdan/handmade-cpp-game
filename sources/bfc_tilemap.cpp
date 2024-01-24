@@ -1,14 +1,8 @@
 #pragma once
 
 #ifndef BF_CLIENT
-#error "This code should not run on a server! BF_CLIENT must be defined!"
-#endif
-
-enum class TileStateCheck {
-    SKIP,
-    EXCLUDED,
-    INCLUDED,
-};
+#error "This code should run on a client! BF_CLIENT must be defined!"
+#endif  // BF_CLIENT
 
 TileStateCheck ParseTileStateCheck(u8 data)
 {
@@ -28,26 +22,6 @@ TileStateCheck ParseTileStateCheck(u8 data)
 
     return TileStateCheck::SKIP;
 }
-
-using TileID = u32;
-
-struct TileRule {
-    BFTextureID texture_id;
-    TileStateCheck states[8];
-};
-
-struct SmartTile {
-    TileID id;
-    BFTextureID fallback_texture_id;
-
-    int rules_count;
-    TileRule* rules;
-};
-
-struct LoadSmartTile_Result {
-    bool success;
-    size_t size;
-};
 
 LoadSmartTile_Result LoadSmartTileRules(
     SmartTile& tile,
@@ -196,11 +170,6 @@ LoadSmartTile_Result LoadSmartTileRules(
     res.size = tile.rules_count * sizeof(TileRule);
     return res;
 }
-
-struct Tilemap {
-    v2i size;
-    TileID* tiles;
-};
 
 void SetTile(Tilemap& tilemap, v2i pos, TileID tile_id)
 {

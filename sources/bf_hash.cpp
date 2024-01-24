@@ -1,4 +1,4 @@
-#include "bf_base.h"
+#pragma once
 
 constexpr u32 EMPTY_HASH32 = 2166136261;
 

@@ -11,9 +11,9 @@
 // I just wanted to enable dll builds as fast as possible.
 // TODO(hulvdan): We need to find a better way of writing this BS.
 // Is it possible to write this
-#ifdef GAME_LIBRARY_BUILD
+#if GAME_LIBRARY_BUILD
 // Building the library
-#ifdef _WIN32
+#if _WIN32
 // Use the Windows-specific export attribute
 #define GAME_LIBRARY_EXPORT __declspec(dllexport)
 #elif __GNUC__ >= 4
@@ -25,7 +25,7 @@
 #endif
 #else
 // Using (including) the library
-#ifdef _WIN32
+#if _WIN32
 // Use the Windows-specific import attribute
 #define GAME_LIBRARY_EXPORT __declspec(dllimport)
 #else
@@ -40,11 +40,6 @@ struct GAME_LIBRARY_EXPORT GameBitmap {
 
     i32 bits_per_pixel;
     void* memory;
-};
-
-struct v2f {
-    f32 x;
-    f32 y;
 };
 
 // --- EVENTS START ---

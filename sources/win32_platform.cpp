@@ -75,7 +75,7 @@ PeekFiletimeRes PeekFiletime(const char* filename)
 
     return res;
 }
-#endif
+#endif  // BFG_INTERNAL
 
 using Game_UpdateAndRender_Type = void (*)(f32, void*, size_t, GameBitmap&, void*, size_t);
 void Game_UpdateAndRender_Stub(
@@ -120,7 +120,7 @@ void LoadOrUpdateGameDll()
     }
 
     path = temp_path;
-#endif
+#endif  // BFG_INTERNAL
 
     Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
 
@@ -141,7 +141,7 @@ void LoadOrUpdateGameDll()
 
 #if BFG_INTERNAL
     last_game_dll_write_time = filetime.filetime;
-#endif
+#endif  // BFG_INTERNAL
 
     game_lib = lib;
     Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
@@ -337,7 +337,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
 
 #if BFG_INTERNAL
     LoadOrUpdateGameDll();
-#endif
+#endif  // BFG_INTERNAL
 }
 
 void Win32GLResize()

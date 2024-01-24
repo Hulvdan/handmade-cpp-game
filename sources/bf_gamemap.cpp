@@ -1,26 +1,4 @@
 #pragma once
-#include "bf_rand.cpp"
-
-enum class Terrain {
-    NONE,
-    GRASS,
-};
-
-struct TerrainTile {
-    Terrain terrain;
-    // NOTE(hulvdan): Height starts at 0
-    i8 height;
-    bool is_cliff;
-};
-
-struct GameMap {
-    v2i size;
-    TerrainTile* terrain_tiles;
-};
-
-struct TerrainGenerationData {
-    i32 max_height;  // INCLUSIVE
-};
 
 TerrainTile& GetTerrainTile(GameMap& gamemap, v2i pos)
 {

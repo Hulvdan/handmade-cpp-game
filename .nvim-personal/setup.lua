@@ -13,6 +13,8 @@ vim.fn.execute(":set nowritebackup")
 -- Options:
 -- go_down - default: true - Places a cursor at the bottom upon launching the command
 function launch_tab(command, options)
+    vim.g.hulvdan_DisableAnimations()
+
     options = options or { go_down = true }
     if options.go_down == nil then options.go_down = true end
 
@@ -20,11 +22,15 @@ function launch_tab(command, options)
     if options.go_down then
         vim.fn.execute("norm G")
     end
+
+    vim.g.hulvdan_EnableAnimations()
 end
 
 -- Options:
 -- go_down - default: true - Places a cursor at the bottom upon launching the command
 function launch_side(command, options)
+    vim.g.hulvdan_DisableAnimations()
+
     options = options or { go_down = true }
     if options.go_down == nil then options.go_down = true end
 
@@ -34,6 +40,8 @@ function launch_side(command, options)
     if options.go_down then
         vim.fn.execute("norm G")
     end
+
+    vim.g.hulvdan_EnableAnimations()
 end
 
 function launch_background(command, callback)

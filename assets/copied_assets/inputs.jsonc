@@ -1,0 +1,49 @@
+// Keyboard:
+//   Button
+//     Up, Right Left Down
+//     WASD
+// Controller
+//   Button
+//     Dpad Left, Dpad Up, Dpad Down, Dpad Right
+//     ABXY
+//   AXis
+//     LX LY
+//     RX RY
+//     LT RT
+{
+    // Input Action Map
+    "gameplay": {
+        // Input Action
+        "camera_move": {
+            "type": "2D", // button press, button hold, 1D, 2D
+            "mappings": [
+                {
+                    "type": "horizontal-axis",
+                    "value": {
+                        "type": "controller-axis",
+                        "value": "RY"
+                    },
+                },
+                {
+                    "type": "vertical-axis",
+                    "values": {
+                        "controller": {
+                            "type": "controller-axis",
+                            "value": "RY"
+                        },
+                        "keyboard": [
+                        ]
+                    },
+                },
+            ],
+        ],
+        "camera_zoom": {
+            "type": "1D",
+            "mappings": [
+                {
+                    "axis": "controller-RY",
+                },
+            ],
+        },
+    },
+}

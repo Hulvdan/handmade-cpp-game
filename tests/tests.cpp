@@ -2,16 +2,12 @@
 #include "doctest.h"
 
 #include "range.h"
-
-#include "bf_base.h"
-
-// NOLINTBEGIN(bugprone-suspicious-include)
-#include "bf_hash.cpp"
-#include "bf_strings.cpp"
-#include "bf_rand.cpp"
+using cpp_range::range;
 
 #define BF_CLIENT
-#include "bfc_tilemap.cpp"
+
+// NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
 TEST_CASE("Hash32, EmptyIsCorrect")

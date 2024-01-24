@@ -1,4 +1,4 @@
-#include "bf_base.h"
+#pragma once
 
 // Returns the offset from `filedata` to a newline character (`\r` or `\n`).
 // Returns STRINGS_EOF if reaches the end.
