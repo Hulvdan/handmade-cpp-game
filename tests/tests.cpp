@@ -17,7 +17,7 @@ TEST_CASE("Hash32, TestValue")
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE("LoadSmartTileRules, ItWorks")
+TEST_CASE("Load_Smart_Tile_Rules, ItWorks")
 {
     constexpr u64 size = 512;
     u8 output[size] = {};
@@ -28,15 +28,15 @@ TEST_CASE("LoadSmartTileRules, ItWorks")
     while (*p++)
         rules_data_size++;
 
-    SmartTile tile = {};
-    auto result = LoadSmartTileRules(tile, output, size, (u8*)rules_data, rules_data_size);
+    Smart_Tile tile = {};
+    auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
 
     CHECK(result.success == true);
     CHECK(tile.rules_count == 2);
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE("LoadSmartTileRules, ItWorksWithANewlineOnTheEnd")
+TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd")
 {
     constexpr u64 size = 512;
     u8 output[size] = {};
@@ -47,8 +47,8 @@ TEST_CASE("LoadSmartTileRules, ItWorksWithANewlineOnTheEnd")
     while (*p++)
         rules_data_size++;
 
-    SmartTile tile = {};
-    auto result = LoadSmartTileRules(tile, output, size, (u8*)rules_data, rules_data_size);
+    Smart_Tile tile = {};
+    auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
 
     CHECK(result.success == true);
     CHECK(tile.rules_count == 2);

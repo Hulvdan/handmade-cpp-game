@@ -6,7 +6,7 @@
 const i32 STRINGS_EOF = -1;
 const i32 STRINGS_ZEROBYTE = -2;
 
-i32 FindNewline(const u8* buffer, const i32 size)
+i32 Find_Newline(const u8* buffer, const i32 size)
 {
     assert(size > 0);
 
@@ -26,7 +26,7 @@ i32 FindNewline(const u8* buffer, const i32 size)
     return STRINGS_EOF;
 }
 
-i32 FindNewlineOrEOF(const u8* buffer, const i32 size)
+i32 Find_Newline_Or_EOF(const u8* buffer, const i32 size)
 {
     assert(size > 0);
 
@@ -46,7 +46,7 @@ i32 FindNewlineOrEOF(const u8* buffer, const i32 size)
 // Returns the offset from `filedata` to a newline character (not `\r` and not `\n`).
 // Returns STRINGS_EOF if reaches the end.
 // Returns STRINGS_ZEROBYTE if finds `\0`.
-i32 FindNotNewline(const u8* buffer, const i32 size)
+i32 Find_Not_Newline(const u8* buffer, const i32 size)
 {
     assert(size > 0);
 

@@ -24,10 +24,6 @@ target_compile_definitions(bf_game PRIVATE
     GAME_LIBRARY_BUILD
     BF_CLIENT
 )
-set_target_properties(bf_game PROPERTIES
-    C_VISIBILITY_PRESET hidden
-    CXX_VISIBILITY_PRESET hidden
-)
 # TODO(hulvdan): How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
 

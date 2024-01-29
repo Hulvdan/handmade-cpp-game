@@ -12,6 +12,8 @@ using v2i = glm::ivec2;
 
 #include "bf_types.h"
 
+#define scast static_cast
+
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
 

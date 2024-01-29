@@ -19,7 +19,7 @@
 
 // -- RENDERING STUFF
 struct BFBitmap {
-    GameBitmap bitmap;
+    Game_Bitmap bitmap;
 
     HBITMAP handle;
     BITMAPINFO info;
@@ -77,17 +77,17 @@ PeekFiletimeRes PeekFiletime(const char* filename)
 }
 #endif  // BFG_INTERNAL
 
-using Game_UpdateAndRender_Type = void (*)(f32, void*, size_t, GameBitmap&, void*, size_t);
-void Game_UpdateAndRender_Stub(
+using Game_Update_And_Render_Type = void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t);
+void Game_Update_And_Render_Stub(
     f32 dt,
     void* memory_ptr,
     size_t memory_size,
-    GameBitmap& bitmap,
+    Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
     size_t input_events_count)
 {
 }
-Game_UpdateAndRender_Type Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
 void LoadOrUpdateGameDll()
 {
@@ -122,7 +122,7 @@ void LoadOrUpdateGameDll()
     path = temp_path;
 #endif  // BFG_INTERNAL
 
-    Game_UpdateAndRender_ = Game_UpdateAndRender_Stub;
+    Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
     HMODULE lib = LoadLibraryA(path);
     if (!lib) {
@@ -130,10 +130,10 @@ void LoadOrUpdateGameDll()
         return;
     }
 
-    auto loaded_Game_UpdateAndRender =
-        (Game_UpdateAndRender_Type)GetProcAddress(lib, "Game_UpdateAndRender");
+    auto loaded_Game_Update_And_Render =
+        (Game_Update_And_Render_Type)GetProcAddress(lib, "Game_Update_And_Render");
 
-    bool functions_loaded = loaded_Game_UpdateAndRender;
+    bool functions_loaded = loaded_Game_Update_And_Render;
     if (!functions_loaded) {
         // TODO(hulvdan): Diagnostic
         return;
@@ -144,7 +144,7 @@ void LoadOrUpdateGameDll()
 #endif  // BFG_INTERNAL
 
     game_lib = lib;
-    Game_UpdateAndRender_ = loaded_Game_UpdateAndRender;
+    Game_Update_And_Render_ = loaded_Game_Update_And_Render;
 }
 // -- GAME STUFF END
 
@@ -325,7 +325,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    Game_UpdateAndRender_(
+    Game_Update_And_Render_(
         dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(),
         events_count);
 
@@ -750,14 +750,14 @@ static int WinMain(
                 f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
                 f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                ControllerAxisChanged event = {};
+                Controller_Axis_Changed event = {};
                 event.axis = 0;
                 event.value = stick_x_normalized;
-                push_event<ControllerAxisChanged>(event);
+                push_event<Controller_Axis_Changed>(event);
 
                 event.axis = 1;
                 event.value = stick_y_normalized;
-                push_event<ControllerAxisChanged>(event);
+                push_event<Controller_Axis_Changed>(event);
 
                 voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
             } else {

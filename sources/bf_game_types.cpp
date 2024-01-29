@@ -14,95 +14,94 @@ enum class Terrain {
     GRASS,
 };
 
-struct TerrainTile {
+struct Terrain_Tile {
     Terrain terrain;
     // NOTE(hulvdan): Height starts at 0
     i8 height;
     bool is_cliff;
 };
 
-struct GameMap {
+struct Game_Map {
     v2i size;
-    TerrainTile* terrain_tiles;
+    Terrain_Tile* terrain_tiles;
 };
 
-struct TerrainGenerationData {
+struct Terrain_Generation_Data {
     i32 max_height;  // INCLUSIVE
 };
 
-
 #ifdef BF_CLIENT
-struct GameRendererState;
+struct Game_Renderer_State;
 #endif
 
-struct GameState {
+struct Game_State {
     f32 offset_x;
     f32 offset_y;
 
     v2f player_pos;
-    GameMap gamemap;
+    Game_Map gamemap;
 
     Arena memory_arena;
     Arena file_loading_arena;
 
 #ifdef BF_CLIENT
-    GameRendererState* renderer_state;
+    Game_Renderer_State* renderer_state;
 #endif  // BF_CLIENT
 };
 
-struct GameMemory {
+struct Game_Memory {
     bool is_initialized;
-    GameState state;
+    Game_State state;
 };
 // --- Game Logic End ---
 
 #ifdef BF_CLIENT
 // --- CLIENT. Rendering ---
-using BFTextureID = u32;
+using BF_Texture_ID = u32;
 
-struct LoadedTexture {
-    BFTextureID id;
+struct Loaded_Texture {
+    BF_Texture_ID id;
     v2i size;
     u8* address;
 };
 // --- CLIENT. Rendering End ---
 
 // --- CLIENT. Game Rendering ---
-using TileID = u32;
+using Tile_ID = u32;
 
-enum class TileStateCheck {
+enum class Tile_State_Check {
     SKIP,
     EXCLUDED,
     INCLUDED,
 };
 
-struct TileRule {
-    BFTextureID texture_id;
-    TileStateCheck states[8];
+struct Tile_Rule {
+    BF_Texture_ID texture_id;
+    Tile_State_Check states[8];
 };
 
-struct SmartTile {
-    TileID id;
-    BFTextureID fallback_texture_id;
+struct Smart_Tile {
+    Tile_ID id;
+    BF_Texture_ID fallback_texture_id;
 
     int rules_count;
-    TileRule* rules;
+    Tile_Rule* rules;
 };
 
-struct LoadSmartTile_Result {
+struct Load_Smart_Tile_Result {
     bool success;
     size_t size;
 };
 
 struct Tilemap {
     v2i size;
-    TileID* tiles;
+    Tile_ID* tiles;
 };
 
-struct GameRendererState {
-    SmartTile grass_smart_tile;
-    LoadedTexture human_texture;
-    LoadedTexture grass_textures[17];
+struct Game_Renderer_State {
+    Smart_Tile grass_smart_tile;
+    Loaded_Texture human_texture;
+    Loaded_Texture grass_textures[17];
 
     int tilemaps_count;
     Tilemap* tilemaps;

@@ -22,15 +22,15 @@ struct Debug_BMP_Header {
 };
 #pragma pack(pop)
 
-struct LoadBMP_RGBA_Result {
+struct Load_BMP_RGBA_Result {
     bool success;
     u16 width;
     u16 height;
 };
 
-LoadBMP_RGBA_Result LoadBMP_RGBA(u8* output, const u8* filedata, size_t output_max_bytes)
+Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output_max_bytes)
 {
-    LoadBMP_RGBA_Result res = {};
+    Load_BMP_RGBA_Result res = {};
 
     auto& header = *(Debug_BMP_Header*)filedata;
 
@@ -68,21 +68,22 @@ LoadBMP_RGBA_Result LoadBMP_RGBA(u8* output, const u8* filedata, size_t output_m
     return res;
 }
 
-GameRendererState* InitializeRenderer(Arena& arena, Arena& file_loading_arena)
+Game_Renderer_State*
+Initialize_Renderer(Game_State* game_state, Arena& arena, Arena& file_loading_arena)
 {
-    auto state_ = AllocateFor(arena, GameRendererState);
+    auto state_ = Allocate_For(arena, Game_Renderer_State);
     auto& state = *state_;
 
-    auto load_result = Debug_LoadFileToArena("assets/art/human.bmp", file_loading_arena);
+    auto load_result = Debug_Load_File_To_Arena("assets/art/human.bmp", file_loading_arena);
     assert(load_result.success);
 
     auto filedata = file_loading_arena.base + file_loading_arena.used;
     auto loading_address = arena.base + arena.used;
-    auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
+    auto bmp_result = Load_BMP_RGBA(loading_address, filedata, arena.size - arena.used);
     if (bmp_result.success) {
         state.human_texture.size = {bmp_result.width, bmp_result.height};
         state.human_texture.address = loading_address;
-        AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
+        Allocate_Array(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
     }
 
     glEnable(GL_TEXTURE_2D);
@@ -92,29 +93,29 @@ GameRendererState* InitializeRenderer(Arena& arena, Arena& file_loading_arena)
     {
         sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
 
-        auto load_result = Debug_LoadFileToArena(buffer, file_loading_arena);
+        auto load_result = Debug_Load_File_To_Arena(buffer, file_loading_arena);
 
         assert(load_result.success);
 
         auto filedata = file_loading_arena.base + file_loading_arena.used;
         auto loading_address = arena.base + arena.used;
-        auto bmp_result = LoadBMP_RGBA(loading_address, filedata, arena.size - arena.used);
+        auto bmp_result = Load_BMP_RGBA(loading_address, filedata, arena.size - arena.used);
 
         if (bmp_result.success) {
-            LoadedTexture& texture = state.grass_textures[i];
+            Loaded_Texture& texture = state.grass_textures[i];
 
             constexpr size_t NAME_SIZE = 256;
             char name[NAME_SIZE] = {};
             sprintf(name, "grass_%d", i + 1);
-            auto name_size = FindNewlineOrEOF((u8*)name, 12);
+            auto name_size = Find_Newline_Or_EOF((u8*)name, NAME_SIZE);
             assert(name_size > 0);
             assert(name_size < NAME_SIZE);
 
             // texture.id = state.texture_ids[i] + 10;
-            texture.id = static_cast<BFTextureID>(Hash32((u8*)name, name_size));
+            texture.id = scast<BF_Texture_ID>(Hash32((u8*)name, name_size));
             texture.size = {bmp_result.width, bmp_result.height};
             texture.address = loading_address;
-            AllocateArray(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
+            Allocate_Array(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
 
             glBindTexture(GL_TEXTURE_2D, texture.id);
 
@@ -132,23 +133,23 @@ GameRendererState* InitializeRenderer(Arena& arena, Arena& file_loading_arena)
     }
 
     auto rule_file_result =
-        Debug_LoadFileToArena("assets/art/tiles/tilerule_grass.txt", file_loading_arena);
+        Debug_Load_File_To_Arena("assets/art/tiles/tilerule_grass.txt", file_loading_arena);
     assert(rule_file_result.success);
 
-    state.grass_smart_tile.id = (TileID)Terrain::GRASS;
-    auto rule_loading_result = LoadSmartTileRules(
+    state.grass_smart_tile.id = (Tile_ID)Terrain::GRASS;
+    auto rule_loading_result = Load_Smart_Tile_Rules(
         state.grass_smart_tile,  //
         arena.base + arena.used,
         arena.size - arena.used,  //
         file_loading_arena.base + file_loading_arena.used,  //
         rule_file_result.size);
     assert(rule_loading_result.success);
-    AllocateArray(arena, u8, rule_loading_result.size);
+    Allocate_Array(arena, u8, rule_loading_result.size);
 
     return state_;
 }
 
-void DrawSprite(
+void Draw_Sprite(
     u16 x0,
     u16 y0,
     u16 x1,
@@ -184,7 +185,7 @@ void DrawSprite(
     }
 };
 
-void render(GameState& state, GameRendererState& renderer_state, GameBitmap& bitmap)
+void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap& bitmap)
 {
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
@@ -245,14 +246,14 @@ void render(GameState& state, GameRendererState& renderer_state, GameBitmap& bit
     {
         FOR_RANGE(int, x, gsize.x)
         {
-            auto& tile = GetTerrainTile(state.gamemap, {x, y});
+            auto& tile = Get_Terrain_Tile(state.gamemap, {x, y});
             if (tile.terrain != Terrain::GRASS)
                 continue;
 
             auto texture_id = 2;
             // TODO(hulvdan): Make a proper game renderer
-            // auto texture_id = TestSmartTile(
-            //     state.gamemap.terrain_tiles, sizeof(TileID), state.gamemap.size, {x, y},
+            // auto texture_id = TestSmart_Tile(
+            //     state.gamemap.terrain_tiles, sizeof(Tile_ID), state.gamemap.size, {x, y},
             //     state.grass_smart_tile);
 
             glBindTexture(GL_TEXTURE_2D, texture_id);
@@ -271,7 +272,7 @@ void render(GameState& state, GameRendererState& renderer_state, GameBitmap& bit
             projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
             projection = glm::rotate(projection, -0.2f);
 
-            DrawSprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
 
             glEnd();
         }

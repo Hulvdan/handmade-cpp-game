@@ -4,27 +4,27 @@
 #error "This code should run on a client! BF_CLIENT must be defined!"
 #endif  // BF_CLIENT
 
-TileStateCheck ParseTileStateCheck(u8 data)
+Tile_State_Check Parse_Tile_State_Check(u8 data)
 {
     switch (data) {
     case '@':
-        return TileStateCheck::INCLUDED;
+        return Tile_State_Check::INCLUDED;
 
     case ' ':
-        return TileStateCheck::SKIP;
+        return Tile_State_Check::SKIP;
 
     case '*':
-        return TileStateCheck::EXCLUDED;
+        return Tile_State_Check::EXCLUDED;
 
     default:
         assert(false);
     }
 
-    return TileStateCheck::SKIP;
+    return Tile_State_Check::SKIP;
 }
 
-LoadSmartTile_Result LoadSmartTileRules(
-    SmartTile& tile,
+Load_Smart_Tile_Result Load_Smart_Tile_Rules(
+    Smart_Tile& tile,
     u8* rules_output,
     const size_t output_max_bytes,
     const u8* filedata,
@@ -47,23 +47,23 @@ LoadSmartTile_Result LoadSmartTileRules(
     // |@@@|
     // | @ |
 
-    LoadSmartTile_Result res = {};
+    Load_Smart_Tile_Result res = {};
     tile.rules_count = 0;
     tile.rules = nullptr;
 
     // 1. Parsing fallback_texture_name
     {
-        auto offset = FindNewline(filedata, filesize);
+        auto offset = Find_Newline(filedata, filesize);
         assert(offset > 0);
 
-        tile.fallback_texture_id = static_cast<BFTextureID>(Hash32(filedata, offset));
+        tile.fallback_texture_id = scast<BF_Texture_ID>(Hash32(filedata, offset));
 
         filedata += offset;
         filesize -= offset;
     }
 
     {
-        auto offset = FindNotNewline(filedata, filesize);
+        auto offset = Find_Not_Newline(filedata, filesize);
         assert(offset > 0);
         filedata += offset;
         filesize -= offset;
@@ -76,25 +76,25 @@ LoadSmartTile_Result LoadSmartTileRules(
     //     Parsing state
     int rules_count = 0;
     while (true) {
-        if (sizeof(TileRule) * (rules_count + 1) > output_max_bytes) {
+        if (sizeof(Tile_Rule) * (rules_count + 1) > output_max_bytes) {
             assert(false);
             return res;
         }
 
-        TileRule& rule = *(TileRule*)(rules_output + sizeof(TileRule) * rules_count);
+        Tile_Rule& rule = *(Tile_Rule*)(rules_output + sizeof(Tile_Rule) * rules_count);
         {
-            auto offset = FindNewline(filedata, filesize);
+            auto offset = Find_Newline(filedata, filesize);
             if (offset < 0)
                 break;
 
-            rule.texture_id = static_cast<BFTextureID>(Hash32(filedata, offset));
+            rule.texture_id = scast<BF_Texture_ID>(Hash32(filedata, offset));
 
             filedata += offset;
             filesize -= offset;
         }
 
         {
-            auto offset = FindNotNewline(filedata, filesize);
+            auto offset = Find_Not_Newline(filedata, filesize);
             assert(offset > 0);
             filedata += offset;
             filesize -= offset;
@@ -102,48 +102,48 @@ LoadSmartTile_Result LoadSmartTileRules(
 
         assert(*filedata == '|');
         {
-            auto offset = FindNewline(filedata, filesize);
+            auto offset = Find_Newline(filedata, filesize);
             assert(offset == 5);
 
-            rule.states[0] = ParseTileStateCheck(*(filedata + 1));
-            rule.states[1] = ParseTileStateCheck(*(filedata + 2));
-            rule.states[2] = ParseTileStateCheck(*(filedata + 3));
+            rule.states[0] = Parse_Tile_State_Check(*(filedata + 1));
+            rule.states[1] = Parse_Tile_State_Check(*(filedata + 2));
+            rule.states[2] = Parse_Tile_State_Check(*(filedata + 3));
 
             filedata += offset;
             filesize -= offset;
         }
 
         {
-            auto offset = FindNotNewline(filedata, filesize);
+            auto offset = Find_Not_Newline(filedata, filesize);
             assert(offset > 0);
             filedata += offset;
             filesize -= offset;
         }
 
         {
-            auto offset = FindNewline(filedata, filesize);
+            auto offset = Find_Newline(filedata, filesize);
             assert(offset == 5);
 
-            rule.states[3] = ParseTileStateCheck(*(filedata + 1));
-            rule.states[4] = ParseTileStateCheck(*(filedata + 3));
+            rule.states[3] = Parse_Tile_State_Check(*(filedata + 1));
+            rule.states[4] = Parse_Tile_State_Check(*(filedata + 3));
 
             filedata += offset;
             filesize -= offset;
         }
 
         {
-            auto offset = FindNotNewline(filedata, filesize);
+            auto offset = Find_Not_Newline(filedata, filesize);
             assert(offset > 0);
             filedata += offset;
             filesize -= offset;
         }
         {
-            auto offset = FindNewlineOrEOF(filedata, filesize);
+            auto offset = Find_Newline_Or_EOF(filedata, filesize);
             assert(offset == 5);
 
-            rule.states[5] = ParseTileStateCheck(*(filedata + 1));
-            rule.states[6] = ParseTileStateCheck(*(filedata + 2));
-            rule.states[7] = ParseTileStateCheck(*(filedata + 3));
+            rule.states[5] = Parse_Tile_State_Check(*(filedata + 1));
+            rule.states[6] = Parse_Tile_State_Check(*(filedata + 2));
+            rule.states[7] = Parse_Tile_State_Check(*(filedata + 3));
 
             filedata += offset;
             filesize -= offset;
@@ -154,7 +154,7 @@ LoadSmartTile_Result LoadSmartTileRules(
             if (filesize == 0)
                 break;
 
-            auto offset = FindNotNewline(filedata, filesize);
+            auto offset = Find_Not_Newline(filedata, filesize);
             if (offset < 0)
                 break;
 
@@ -166,20 +166,20 @@ LoadSmartTile_Result LoadSmartTileRules(
 
     res.success = true;
     tile.rules_count = rules_count;
-    tile.rules = (TileRule*)rules_output;
-    res.size = tile.rules_count * sizeof(TileRule);
+    tile.rules = (Tile_Rule*)rules_output;
+    res.size = tile.rules_count * sizeof(Tile_Rule);
     return res;
 }
 
-void SetTile(Tilemap& tilemap, v2i pos, TileID tile_id)
+void Set_Tile(Tilemap& tilemap, v2i pos, Tile_ID tile_id)
 {
     assert(PosIsInBounds(pos, tilemap.size));
     *(tilemap.tiles + tilemap.size.x * pos.y + pos.x) = tile_id;
 }
 
 // NOTE(hulvdan): `tile_ids_distance` is the distance
-// (in bytes) between two adjacent TileIDs in `tile_ids`
-// BFTextureID TestSmartTile(Tilemap& tilemap, v2i pos, SmartTile& tile)
+// (in bytes) between two adjacent Tile_IDs in `tile_ids`
+// BF_Texture_ID TestSmart_Tile(Tilemap& tilemap, v2i pos, Smart_Tile& tile)
 // {
 //     v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
 //
@@ -188,24 +188,24 @@ void SetTile(Tilemap& tilemap, v2i pos, TileID tile_id)
 //
 //         b32 found = true;
 //         for (int i = 0; (i < 8) && found; i++) {
-//             TileStateCheck state = *(rule.states + i);
-//             if (state == TileStateCheck::SKIP)
+//             Tile_State_Check state = *(rule.states + i);
+//             if (state == Tile_State_Check::SKIP)
 //                 continue;
 //
 //             auto& offset = offsets[i];
 //             auto new_pos = pos + offset;
 //
 //             if (!PosIsInBounds(new_pos, size)) {
-//                 found &= state != TileStateCheck::INCLUDED;
+//                 found &= state != Tile_State_Check::INCLUDED;
 //                 continue;
 //             }
 //
 //             auto tile = tilemap.terrain_tiles + size.x * new_pos.y + new_pos.x;
 //
-//             if (state == TileStateCheck::INCLUDED)
-//                 found &= tile_id == (TileID)tile.id;
-//             else if (state == TileStateCheck::EXCLUDED)
-//                 found &= tile_id != (TileID)tile.id;
+//             if (state == Tile_State_Check::INCLUDED)
+//                 found &= tile_id == (Tile_ID)tile.id;
+//             else if (state == Tile_State_Check::EXCLUDED)
+//                 found &= tile_id != (Tile_ID)tile.id;
 //         }
 //
 //         if (found)

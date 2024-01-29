@@ -30,54 +30,54 @@
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
-void ProcessEvents(GameMemory& memory, u8* events, size_t input_events_count)
+void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count)
 {
     assert(memory.is_initialized);
     auto& state = memory.state;
 
     while (input_events_count > 0) {
         input_events_count--;
-        auto type = (EventType)(*events++);
+        auto type = (Event_Type)(*events++);
 
         switch (type) {
-        case EventType::MousePressed: {
-            auto& event = *(MousePressed*)events;
-            events += sizeof(MousePressed);
+        case Event_Type::Mouse_Pressed: {
+            auto& event = *(Mouse_Pressed*)events;
+            events += sizeof(Mouse_Pressed);
         } break;
 
-        case EventType::MouseReleased: {
-            auto& event = *(MouseReleased*)events;
-            events += sizeof(MouseReleased);
+        case Event_Type::Mouse_Released: {
+            auto& event = *(Mouse_Released*)events;
+            events += sizeof(Mouse_Released);
         } break;
 
-        case EventType::MouseMoved: {
-            auto& event = *(MouseMoved*)events;
-            events += sizeof(MouseMoved);
+        case Event_Type::Mouse_Moved: {
+            auto& event = *(Mouse_Moved*)events;
+            events += sizeof(Mouse_Moved);
         } break;
 
-        case EventType::KeyboardPressed: {
-            auto& event = *(KeyboardPressed*)events;
-            events += sizeof(KeyboardPressed);
+        case Event_Type::Keyboard_Pressed: {
+            auto& event = *(Keyboard_Pressed*)events;
+            events += sizeof(Keyboard_Pressed);
         } break;
 
-        case EventType::KeyboardReleased: {
-            auto& event = *(KeyboardReleased*)events;
-            events += sizeof(KeyboardReleased);
+        case Event_Type::Keyboard_Released: {
+            auto& event = *(Keyboard_Released*)events;
+            events += sizeof(Keyboard_Released);
         } break;
 
-        case EventType::ControllerButtonPressed: {
-            auto& event = *(ControllerButtonPressed*)events;
-            events += sizeof(ControllerButtonPressed);
+        case Event_Type::Controller_Button_Pressed: {
+            auto& event = *(Controller_Button_Pressed*)events;
+            events += sizeof(Controller_Button_Pressed);
         } break;
 
-        case EventType::ControllerButtonReleased: {
-            auto& event = *(ControllerButtonReleased*)events;
-            events += sizeof(ControllerButtonReleased);
+        case Event_Type::Controller_Button_Released: {
+            auto& event = *(Controller_Button_Released*)events;
+            events += sizeof(Controller_Button_Released);
         } break;
 
-        case EventType::ControllerAxisChanged: {
-            auto& event = *(ControllerAxisChanged*)events;
-            events += sizeof(ControllerAxisChanged);
+        case Event_Type::Controller_Axis_Changed: {
+            auto& event = *(Controller_Axis_Changed*)events;
+            events += sizeof(Controller_Axis_Changed);
 
             assert(event.axis >= 0 && event.axis <= 1);
             if (event.axis == 0)
@@ -93,15 +93,15 @@ void ProcessEvents(GameMemory& memory, u8* events, size_t input_events_count)
     }
 }
 
-extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
+extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     f32 dt,
     void* memory_ptr,
     size_t memory_size,
-    GameBitmap& bitmap,
+    Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
     size_t input_events_count)
 {
-    auto& memory = *(GameMemory*)memory_ptr;
+    auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
 
     if (!memory.is_initialized) {
@@ -109,7 +109,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         state.offset_x = 0;
         state.offset_y = 0;
 
-        auto initial_offset = sizeof(GameMemory);
+        auto initial_offset = sizeof(Game_Memory);
         auto file_loading_arena_size = Megabytes((size_t)1);
 
         auto& file_loading_arena = state.file_loading_arena;
@@ -124,15 +124,15 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         state.gamemap.size = {32, 24};
         auto& dim = state.gamemap.size;
 
-        state.gamemap.terrain_tiles = AllocateArray(arena, TerrainTile, (size_t)dim.x * dim.y);
-        RegenerateTerrainTiles(state.gamemap);
+        state.gamemap.terrain_tiles = Allocate_Array(arena, Terrain_Tile, (size_t)dim.x * dim.y);
+        Regenerate_Terrain_Tiles(state.gamemap);
 
-        state.renderer_state = InitializeRenderer(arena, file_loading_arena);
+        state.renderer_state = Initialize_Renderer(arena, file_loading_arena);
 
         memory.is_initialized = true;
     }
 
-    ProcessEvents(memory, (u8*)input_events_bytes_ptr, input_events_count);
+    Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count);
 
     assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
@@ -172,5 +172,5 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
         }
     }
 
-    render(state, *state.renderer_state, bitmap);
+    Render(state, *state.renderer_state, bitmap);
 }

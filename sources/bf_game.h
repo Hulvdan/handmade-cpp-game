@@ -34,7 +34,7 @@
 #endif
 #endif
 
-struct GAME_LIBRARY_EXPORT GameBitmap {
+struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 width;
     i32 height;
 
@@ -43,20 +43,20 @@ struct GAME_LIBRARY_EXPORT GameBitmap {
 };
 
 // --- EVENTS START ---
-enum class EventType {
-    MousePressed,
-    MouseReleased,
-    MouseMoved,
-    MouseScrolled,
-    KeyboardPressed,
-    KeyboardReleased,
-    ControllerButtonPressed,
-    ControllerButtonReleased,
-    ControllerAxisChanged,
+enum class Event_Type {
+    Mouse_Pressed,
+    Mouse_Released,
+    Mouse_Moved,
+    Mouse_Scrolled,
+    Keyboard_Pressed,
+    Keyboard_Released,
+    Controller_Button_Pressed,
+    Controller_Button_Released,
+    Controller_Axis_Changed,
 };
 
 // MOUSE
-enum class MouseButtonType {
+enum class Mouse_Button_Type {
     Left,
     Right,
     Middle,
@@ -64,82 +64,82 @@ enum class MouseButtonType {
     XButton2,
 };
 
-using MouseID = u8;
+using Mouse_ID = u8;
 
-struct MousePressed {
-    const static EventType _event_type = EventType::MousePressed;
+struct Mouse_Pressed {
+    const static Event_Type _event_type = Event_Type::Mouse_Pressed;
 
-    MouseID id;
-    MouseButtonType type;
+    Mouse_ID id;
+    Mouse_Button_Type type;
     v2f position;
 };
 
-struct MouseReleased {
-    const static EventType _event_type = EventType::MouseReleased;
+struct Mouse_Released {
+    const static Event_Type _event_type = Event_Type::Mouse_Released;
 
-    MouseID id;
-    MouseButtonType type;
+    Mouse_ID id;
+    Mouse_Button_Type type;
     v2f position;
 };
 
-struct MouseMoved {
-    const static EventType _event_type = EventType::MouseMoved;
+struct Mouse_Moved {
+    const static Event_Type _event_type = Event_Type::Mouse_Moved;
 
-    MouseID id;
+    Mouse_ID id;
     v2f position;
 };
 
 // KEYBOARD
-using KeyboardID = u8;
-using KeyboardKey = u32;
+using Keyboard_ID = u8;
+using Keyboard_Key = u32;
 
-struct KeyboardPressed {
-    const static EventType _event_type = EventType::KeyboardPressed;
+struct Keyboard_Pressed {
+    const static Event_Type _event_type = Event_Type::Keyboard_Pressed;
 
-    KeyboardID id;
-    KeyboardKey key;
+    Keyboard_ID id;
+    Keyboard_Key key;
 };
-struct KeyboardReleased {
-    const static EventType _event_type = EventType::KeyboardReleased;
+struct Keyboard_Released {
+    const static Event_Type _event_type = Event_Type::Keyboard_Released;
 
-    KeyboardID id;
-    KeyboardKey key;
+    Keyboard_ID id;
+    Keyboard_Key key;
 };
 
 // CONTROLLER
-using ControllerID = u8;
-using ControllerButton = u32;
-using ControllerAxis = u32;
+using Controller_ID = u8;
+using Controller_Button = u32;
+using Controller_Axis = u32;
 
-struct ControllerButtonPressed {
-    const static EventType _event_type = EventType::ControllerButtonPressed;
+struct Controller_Button_Pressed {
+    const static Event_Type _event_type = Event_Type::Controller_Button_Pressed;
 
-    ControllerID id;
-    ControllerButton button;
+    Controller_ID id;
+    Controller_Button button;
 };
 
-struct ControllerButtonReleased {
-    const static EventType _event_type = EventType::ControllerButtonReleased;
+struct Controller_Button_Released {
+    const static Event_Type _event_type = Event_Type::Controller_Button_Released;
 
-    ControllerID id;
-    ControllerButton button;
+    Controller_ID id;
+    Controller_Button button;
 };
 
-struct ControllerAxisChanged {
-    const static EventType _event_type = EventType::ControllerAxisChanged;
+struct Controller_Axis_Changed {
+    const static Event_Type _event_type = Event_Type::Controller_Axis_Changed;
 
-    ControllerID id;
-    ControllerAxis axis;
+    Controller_ID id;
+    Controller_Axis axis;
     f32 value;
 };
 // --- EVENTS END ---
 
 // --- EXPORTED FUNCTIONS ---
-extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
+extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     f32 dt,
     void* __restrict memory_ptr,
     size_t memory_size,
-    GameBitmap& __restrict bitmap,
+    Game_Bitmap& __restrict bitmap,
     void* __restrict input_events_bytes_ptr,
     size_t input_events_count);
 // --- EXPORTED FUNCTIONS END ---

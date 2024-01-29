@@ -1,11 +1,11 @@
 #pragma once
 
-struct Debug_LoadFileResult {
+struct Debug_Load_File_Result {
     bool success;
     u32 size;
 };
 
-Debug_LoadFileResult Debug_LoadFile(const char* filename, u8* output, size_t output_max_bytes)
+Debug_Load_File_Result Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes)
 {
     char absolute_file_path[512];
     // TODO(hulvdan): Make the path relative to the executable
@@ -24,7 +24,7 @@ Debug_LoadFileResult Debug_LoadFile(const char* filename, u8* output, size_t out
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);
 
-    Debug_LoadFileResult result = {};
+    Debug_Load_File_Result result = {};
     if (feof(file)) {
         result.success = true;
         result.size = read_bytes;
@@ -34,7 +34,7 @@ Debug_LoadFileResult Debug_LoadFile(const char* filename, u8* output, size_t out
     return result;
 }
 
-Debug_LoadFileResult Debug_LoadFileToArena(const char* filename, Arena& arena)
+Debug_Load_File_Result Debug_Load_File_To_Arena(const char* filename, Arena& arena)
 {
-    return Debug_LoadFile(filename, arena.base + arena.used, arena.size - arena.used);
+    return Debug_Load_File(filename, arena.base + arena.used, arena.size - arena.used);
 }
