@@ -1,9 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-#include "range.h"
-using cpp_range::range;
-
 #define BF_CLIENT
 
 // NOLINTBEGIN(bugprone-suspicious-include)

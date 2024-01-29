@@ -30,7 +30,10 @@ struct TerrainGenerationData {
     i32 max_height;  // INCLUSIVE
 };
 
+
+#ifdef BF_CLIENT
 struct GameRendererState;
+#endif
 
 struct GameState {
     f32 offset_x;

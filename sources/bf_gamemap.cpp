@@ -31,7 +31,7 @@ void RegenerateTerrainTiles(GameMap& gamemap)
     // }
 
     auto size = gamemap.size;
-    for (int y : range(size.y)) {
+    FOR_RANGE(int, y, size.y) {
         // auto size = gamemap.size;
         // for (var y = 0; y < size.y; y++) {
         //     var row = new List<TerrainTile>();
@@ -54,7 +54,7 @@ void RegenerateTerrainTiles(GameMap& gamemap)
         //
         //     terrainTiles.Add(row);
         // }
-        for (int x : range(size.x)) {
+        FOR_RANGE(int, x, size.x) {
             auto& tile = GetTerrainTile(gamemap, {x, y});
             tile.terrain = Terrain::GRASS;
             tile.height = int((data.max_height + 1) * frand());
@@ -87,8 +87,10 @@ void RegenerateTerrainTiles(GameMap& gamemap)
     //     }
     // }
 
-    for (int y : range(size.y)) {
-        for (int x : range(size.x)) {
+    FOR_RANGE(int, y, size.y)
+    {
+        FOR_RANGE(int, x, size.x)
+        {
             auto& tile = GetTerrainTile(gamemap, {x, y});
             auto shouldMarkAsCliff =
                 y == 0 || tile.height > GetTerrainTile(gamemap, {x, y - 1}).height;

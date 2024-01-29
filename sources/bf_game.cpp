@@ -6,9 +6,6 @@
 #include "glew.h"
 #include "wglew.h"
 
-#include "range.h"
-using cpp_range::range;
-
 #include "bf_base.h"
 #include "bf_game.h"
 
@@ -33,7 +30,7 @@ using cpp_range::range;
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
-void ProcessEvents(GameMemory& __restrict memory, u8* __restrict events, size_t input_events_count)
+void ProcessEvents(GameMemory& memory, u8* events, size_t input_events_count)
 {
     assert(memory.is_initialized);
     auto& state = memory.state;
@@ -104,7 +101,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
     void* input_events_bytes_ptr,
     size_t input_events_count)
 {
-    auto& memory = *((GameMemory*)memory_ptr);
+    auto& memory = *(GameMemory*)memory_ptr;
     auto& state = memory.state;
 
     if (!memory.is_initialized) {
@@ -148,8 +145,10 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_UpdateAndRender(
 
     const auto player_radius = 24;
 
-    for (i32 y : range(bitmap.height)) {
-        for (i32 x : range(bitmap.width)) {
+    FOR_RANGE(i32, y, bitmap.height)
+    {
+        FOR_RANGE(i32, x, bitmap.width)
+        {
             // u32 red  = 0;
             u32 red = (u8)(x + offset_x);
             // u32 red  = (u8)(y + offset_y);

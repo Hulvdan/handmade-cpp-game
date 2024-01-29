@@ -88,7 +88,8 @@ GameRendererState* InitializeRenderer(Arena& arena, Arena& file_loading_arena)
     glEnable(GL_TEXTURE_2D);
 
     char buffer[512] = {};
-    for (int i : range(17)) {
+    FOR_RANGE(int, i, 17)
+    {
         sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
 
         auto load_result = Debug_LoadFileToArena(buffer, file_loading_arena);
@@ -240,8 +241,10 @@ void render(GameState& state, GameRendererState& renderer_state, GameBitmap& bit
     }
 
     auto gsize = state.gamemap.size;
-    for (int y : range(gsize.y)) {
-        for (int x : range(gsize.x)) {
+    FOR_RANGE(int, y, gsize.y)
+    {
+        FOR_RANGE(int, x, gsize.x)
+        {
             auto& tile = GetTerrainTile(state.gamemap, {x, y});
             if (tile.terrain != Terrain::GRASS)
                 continue;
