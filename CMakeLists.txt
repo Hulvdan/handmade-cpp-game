@@ -36,10 +36,27 @@ target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib ope
 target_link_libraries(win32 PRIVATE glew glm)
 
 # === Building win32_noise_sandbox.exe ===
-add_executable(win32_noise_sandbox WIN32 sources/win32_noise_sandbox.cpp)
-# target_compile_definitions(win32_noise_sandbox PRIVATE
-#     BFG_INTERNAL
-# )
+add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)
+target_compile_definitions(win32_noise_sandbox PRIVATE
+    IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+)
+target_include_directories(win32_noise_sandbox PRIVATE
+    "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1"
+    "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends"
+)
+set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
+target_sources(win32_noise_sandbox PRIVATE
+    "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
+    "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+    "${IMGUI_DIR}/imgui.cpp"
+    "${IMGUI_DIR}/imgui_demo.cpp"
+    "${IMGUI_DIR}/imgui_draw.cpp"
+    "${IMGUI_DIR}/imgui_tables.cpp"
+    "${IMGUI_DIR}/imgui_widgets.cpp"
+)
+target_compile_definitions(win32_noise_sandbox PRIVATE
+    BF_CLIENT
+)
 target_link_libraries(win32_noise_sandbox PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32_noise_sandbox PRIVATE glew glm)
 
@@ -84,6 +101,8 @@ if(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glm-0.9.9.8")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends")
 endif()
 
 # === Other Win32 Bullshiet ===

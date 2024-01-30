@@ -1,18 +1,32 @@
+// #define IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+#define IMGUI_DEFINE_MATH_OPERATORS
+
+#include "imgui.h"
+#include "imgui_impl_opengl3.h"
+#include "imgui_impl_win32.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include "windows.h"
+#include "glew.h"
+#include "wglew.h"
+#include "timeapi.h"
+
 #include <cassert>
 #include <cmath>
 #include <iostream>
 #include <vector>
 
+#include <tchar.h>
 // #include "glm/vec2.hpp"
 // #include "glm/ext.hpp"
-#include "glew.h"
-#include "wglew.h"
-#include "bf_base.h"
-#include "bf_game.h"
+// #include "bf_base.h"
+// #include "bf_game.h"
+#include "bf_game.cpp"
 
 #define local_persist static
-#define global_variable static
+#define global static
 #define internal static
 
 // -- RENDERING STUFF
@@ -25,20 +39,20 @@ struct BFBitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
-global_variable HMODULE game_lib = nullptr;
-global_variable size_t game_memory_size;
-global_variable void* game_memory = nullptr;
+global HMODULE game_lib = nullptr;
+global size_t game_memory_size;
+global void* game_memory = nullptr;
 
-global_variable size_t events_count = 0;
-global_variable std::vector<u8> events = {};
+global size_t events_count = 0;
+global std::vector<u8> events = {};
 
-global_variable bool running = false;
+global bool running = false;
 
-global_variable bool should_recreate_bitmap_after_client_area_resize;
-global_variable BFBitmap screen_bitmap;
+global bool should_recreate_bitmap_after_client_area_resize;
+global BFBitmap screen_bitmap;
 
-global_variable int client_width = -1;
-global_variable int client_height = -1;
+global int client_width = -1;
+global int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context)
 {
@@ -92,8 +106,15 @@ void Win32GLResize()
     glOrtho(0, 1, 1, 0, -1, 1);
 }
 
+extern IMGUI_IMPL_API LRESULT
+ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
+
 {
+    if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
+        return true;
+
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
         running = false;
@@ -163,12 +184,33 @@ u64 Win32Frequency()
 }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
-static int WinMain(
-    HINSTANCE application_handle,
-    HINSTANCE previous_window_instance_handle,
-    LPSTR command_line,
-    int show_command)
+int main(int, char**)
 {
+    // static int WinMain(
+    //     HINSTANCE application_handle,
+    //     HINSTANCE previous_window_instance_handle,
+    //     LPSTR command_line,
+    //     int show_command)
+    // {
+    // Create application window
+    // ImGui_ImplWin32_EnableDpiAwareness();
+    auto application_handle = GetModuleHandle(nullptr);
+    // WNDCLASSEXW wc = {sizeof(wc),
+    //                   CS_OWNDC,
+    //                   WndProc,
+    //                   0L,
+    //                   0L,
+    //                   GetModuleHandle(nullptr),
+    //                   nullptr,
+    //                   nullptr,
+    //                   nullptr,
+    //                   nullptr,
+    //                   L"ImGui Example",
+    //                   nullptr};
+    // ::RegisterClassExW(&wc);
+    // HWND hwnd = ::CreateWindowW(
+    //     wc.lpszClassName, L"Dear ImGui Win32+OpenGL3 Example", WS_OVERLAPPEDWINDOW, 100, 100,
+    //     1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
     WNDCLASSA windowClass = {};
 
     events.reserve(Kilobytes(64LL));
@@ -200,6 +242,11 @@ static int WinMain(
         return 0;
     }
 
+    Arena& arena = *(Arena*)game_memory;
+    arena.size = game_memory_size - sizeof(Arena);
+    arena.used = 0;
+    arena.base = (u8*)(game_memory) + sizeof(Arena);
+
     auto window_handle = CreateWindowExA(
         0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
         CW_USEDEFAULT, 640, 480,
@@ -214,8 +261,23 @@ static int WinMain(
         return -1;
     }
 
-    ShowWindow(window_handle, show_command);
+    ShowWindow(window_handle, SW_SHOWDEFAULT);
     UpdateWindow(window_handle);
+
+    u8* file_data = arena.base + arena.used;
+
+    auto texture_name = "assets/art/tiles/grass_1.bmp";
+    auto load_res = Debug_Load_File_To_Arena(texture_name, arena);
+    assert(load_res.success);
+
+    auto texture_address = arena.base + arena.used;
+    auto load_tex_res = Load_BMP_RGBA(texture_address, file_data, arena.size - arena.used);
+    assert(load_tex_res.success);
+
+    Loaded_Texture tex;
+    tex.id = Hash32((u8*)texture_name, strlen(texture_name));
+    tex.size = {load_tex_res.width, load_tex_res.height};
+    tex.address = texture_address;
 
     assert(client_width >= 0);
     assert(client_height >= 0);
@@ -279,6 +341,27 @@ static int WinMain(
     }
     // --- Initializing OpenGL End ---
 
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    // ImGui::StyleColorsClassic();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplWin32_InitForOpenGL(window_handle);
+    ImGui_ImplOpenGL3_Init();
+
+    // Our state
+    bool show_demo_window = true;
+    bool show_another_window = false;
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
     screen_bitmap = BFBitmap();
 
     running = true;
@@ -291,6 +374,20 @@ static int WinMain(
     // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole mess
     f32 REFRESH_RATE = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, tex.id);
+    assert(!glGetError());
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    assert(!glGetError());
+
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
+        tex.address);
 
     while (running) {
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
@@ -310,8 +407,79 @@ static int WinMain(
             break;
 
         auto device_context = GetDC(window_handle);
+        auto capped_dt = MIN(last_frame_dt, MAX_FRAME_DT);
 
-        auto capped_dt = last_frame_dt > MAX_FRAME_DT ? MAX_FRAME_DT : last_frame_dt;
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);  // No tint
+        ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+
+        float region_sz = 32.0f;
+        auto zoom = 1;
+        ImGui::Image(
+            (ImTextureID)tex.id, ImVec2(region_sz * zoom, region_sz * zoom), {0, 0}, {1, 1},
+            tint_col, border_col);
+
+        // if (show_demo_window)
+        //     ImGui::ShowDemoWindow(&show_demo_window);
+        //
+        // {
+        //     static float f = 0.0f;
+        //     static int counter = 0;
+        //
+        //     // Create a window called "Hello, world!" and append into it.
+        //     ImGui::Begin("Hello, world!");
+        //
+        //     // Display some text (you can use a format strings too)
+        //     ImGui::Text("This is some useful text.");
+        //
+        //     // Edit bools storing our window open/close state
+        //     ImGui::Checkbox("Demo Window", &show_demo_window);
+        //     ImGui::Checkbox("Another Window", &show_another_window);
+        //
+        //     // Edit 1 float using a slider from 0.0f to 1.0f
+        //     ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        //     // Edit 3 floats representing a color
+        //     ImGui::ColorEdit3("clear color", (float*)&clear_color);
+        //
+        //     // Buttons return true when clicked (most widgets return true when edited/activated)
+        //     if (ImGui::Button("Button"))
+        //         counter++;
+        //
+        //     ImGui::SameLine();
+        //     ImGui::Text("counter = %d", counter);
+        //
+        //     ImGui::Text(
+        //         "Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate,
+        //         io.Framerate);
+        //     ImGui::End();
+        // }
+        //
+        // // 3. Show another simple window.
+        // if (show_another_window) {
+        //     // Pass a pointer to our bool variable (the window will have
+        //     // a closing button that will clear the bool when clicked)
+        //     ImGui::Begin("Another Window", &show_another_window);
+        //     ImGui::Text("Hello from another window!");
+        //     if (ImGui::Button("Close Me"))
+        //         show_another_window = false;
+        //
+        //     ImGui::End();
+        // }
+
+        // Rendering
+        ImGui::Render();
+        // glViewport(0, 0, g_Width, g_Height);
+        // glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Present
+        // ::SwapBuffers(device_context);
+
         Win32Paint(capped_dt, window_handle, device_context);
         ReleaseDC(window_handle, device_context);
 
@@ -341,6 +509,10 @@ static int WinMain(
             (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
         perf_counter_current = perf_counter_new;
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }

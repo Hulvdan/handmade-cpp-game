@@ -14,7 +14,7 @@
 #include "bf_game.h"
 
 #define local_persist static
-#define global_variable static
+#define global static
 #define internal static
 
 // -- RENDERING STUFF
@@ -27,12 +27,12 @@ struct BFBitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
-global_variable HMODULE game_lib = nullptr;
-global_variable size_t game_memory_size;
-global_variable void* game_memory = nullptr;
+global HMODULE game_lib = nullptr;
+global size_t game_memory_size;
+global void* game_memory = nullptr;
 
-global_variable size_t events_count = 0;
-global_variable std::vector<u8> events = {};
+global size_t events_count = 0;
+global std::vector<u8> events = {};
 
 // TODO(hulvdan): Is there any way to restrict T
 // to be only one of event structs specified in game.h?
@@ -53,7 +53,7 @@ void push_event(T& event)
 }
 
 #if BFG_INTERNAL
-global_variable FILETIME last_game_dll_write_time;
+global FILETIME last_game_dll_write_time;
 
 struct PeekFiletimeRes {
     bool success;
@@ -280,13 +280,13 @@ CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_pe
 }
 // -- XAUDIO STUFF END
 
-global_variable bool running = false;
+global bool running = false;
 
-global_variable bool should_recreate_bitmap_after_client_area_resize;
-global_variable BFBitmap screen_bitmap;
+global bool should_recreate_bitmap_after_client_area_resize;
+global BFBitmap screen_bitmap;
 
-global_variable int client_width = -1;
-global_variable int client_height = -1;
+global int client_width = -1;
+global int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context)
 {

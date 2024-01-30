@@ -39,6 +39,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count)
         input_events_count--;
         auto type = (Event_Type)(*events++);
 
+        // TODO(hulvdan): What if it's not aligned? Should I memcpy onto the stack's memory
         switch (type) {
         case Event_Type::Mouse_Pressed: {
             auto& event = *(Mouse_Pressed*)events;
