@@ -183,34 +183,120 @@ u64 Win32Frequency()
     return res.QuadPart;
 }
 
+bool Is_Multiple_Of_2(int number)
+{
+    if (number < 2)
+        return false;
+
+    while (number > 1) {
+        if (number & 1)
+            return false;
+
+        number >>= 1;
+    }
+
+    return true;
+}
+
+bool Is_Multiple_Of_2(int number, u8& power)
+{
+    if (number < 2)
+        return false;
+
+    power = 0;
+    while (number > 1) {
+        if (number & 1)
+            return false;
+
+        number >>= 1;
+        power++;
+    }
+
+    return true;
+}
+
+void Perlin(
+    Loaded_Texture& texture,
+    u8* temp_storage,
+    size_t free_temp_storage_size,
+    int total_iterations)
+{
+    auto sx = texture.size.x;
+    auto sy = texture.size.y;
+    assert(free_temp_storage_size >= (size_t)8 * sx);
+    assert(sx > 0);
+    assert(sy > 0);
+
+    u8 sx_power;
+    u8 sy_power;
+    assert(Is_Multiple_Of_2(sx, sx_power));
+    assert(Is_Multiple_Of_2(sy, sy_power));
+    assert(sx == sy);
+
+    f32* cover = (f32*)temp_storage;
+    f32* accumulator = cover + sx;
+
+    FOR_RANGE(size_t, i, sx)
+    {
+        *(cover + i) = (f32)rand() / (f32)RAND_MAX;
+        *(accumulator + i) = 0;
+    }
+
+    f32 sum_of_division = 0;
+
+    total_iterations = 100;  // TODO: Remove
+    total_iterations = MIN(sx_power, total_iterations);
+
+    f32 iteration = 1;
+    u16 offset = sx;
+
+    FOR_RANGE(int, gamma, total_iterations)
+    {
+        f32 gamma_c = 1.0f / (gamma + 1);
+        sum_of_division += gamma_c;
+
+        f32 l = *(cover + 0);
+        u16 rindex = offset % sx;
+        f32 r = *(cover + rindex);
+
+        u16 it = 0;
+        FOR_RANGE(size_t, i, sx)
+        {
+            if (it == offset) {
+                l = r;
+                rindex = (rindex + offset) % sx;
+                r = *(cover + rindex);
+                it = 0;
+            }
+
+            *(accumulator + i) += gamma_c * Lerp(l, r, (f32)it / (f32)offset);
+            it++;
+        }
+
+        offset >>= 1;
+    }
+
+    auto pixel = (u32*)texture.address;
+    FOR_RANGE(int, y, sy)
+    {
+        FOR_RANGE(int, x, sx)
+        {
+            auto value = (*(accumulator + x)) / sum_of_division;
+            auto scaled = (u8)(255 * value);
+
+            u32 r, g, b;
+            b = scaled;
+            g = scaled;
+            r = scaled;
+            *(pixel + y * sx + x) = b + (g << 8) + (r << 16) + (255 << 24);
+        }
+    }
+}
+
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 int main(int, char**)
 {
-    // static int WinMain(
-    //     HINSTANCE application_handle,
-    //     HINSTANCE previous_window_instance_handle,
-    //     LPSTR command_line,
-    //     int show_command)
-    // {
-    // Create application window
-    // ImGui_ImplWin32_EnableDpiAwareness();
     auto application_handle = GetModuleHandle(nullptr);
-    // WNDCLASSEXW wc = {sizeof(wc),
-    //                   CS_OWNDC,
-    //                   WndProc,
-    //                   0L,
-    //                   0L,
-    //                   GetModuleHandle(nullptr),
-    //                   nullptr,
-    //                   nullptr,
-    //                   nullptr,
-    //                   nullptr,
-    //                   L"ImGui Example",
-    //                   nullptr};
-    // ::RegisterClassExW(&wc);
-    // HWND hwnd = ::CreateWindowW(
-    //     wc.lpszClassName, L"Dear ImGui Win32+OpenGL3 Example", WS_OVERLAPPEDWINDOW, 100, 100,
-    //     1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
     WNDCLASSA windowClass = {};
 
     events.reserve(Kilobytes(64LL));
@@ -264,20 +350,11 @@ int main(int, char**)
     ShowWindow(window_handle, SW_SHOWDEFAULT);
     UpdateWindow(window_handle);
 
-    u8* file_data = arena.base + arena.used;
-
-    auto texture_name = "assets/art/tiles/grass_1.bmp";
-    auto load_res = Debug_Load_File_To_Arena(texture_name, arena);
-    assert(load_res.success);
-
-    auto texture_address = arena.base + arena.used;
-    auto load_tex_res = Load_BMP_RGBA(texture_address, file_data, arena.size - arena.used);
-    assert(load_tex_res.success);
-
     Loaded_Texture tex;
-    tex.id = Hash32((u8*)texture_name, strlen(texture_name));
-    tex.size = {load_tex_res.width, load_tex_res.height};
-    tex.address = texture_address;
+    tex.id = 1;
+    tex.size = {512, 512};
+    tex.address = (u8*)Allocate_Array(arena, u32, tex.size.x * tex.size.y);
+    Perlin(tex, arena.base + arena.used, arena.size - arena.used, 0);
 
     assert(client_width >= 0);
     assert(client_height >= 0);
@@ -418,57 +495,10 @@ int main(int, char**)
         ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
 
         float region_sz = 32.0f;
-        auto zoom = 1;
+        auto zoom = 8;
         ImGui::Image(
             (ImTextureID)tex.id, ImVec2(region_sz * zoom, region_sz * zoom), {0, 0}, {1, 1},
             tint_col, border_col);
-
-        // if (show_demo_window)
-        //     ImGui::ShowDemoWindow(&show_demo_window);
-        //
-        // {
-        //     static float f = 0.0f;
-        //     static int counter = 0;
-        //
-        //     // Create a window called "Hello, world!" and append into it.
-        //     ImGui::Begin("Hello, world!");
-        //
-        //     // Display some text (you can use a format strings too)
-        //     ImGui::Text("This is some useful text.");
-        //
-        //     // Edit bools storing our window open/close state
-        //     ImGui::Checkbox("Demo Window", &show_demo_window);
-        //     ImGui::Checkbox("Another Window", &show_another_window);
-        //
-        //     // Edit 1 float using a slider from 0.0f to 1.0f
-        //     ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        //     // Edit 3 floats representing a color
-        //     ImGui::ColorEdit3("clear color", (float*)&clear_color);
-        //
-        //     // Buttons return true when clicked (most widgets return true when edited/activated)
-        //     if (ImGui::Button("Button"))
-        //         counter++;
-        //
-        //     ImGui::SameLine();
-        //     ImGui::Text("counter = %d", counter);
-        //
-        //     ImGui::Text(
-        //         "Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate,
-        //         io.Framerate);
-        //     ImGui::End();
-        // }
-        //
-        // // 3. Show another simple window.
-        // if (show_another_window) {
-        //     // Pass a pointer to our bool variable (the window will have
-        //     // a closing button that will clear the bool when clicked)
-        //     ImGui::Begin("Another Window", &show_another_window);
-        //     ImGui::Text("Hello from another window!");
-        //     if (ImGui::Button("Close Me"))
-        //         show_another_window = false;
-        //
-        //     ImGui::End();
-        // }
 
         // Rendering
         ImGui::Render();

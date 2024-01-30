@@ -12,6 +12,7 @@ using v2i = glm::ivec2;
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
