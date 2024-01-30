@@ -19,7 +19,7 @@
 #include "bf_memory.cpp"
 #include "bf_file.cpp"
 
-#include "bf_gamemap.cpp"
+#include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
 #include "bfc_tilemap.cpp"
@@ -120,14 +120,14 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         arena.size = memory_size - initial_offset - file_loading_arena_size;
         arena.base = (u8*)memory_ptr + initial_offset + file_loading_arena_size;
 
-        state.gamemap = {};
-        state.gamemap.size = {32, 24};
-        auto& dim = state.gamemap.size;
+        state.game_map = {};
+        state.game_map.size = {32, 24};
+        auto& dim = state.game_map.size;
 
-        state.gamemap.terrain_tiles = Allocate_Array(arena, Terrain_Tile, (size_t)dim.x * dim.y);
-        Regenerate_Terrain_Tiles(state.gamemap);
+        state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, (size_t)dim.x * dim.y);
+        Regenerate_Terrain_Tiles(state.game_map);
 
-        state.renderer_state = Initialize_Renderer(arena, file_loading_arena);
+        state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 
         memory.is_initialized = true;
     }

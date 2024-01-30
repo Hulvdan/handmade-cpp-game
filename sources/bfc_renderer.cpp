@@ -69,7 +69,7 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output
 }
 
 Game_Renderer_State*
-Initialize_Renderer(Game_State* game_state, Arena& arena, Arena& file_loading_arena)
+Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
 {
     auto state_ = Allocate_For(arena, Game_Renderer_State);
     auto& state = *state_;
@@ -145,6 +145,39 @@ Initialize_Renderer(Game_State* game_state, Arena& arena, Arena& file_loading_ar
         rule_file_result.size);
     assert(rule_loading_result.success);
     Allocate_Array(arena, u8, rule_loading_result.size);
+
+    i32 max_height = 0;
+    FOR_RANGE(i32, y, game_map.size.y)
+    {
+        FOR_RANGE(i32, x, game_map.size.x)
+        {
+            auto& terrain_tile = *(game_map.terrain_tiles + y * game_map.size.x + x);
+            max_height = MAX(max_height, terrain_tile.height);
+        }
+    }
+
+    state.tilemaps_count += max_height + 1;  // Terrain
+    state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
+
+    FOR_RANGE(i32, h, state.tilemaps_count)
+    {
+        auto& tilemap = *(state.tilemaps + h);
+        tilemap.tiles = Allocate_Array(arena, Tile_ID, game_map.size.x * game_map.size.y);
+
+        FOR_RANGE(i32, y, game_map.size.y)
+        {
+            FOR_RANGE(i32, x, game_map.size.x)
+            {
+                auto& tile = *(game_map.terrain_tiles + y * game_map.size.x + x);
+                auto& tilemap_tile = *(tilemap.tiles + y * game_map.size.x + x);
+
+                if (tile.terrain == Terrain::GRASS && tile.height >= h)
+                    tilemap_tile = (Tile_ID)Terrain::GRASS;
+                else
+                    tilemap_tile = (Tile_ID)Terrain::NONE;
+            }
+        }
+    }
 
     return state_;
 }
@@ -241,40 +274,45 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
         glEnd();
     }
 
-    auto gsize = state.gamemap.size;
-    FOR_RANGE(int, y, gsize.y)
+    auto swidth = (f32)bitmap.width;
+    auto sheight = (f32)bitmap.height;
+
+    auto projection = glm::mat3(1);
+    projection = glm::translate(projection, glm::vec2(0, 1));
+    projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+    projection = glm::rotate(projection, -0.2f);
+
+    // auto& renderer_state = *state.renderer_state;
+    auto gsize = state.game_map.size;
+
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    FOR_RANGE(i32, h, renderer_state.tilemaps_count)
     {
-        FOR_RANGE(int, x, gsize.x)
+        auto& tilemap = *(renderer_state.tilemaps + h);
+
+        FOR_RANGE(int, y, gsize.y)
         {
-            auto& tile = Get_Terrain_Tile(state.gamemap, {x, y});
-            if (tile.terrain != Terrain::GRASS)
-                continue;
+            FOR_RANGE(int, x, gsize.x)
+            {
+                auto& tile = Get_Terrain_Tile(state.game_map, {x, y});
+                if (tile.terrain != Terrain::GRASS)
+                    continue;
 
-            auto texture_id = 2;
-            // TODO(hulvdan): Make a proper game renderer
-            // auto texture_id = TestSmart_Tile(
-            //     state.gamemap.terrain_tiles, sizeof(Tile_ID), state.gamemap.size, {x, y},
-            //     state.grass_smart_tile);
+                // auto texture_id = 2;
+                // TODO(hulvdan): Make a proper game renderer
+                auto texture_id = Test_Smart_Tile(
+                    tilemap, state.game_map.size, {x, y}, renderer_state.grass_smart_tile);
 
-            glBindTexture(GL_TEXTURE_2D, texture_id);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glBegin(GL_TRIANGLES);
+                glBindTexture(GL_TEXTURE_2D, texture_id);
 
-            auto cell_size = 32;
-            auto sprite_pos = v2i(x + 2, y + 2) * cell_size;
-            auto sprite_size = v2i(1, 1) * cell_size;
+                auto cell_size = 32;
+                auto sprite_pos = v2i(x + 2, y + 2) * cell_size;
+                auto sprite_size = v2i(1, 1) * cell_size;
 
-            auto swidth = (f32)bitmap.width;
-            auto sheight = (f32)bitmap.height;
-
-            auto projection = glm::mat3(1);
-            projection = glm::translate(projection, glm::vec2(0, 1));
-            projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-            projection = glm::rotate(projection, -0.2f);
-
-            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-
-            glEnd();
+                glBegin(GL_TRIANGLES);
+                Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+                glEnd();
+            }
         }
     }
 

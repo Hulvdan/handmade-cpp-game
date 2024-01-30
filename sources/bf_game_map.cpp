@@ -1,24 +1,24 @@
 #pragma once
 
-Terrain_Tile& Get_Terrain_Tile(Game_Map& gamemap, v2i pos)
+Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos)
 {
-    assert(PosIsInBounds(pos, gamemap.size));
-    return *(gamemap.terrain_tiles + pos.y * gamemap.size.x + pos.x);
+    assert(Pos_Is_In_Bounds(pos, game_map.size));
+    return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
 }
 
-void Regenerate_Terrain_Tiles(Game_Map& gamemap)
+void Regenerate_Terrain_Tiles(Game_Map& game_map)
 {
     Terrain_Generation_Data data;
     data.max_height = 6;
 
     // TODO(hulvdan): There is a very good code for eliminating grass on the top
-    // auto stride = state.gamemap.size.x;
-    // for (int y = 0; y < state.gamemap.size.y; y++) {
-    //     for (int x = 0; x < state.gamemap.size.x; x++) {
+    // auto stride = state.game_map.size.x;
+    // for (int y = 0; y < state.game_map.size.y; y++) {
+    //     for (int x = 0; x < state.game_map.size.x; x++) {
     //         auto is_grass = (Terrain)(*terrain_tile) == Terrain::GRASS;
     //         auto above_is_grass = false;
     //         auto below_is_grass = false;
-    //         if (y < state.gamemap.size.y - 1)
+    //         if (y < state.game_map.size.y - 1)
     //             above_is_grass = (Terrain)(*(terrain_tile + stride)) == Terrain::GRASS;
     //         if (y > 0)
     //             below_is_grass = (Terrain)(*(terrain_tile - stride)) == Terrain::GRASS;
@@ -30,10 +30,10 @@ void Regenerate_Terrain_Tiles(Game_Map& gamemap)
     //     }
     // }
 
-    auto size = gamemap.size;
+    auto size = game_map.size;
     FOR_RANGE(int, y, size.y)
     {
-        // auto size = gamemap.size;
+        // auto size = game_map.size;
         // for (var y = 0; y < size.y; y++) {
         //     var row = new List<Terrain_Tile>();
         //
@@ -57,7 +57,7 @@ void Regenerate_Terrain_Tiles(Game_Map& gamemap)
         // }
         FOR_RANGE(int, x, size.x)
         {
-            auto& tile = Get_Terrain_Tile(gamemap, {x, y});
+            auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::GRASS;
             tile.height = int((data.max_height + 1) * frand());
 
@@ -68,7 +68,7 @@ void Regenerate_Terrain_Tiles(Game_Map& gamemap)
 
     // for (int y : range(size.y)) {
     //     for (int x : range(size.x)) {
-    //         auto& tile = Get_Terrain_Tile(gamemap, {x, y});
+    //         auto& tile = Get_Terrain_Tile(game_map, {x, y});
     //         tile.terrain = Terrain::GRASS;
     //
     //         tile.height = int((data.max_height + 1) * frand());
@@ -93,11 +93,11 @@ void Regenerate_Terrain_Tiles(Game_Map& gamemap)
     {
         FOR_RANGE(int, x, size.x)
         {
-            auto& tile = Get_Terrain_Tile(gamemap, {x, y});
-            auto shouldMarkAsCliff =
-                y == 0 || tile.height > Get_Terrain_Tile(gamemap, {x, y - 1}).height;
+            auto& tile = Get_Terrain_Tile(game_map, {x, y});
+            auto should_mark_as_cliff =
+                y == 0 || tile.height > Get_Terrain_Tile(game_map, {x, y - 1}).height;
 
-            if (!shouldMarkAsCliff)
+            if (!should_mark_as_cliff)
                 continue;
 
             tile.is_cliff = true;

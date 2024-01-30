@@ -173,44 +173,44 @@ Load_Smart_Tile_Result Load_Smart_Tile_Rules(
 
 void Set_Tile(Tilemap& tilemap, v2i pos, Tile_ID tile_id)
 {
-    assert(PosIsInBounds(pos, tilemap.size));
+    assert(Pos_Is_In_Bounds(pos, tilemap.size));
     *(tilemap.tiles + tilemap.size.x * pos.y + pos.x) = tile_id;
 }
 
 // NOTE(hulvdan): `tile_ids_distance` is the distance
 // (in bytes) between two adjacent Tile_IDs in `tile_ids`
-// BF_Texture_ID TestSmart_Tile(Tilemap& tilemap, v2i pos, Smart_Tile& tile)
-// {
-//     v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
-//
-//     for (int r = 0; r < tile.rules_count; r++) {
-//         auto& rule = *(tile.rules + r);
-//
-//         b32 found = true;
-//         for (int i = 0; (i < 8) && found; i++) {
-//             Tile_State_Check state = *(rule.states + i);
-//             if (state == Tile_State_Check::SKIP)
-//                 continue;
-//
-//             auto& offset = offsets[i];
-//             auto new_pos = pos + offset;
-//
-//             if (!PosIsInBounds(new_pos, size)) {
-//                 found &= state != Tile_State_Check::INCLUDED;
-//                 continue;
-//             }
-//
-//             auto tile = tilemap.terrain_tiles + size.x * new_pos.y + new_pos.x;
-//
-//             if (state == Tile_State_Check::INCLUDED)
-//                 found &= tile_id == (Tile_ID)tile.id;
-//             else if (state == Tile_State_Check::EXCLUDED)
-//                 found &= tile_id != (Tile_ID)tile.id;
-//         }
-//
-//         if (found)
-//             return rule.texture_id;
-//     }
-//
-//     return tile.fallback_texture_id;
-// }
+BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& tile)
+{
+    v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+
+    for (int r = 0; r < tile.rules_count; r++) {
+        auto& rule = *(tile.rules + r);
+
+        b32 found = true;
+        for (int i = 0; (i < 8) && found; i++) {
+            Tile_State_Check state = *(rule.states + i);
+            if (state == Tile_State_Check::SKIP)
+                continue;
+
+            auto& offset = offsets[i];
+            auto new_pos = pos + offset;
+
+            if (!Pos_Is_In_Bounds(new_pos, size)) {
+                found &= state != Tile_State_Check::INCLUDED;
+                continue;
+            }
+
+            Tile_ID tile_id = *(tilemap.tiles + size.x * new_pos.y + new_pos.x);
+
+            if (state == Tile_State_Check::INCLUDED)
+                found &= tile_id == (Tile_ID)tile.id;
+            else if (state == Tile_State_Check::EXCLUDED)
+                found &= tile_id != (Tile_ID)tile.id;
+        }
+
+        if (found)
+            return rule.texture_id;
+    }
+
+    return tile.fallback_texture_id;
+}

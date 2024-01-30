@@ -39,7 +39,7 @@ struct Game_State {
     f32 offset_y;
 
     v2f player_pos;
-    Game_Map gamemap;
+    Game_Map game_map;
 
     Arena memory_arena;
     Arena file_loading_arena;
