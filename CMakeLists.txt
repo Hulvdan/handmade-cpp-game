@@ -35,6 +35,14 @@ target_compile_definitions(win32 PRIVATE
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm)
 
+# === Building win32_noise_sandbox.exe ===
+add_executable(win32_noise_sandbox WIN32 sources/win32_noise_sandbox.cpp)
+# target_compile_definitions(win32_noise_sandbox PRIVATE
+#     BFG_INTERNAL
+# )
+target_link_libraries(win32_noise_sandbox PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
+target_link_libraries(win32_noise_sandbox PRIVATE glew glm)
+
 # === Building meta_tools.exe ===
 # add_executable(meta_tools sources/meta_tools.cpp)
 # target_compile_definitions(win32 PRIVATE

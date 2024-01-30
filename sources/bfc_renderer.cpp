@@ -282,7 +282,6 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
     projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
     projection = glm::rotate(projection, -0.2f);
 
-    // auto& renderer_state = *state.renderer_state;
     auto gsize = state.game_map.size;
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -298,8 +297,8 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
                 if (tile.terrain != Terrain::GRASS)
                     continue;
 
-                // auto texture_id = 2;
-                // TODO(hulvdan): Make a proper game renderer
+                // TODO(hulvdan): Spritesheets! Vertices array,
+                // texture vertices array, indices array
                 auto texture_id = Test_Smart_Tile(
                     tilemap, state.game_map.size, {x, y}, renderer_state.grass_smart_tile);
 

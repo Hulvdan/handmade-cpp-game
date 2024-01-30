@@ -1,0 +1,347 @@
+#include "windows.h"
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <vector>
+
+// #include "glm/vec2.hpp"
+// #include "glm/ext.hpp"
+#include "glew.h"
+#include "wglew.h"
+#include "bf_base.h"
+#include "bf_game.h"
+
+#define local_persist static
+#define global_variable static
+#define internal static
+
+// -- RENDERING STUFF
+struct BFBitmap {
+    Game_Bitmap bitmap;
+
+    HBITMAP handle;
+    BITMAPINFO info;
+};
+// -- RENDERING STUFF END
+
+// -- GAME STUFF
+global_variable HMODULE game_lib = nullptr;
+global_variable size_t game_memory_size;
+global_variable void* game_memory = nullptr;
+
+global_variable size_t events_count = 0;
+global_variable std::vector<u8> events = {};
+
+global_variable bool running = false;
+
+global_variable bool should_recreate_bitmap_after_client_area_resize;
+global_variable BFBitmap screen_bitmap;
+
+global_variable int client_width = -1;
+global_variable int client_height = -1;
+
+void Win32UpdateBitmap(HDC device_context)
+{
+    assert(client_width >= 0);
+    assert(client_height >= 0);
+
+    auto& game_bitmap = screen_bitmap.bitmap;
+    game_bitmap.width = client_width;
+    game_bitmap.height = client_height;
+
+    game_bitmap.bits_per_pixel = 32;
+    screen_bitmap.info.bmiHeader.biSize = sizeof(screen_bitmap.info.bmiHeader);
+    screen_bitmap.info.bmiHeader.biWidth = client_width;
+    screen_bitmap.info.bmiHeader.biHeight = -client_height;
+    screen_bitmap.info.bmiHeader.biPlanes = 1;
+    screen_bitmap.info.bmiHeader.biBitCount = game_bitmap.bits_per_pixel;
+    screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
+
+    if (game_bitmap.memory)
+        VirtualFree(game_bitmap.memory, 0, MEM_RELEASE);
+
+    game_bitmap.memory = VirtualAlloc(
+        0, game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
+        MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+    if (screen_bitmap.handle)
+        DeleteObject(screen_bitmap.handle);
+
+    screen_bitmap.handle = CreateDIBitmap(
+        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory, &screen_bitmap.info,
+        DIB_RGB_COLORS);
+}
+
+void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
+{
+    if (should_recreate_bitmap_after_client_area_resize)
+        Win32UpdateBitmap(device_context);
+
+    SwapBuffers(device_context);
+    assert(!glGetError());
+
+    events_count = 0;
+    events.clear();
+}
+
+void Win32GLResize()
+{
+    glViewport(0, 0, client_width, client_height);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, 1, 1, 0, -1, 1);
+}
+
+LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
+{
+    switch (messageType) {
+    case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
+        running = false;
+    } break;
+
+    case WM_DESTROY: {
+        // TODO(hulvdan): It was an error. Should we try to recreate the window?
+        running = false;
+    } break;
+
+    case WM_SIZE: {
+        client_width = LOWORD(lParam);
+        client_height = HIWORD(lParam);
+        should_recreate_bitmap_after_client_area_resize = true;
+        Win32GLResize();
+    } break;
+
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP: {
+        bool previous_was_down = lParam & (1 << 30);
+        bool is_up = lParam & (1 << 31);
+        bool alt_is_down = lParam & (1 << 29);
+        u32 vk_code = wParam;
+
+        if (is_up != previous_was_down)
+            return 0;
+
+        // if (vk_code == 'W') {
+        // } else if (vk_code == 'A') {
+        // } else if (vk_code == 'S') {
+        // } else if (vk_code == 'D') {
+        // } else
+        if (vk_code == VK_ESCAPE  //
+            || vk_code == 'Q'  //
+            || vk_code == VK_F4 && alt_is_down) {
+            running = false;
+        }
+
+        // if (is_up) {
+        //     // OnKeyReleased
+        // } else {
+        //     // OnKeyPressed
+        // }
+    } break;
+
+    default: {
+        return DefWindowProc(window_handle, messageType, wParam, lParam);
+    }
+    }
+    return 0;
+}
+
+u64 Win32Clock()
+{
+    LARGE_INTEGER res;
+    QueryPerformanceCounter(&res);
+    return res.QuadPart;
+}
+
+u64 Win32Frequency()
+{
+    LARGE_INTEGER res;
+    QueryPerformanceFrequency(&res);
+    return res.QuadPart;
+}
+
+// NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
+static int WinMain(
+    HINSTANCE application_handle,
+    HINSTANCE previous_window_instance_handle,
+    LPSTR command_line,
+    int show_command)
+{
+    WNDCLASSA windowClass = {};
+
+    events.reserve(Kilobytes(64LL));
+
+    game_memory_size = Megabytes(64LL);
+    game_memory =
+        VirtualAlloc(0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!game_memory) {
+        // TODO(hulvdan): Diagnostic
+        return -1;
+    }
+
+    const i32 SLEEP_MSEC_GRANULARITY = 1;
+    timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
+
+    // NOTE(hulvdan): Casey says that OWNDC is what makes us able
+    // not to ask the OS for a new DC each time we need to draw if I understood correctly.
+    windowClass.style = CS_HREDRAW | CS_VREDRAW;
+    // windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    windowClass.lpfnWndProc = *WindowEventsHandler;
+    windowClass.lpszClassName = "BFGWindowClass";
+    windowClass.hInstance = application_handle;
+
+    // TODO(hulvdan): Icon!
+    // HICON     hIcon;
+
+    if (RegisterClassA(&windowClass) == NULL) {
+        // TODO(hulvdan): Diagnostic
+        return 0;
+    }
+
+    auto window_handle = CreateWindowExA(
+        0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
+        CW_USEDEFAULT, 640, 480,
+        NULL,  // [in, optional] HWND      hWndParent,
+        NULL,  // [in, optional] HMENU     hMenu,
+        application_handle,  // [in, optional] HINSTANCE hInstance,
+        NULL  // [in, optional] LPVOID    lpParam
+    );
+
+    if (!window_handle) {
+        // TODO(hulvdan): Diagnostic
+        return -1;
+    }
+
+    ShowWindow(window_handle, show_command);
+    UpdateWindow(window_handle);
+
+    assert(client_width >= 0);
+    assert(client_height >= 0);
+    // --- Initializing OpenGL Start ---
+    {
+        auto hdc = GetDC(window_handle);
+
+        // --- Setting up pixel format start ---
+        PIXELFORMATDESCRIPTOR pfd = {};
+        pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion = 1;
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.dwLayerMask = PFD_MAIN_PLANE;
+        pfd.iPixelType = PFD_TYPE_RGBA;
+        pfd.cColorBits = 24;
+        pfd.cAlphaBits = 8;
+        // pfd.cDepthBits = 0;
+        // pfd.cAccumBits = 0;
+        // pfd.cStencilBits = 0;
+
+        auto pixelformat = ChoosePixelFormat(hdc, &pfd);
+        if (!pixelformat) {
+            // TODO(hulvdan): Diagnostic
+            return -1;
+        }
+
+        DescribePixelFormat(hdc, pixelformat, pfd.nSize, &pfd);
+
+        if (SetPixelFormat(hdc, pixelformat, &pfd) == FALSE) {
+            // TODO(hulvdan): Diagnostic
+            return -1;
+        }
+        // --- Setting up pixel format end ---
+
+        auto ghRC = wglCreateContext(hdc);
+        wglMakeCurrent(hdc, ghRC);
+
+        if (glewInit() != GLEW_OK) {
+            // TODO(hulvdan): Diagnostic
+            // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+            assert(false);
+        }
+
+        // NOTE(hulvdan): Enabling VSync
+        // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
+        // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control_tear.txt
+        if (WGLEW_EXT_swap_control_tear)
+            wglSwapIntervalEXT(-1);
+        else if (WGLEW_EXT_swap_control)
+            wglSwapIntervalEXT(1);
+
+        glEnable(GL_BLEND);
+        glClearColor(1, 0, 1, 1);
+        assert(!glGetError());
+
+        glShadeModel(GL_SMOOTH);
+        assert(!glGetError());
+
+        ReleaseDC(window_handle, hdc);
+        Win32GLResize();
+    }
+    // --- Initializing OpenGL End ---
+
+    screen_bitmap = BFBitmap();
+
+    running = true;
+
+    u64 perf_counter_current = Win32Clock();
+    u64 perf_counter_frequency = Win32Frequency();
+
+    f32 last_frame_dt = 0;
+    const f32 MAX_FRAME_DT = 1.0f / 10.0f;
+    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole mess
+    f32 REFRESH_RATE = 60.0f;
+    i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
+
+    while (running) {
+        u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
+
+        MSG message = {};
+        while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
+            if (message.message == WM_QUIT) {
+                running = false;
+                break;
+            }
+
+            TranslateMessage(&message);
+            DispatchMessage(&message);
+        }
+
+        if (!running)
+            break;
+
+        auto device_context = GetDC(window_handle);
+
+        auto capped_dt = last_frame_dt > MAX_FRAME_DT ? MAX_FRAME_DT : last_frame_dt;
+        Win32Paint(capped_dt, window_handle, device_context);
+        ReleaseDC(window_handle, device_context);
+
+        u64 perf_counter_new = Win32Clock();
+        last_frame_dt =
+            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        assert(last_frame_dt >= 0);
+
+        if (perf_counter_new < next_frame_expected_perf_counter) {
+            while (perf_counter_new < next_frame_expected_perf_counter) {
+                i32 msec_to_sleep =
+                    (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) * 1000.0f /
+                          (f32)perf_counter_frequency);
+                assert(msec_to_sleep >= 0);
+
+                if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
+                    Sleep(msec_to_sleep - SLEEP_MSEC_GRANULARITY);
+                }
+
+                perf_counter_new = Win32Clock();
+            }
+        } else {
+            // TODO(hulvdan): There go your frameskips...
+        }
+
+        last_frame_dt =
+            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        perf_counter_current = perf_counter_new;
+    }
+
+    return 0;
+}
+// NOLINTEND(clang-analyzer-core.StackAddressEscape)
