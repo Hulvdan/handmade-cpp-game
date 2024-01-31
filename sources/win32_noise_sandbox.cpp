@@ -219,7 +219,8 @@ void Perlin(
     Loaded_Texture& texture,
     u8* temp_storage,
     size_t free_temp_storage_size,
-    int total_iterations,
+    int octaves,
+    f32 scaling_bias,
     int seed)
 {
     auto sx = texture.size.x;
@@ -242,20 +243,21 @@ void Perlin(
     srand(seed);
     FOR_RANGE(size_t, i, sx)
     {
-        *(cover + i) = (f32)rand() / (f32)RAND_MAX;
+        auto value = (f32)rand() / (f32)RAND_MAX;
+        *(cover + i) = value;
         *(accumulator + i) = 0;
     }
 
     f32 sum_of_division = 0;
 
-    total_iterations = MIN(sx_power, total_iterations);
+    octaves = MIN(sx_power, octaves);
 
     f32 iteration = 1;
     u16 offset = sx;
 
-    FOR_RANGE(int, octave, total_iterations)
+    f32 octave_c = 1.0f;
+    FOR_RANGE(int, _, octaves)
     {
-        f32 octave_c = 1.0f / (octave + 1);
         sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
@@ -272,7 +274,8 @@ void Perlin(
                 it = 0;
             }
 
-            *(accumulator + i) += octave_c * Lerp(l, r, (f32)it / (f32)offset);
+            auto value = octave_c * Lerp(l, r, (f32)it / (f32)offset);
+            *(accumulator + i) += value;
             it++;
         }
 
@@ -280,6 +283,7 @@ void Perlin(
         // https://www.youtube.com/watch?v=6-0UaeJBumA
 
         offset >>= 1;
+        octave_c /= scaling_bias;
     }
 
     auto pixel = (u32*)texture.address;
@@ -301,7 +305,8 @@ void Perlin(
 
 void Update_GUI(Arena& arena, Loaded_Texture& tex)
 {
-    local_persist int total_iterations = -1;
+    local_persist int octaves = -1;
+    local_persist f32 scaling_bias = 2;
     local_persist int seed = 0;
 
     ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);  // No tint
@@ -309,26 +314,29 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex)
 
     auto texture_display_size = 256;
 
-    auto new_total = total_iterations;
+    auto new_total = octaves;
     bool regen = false;
 
     if (ImGui::SliderInt("Octaves Count", &new_total, 0, 9, "", 0))
         regen = true;
 
     if (ImGui::Button("New Seed")) {
-        seed++;
+        seed = Win32Clock();
         regen = true;
     }
 
+    if (ImGui::SliderFloat("Scaling Bias", &scaling_bias, 0.01f, 4.0f, "", 0))
+        regen = true;
+
     new_total = MIN(9, new_total);
     new_total = MAX(0, new_total);
-    if (new_total != total_iterations) {
-        total_iterations = new_total;
+    if (new_total != octaves) {
+        octaves = new_total;
         regen = true;
     }
 
     if (regen) {
-        Perlin(tex, arena.base + arena.used, arena.size - arena.used, total_iterations, seed);
+        Perlin(tex, arena.base + arena.used, arena.size - arena.used, octaves, scaling_bias, seed);
 
         glBindTexture(GL_TEXTURE_2D, tex.id);
         assert(!glGetError());
