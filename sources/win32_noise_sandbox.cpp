@@ -253,10 +253,10 @@ void Perlin(
     f32 iteration = 1;
     u16 offset = sx;
 
-    FOR_RANGE(int, gamma, total_iterations)
+    FOR_RANGE(int, octave, total_iterations)
     {
-        f32 gamma_c = 1.0f / (gamma + 1);
-        sum_of_division += gamma_c;
+        f32 octave_c = 1.0f / (octave + 1);
+        sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
         u16 rindex = offset % sx;
@@ -272,7 +272,7 @@ void Perlin(
                 it = 0;
             }
 
-            *(accumulator + i) += gamma_c * Lerp(l, r, (f32)it / (f32)offset);
+            *(accumulator + i) += octave_c * Lerp(l, r, (f32)it / (f32)offset);
             it++;
         }
 
@@ -312,10 +312,8 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex)
     auto new_total = total_iterations;
     bool regen = false;
 
-    if (ImGui::Button("Increase"))
-        new_total++;
-    if (ImGui::Button("Decrease"))
-        new_total--;
+    if (ImGui::SliderInt("Octaves Count", &new_total, 0, 9, "", 0))
+        regen = true;
 
     if (ImGui::Button("New Seed")) {
         seed++;
