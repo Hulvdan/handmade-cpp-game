@@ -219,23 +219,27 @@ void Perlin(
     Loaded_Texture& texture,
     u8* temp_storage,
     size_t free_temp_storage_size,
-    int total_iterations)
+    int total_iterations,
+    int seed)
 {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
     assert(free_temp_storage_size >= (size_t)8 * sx);
-    assert(sx > 0);
-    assert(sy > 0);
 
     u8 sx_power;
     u8 sy_power;
+    assert(sx > 0);
+    assert(sx < 65536);
+    assert(sy > 0);
+    assert(sy < 65536);
+    assert(sx == sy);
     assert(Is_Multiple_Of_2(sx, sx_power));
     assert(Is_Multiple_Of_2(sy, sy_power));
-    assert(sx == sy);
 
     f32* cover = (f32*)temp_storage;
     f32* accumulator = cover + sx;
 
+    srand(seed);
     FOR_RANGE(size_t, i, sx)
     {
         *(cover + i) = (f32)rand() / (f32)RAND_MAX;
@@ -244,7 +248,6 @@ void Perlin(
 
     f32 sum_of_division = 0;
 
-    total_iterations = 100;  // TODO: Remove
     total_iterations = MIN(sx_power, total_iterations);
 
     f32 iteration = 1;
@@ -260,7 +263,7 @@ void Perlin(
         f32 r = *(cover + rindex);
 
         u16 it = 0;
-        FOR_RANGE(size_t, i, sx)
+        FOR_RANGE(u16, i, sx)
         {
             if (it == offset) {
                 l = r;
@@ -272,6 +275,9 @@ void Perlin(
             *(accumulator + i) += gamma_c * Lerp(l, r, (f32)it / (f32)offset);
             it++;
         }
+
+        // [ ] Bias. Revise "Programming Perlin-like Noise (C++)"
+        // https://www.youtube.com/watch?v=6-0UaeJBumA
 
         offset >>= 1;
     }
@@ -291,6 +297,58 @@ void Perlin(
             *(pixel + y * sx + x) = b + (g << 8) + (r << 16) + (255 << 24);
         }
     }
+}
+
+void Update_GUI(Arena& arena, Loaded_Texture& tex)
+{
+    local_persist int total_iterations = -1;
+    local_persist int seed = 0;
+
+    ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);  // No tint
+    ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+
+    auto texture_display_size = 256;
+
+    auto new_total = total_iterations;
+    bool regen = false;
+
+    if (ImGui::Button("Increase"))
+        new_total++;
+    if (ImGui::Button("Decrease"))
+        new_total--;
+
+    if (ImGui::Button("New Seed")) {
+        seed++;
+        regen = true;
+    }
+
+    new_total = MIN(9, new_total);
+    new_total = MAX(0, new_total);
+    if (new_total != total_iterations) {
+        total_iterations = new_total;
+        regen = true;
+    }
+
+    if (regen) {
+        Perlin(tex, arena.base + arena.used, arena.size - arena.used, total_iterations, seed);
+
+        glBindTexture(GL_TEXTURE_2D, tex.id);
+        assert(!glGetError());
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        assert(!glGetError());
+
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
+            tex.address);
+    }
+
+    ImGui::Image(
+        (ImTextureID)tex.id, ImVec2(texture_display_size, texture_display_size), {0, 0}, {1, 1},
+        tint_col, border_col);
 }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
@@ -351,10 +409,9 @@ int main(int, char**)
     UpdateWindow(window_handle);
 
     Loaded_Texture tex;
-    tex.id = 1;
+    tex.id = 1771;
     tex.size = {512, 512};
     tex.address = (u8*)Allocate_Array(arena, u32, tex.size.x * tex.size.y);
-    Perlin(tex, arena.base + arena.used, arena.size - arena.used, 0);
 
     assert(client_width >= 0);
     assert(client_height >= 0);
@@ -453,18 +510,6 @@ int main(int, char**)
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
 
     glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, tex.id);
-    assert(!glGetError());
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    assert(!glGetError());
-
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
-        tex.address);
 
     while (running) {
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
@@ -491,14 +536,7 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);  // No tint
-        ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
-
-        float region_sz = 32.0f;
-        auto zoom = 8;
-        ImGui::Image(
-            (ImTextureID)tex.id, ImVec2(region_sz * zoom, region_sz * zoom), {0, 0}, {1, 1},
-            tint_col, border_col);
+        Update_GUI(arena, tex);
 
         // Rendering
         ImGui::Render();
