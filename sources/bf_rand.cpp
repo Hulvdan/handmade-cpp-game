@@ -35,6 +35,20 @@ bool Is_Multiple_Of_2(int number, u8& power) {
     return true;
 }
 
+i32 Ceil_To_Power_Of_2(i32 max_pow2size) {
+    i32 number = i32_max;
+    assert(number >= 1);
+
+    while (number > max_pow2size)
+        number >>= 1;
+    number++;
+    if (number < max_pow2size)
+        number <<= 1;
+
+    assert(number != 0);
+    return number;
+}
+
 void Fill_Perlin_1D(
     u16* output,
     u8* temp_storage,
@@ -188,13 +202,13 @@ void Perlin_1D(
 void Fill_Perlin_2D(
     u16* output,
     size_t free_output_space,
-    Arena& arena,
-    u8 octaves,
-    f32 scaling_bias,
-    uint seed,
+    Arena& temp_arena,
+    PerlinParams params,
     u16 sx,
     u16 sy  //
 ) {
+    auto octaves = params.octaves;
+
     u8 sx_power;
     u8 sy_power;
     assert(sx > 0);
@@ -206,11 +220,11 @@ void Fill_Perlin_2D(
     assert(Is_Multiple_Of_2(sy, sy_power));
 
     auto total_pixels = (size_t)sx * sy;
-    f32* cover = Allocate_Array(arena, f32, total_pixels);
-    f32* accumulator = Allocate_Array(arena, f32, total_pixels);
-    DEFER(Deallocate_Array(arena, f32, 2 * total_pixels));
+    f32* cover = Allocate_Array(temp_arena, f32, total_pixels);
+    f32* accumulator = Allocate_Array(temp_arena, f32, total_pixels);
+    DEFER(Deallocate_Array(temp_arena, f32, 2 * total_pixels));
 
-    srand(seed);
+    srand(params.seed);
     FOR_RANGE(size_t, i, total_pixels) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
@@ -268,7 +282,7 @@ void Fill_Perlin_2D(
         }
 
         offset >>= 1;
-        octave_c /= scaling_bias;
+        octave_c /= params.scaling_bias;
     }
 
     FOR_RANGE(int, y, sy) {

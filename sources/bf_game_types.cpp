@@ -8,6 +8,14 @@ struct Arena {
 };
 // --- Memory End ---
 
+// --- Rand ---
+struct PerlinParams {
+    u8 octaves;
+    f32 scaling_bias;
+    uint seed;
+};
+// --- Rand End ---
+
 // --- Game Logic ---
 enum class Terrain {
     NONE,
@@ -23,13 +31,21 @@ struct Terrain_Tile {
     bool is_cliff;
 };
 
+struct Scriptable_Resource {
+    u32 id;
+    const char* name;
+};
+
+// NOTE(hulvdan): `scriptable` is `null` when `amount` = 0
+struct Terrain_Resource {
+    Scriptable_Resource* scriptable;
+    u8 amount;
+};
+
 struct Game_Map {
     v2i size;
     Terrain_Tile* terrain_tiles;
-};
-
-struct Terrain_Generation_Data {
-    i32 max_height;  // INCLUSIVE
+    Terrain_Resource* terrain_resources;
 };
 
 #ifdef BF_CLIENT
@@ -42,6 +58,8 @@ struct Game_State {
 
     v2f player_pos;
     Game_Map game_map;
+
+    Scriptable_Resource DEBUG_forest;
 
     Arena memory_arena;
     Arena file_loading_arena;
@@ -103,10 +121,13 @@ struct Tilemap {
 struct Game_Renderer_State {
     Smart_Tile grass_smart_tile;
     Loaded_Texture human_texture;
+    Loaded_Texture forest_texture;
     Loaded_Texture grass_textures[17];
 
     int tilemaps_count;
     Tilemap* tilemaps;
+
+    u8 resources_tilemap_index;
 };
 // --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT

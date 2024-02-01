@@ -101,15 +101,11 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
         if (bmp_result.success) {
             Loaded_Texture& texture = state.grass_textures[i];
 
-            constexpr size_t NAME_SIZE = 256;
+            constexpr size_t NAME_SIZE = 64;
             char name[NAME_SIZE] = {};
             sprintf(name, "grass_%d", i + 1);
-            auto name_size = Find_Newline_Or_EOF((u8*)name, NAME_SIZE);
-            assert(name_size > 0);
-            assert(name_size < NAME_SIZE);
 
-            // texture.id = state.texture_ids[i] + 10;
-            texture.id = scast<BF_Texture_ID>(Hash32((u8*)name, name_size));
+            texture.id = scast<BF_Texture_ID>(Hash32_String(name));
             texture.size = {bmp_result.width, bmp_result.height};
             texture.address = loading_address;
             Allocate_Array(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
@@ -152,7 +148,11 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
     }
 
     state.tilemaps_count = 0;
-    state.tilemaps_count += max_height + 1;  // Terrain
+    state.tilemaps_count += max_height + 1;  // Terrain (NOTE: [0; max_height])
+
+    state.resources_tilemap_index = state.tilemaps_count;
+    state.tilemaps_count += 1;  // Terrain Resources (forests, stones, etc.)
+
     state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
 
     FOR_RANGE(i32, h, state.tilemaps_count) {

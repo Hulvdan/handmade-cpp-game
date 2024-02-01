@@ -15,3 +15,14 @@ u32 Hash32(const u8* key, const int len) {
 
     return hash;
 }
+
+u32 Hash32_String(const char* key) {
+    u32 hash = EMPTY_HASH32;
+    while (*key) {
+        // hash = (hash * 16777619) ^ (*key);  // FNV-1
+        hash = (hash ^ (*key)) * 16777619;  // FNV-1a
+        key++;
+    }
+
+    return hash;
+}
