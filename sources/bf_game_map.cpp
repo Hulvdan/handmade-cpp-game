@@ -88,15 +88,6 @@ void Regenerate_Terrain_Tiles(
         }
     }
 
-    // for (int y : range(size.y)) {
-    //     for (int x : range(size.x)) {
-    //         auto& tile = Get_Terrain_Tile(game_map, {x, y});
-    //         tile.terrain = Terrain::GRASS;
-    //
-    //         tile.height = int((data.max_height + 1) * frand());
-    //     }
-    // }
-
     // for (var y = 0; y < _mapSizeY; y++) {
     //     for (var x = 0; x < _mapSizeX; x++) {
     //         var shouldMarkAsCliff =
@@ -110,6 +101,33 @@ void Regenerate_Terrain_Tiles(
     //         terrainTiles[y][x] = tile;
     //     }
     // }
+
+    // NOTE(hulvdan): Removing one-tile-high grass blocks because they'd look ugly
+    while (true) {
+        bool changed = false;
+        FOR_RANGE(int, y, size.y)
+        {
+            FOR_RANGE(int, x, size.x)
+            {
+                auto& tile = Get_Terrain_Tile(game_map, {x, y});
+                auto height_above = 0;
+                if (y < size.y - 1)
+                    height_above = Get_Terrain_Tile(game_map, {x, y + 1}).height;
+                auto height_below = 0;
+                if (y > 0)
+                    height_below = Get_Terrain_Tile(game_map, {x, y - 1}).height;
+
+                auto should_change = tile.height > height_below && tile.height > height_above;
+                if (should_change) {
+                    tile.height = MAX(height_below, height_above);
+                    changed = true;
+                }
+            }
+        }
+
+        if (!changed)
+            break;
+    }
 
     FOR_RANGE(int, y, size.y)
     {
