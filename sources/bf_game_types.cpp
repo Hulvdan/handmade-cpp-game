@@ -14,10 +14,12 @@ enum class Terrain {
     GRASS,
 };
 
+using TerrainHeight = i8;
+
 struct Terrain_Tile {
     Terrain terrain;
     // NOTE(hulvdan): Height starts at 0
-    i8 height;
+    TerrainHeight height;
     bool is_cliff;
 };
 

@@ -37,48 +37,58 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count)
 
     while (input_events_count > 0) {
         input_events_count--;
-        auto type = (Event_Type)(*events++);
+        auto type = (Event_Type)*events;
+        events++;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-        // TODO(hulvdan): What if it's not aligned? Should I memcpy onto the stack's memory
+        size_t s = 0;
+
         switch (type) {
         case Event_Type::Mouse_Pressed: {
-            auto& event = *(Mouse_Pressed*)events;
-            events += sizeof(Mouse_Pressed);
+            Mouse_Pressed event = {};
+            memcpy(&event, events, sizeof(Mouse_Pressed));
+            s = sizeof(Mouse_Pressed);
         } break;
 
         case Event_Type::Mouse_Released: {
-            auto& event = *(Mouse_Released*)events;
-            events += sizeof(Mouse_Released);
+            Mouse_Released event = {};
+            memcpy(&event, events, sizeof(Mouse_Released));
+            s = sizeof(Mouse_Released);
         } break;
 
         case Event_Type::Mouse_Moved: {
-            auto& event = *(Mouse_Moved*)events;
-            events += sizeof(Mouse_Moved);
+            Mouse_Moved event = {};
+            memcpy(&event, events, sizeof(Mouse_Moved));
+            s = sizeof(Mouse_Moved);
         } break;
 
         case Event_Type::Keyboard_Pressed: {
-            auto& event = *(Keyboard_Pressed*)events;
-            events += sizeof(Keyboard_Pressed);
+            Keyboard_Pressed event = {};
+            memcpy(&event, events, sizeof(Keyboard_Pressed));
+            s = sizeof(Keyboard_Pressed);
         } break;
 
         case Event_Type::Keyboard_Released: {
-            auto& event = *(Keyboard_Released*)events;
-            events += sizeof(Keyboard_Released);
+            Keyboard_Released event = {};
+            memcpy(&event, events, sizeof(Keyboard_Released));
+            s = sizeof(Keyboard_Released);
         } break;
 
         case Event_Type::Controller_Button_Pressed: {
-            auto& event = *(Controller_Button_Pressed*)events;
-            events += sizeof(Controller_Button_Pressed);
+            Controller_Button_Pressed event = {};
+            memcpy(&event, events, sizeof(Controller_Button_Pressed));
+            s = sizeof(Controller_Button_Pressed);
         } break;
 
         case Event_Type::Controller_Button_Released: {
-            auto& event = *(Controller_Button_Released*)events;
-            events += sizeof(Controller_Button_Released);
+            Controller_Button_Released event = {};
+            memcpy(&event, events, sizeof(Controller_Button_Released));
+            s = sizeof(Controller_Button_Released);
         } break;
 
         case Event_Type::Controller_Axis_Changed: {
-            auto& event = *(Controller_Axis_Changed*)events;
-            events += sizeof(Controller_Axis_Changed);
+            Controller_Axis_Changed event = {};
+            memcpy(&event, events, sizeof(Controller_Axis_Changed));
+            s = sizeof(Controller_Axis_Changed);
 
             assert(event.axis >= 0 && event.axis <= 1);
             if (event.axis == 0)
@@ -91,6 +101,8 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count)
             // TODO(hulvdan): Diagnostic
             assert(false);
         }
+
+        events += s;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 }
 

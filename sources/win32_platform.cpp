@@ -32,7 +32,7 @@ global size_t game_memory_size;
 global void* game_memory = nullptr;
 
 global size_t events_count = 0;
-global std::vector<u8> events = {};
+global std::vector<u8> events = {};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 // TODO(hulvdan): Is there any way to restrict T
 // to be only one of event structs specified in game.h?
