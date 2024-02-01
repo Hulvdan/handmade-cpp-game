@@ -37,8 +37,7 @@ global std::vector<u8> events = {};  // NOLINT(cppcoreguidelines-avoid-non-const
 // TODO(hulvdan): Is there any way to restrict T
 // to be only one of event structs specified in game.h?
 template <typename T>
-void push_event(T& event)
-{
+void push_event(T& event) {
     auto can_push = events.capacity() >= events.size() + sizeof(T) + 1;
     if (!can_push) {
         // TODO(hulvdan): Diagnostic
@@ -60,8 +59,7 @@ struct PeekFiletimeRes {
     FILETIME filetime;
 };
 
-PeekFiletimeRes PeekFiletime(const char* filename)
-{
+PeekFiletimeRes PeekFiletime(const char* filename) {
     PeekFiletimeRes res = {};
 
     WIN32_FIND_DATAA find_data;
@@ -84,13 +82,10 @@ void Game_Update_And_Render_Stub(
     size_t memory_size,
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
-    size_t input_events_count)
-{
-}
+    size_t input_events_count) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
-void LoadOrUpdateGameDll()
-{
+void LoadOrUpdateGameDll() {
     auto path = "bf_game.dll";
 
 #if BFG_INTERNAL
@@ -153,12 +148,10 @@ using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
 using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration);
 
 // NOTE(hulvdan): These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
-DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState)
-{
+DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
-DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
-{
+DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
 
@@ -166,8 +159,7 @@ bool controller_support_loaded = false;
 XInputGetStateType XInputGetState_ = XInputGetStateStub;
 XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
-void LoadXInputDll()
-{
+void LoadXInputDll() {
     auto library = LoadLibraryA("xinput1_4.dll");
     if (!library)
         library = LoadLibraryA("xinput1_3.dll");
@@ -187,16 +179,14 @@ bool audio_support_loaded = false;
 
 using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
 
-HRESULT XAudio2CreateStub(IXAudio2** ppXAudio2, UINT32 Flags, XAUDIO2_PROCESSOR XAudio2Processor)
-{
+HRESULT XAudio2CreateStub(IXAudio2** ppXAudio2, UINT32 Flags, XAUDIO2_PROCESSOR XAudio2Processor) {
     // TODO(hulvdan): Diagnostic
     return XAUDIO2_E_INVALID_CALL;
 }
 
 XAudio2CreateType XAudio2Create_ = XAudio2CreateStub;
 
-void LoadXAudioDll()
-{
+void LoadXAudioDll() {
     auto library = LoadLibraryA("xaudio2_9.dll");
     if (!library)
         library = LoadLibraryA("xaudio2_8.dll");
@@ -217,8 +207,7 @@ f32 FillSamples(
     i32 samples_count_per_channel,
     i8 channels,
     f32 frequency,
-    f32 last_angle)
-{
+    f32 last_angle) {
     assert(samples_count_per_second > 0);
     assert(samples_count_per_channel > 0);
     assert(channels > 0);
@@ -255,8 +244,7 @@ struct CreateBufferRes {
     u8* samples;
 };
 
-CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample)
-{
+CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
     assert(channels > 0);
     assert(bytes_per_sample > 0);
 
@@ -288,8 +276,7 @@ global BFBitmap screen_bitmap;
 global int client_width = -1;
 global int client_height = -1;
 
-void Win32UpdateBitmap(HDC device_context)
-{
+void Win32UpdateBitmap(HDC device_context) {
     assert(client_width >= 0);
     assert(client_height >= 0);
 
@@ -320,8 +307,7 @@ void Win32UpdateBitmap(HDC device_context)
         DIB_RGB_COLORS);
 }
 
-void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
-{
+void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
@@ -340,16 +326,14 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
 #endif  // BFG_INTERNAL
 }
 
-void Win32GLResize()
-{
+void Win32GLResize() {
     glViewport(0, 0, client_width, client_height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0, 1, 1, 0, -1, 1);
 }
 
-LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
-{
+LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
         running = false;
@@ -404,8 +388,7 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
     return 0;
 }
 
-class BFVoiceCallback : public IXAudio2VoiceCallback
-{
+class BFVoiceCallback : public IXAudio2VoiceCallback {
 public:
     f32 frequency = -1;
     i32 samples_count_per_channel = -1;
@@ -418,8 +401,7 @@ public:
 
     IXAudio2SourceVoice* voice = nullptr;
 
-    void RecalculateAndSwap()
-    {
+    void RecalculateAndSwap() {
         Validate();
 
         auto& samples = s1;
@@ -446,8 +428,7 @@ public:
     void OnVoiceProcessingPassEnd() noexcept {}
     void OnVoiceProcessingPassStart(UINT32 BytesRequired) noexcept {}
 
-    void Validate()
-    {
+    void Validate() {
         assert(samples_count_per_channel > 0);
         assert(channels > 0);
         assert(last_angle >= 0);
@@ -463,15 +444,13 @@ private:
     f32 last_angle = 0;
 };
 
-u64 Win32Clock()
-{
+u64 Win32Clock() {
     LARGE_INTEGER res;
     QueryPerformanceCounter(&res);
     return res.QuadPart;
 }
 
-u64 Win32Frequency()
-{
+u64 Win32Frequency() {
     LARGE_INTEGER res;
     QueryPerformanceFrequency(&res);
     return res.QuadPart;
@@ -482,8 +461,7 @@ static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
     LPSTR command_line,
-    int show_command)
-{
+    int show_command) {
     WNDCLASSA windowClass = {};
     LoadOrUpdateGameDll();
     LoadXInputDll();

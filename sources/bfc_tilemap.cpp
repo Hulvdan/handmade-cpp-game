@@ -4,8 +4,7 @@
 #error "This code should run on a client! BF_CLIENT must be defined!"
 #endif  // BF_CLIENT
 
-Tile_State_Check Parse_Tile_State_Check(u8 data)
-{
+Tile_State_Check Parse_Tile_State_Check(u8 data) {
     switch (data) {
     case '@':
         return Tile_State_Check::INCLUDED;
@@ -28,8 +27,7 @@ Load_Smart_Tile_Result Load_Smart_Tile_Rules(
     u8* rules_output,
     const size_t output_max_bytes,
     const u8* filedata,
-    u64 filesize)
-{
+    u64 filesize) {
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE
     auto c = filedata;
     auto f = filesize;
@@ -171,16 +169,14 @@ Load_Smart_Tile_Result Load_Smart_Tile_Rules(
     return res;
 }
 
-void Set_Tile(Tilemap& tilemap, v2i pos, Tile_ID tile_id)
-{
+void Set_Tile(Tilemap& tilemap, v2i pos, Tile_ID tile_id) {
     assert(Pos_Is_In_Bounds(pos, tilemap.size));
     *(tilemap.tiles + tilemap.size.x * pos.y + pos.x) = tile_id;
 }
 
 // NOTE(hulvdan): `tile_ids_distance` is the distance
 // (in bytes) between two adjacent Tile_IDs in `tile_ids`
-BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& tile)
-{
+BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& tile) {
     v2i offsets[] = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
 
     for (int r = 0; r < tile.rules_count; r++) {

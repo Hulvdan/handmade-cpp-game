@@ -28,8 +28,7 @@ struct Load_BMP_RGBA_Result {
     u16 height;
 };
 
-Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output_max_bytes)
-{
+Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output_max_bytes) {
     Load_BMP_RGBA_Result res = {};
 
     auto& header = *(Debug_BMP_Header*)filedata;
@@ -69,8 +68,7 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output
 }
 
 Game_Renderer_State*
-Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
-{
+Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena) {
     auto state_ = Allocate_For(arena, Game_Renderer_State);
     auto& state = *state_;
 
@@ -89,8 +87,7 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
     glEnable(GL_TEXTURE_2D);
 
     char buffer[512] = {};
-    FOR_RANGE(int, i, 17)
-    {
+    FOR_RANGE(int, i, 17) {
         sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
 
         auto load_result = Debug_Load_File_To_Arena(buffer, file_loading_arena);
@@ -147,10 +144,8 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
     Allocate_Array(arena, u8, rule_loading_result.size);
 
     i32 max_height = 0;
-    FOR_RANGE(i32, y, game_map.size.y)
-    {
-        FOR_RANGE(i32, x, game_map.size.x)
-        {
+    FOR_RANGE(i32, y, game_map.size.y) {
+        FOR_RANGE(i32, x, game_map.size.x) {
             auto& terrain_tile = *(game_map.terrain_tiles + y * game_map.size.x + x);
             max_height = MAX(max_height, terrain_tile.height);
         }
@@ -160,15 +155,12 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
     state.tilemaps_count += max_height + 1;  // Terrain
     state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
 
-    FOR_RANGE(i32, h, state.tilemaps_count)
-    {
+    FOR_RANGE(i32, h, state.tilemaps_count) {
         auto& tilemap = *(state.tilemaps + h);
         tilemap.tiles = Allocate_Array(arena, Tile_ID, game_map.size.x * game_map.size.y);
 
-        FOR_RANGE(i32, y, game_map.size.y)
-        {
-            FOR_RANGE(i32, x, game_map.size.x)
-            {
+        FOR_RANGE(i32, y, game_map.size.y) {
+            FOR_RANGE(i32, x, game_map.size.x) {
                 auto& tile = *(game_map.terrain_tiles + y * game_map.size.x + x);
                 auto& tilemap_tile = *(tilemap.tiles + y * game_map.size.x + x);
 
@@ -191,8 +183,8 @@ void Draw_Sprite(
     glm::vec2 pos,
     glm::vec2 size,
     float rotation,
-    const glm::mat3& projection)
-{
+    const glm::mat3& projection  //
+) {
     assert(x0 < x1);
     assert(y0 < y1);
 
@@ -219,8 +211,7 @@ void Draw_Sprite(
     }
 };
 
-void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap& bitmap)
-{
+void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap& bitmap) {
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
 
@@ -286,14 +277,11 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
     auto gsize = state.game_map.size;
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    FOR_RANGE(i32, h, renderer_state.tilemaps_count)
-    {
+    FOR_RANGE(i32, h, renderer_state.tilemaps_count) {
         auto& tilemap = *(renderer_state.tilemaps + h);
 
-        FOR_RANGE(int, y, gsize.y)
-        {
-            FOR_RANGE(int, x, gsize.x)
-            {
+        FOR_RANGE(int, y, gsize.y) {
+            FOR_RANGE(int, x, gsize.x) {
                 auto& tile = Get_Terrain_Tile(state.game_map, {x, y});
                 if (tile.terrain != Terrain::GRASS)
                     continue;

@@ -48,8 +48,7 @@ global BFBitmap screen_bitmap;
 global int client_width = -1;
 global int client_height = -1;
 
-void Win32UpdateBitmap(HDC device_context)
-{
+void Win32UpdateBitmap(HDC device_context) {
     assert(client_width >= 0);
     assert(client_height >= 0);
 
@@ -80,8 +79,7 @@ void Win32UpdateBitmap(HDC device_context)
         DIB_RGB_COLORS);
 }
 
-void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
-{
+void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
@@ -92,8 +90,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context)
     events.clear();
 }
 
-void Win32GLResize()
-{
+void Win32GLResize() {
     glViewport(0, 0, client_width, client_height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -163,22 +160,19 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
     return 0;
 }
 
-u64 Win32Clock()
-{
+u64 Win32Clock() {
     LARGE_INTEGER res;
     QueryPerformanceCounter(&res);
     return res.QuadPart;
 }
 
-u64 Win32Frequency()
-{
+u64 Win32Frequency() {
     LARGE_INTEGER res;
     QueryPerformanceFrequency(&res);
     return res.QuadPart;
 }
 
-void Update_GUI(Arena& arena, Loaded_Texture& tex)
-{
+void Update_GUI(Arena& arena, Loaded_Texture& tex) {
     local_persist int octaves = -1;
     local_persist f32 scaling_bias = 2;
     local_persist int seed = 0;
@@ -232,8 +226,7 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex)
 }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
-int main(int, char**)
-{
+int main(int, char**) {
     auto application_handle = GetModuleHandle(nullptr);
     WNDCLASSA windowClass = {};
 

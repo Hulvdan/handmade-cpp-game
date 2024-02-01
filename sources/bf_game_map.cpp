@@ -1,13 +1,11 @@
 #pragma once
 
-Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos)
-{
+Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos) {
     assert(Pos_Is_In_Bounds(pos, game_map.size));
     return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
 }
 
-void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed)
-{
+void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed) {
     Terrain_Generation_Data data;
     data.max_height = 6;
 
@@ -29,8 +27,7 @@ void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed)
     DEFER(Deallocate_Array(arena, u16, output_size));
     Fill_Perlin_2D(perlin, sizeof(u16) * output_size, arena, 9, 2.0f, seed, pitch, pitch);
 
-    FOR_RANGE(int, y, size.y)
-    {
+    FOR_RANGE(int, y, size.y) {
         // auto size = game_map.size;
         // for (var y = 0; y < size.y; y++) {
         //     var row = new List<Terrain_Tile>();
@@ -53,8 +50,7 @@ void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed)
         //
         //     terrainTiles.Add(row);
         // }
-        FOR_RANGE(int, x, size.x)
-        {
+        FOR_RANGE(int, x, size.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::GRASS;
             auto noise = *(perlin + size.x * y + x) / (f32)u16_max;
@@ -82,10 +78,8 @@ void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed)
     // NOTE(hulvdan): Removing one-tile-high grass blocks because they'd look ugly
     while (true) {
         bool changed = false;
-        FOR_RANGE(int, y, size.y)
-        {
-            FOR_RANGE(int, x, size.x)
-            {
+        FOR_RANGE(int, y, size.y) {
+            FOR_RANGE(int, x, size.x) {
                 auto& tile = Get_Terrain_Tile(game_map, {x, y});
 
                 TerrainHeight height_above = 0;
@@ -108,10 +102,8 @@ void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed)
             break;
     }
 
-    FOR_RANGE(int, y, size.y)
-    {
-        FOR_RANGE(int, x, size.x)
-        {
+    FOR_RANGE(int, y, size.y) {
+        FOR_RANGE(int, x, size.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             auto should_mark_as_cliff =
                 y == 0 || tile.height > Get_Terrain_Tile(game_map, {x, y - 1}).height;

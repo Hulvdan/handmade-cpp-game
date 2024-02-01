@@ -27,8 +27,7 @@
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
-void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count)
-{
+void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count) {
     assert(memory.is_initialized);
     auto& state = memory.state;
 
@@ -109,8 +108,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     size_t memory_size,
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
-    size_t input_events_count)
-{
+    size_t input_events_count  //
+) {
     auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
 
@@ -155,10 +154,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
 
     const auto player_radius = 24;
 
-    FOR_RANGE(i32, y, bitmap.height)
-    {
-        FOR_RANGE(i32, x, bitmap.width)
-        {
+    FOR_RANGE(i32, y, bitmap.height) {
+        FOR_RANGE(i32, x, bitmap.width) {
             // u32 red  = 0;
             u32 red = (u8)(x + offset_x);
             // u32 red  = (u8)(y + offset_y);

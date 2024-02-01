@@ -31,8 +31,7 @@ struct _privDefer {
     ~_privDefer() { f(); }
 };
 template <typename F>
-_privDefer<F> _defer_func(F f)
-{
+_privDefer<F> _defer_func(F f) {
     return _privDefer<F>(f);
 }
 #define _DEFER_1(x, y) x##y

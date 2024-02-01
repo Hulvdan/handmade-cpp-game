@@ -1,13 +1,11 @@
 #pragma once
 
 // [0; 1]
-f32 frand()
-{
+f32 frand() {
     return (f32)rand() / RAND_MAX;
 }
 
-bool Is_Multiple_Of_2(int number)
-{
+bool Is_Multiple_Of_2(int number) {
     if (number < 2)
         return false;
 
@@ -21,8 +19,7 @@ bool Is_Multiple_Of_2(int number)
     return true;
 }
 
-bool Is_Multiple_Of_2(int number, u8& power)
-{
+bool Is_Multiple_Of_2(int number, u8& power) {
     if (number < 2)
         return false;
 
@@ -45,8 +42,8 @@ void Fill_Perlin_1D(
     u8 octaves,
     f32 scaling_bias,
     uint seed,
-    u16 sx)
-{
+    u16 sx  //
+) {
     assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
 
     u8 sx_power;
@@ -59,8 +56,7 @@ void Fill_Perlin_1D(
     f32* accumulator = cover + sx;
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx)
-    {
+    FOR_RANGE(size_t, i, sx) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -72,8 +68,7 @@ void Fill_Perlin_1D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves)
-    {
+    FOR_RANGE(int, _, octaves) {
         sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
@@ -81,8 +76,7 @@ void Fill_Perlin_1D(
         f32 r = *(cover + rindex);
 
         u16 it = 0;
-        FOR_RANGE(u16, i, sx)
-        {
+        FOR_RANGE(u16, i, sx) {
             if (it == offset) {
                 l = r;
                 rindex = (rindex + offset) % sx;
@@ -99,8 +93,7 @@ void Fill_Perlin_1D(
         octave_c /= scaling_bias;
     }
 
-    FOR_RANGE(int, x, sx)
-    {
+    FOR_RANGE(int, x, sx) {
         auto t = (*(accumulator + x)) / sum_of_division;
         assert(t <= 1.0f);
         assert(t >= 0);
@@ -117,8 +110,8 @@ void Perlin_1D(
     size_t free_temp_storage_space,
     u8 octaves,
     f32 scaling_bias,
-    uint seed)
-{
+    uint seed  //
+) {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
     assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
@@ -137,8 +130,7 @@ void Perlin_1D(
     f32* accumulator = cover + sx;
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx)
-    {
+    FOR_RANGE(size_t, i, sx) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -150,8 +142,7 @@ void Perlin_1D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves)
-    {
+    FOR_RANGE(int, _, octaves) {
         sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
@@ -159,8 +150,7 @@ void Perlin_1D(
         f32 r = *(cover + rindex);
 
         u16 it = 0;
-        FOR_RANGE(u16, i, sx)
-        {
+        FOR_RANGE(u16, i, sx) {
             if (it == offset) {
                 l = r;
                 rindex = (rindex + offset) % sx;
@@ -178,10 +168,8 @@ void Perlin_1D(
     }
 
     auto pixel = (u32*)texture.address;
-    FOR_RANGE(int, y, sy)
-    {
-        FOR_RANGE(int, x, sx)
-        {
+    FOR_RANGE(int, y, sy) {
+        FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + x)) / sum_of_division;
             assert(t <= 1.0f);
             assert(t >= 0);
@@ -205,8 +193,8 @@ void Fill_Perlin_2D(
     f32 scaling_bias,
     uint seed,
     u16 sx,
-    u16 sy)
-{
+    u16 sy  //
+) {
     u8 sx_power;
     u8 sy_power;
     assert(sx > 0);
@@ -223,8 +211,7 @@ void Fill_Perlin_2D(
     DEFER(Deallocate_Array(arena, f32, 2 * total_pixels));
 
     srand(seed);
-    FOR_RANGE(size_t, i, total_pixels)
-    {
+    FOR_RANGE(size_t, i, total_pixels) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -236,8 +223,7 @@ void Fill_Perlin_2D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves)
-    {
+    FOR_RANGE(int, _, octaves) {
         sum_of_division += octave_c;
 
         u16 x0_index = 0;
@@ -247,13 +233,11 @@ void Fill_Perlin_2D(
 
         u16 yit = 0;
         u16 xit = 0;
-        FOR_RANGE(u16, y, sy)
-        {
+        FOR_RANGE(u16, y, sy) {
             auto y0s = sx * y0_index;
             auto y1s = sx * y1_index;
 
-            FOR_RANGE(u16, x, sx)
-            {
+            FOR_RANGE(u16, x, sx) {
                 if (xit == offset) {
                     x0_index = x1_index;
                     x1_index = (x1_index + offset) % sx;
@@ -287,10 +271,8 @@ void Fill_Perlin_2D(
         octave_c /= scaling_bias;
     }
 
-    FOR_RANGE(int, y, sy)
-    {
-        FOR_RANGE(int, x, sx)
-        {
+    FOR_RANGE(int, y, sy) {
+        FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;
             assert(t <= 1.0f);
             assert(t >= 0);
@@ -308,8 +290,8 @@ void Perlin_2D(
     size_t free_temp_storage_space,
     u8 octaves,
     f32 scaling_bias,
-    uint seed)
-{
+    uint seed  //
+) {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
     assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
@@ -328,8 +310,7 @@ void Perlin_2D(
     f32* accumulator = cover + sx * sy;
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx * sy)
-    {
+    FOR_RANGE(size_t, i, sx * sy) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -341,8 +322,7 @@ void Perlin_2D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves)
-    {
+    FOR_RANGE(int, _, octaves) {
         sum_of_division += octave_c;
 
         u16 x0_index = 0;
@@ -352,13 +332,11 @@ void Perlin_2D(
 
         u16 yit = 0;
         u16 xit = 0;
-        FOR_RANGE(u16, y, sy)
-        {
+        FOR_RANGE(u16, y, sy) {
             auto y0s = sx * y0_index;
             auto y1s = sx * y1_index;
 
-            FOR_RANGE(u16, x, sx)
-            {
+            FOR_RANGE(u16, x, sx) {
                 if (xit == offset) {
                     x0_index = x1_index;
                     x1_index = (x1_index + offset) % sx;
@@ -393,10 +371,8 @@ void Perlin_2D(
     }
 
     auto pixel = (u32*)texture.address;
-    FOR_RANGE(int, y, sy)
-    {
-        FOR_RANGE(int, x, sx)
-        {
+    FOR_RANGE(int, y, sy) {
+        FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;
             assert(t <= 1.0f);
             assert(t >= 0);
