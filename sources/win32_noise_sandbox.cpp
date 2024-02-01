@@ -215,24 +215,96 @@ bool Is_Multiple_Of_2(int number, u8& power)
     return true;
 }
 
-void Perlin(
+void Fill_Perlin_1D(
+    u16* output,
+    u8* temp_storage,
+    size_t free_temp_storage_space,
+    u8 octaves,
+    f32 scaling_bias,
+    uint seed,
+    u16 sx)
+{
+    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
+
+    u8 sx_power;
+    u8 sy_power;
+    assert(sx > 0);
+    assert(sx <= u16_max);
+    assert(Is_Multiple_Of_2(sx, sx_power));
+
+    f32* cover = (f32*)temp_storage;
+    f32* accumulator = cover + sx;
+
+    srand(seed);
+    FOR_RANGE(size_t, i, sx)
+    {
+        *(cover + i) = (f32)rand() / (f32)RAND_MAX;
+        *(accumulator + i) = 0;
+    }
+
+    f32 sum_of_division = 0;
+    octaves = MIN(sx_power, octaves);
+
+    f32 iteration = 1;
+    u16 offset = sx;
+
+    f32 octave_c = 1.0f;
+    FOR_RANGE(int, _, octaves)
+    {
+        sum_of_division += octave_c;
+
+        f32 l = *(cover + 0);
+        u16 rindex = offset % sx;
+        f32 r = *(cover + rindex);
+
+        u16 it = 0;
+        FOR_RANGE(u16, i, sx)
+        {
+            if (it == offset) {
+                l = r;
+                rindex = (rindex + offset) % sx;
+                r = *(cover + rindex);
+                it = 0;
+            }
+
+            auto value = octave_c * Lerp(l, r, (f32)it / (f32)offset);
+            *(accumulator + i) += value;
+            it++;
+        }
+
+        offset >>= 1;
+        octave_c /= scaling_bias;
+    }
+
+    FOR_RANGE(int, x, sx)
+    {
+        auto t = (*(accumulator + x)) / sum_of_division;
+        assert(t <= 1.0f);
+        assert(t >= 0);
+
+        u16 value = u16_max * t;
+        *(output + x) = value;
+    }
+}
+
+void Perlin_1D(
     Loaded_Texture& texture,
     u8* temp_storage,
     size_t free_temp_storage_space,
     u8 octaves,
     f32 scaling_bias,
-    unsigned int seed)
+    uint seed)
 {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
-    assert(free_temp_storage_space >= (size_t)8 * sx);
+    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
 
     u8 sx_power;
     u8 sy_power;
     assert(sx > 0);
-    assert(sx < 65536);
+    assert(sx <= u16_max);
     assert(sy > 0);
-    assert(sy < 65536);
+    assert(sy <= u16_max);
     assert(sx == sy);
     assert(Is_Multiple_Of_2(sx, sx_power));
     assert(Is_Multiple_Of_2(sy, sy_power));
@@ -286,36 +358,143 @@ void Perlin(
     {
         FOR_RANGE(int, x, sx)
         {
-            auto value = (*(accumulator + x)) / sum_of_division;
-            auto scaled = (u8)(255 * value);
+            auto t = (*(accumulator + x)) / sum_of_division;
+            assert(t <= 1.0f);
+            assert(t >= 0);
+            u8 value = u8_max * t;
 
             u32 r, g, b;
-            b = scaled;
-            g = scaled;
-            r = scaled;
+            b = value;
+            g = value;
+            r = value;
             *(pixel + y * sx + x) = b + (g << 8) + (r << 16) + (255 << 24);
         }
     }
 }
 
-void Perlin2D(
+void Fill_Perlin_2D(
+    u16* output,
+    size_t free_output_space,
+    u8* temp_storage,
+    size_t free_temp_storage_space,
+    u8 octaves,
+    f32 scaling_bias,
+    uint seed,
+    u16 sx,
+    u16 sy)
+{
+    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
+
+    u8 sx_power;
+    u8 sy_power;
+    assert(sx > 0);
+    assert(sx <= u16_max);
+    assert(sy > 0);
+    assert(sy <= u16_max);
+    assert(sx == sy);
+    assert(Is_Multiple_Of_2(sx, sx_power));
+    assert(Is_Multiple_Of_2(sy, sy_power));
+
+    f32* cover = (f32*)temp_storage;
+    f32* accumulator = cover + sx * sy;
+
+    srand(seed);
+    FOR_RANGE(size_t, i, sx * sy)
+    {
+        *(cover + i) = (f32)rand() / (f32)RAND_MAX;
+        *(accumulator + i) = 0;
+    }
+
+    f32 sum_of_division = 0;
+    octaves = MIN(sx_power, octaves);
+
+    f32 iteration = 1;
+    u16 offset = sx;
+
+    f32 octave_c = 1.0f;
+    FOR_RANGE(int, _, octaves)
+    {
+        sum_of_division += octave_c;
+
+        u16 x0_index = 0;
+        u16 x1_index = offset % sx;
+        u16 y0_index = 0;
+        u16 y1_index = offset % sy;
+
+        u16 yit = 0;
+        u16 xit = 0;
+        FOR_RANGE(u16, y, sy)
+        {
+            auto y0s = sx * y0_index;
+            auto y1s = sx * y1_index;
+
+            FOR_RANGE(u16, x, sx)
+            {
+                if (xit == offset) {
+                    x0_index = x1_index;
+                    x1_index = (x1_index + offset) % sx;
+                    xit = 0;
+                }
+
+                auto a0 = *(cover + y0s + x0_index);
+                auto a1 = *(cover + y0s + x1_index);
+                auto a2 = *(cover + y1s + x0_index);
+                auto a3 = *(cover + y1s + x1_index);
+
+                auto xb = (f32)xit / (f32)offset;
+                auto yb = (f32)yit / (f32)offset;
+                auto blend01 = Lerp(a0, a1, xb);
+                auto blend23 = Lerp(a2, a3, xb);
+                auto value = octave_c * Lerp(blend01, blend23, yb);
+
+                *(accumulator + sx * y + x) += value;
+                xit++;
+            }
+
+            yit++;
+            if (yit == offset) {
+                y0_index = y1_index;
+                y1_index = (y1_index + offset) % sy;
+                yit = 0;
+            }
+        }
+
+        offset >>= 1;
+        octave_c /= scaling_bias;
+    }
+
+    FOR_RANGE(int, y, sy)
+    {
+        FOR_RANGE(int, x, sx)
+        {
+            auto t = (*(accumulator + y * sy + x)) / sum_of_division;
+            assert(t <= 1.0f);
+            assert(t >= 0);
+
+            u16 value = u16_max * t;
+            *(output + y * sx + x) = value;
+        }
+    }
+}
+
+void Perlin_2D(
     Loaded_Texture& texture,
     u8* temp_storage,
     size_t free_temp_storage_space,
     u8 octaves,
     f32 scaling_bias,
-    unsigned int seed)
+    uint seed)
 {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
-    assert(free_temp_storage_space >= (size_t)8 * sx * sy);
+    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
 
     u8 sx_power;
     u8 sy_power;
     assert(sx > 0);
-    assert(sx < 65536);
+    assert(sx <= u16_max);
     assert(sy > 0);
-    assert(sy < 65536);
+    assert(sy <= u16_max);
     assert(sx == sy);
     assert(Is_Multiple_Of_2(sx, sx_power));
     assert(Is_Multiple_Of_2(sy, sy_power));
@@ -393,13 +572,15 @@ void Perlin2D(
     {
         FOR_RANGE(int, x, sx)
         {
-            auto value = (*(accumulator + y * sy + x)) / sum_of_division;
-            auto scaled = (u8)(255 * value);
+            auto t = (*(accumulator + y * sy + x)) / sum_of_division;
+            assert(t <= 1.0f);
+            assert(t >= 0);
+            u8 value = u8_max * t;
 
             u32 r, g, b;
-            b = scaled;
-            g = scaled;
-            r = scaled;
+            b = value;
+            g = value;
+            r = value;
             *(pixel + y * sx + x) = b + (g << 8) + (r << 16) + (255 << 24);
         }
     }
@@ -437,7 +618,7 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex)
     if (regen) {
         // Perlin(tex, arena.base + arena.used, arena.size - arena.used, octaves, scaling_bias,
         // seed);
-        Perlin2D(
+        Perlin_2D(
             tex, arena.base + arena.used, arena.size - arena.used, octaves, scaling_bias, seed);
 
         glBindTexture(GL_TEXTURE_2D, tex.id);
