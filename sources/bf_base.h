@@ -9,6 +9,7 @@ using v2i = glm::ivec2;
 #include "bf_types.h"
 
 #define scast static_cast
+#define rcast reinterpret_cast
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
