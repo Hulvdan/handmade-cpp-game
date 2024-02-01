@@ -156,6 +156,7 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
         }
     }
 
+    state.tilemaps_count = 0;
     state.tilemaps_count += max_height + 1;  // Terrain
     state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
 
@@ -280,7 +281,7 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, glm::vec2(0, 1));
     projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-    projection = glm::rotate(projection, -0.2f);
+    // projection = glm::rotate(projection, -0.2f);
 
     auto gsize = state.game_map.size;
 
@@ -295,6 +296,9 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
             {
                 auto& tile = Get_Terrain_Tile(state.game_map, {x, y});
                 if (tile.terrain != Terrain::GRASS)
+                    continue;
+
+                if (tile.height < h)
                     continue;
 
                 // TODO(hulvdan): Spritesheets! Vertices array,

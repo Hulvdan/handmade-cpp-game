@@ -126,7 +126,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto& dim = state.game_map.size;
 
         state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, (size_t)dim.x * dim.y);
-        Regenerate_Terrain_Tiles(state.game_map);
+        Regenerate_Terrain_Tiles(
+            state.game_map, arena.base + arena.used, arena.size - arena.used, 0);
 
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 

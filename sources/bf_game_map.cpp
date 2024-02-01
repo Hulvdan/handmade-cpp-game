@@ -6,7 +6,11 @@ Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos)
     return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
 }
 
-void Regenerate_Terrain_Tiles(Game_Map& game_map)
+void Regenerate_Terrain_Tiles(
+    Game_Map& game_map,
+    u8* temp_storage,
+    size_t free_temp_storage_space,
+    uint seed)
 {
     Terrain_Generation_Data data;
     data.max_height = 6;
@@ -31,6 +35,23 @@ void Regenerate_Terrain_Tiles(Game_Map& game_map)
     // }
 
     auto size = game_map.size;
+
+    auto max_pow2size = MAX(size.x, size.y);
+    auto pitch = u16_max;
+    while (pitch > max_pow2size)
+        pitch >>= 1;
+    pitch++;
+    if (pitch < max_pow2size)
+        pitch <<= 1;
+    assert(pitch != 0);
+
+    auto perlin = (u16*)temp_storage;
+    auto output_size = sizeof(u16) * pitch * pitch;
+    Fill_Perlin_2D(
+        perlin, output_size,  //
+        (u8*)perlin + output_size, free_temp_storage_space - output_size,  //
+        9, 2.0f, seed, pitch, pitch);
+
     FOR_RANGE(int, y, size.y)
     {
         // auto size = game_map.size;
@@ -59,7 +80,8 @@ void Regenerate_Terrain_Tiles(Game_Map& game_map)
         {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::GRASS;
-            tile.height = int((data.max_height + 1) * frand());
+            auto noise = *(perlin + size.x * y + x) / (f32)u16_max;
+            tile.height = int((data.max_height + 1) * noise);
 
             assert(tile.height >= 0);
             assert(tile.height <= data.max_height);

@@ -83,8 +83,8 @@ end, opts)
 
 vim.keymap.set("n", "<f5>", function()
     save_files()
-    -- launch_side([[cmd\build.bat && cmd\run.bat]])
-    launch_side([[cmd\build.bat && cmd\run_noise_sandbox.bat]])
+    launch_side([[cmd\build.bat && cmd\run.bat]])
+    -- launch_side([[cmd\build.bat && cmd\run_noise_sandbox.bat]])
 end, opts)
 
 vim.keymap.set("n", "<A-t>", function()
