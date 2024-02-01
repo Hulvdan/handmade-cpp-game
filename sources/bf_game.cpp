@@ -11,14 +11,11 @@
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game_types.cpp"
-
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
-#include "bf_rand.cpp"
-
 #include "bf_memory.cpp"
+#include "bf_rand.cpp"
 #include "bf_file.cpp"
-
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -138,8 +135,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto& dim = state.game_map.size;
 
         state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, (size_t)dim.x * dim.y);
-        Regenerate_Terrain_Tiles(
-            state.game_map, arena.base + arena.used, arena.size - arena.used, 0);
+        Regenerate_Terrain_Tiles(state.game_map, arena, 0);
 
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 

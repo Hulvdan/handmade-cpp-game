@@ -200,16 +200,13 @@ void Perlin_1D(
 void Fill_Perlin_2D(
     u16* output,
     size_t free_output_space,
-    u8* temp_storage,
-    size_t free_temp_storage_space,
+    Arena& arena,
     u8 octaves,
     f32 scaling_bias,
     uint seed,
     u16 sx,
     u16 sy)
 {
-    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
-
     u8 sx_power;
     u8 sy_power;
     assert(sx > 0);
@@ -220,11 +217,13 @@ void Fill_Perlin_2D(
     assert(Is_Multiple_Of_2(sx, sx_power));
     assert(Is_Multiple_Of_2(sy, sy_power));
 
-    f32* cover = (f32*)temp_storage;
-    f32* accumulator = cover + sx * sy;
+    auto total_pixels = (size_t)sx * sy;
+    f32* cover = Allocate_Array(arena, f32, total_pixels);
+    f32* accumulator = Allocate_Array(arena, f32, total_pixels);
+    DEFER(Deallocate_Array(arena, f32, 2 * total_pixels));
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx * sy)
+    FOR_RANGE(size_t, i, total_pixels)
     {
         *(cover + i) = frand();
         *(accumulator + i) = 0;

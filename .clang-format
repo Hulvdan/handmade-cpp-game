@@ -1,4 +1,4 @@
-﻿---
+---
 BasedOnStyle: Chromium
 AccessModifierOffset: '-4'
 AlignAfterOpenBracket: AlwaysBreak
@@ -6,7 +6,7 @@ AlignConsecutiveAssignments: 'false'
 AlignConsecutiveDeclarations: 'false'
 AlignOperands: 'false'
 AlignTrailingComments: 'false'
-BreakBeforeBraces: Linux
+BreakBeforeBraces: Attach
 ColumnLimit: '100'
 ContinuationIndentWidth: '4'
 IndentCaseLabels: 'false'

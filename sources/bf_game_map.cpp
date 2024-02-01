@@ -6,33 +6,10 @@ Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos)
     return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
 }
 
-void Regenerate_Terrain_Tiles(
-    Game_Map& game_map,
-    u8* temp_storage,
-    size_t free_temp_storage_space,
-    uint seed)
+void Regenerate_Terrain_Tiles(Game_Map& game_map, Arena& arena, uint seed)
 {
     Terrain_Generation_Data data;
     data.max_height = 6;
-
-    // TODO(hulvdan): There is a very good code for eliminating grass on the top
-    // auto stride = state.game_map.size.x;
-    // for (int y = 0; y < state.game_map.size.y; y++) {
-    //     for (int x = 0; x < state.game_map.size.x; x++) {
-    //         auto is_grass = (Terrain)(*terrain_tile) == Terrain::GRASS;
-    //         auto above_is_grass = false;
-    //         auto below_is_grass = false;
-    //         if (y < state.game_map.size.y - 1)
-    //             above_is_grass = (Terrain)(*(terrain_tile + stride)) == Terrain::GRASS;
-    //         if (y > 0)
-    //             below_is_grass = (Terrain)(*(terrain_tile - stride)) == Terrain::GRASS;
-    //
-    //         if (is_grass && !above_is_grass && !below_is_grass)
-    //             *terrain_tile = (Tile_ID)Terrain::NONE;
-    //
-    //         terrain_tile++;
-    //     }
-    // }
 
     auto size = game_map.size;
 
@@ -45,12 +22,12 @@ void Regenerate_Terrain_Tiles(
         pitch <<= 1;
     assert(pitch != 0);
 
-    auto perlin = (u16*)temp_storage;
-    auto output_size = sizeof(u16) * pitch * pitch;
-    Fill_Perlin_2D(
-        perlin, output_size,  //
-        (u8*)perlin + output_size, free_temp_storage_space - output_size,  //
-        9, 2.0f, seed, pitch, pitch);
+    auto perlin = (u16*)(arena.base + arena.used);
+    auto output_size = pitch * pitch;
+
+    Allocate_Array(arena, u16, output_size);
+    DEFER(Deallocate_Array(arena, u16, output_size));
+    Fill_Perlin_2D(perlin, sizeof(u16) * output_size, arena, 9, 2.0f, seed, pitch, pitch);
 
     FOR_RANGE(int, y, size.y)
     {
