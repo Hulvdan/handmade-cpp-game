@@ -15,43 +15,49 @@ TEST_CASE("Hash32, TestValue") {
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-// TEST_CASE("Load_Smart_Tile_Rules, ItWorks")
-// {
-//     constexpr u64 size = 512;
-//     u8 output[size] = {};
-//
-//     auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
-//     i32 rules_data_size = 0;
-//     auto p = rules_data;
-//     while (*p++)
-//         rules_data_size++;
-//
-//     Smart_Tile tile = {};
-//     auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
-//
-//     CHECK(result.success == true);
-//     CHECK(tile.rules_count == 2);
-//     CHECK(Hash32((u8*)"test", 4) == 2949673445);
-// }
-//
-// TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd")
-// {
-//     constexpr u64 size = 512;
-//     u8 output[size] = {};
-//
-//     auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
-//     i32 rules_data_size = 0;
-//     auto p = rules_data;
-//     while (*p++)
-//         rules_data_size++;
-//
-//     Smart_Tile tile = {};
-//     auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
-//
-//     CHECK(result.success == true);
-//     CHECK(tile.rules_count == 2);
-//     CHECK(Hash32((u8*)"test", 4) == 2949673445);
-// }
+TEST_CASE("Load_Smart_Tile_Rules, ItWorks") {
+    constexpr u64 size = 512;
+    u8 output[size] = {};
+
+    Arena arena = {};
+    arena.size = size;
+    arena.base = output;
+
+    auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
+    i32 rules_data_size = 0;
+    auto p = rules_data;
+    while (*p++)
+        rules_data_size++;
+
+    Smart_Tile tile = {};
+    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
+
+    CHECK(result.success == true);
+    CHECK(tile.rules_count == 2);
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+}
+
+TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
+    constexpr u64 size = 512;
+    u8 output[size] = {};
+
+    Arena arena = {};
+    arena.size = size;
+    arena.base = output;
+
+    auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
+    i32 rules_data_size = 0;
+    auto p = rules_data;
+    while (*p++)
+        rules_data_size++;
+
+    Smart_Tile tile = {};
+    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
+
+    CHECK(result.success == true);
+    CHECK(tile.rules_count == 2);
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+}
 
 TEST_CASE("ProtoTest, Proto") {
     CHECK(0xFF == 255);
