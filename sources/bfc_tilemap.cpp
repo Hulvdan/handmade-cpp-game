@@ -24,16 +24,19 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
 
 Load_Smart_Tile_Result Load_Smart_Tile_Rules(
     Smart_Tile& tile,
-    u8* rules_output,
-    const size_t output_max_bytes,
+    Arena& arena,
     const u8* filedata,
-    u64 filesize) {
+    u64 filesize  //
+) {
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE
     auto c = filedata;
     auto f = filesize;
     while (f--)
         assert(*c != '\0');
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE END
+
+    auto rules_output = arena.base + arena.used;
+    auto output_max_bytes = arena.size - arena.used;
 
     // grass_7 -- fallback texture name
     // grass_1 -- rule #1
@@ -164,14 +167,8 @@ Load_Smart_Tile_Result Load_Smart_Tile_Rules(
 
     res.success = true;
     tile.rules_count = rules_count;
-    tile.rules = (Tile_Rule*)rules_output;
-    res.size = tile.rules_count * sizeof(Tile_Rule);
+    tile.rules = Allocate_Array(arena, Tile_Rule, rules_count);
     return res;
-}
-
-void Set_Tile(Tilemap& tilemap, v2i pos, Tile_ID tile_id) {
-    assert(Pos_Is_In_Bounds(pos, tilemap.size));
-    *(tilemap.tiles + tilemap.size.x * pos.y + pos.x) = tile_id;
 }
 
 // NOTE(hulvdan): `tile_ids_distance` is the distance
@@ -199,9 +196,9 @@ BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& t
             Tile_ID tile_id = *(tilemap.tiles + size.x * new_pos.y + new_pos.x);
 
             if (state == Tile_State_Check::INCLUDED)
-                found &= tile_id == (Tile_ID)tile.id;
+                found &= tile_id == tile.id;
             else if (state == Tile_State_Check::EXCLUDED)
-                found &= tile_id != (Tile_ID)tile.id;
+                found &= tile_id != tile.id;
         }
 
         if (found)

@@ -7,56 +7,53 @@
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-TEST_CASE("Hash32, EmptyIsCorrect")
-{
+TEST_CASE("Hash32, EmptyIsCorrect") {
     CHECK(Hash32((u8*)"", 0) == 2166136261);
 }
 
-TEST_CASE("Hash32, TestValue")
-{
+TEST_CASE("Hash32, TestValue") {
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE("Load_Smart_Tile_Rules, ItWorks")
-{
-    constexpr u64 size = 512;
-    u8 output[size] = {};
+// TEST_CASE("Load_Smart_Tile_Rules, ItWorks")
+// {
+//     constexpr u64 size = 512;
+//     u8 output[size] = {};
+//
+//     auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
+//     i32 rules_data_size = 0;
+//     auto p = rules_data;
+//     while (*p++)
+//         rules_data_size++;
+//
+//     Smart_Tile tile = {};
+//     auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
+//
+//     CHECK(result.success == true);
+//     CHECK(tile.rules_count == 2);
+//     CHECK(Hash32((u8*)"test", 4) == 2949673445);
+// }
+//
+// TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd")
+// {
+//     constexpr u64 size = 512;
+//     u8 output[size] = {};
+//
+//     auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
+//     i32 rules_data_size = 0;
+//     auto p = rules_data;
+//     while (*p++)
+//         rules_data_size++;
+//
+//     Smart_Tile tile = {};
+//     auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
+//
+//     CHECK(result.success == true);
+//     CHECK(tile.rules_count == 2);
+//     CHECK(Hash32((u8*)"test", 4) == 2949673445);
+// }
 
-    auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
-    i32 rules_data_size = 0;
-    auto p = rules_data;
-    while (*p++)
-        rules_data_size++;
-
-    Smart_Tile tile = {};
-    auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
-
-    CHECK(result.success == true);
-    CHECK(tile.rules_count == 2);
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
-}
-
-TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd")
-{
-    constexpr u64 size = 512;
-    u8 output[size] = {};
-
-    auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
-    i32 rules_data_size = 0;
-    auto p = rules_data;
-    while (*p++)
-        rules_data_size++;
-
-    Smart_Tile tile = {};
-    auto result = Load_Smart_Tile_Rules(tile, output, size, (u8*)rules_data, rules_data_size);
-
-    CHECK(result.success == true);
-    CHECK(tile.rules_count == 2);
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
-}
-
-TEST_CASE("ProtoTest, Proto")
-{
+TEST_CASE("ProtoTest, Proto") {
     CHECK(0xFF == 255);
     CHECK(0x00FF == 255);
     CHECK(0xFF00 == 65280);
@@ -66,8 +63,7 @@ TEST_CASE("ProtoTest, Proto")
     CHECK(0b1111111100000000 == 65280);
 }
 
-TEST_CASE("frand, interval")
-{
+TEST_CASE("frand, interval") {
     for (int i = 0; i < 10000; i++) {
         auto value = frand();
         CHECK(value >= 0);

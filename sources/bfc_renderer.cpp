@@ -24,11 +24,12 @@ struct Debug_BMP_Header {
 
 struct Load_BMP_RGBA_Result {
     bool success;
+    u8* output;
     u16 width;
     u16 height;
 };
 
-Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output_max_bytes) {
+Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
     Load_BMP_RGBA_Result res = {};
 
     auto& header = *(Debug_BMP_Header*)filedata;
@@ -48,12 +49,8 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output
 
     auto pixels_count = (u32)header.width * header.height;
     auto total_bytes = (size_t)pixels_count * 4;
-    if (total_bytes > output_max_bytes) {
-        // TODO(hulvdan): Diagnostic
-        assert(false);
-        return res;
-    }
 
+    res.output = Allocate_Array(arena, u8, total_bytes);
     res.width = header.width;
     res.height = header.height;
 
@@ -61,94 +58,144 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(u8* output, const u8* filedata, size_t output
     assert(header.bits_per_pixel == 32);
     assert(header.file_size - header.data_offset == total_bytes);
 
-    memcpy(output, filedata + header.data_offset, total_bytes);
+    memcpy(res.output, filedata + header.data_offset, total_bytes);
 
     res.success = true;
     return res;
 }
 
-Game_Renderer_State*
-Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena) {
+Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& temp_arena) {
     auto state_ = Allocate_For(arena, Game_Renderer_State);
     auto& state = *state_;
 
-    auto load_result = Debug_Load_File_To_Arena("assets/art/human.bmp", file_loading_arena);
-    assert(load_result.success);
+    Load_BMP_RGBA_Result bmp_result = {};
+    {
+        auto load_result = Debug_Load_File_To_Arena("assets/art/human.bmp", temp_arena);
+        assert(load_result.success);
+        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
 
-    auto filedata = file_loading_arena.base + file_loading_arena.used;
-    auto loading_address = arena.base + arena.used;
-    auto bmp_result = Load_BMP_RGBA(loading_address, filedata, arena.size - arena.used);
-    if (bmp_result.success) {
-        state.human_texture.size = {bmp_result.width, bmp_result.height};
-        state.human_texture.address = loading_address;
-        Allocate_Array(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
+        bmp_result = Load_BMP_RGBA(arena, load_result.output);
+        assert(bmp_result.success);
     }
 
+    state.human_texture.size = {bmp_result.width, bmp_result.height};
+    state.human_texture.address = bmp_result.output;
+
     glEnable(GL_TEXTURE_2D);
+
+    auto gsize = game_map.size;
 
     char buffer[512] = {};
     FOR_RANGE(int, i, 17) {
         sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
 
-        auto load_result = Debug_Load_File_To_Arena(buffer, file_loading_arena);
+        Load_BMP_RGBA_Result bmp_result = {};
+        {
+            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
+            assert(load_result.success);
+            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
 
-        assert(load_result.success);
-
-        auto filedata = file_loading_arena.base + file_loading_arena.used;
-        auto loading_address = arena.base + arena.used;
-        auto bmp_result = Load_BMP_RGBA(loading_address, filedata, arena.size - arena.used);
-
-        if (bmp_result.success) {
-            Loaded_Texture& texture = state.grass_textures[i];
-
-            constexpr size_t NAME_SIZE = 64;
-            char name[NAME_SIZE] = {};
-            sprintf(name, "grass_%d", i + 1);
-
-            texture.id = scast<BF_Texture_ID>(Hash32_String(name));
-            texture.size = {bmp_result.width, bmp_result.height};
-            texture.address = loading_address;
-            Allocate_Array(arena, u8, (size_t)bmp_result.width * bmp_result.height * 4);
-
-            glBindTexture(GL_TEXTURE_2D, texture.id);
-
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-            assert(!glGetError());
-
-            glTexImage2D(
-                GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-                GL_UNSIGNED_BYTE, texture.address);
-            assert(!glGetError());
+            bmp_result = Load_BMP_RGBA(arena, load_result.output);
+            assert(bmp_result.success);
         }
+
+        Loaded_Texture& texture = state.grass_textures[i];
+
+        constexpr size_t NAME_SIZE = 64;
+        char name[NAME_SIZE] = {};
+        sprintf(name, "grass_%d", i + 1);
+
+        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
+        texture.size = {bmp_result.width, bmp_result.height};
+        texture.address = bmp_result.output;
+
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        assert(!glGetError());
+
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
+            GL_UNSIGNED_BYTE, texture.address);
+        assert(!glGetError());
     }
 
-    auto rule_file_result =
-        Debug_Load_File_To_Arena("assets/art/tiles/tilerule_grass.txt", file_loading_arena);
-    assert(rule_file_result.success);
+    FOR_RANGE(int, i, 3) {
+        sprintf(buffer, "assets/art/tiles/forest_%d.bmp", i + 1);
 
-    state.grass_smart_tile.id = (Tile_ID)Terrain::GRASS;
-    auto rule_loading_result = Load_Smart_Tile_Rules(
-        state.grass_smart_tile,  //
-        arena.base + arena.used,
-        arena.size - arena.used,  //
-        file_loading_arena.base + file_loading_arena.used,  //
-        rule_file_result.size);
-    assert(rule_loading_result.success);
-    Allocate_Array(arena, u8, rule_loading_result.size);
+        Load_BMP_RGBA_Result bmp_result = {};
+        {
+            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
+            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+            assert(load_result.success);
+
+            bmp_result = Load_BMP_RGBA(arena, load_result.output);
+            assert(bmp_result.success);
+        }
+
+        Loaded_Texture& texture = state.forest_textures[i];
+
+        constexpr size_t NAME_SIZE = 64;
+        char name[NAME_SIZE] = {};
+        sprintf(name, "forest_%d", i + 1);
+
+        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
+        texture.size = {bmp_result.width, bmp_result.height};
+        texture.address = bmp_result.output;
+
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        assert(!glGetError());
+
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
+            GL_UNSIGNED_BYTE, texture.address);
+        assert(!glGetError());
+    }
+
+    state.grass_smart_tile.id = 1;
+    state.forest_smart_tile.id = 2;
+
+    {
+        auto path = "assets/art/tiles/tilerule_grass.txt";
+        auto load_result = Debug_Load_File_To_Arena(path, temp_arena);
+        assert(load_result.success);
+        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+
+        auto rule_loading_result = Load_Smart_Tile_Rules(
+            state.grass_smart_tile, arena, load_result.output, load_result.size);
+        assert(rule_loading_result.success);
+    }
+
+    {
+        auto path = "assets/art/tiles/tilerule_forest.txt";
+        auto load_result = Debug_Load_File_To_Arena(path, temp_arena);
+        assert(load_result.success);
+        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+
+        auto rule_loading_result = Load_Smart_Tile_Rules(
+            state.forest_smart_tile, arena, load_result.output, load_result.size);
+        assert(rule_loading_result.success);
+    }
 
     i32 max_height = 0;
-    FOR_RANGE(i32, y, game_map.size.y) {
-        FOR_RANGE(i32, x, game_map.size.x) {
-            auto& terrain_tile = *(game_map.terrain_tiles + y * game_map.size.x + x);
+    FOR_RANGE(i32, y, gsize.y) {
+        FOR_RANGE(i32, x, gsize.x) {
+            auto& terrain_tile = *(game_map.terrain_tiles + y * gsize.x + x);
             max_height = MAX(max_height, terrain_tile.height);
         }
     }
 
     state.tilemaps_count = 0;
-    state.tilemaps_count += max_height + 1;  // Terrain (NOTE: [0; max_height])
+    state.terrain_tilemaps_count = max_height + 1;  // Terrain (NOTE: [0; max_height])
+    state.tilemaps_count += state.terrain_tilemaps_count;
 
     state.resources_tilemap_index = state.tilemaps_count;
     state.tilemaps_count += 1;  // Terrain Resources (forests, stones, etc.)
@@ -157,18 +204,27 @@ Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& file_loading_arena)
 
     FOR_RANGE(i32, h, state.tilemaps_count) {
         auto& tilemap = *(state.tilemaps + h);
-        tilemap.tiles = Allocate_Array(arena, Tile_ID, game_map.size.x * game_map.size.y);
+        tilemap.tiles = Allocate_Array(arena, Tile_ID, gsize.x * gsize.y);
 
-        FOR_RANGE(i32, y, game_map.size.y) {
-            FOR_RANGE(i32, x, game_map.size.x) {
-                auto& tile = *(game_map.terrain_tiles + y * game_map.size.x + x);
-                auto& tilemap_tile = *(tilemap.tiles + y * game_map.size.x + x);
+        FOR_RANGE(i32, y, gsize.y) {
+            FOR_RANGE(i32, x, gsize.x) {
+                auto& tile = *(game_map.terrain_tiles + y * gsize.x + x);
+                auto& tilemap_tile = *(tilemap.tiles + y * gsize.x + x);
 
-                if (tile.terrain == Terrain::GRASS && tile.height >= h)
-                    tilemap_tile = (Tile_ID)Terrain::GRASS;
-                else
-                    tilemap_tile = (Tile_ID)Terrain::NONE;
+                bool grass = tile.terrain == Terrain::GRASS && tile.height >= h;
+                tilemap_tile = grass * state.grass_smart_tile.id;
             }
+        }
+    }
+
+    auto& resources_tilemap = *(state.tilemaps + state.resources_tilemap_index);
+    FOR_RANGE(i32, y, gsize.y) {
+        FOR_RANGE(i32, x, gsize.x) {
+            auto& resource = *(game_map.terrain_resources + y * gsize.x + x);
+            auto& tilemap_tile = *(resources_tilemap.tiles + y * gsize.x + x);
+
+            bool forest = resource.amount > 0;
+            tilemap_tile = forest * state.forest_smart_tile.id;
         }
     }
 
@@ -211,7 +267,7 @@ void Draw_Sprite(
     }
 };
 
-void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap& bitmap) {
+void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap) {
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
 
@@ -229,24 +285,6 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
         GL_TEXTURE_2D, 0, GL_RGBA8, bitmap.width, bitmap.height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
         bitmap.memory);
     assert(!glGetError());
-
-    GLuint human_texture_name = 2;
-    auto& rstate = *state.renderer_state;
-    auto& debug_texture = rstate.grass_textures[14];
-    if (debug_texture.address) {
-        glBindTexture(GL_TEXTURE_2D, human_texture_name);
-        assert(!glGetError());
-
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        assert(!glGetError());
-
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, debug_texture.size.x, debug_texture.size.y, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, debug_texture.address);
-    }
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     assert(!glGetError());
@@ -277,8 +315,8 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
     auto gsize = state.game_map.size;
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    FOR_RANGE(i32, h, renderer_state.tilemaps_count) {
-        auto& tilemap = *(renderer_state.tilemaps + h);
+    FOR_RANGE(i32, h, rstate.terrain_tilemaps_count) {
+        auto& tilemap = *(rstate.tilemaps + h);
 
         FOR_RANGE(int, y, gsize.y) {
             FOR_RANGE(int, x, gsize.x) {
@@ -291,13 +329,13 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
 
                 // TODO(hulvdan): Spritesheets! Vertices array,
                 // texture vertices array, indices array
-                auto texture_id = Test_Smart_Tile(
-                    tilemap, state.game_map.size, {x, y}, renderer_state.grass_smart_tile);
+                auto texture_id =
+                    Test_Smart_Tile(tilemap, state.game_map.size, {x, y}, rstate.grass_smart_tile);
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
                 auto cell_size = 32;
-                auto sprite_pos = v2i(x + 2, y + 2) * cell_size;
+                auto sprite_pos = v2i(x, y) * cell_size;
                 auto sprite_size = v2i(1, 1) * cell_size;
 
                 glBegin(GL_TRIANGLES);
@@ -307,8 +345,31 @@ void Render(Game_State& state, Game_Renderer_State& renderer_state, Game_Bitmap&
         }
     }
 
+    // TODO(hulvdan): Draw forest properly!
+    auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            auto& tile = Get_Terrain_Resource(state.game_map, {x, y});
+            if (tile.amount == 0 || tile.scriptable == nullptr)
+                continue;
+
+            // TODO(hulvdan): Spritesheets! Vertices array,
+            // texture vertices array, indices array
+            auto texture_id = Test_Smart_Tile(
+                resources_tilemap, state.game_map.size, {x, y}, rstate.forest_smart_tile);
+
+            glBindTexture(GL_TEXTURE_2D, texture_id);
+
+            auto cell_size = 32;
+            auto sprite_pos = v2i(x, y) * cell_size;
+            auto sprite_size = v2i(1, 1) * cell_size;
+
+            glBegin(GL_TRIANGLES);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            glEnd();
+        }
+    }
+
     glDeleteTextures(1, (GLuint*)&texture_name);
-    if (rstate.human_texture.address)
-        glDeleteTextures(1, (GLuint*)&human_texture_name);
     assert(!glGetError());
 }

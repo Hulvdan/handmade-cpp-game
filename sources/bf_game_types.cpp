@@ -110,23 +110,24 @@ struct Smart_Tile {
 
 struct Load_Smart_Tile_Result {
     bool success;
-    size_t size;
 };
 
 struct Tilemap {
-    v2i size;
     Tile_ID* tiles;
 };
 
 struct Game_Renderer_State {
     Smart_Tile grass_smart_tile;
+    Smart_Tile forest_smart_tile;
+
     Loaded_Texture human_texture;
-    Loaded_Texture forest_texture;
     Loaded_Texture grass_textures[17];
+    Loaded_Texture forest_textures[3];
 
     int tilemaps_count;
     Tilemap* tilemaps;
 
+    u8 terrain_tilemaps_count;
     u8 resources_tilemap_index;
 };
 // --- CLIENT. Game Rendering End ---

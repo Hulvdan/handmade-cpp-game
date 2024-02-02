@@ -13,8 +13,8 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
 void Regenerate_Terrain_Tiles(Game_State& state, Game_Map& game_map, Arena& arena, uint seed) {
     auto size = game_map.size;
 
-    auto pitch = Ceil_To_Power_Of_2(MAX(size.x, size.y));
-    auto output_size = pitch * pitch;
+    auto noise_pitch = Ceil_To_Power_Of_2(MAX(size.x, size.y));
+    auto output_size = noise_pitch * noise_pitch;
 
     // Terrain data
     PerlinParams terrain_params = {};
@@ -25,63 +25,31 @@ void Regenerate_Terrain_Tiles(Game_State& state, Game_Map& game_map, Arena& aren
 
     // Forest data
     PerlinParams forest_params = {};
-    forest_params.octaves = 9;
-    forest_params.scaling_bias = 2.0f;
-    forest_params.seed = seed + 1;
-    auto forest_threshold = 0.20f;
+    forest_params.octaves = 7;
+    forest_params.scaling_bias = 0.7f;
+    forest_params.seed = seed + 0;
+    auto forest_threshold = 0.47f;
     auto max_forest_amount = 5;
 
     auto terrain_perlin = Allocate_Array(arena, u16, output_size);
     DEFER(Deallocate_Array(arena, u16, output_size));
-    Fill_Perlin_2D(terrain_perlin, sizeof(u16) * output_size, arena, terrain_params, pitch, pitch);
+    Fill_Perlin_2D(
+        terrain_perlin, sizeof(u16) * output_size, arena, terrain_params, noise_pitch, noise_pitch);
 
     auto forest_perlin = Allocate_Array(arena, u16, output_size);
     DEFER(Deallocate_Array(arena, u16, output_size));
-    Fill_Perlin_2D(forest_perlin, sizeof(u16) * output_size, arena, forest_params, pitch, pitch);
+    Fill_Perlin_2D(
+        forest_perlin, sizeof(u16) * output_size, arena, forest_params, noise_pitch, noise_pitch);
 
-    // auto size = game_map.size;
-    // for (var y = 0; y < size.y; y++) {
-    //     var row = new List<Terrain_Tile>();
-    //
-    //     for (var x = 0; x < _mapSizeX; x++) {
-    //         var forestK = MakeSomeNoise2D(_randomSeed, x, y, _forestNoiseScale);
-    //         var hasForest = forestK > _forestThreshold;
-    //         var tile = new Terrain_Tile{
-    //             name = "grass",
-    //             resource = hasForest ? _logResource : null,
-    //             resourceAmount = hasForest ? _maxForestAmount : 0,
-    //         };
-    //
-    //         var heightK = MakeSomeNoise2D(_randomSeed, x, y, _terrainHeightNoiseScale);
-    //         var randomH = heightK * (_maxHeight + 1);
-    //         tile.height = Mathf.Min(_maxHeight, (int)randomH);
-    //
-    //         row.Add(tile);
-    //     }
-    //
-    //     terrainTiles.Add(row);
-    // }
     FOR_RANGE(int, y, size.y) {
         FOR_RANGE(int, x, size.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::GRASS;
-            auto noise = *(terrain_perlin + size.x * y + x) / (f32)u16_max;
+            auto noise = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
             tile.height = int((max_terrain_height + 1) * noise);
 
             assert(tile.height >= 0);
             assert(tile.height <= max_terrain_height);
-        }
-    }
-
-    auto scriptable_ptr = &state.DEBUG_forest;
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
-            auto& resource = Get_Terrain_Resource(game_map, {x, y});
-            auto noise = *(forest_perlin + size.x * y + x) / (f32)u16_max;
-
-            bool forest = noise > forest_threshold;
-            resource.scriptable = (Scriptable_Resource*)((ptrd)scriptable_ptr * forest);
-            resource.amount = max_forest_amount * forest;
         }
     }
 
@@ -115,13 +83,24 @@ void Regenerate_Terrain_Tiles(Game_State& state, Game_Map& game_map, Arena& aren
     FOR_RANGE(int, y, size.y) {
         FOR_RANGE(int, x, size.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
-            auto should_mark_as_cliff =
-                y == 0 || tile.height > Get_Terrain_Tile(game_map, {x, y - 1}).height;
-
-            if (!should_mark_as_cliff)
+            if (tile.is_cliff)
                 continue;
 
-            tile.is_cliff = true;
+            tile.is_cliff = y == 0 || tile.height > Get_Terrain_Tile(game_map, {x, y - 1}).height;
+        }
+    }
+
+    auto scriptable_ptr = &state.DEBUG_forest;
+    FOR_RANGE(int, y, size.y) {
+        FOR_RANGE(int, x, size.x) {
+            auto& tile = Get_Terrain_Tile(game_map, {x, y});
+            auto& resource = Get_Terrain_Resource(game_map, {x, y});
+
+            auto noise = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
+            bool forest = (!tile.is_cliff) && (noise > forest_threshold);
+
+            resource.scriptable = (Scriptable_Resource*)((ptrd)scriptable_ptr * forest);
+            resource.amount = max_forest_amount * forest;
         }
     }
 
