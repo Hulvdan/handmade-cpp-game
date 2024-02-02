@@ -22,12 +22,8 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
     return Tile_State_Check::SKIP;
 }
 
-Load_Smart_Tile_Result Load_Smart_Tile_Rules(
-    Smart_Tile& tile,
-    Arena& arena,
-    const u8* filedata,
-    u64 filesize  //
-) {
+Load_Smart_Tile_Result
+Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize) {
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE
     auto c = filedata;
     auto f = filesize;

@@ -1,9 +1,5 @@
-forest_3
-forest_1
-| * |
-| @ |
-| @ |
 forest_2
+forest_3
+|   |
 | @ |
-| @ |
-| @ |
+| * |

@@ -162,6 +162,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
     state.grass_smart_tile.id = 1;
     state.forest_smart_tile.id = 2;
+    state.forest_top_tile_id = 3;
 
     {
         auto path = "assets/art/tiles/tilerule_grass.txt";
@@ -198,7 +199,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     state.tilemaps_count += state.terrain_tilemaps_count;
 
     state.resources_tilemap_index = state.tilemaps_count;
-    state.tilemaps_count += 1;  // Terrain Resources (forests, stones, etc.)
+    state.tilemaps_count += 2;  // Terrain Resources (forests, stones, etc.)
 
     state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
 
@@ -218,13 +219,30 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     }
 
     auto& resources_tilemap = *(state.tilemaps + state.resources_tilemap_index);
+    auto& resources_tilemap2 = *(state.tilemaps + state.resources_tilemap_index + 1);
     FOR_RANGE(i32, y, gsize.y) {
+        auto is_last_row = y == gsize.y - 1;
         FOR_RANGE(i32, x, gsize.x) {
             auto& resource = *(game_map.terrain_resources + y * gsize.x + x);
+
             auto& tilemap_tile = *(resources_tilemap.tiles + y * gsize.x + x);
+            if (tilemap_tile)
+                continue;
 
             bool forest = resource.amount > 0;
-            tilemap_tile = forest * state.forest_smart_tile.id;
+            if (!forest)
+                continue;
+
+            tilemap_tile = state.forest_smart_tile.id;
+
+            bool forest_above = false;
+            if (!is_last_row) {
+                auto& tile_above = *(resources_tilemap.tiles + (y + 1) * gsize.x + x);
+                forest_above = tile_above == state.forest_smart_tile.id;
+            }
+
+            if (!forest_above)
+                *(resources_tilemap2.tiles + y * gsize.x + x) = state.forest_top_tile_id;
         }
     }
 
@@ -345,28 +363,50 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap)
         }
     }
 
-    // TODO(hulvdan): Draw forest properly!
     auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
     FOR_RANGE(int, y, gsize.y) {
         FOR_RANGE(int, x, gsize.x) {
-            auto& tile = Get_Terrain_Resource(state.game_map, {x, y});
-            if (tile.amount == 0 || tile.scriptable == nullptr)
+            auto& tile = *(resources_tilemap.tiles + y * gsize.x + x);
+            if (tile == 0)
                 continue;
 
-            // TODO(hulvdan): Spritesheets! Vertices array,
-            // texture vertices array, indices array
-            auto texture_id = Test_Smart_Tile(
-                resources_tilemap, state.game_map.size, {x, y}, rstate.forest_smart_tile);
+            if (tile == rstate.forest_smart_tile.id) {
+                auto texture_id = Test_Smart_Tile(
+                    resources_tilemap, state.game_map.size, {x, y}, rstate.forest_smart_tile);
 
-            glBindTexture(GL_TEXTURE_2D, texture_id);
+                glBindTexture(GL_TEXTURE_2D, texture_id);
 
-            auto cell_size = 32;
-            auto sprite_pos = v2i(x, y) * cell_size;
-            auto sprite_size = v2i(1, 1) * cell_size;
+                auto cell_size = 32;
+                auto sprite_pos = v2i(x, y) * cell_size;
+                auto sprite_size = v2i(1, 1) * cell_size;
 
-            glBegin(GL_TRIANGLES);
-            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-            glEnd();
+                glBegin(GL_TRIANGLES);
+                Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+                glEnd();
+            } else
+                assert(false);
+        }
+    }
+
+    auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            auto& tile = *(resources_tilemap2.tiles + y * gsize.x + x);
+            if (tile == 0)
+                continue;
+
+            if (tile == rstate.forest_top_tile_id) {
+                glBindTexture(GL_TEXTURE_2D, rstate.forest_textures[0].id);
+
+                auto cell_size = 32;
+                auto sprite_pos = v2i(x, y + 1) * cell_size;
+                auto sprite_size = v2i(1, 1) * cell_size;
+
+                glBegin(GL_TRIANGLES);
+                Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+                glEnd();
+            } else
+                assert(false);
         }
     }
 

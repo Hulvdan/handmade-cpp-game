@@ -119,6 +119,7 @@ struct Tilemap {
 struct Game_Renderer_State {
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
+    Tile_ID forest_top_tile_id;
 
     Loaded_Texture human_texture;
     Loaded_Texture grass_textures[17];
