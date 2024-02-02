@@ -5,6 +5,8 @@ project(game LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
+
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
@@ -31,6 +33,22 @@ target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
 add_executable(win32 WIN32 sources/win32_platform.cpp)
 target_compile_definitions(win32 PRIVATE
     BFG_INTERNAL
+    BF_CLIENT
+    IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+    IMGUI_DEFINE_MATH_OPERATORS
+)
+target_include_directories(win32 PRIVATE
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends"
+)
+target_sources(win32 PRIVATE
+    "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
+    "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+    "${IMGUI_DIR}/imgui.cpp"
+    "${IMGUI_DIR}/imgui_demo.cpp"
+    "${IMGUI_DIR}/imgui_draw.cpp"
+    "${IMGUI_DIR}/imgui_tables.cpp"
+    "${IMGUI_DIR}/imgui_widgets.cpp"
 )
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm)
@@ -39,12 +57,12 @@ target_link_libraries(win32 PRIVATE glew glm)
 add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)
 target_compile_definitions(win32_noise_sandbox PRIVATE
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+    IMGUI_DEFINE_MATH_OPERATORS
 )
 target_include_directories(win32_noise_sandbox PRIVATE
-    "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1"
-    "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends"
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends"
 )
-set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 target_sources(win32_noise_sandbox PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
     "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"

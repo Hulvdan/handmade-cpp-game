@@ -42,6 +42,40 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     void* memory;
 };
 
+struct GAME_LIBRARY_EXPORT Editor_Data {
+    bool changed;
+
+    i8 terrain_octaves;
+    f32 terrain_scaling_bias;
+    uint terrain_seed;
+    i8 terrain_max_height;
+
+    i8 forest_octaves;
+    f32 forest_scaling_bias;
+    uint forest_seed;
+    f32 forest_threshold;
+    i16 max_forest_amount;
+};
+
+Editor_Data Default_Editor_Data() {
+    Editor_Data res = {};
+
+    res.changed = true;
+
+    res.terrain_octaves = 9;
+    res.terrain_scaling_bias = 2.0f;
+    res.terrain_seed = 0;
+    res.terrain_max_height = 6;
+
+    res.forest_octaves = 7;
+    res.forest_scaling_bias = 0.7f;
+    res.forest_seed = 1;
+    res.forest_threshold = 0.47f;
+    res.max_forest_amount = 5;
+
+    return res;
+}
+
 // --- EVENTS START ---
 enum class Event_Type {
     Mouse_Pressed,
@@ -141,5 +175,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     size_t memory_size,
     Game_Bitmap& __restrict bitmap,
     void* __restrict input_events_bytes_ptr,
-    size_t input_events_count);
+    size_t input_events_count,
+    Editor_Data& editor_data);
 // --- EXPORTED FUNCTIONS END ---

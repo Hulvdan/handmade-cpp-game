@@ -75,14 +75,17 @@ PeekFiletimeRes PeekFiletime(const char* filename) {
 }
 #endif  // BFG_INTERNAL
 
-using Game_Update_And_Render_Type = void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t);
+using Game_Update_And_Render_Type =
+    void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t, Editor_Data&);
 void Game_Update_And_Render_Stub(
     f32 dt,
     void* memory_ptr,
     size_t memory_size,
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
-    size_t input_events_count) {}
+    size_t input_events_count,
+    Editor_Data& editor_data  //
+) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
 void LoadOrUpdateGameDll() {
@@ -269,6 +272,7 @@ CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_pe
 // -- XAUDIO STUFF END
 
 global bool running = false;
+global Editor_Data editor_data;
 
 global bool should_recreate_bitmap_after_client_area_resize;
 global BFBitmap screen_bitmap;
@@ -312,8 +316,8 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
         Win32UpdateBitmap(device_context);
 
     Game_Update_And_Render_(
-        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(),
-        events_count);
+        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(), events_count,
+        editor_data);
 
     SwapBuffers(device_context);
     assert(!glGetError());
@@ -686,6 +690,8 @@ static int WinMain(
     // --- Initializing OpenGL End ---
 
     screen_bitmap = BFBitmap();
+
+    editor_data = Default_Editor_Data();
 
     running = true;
 

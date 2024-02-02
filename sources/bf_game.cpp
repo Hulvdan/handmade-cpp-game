@@ -108,7 +108,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     size_t memory_size,
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
-    size_t input_events_count  //
+    size_t input_events_count,
+    Editor_Data& editor_data  //
 ) {
     auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
