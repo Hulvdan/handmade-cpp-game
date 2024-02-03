@@ -8,14 +8,6 @@ struct Arena {
 };
 // --- Memory End ---
 
-// --- Rand ---
-struct PerlinParams {
-    u8 octaves;
-    f32 scaling_bias;
-    uint seed;
-};
-// --- Rand End ---
-
 // --- Game Logic ---
 enum class Terrain {
     NONE,

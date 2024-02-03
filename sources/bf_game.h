@@ -41,20 +41,21 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 bits_per_pixel;
     void* memory;
 };
+struct Perlin_Params {
+    u8 octaves;
+    f32 scaling_bias;
+    uint seed;
+};
 
 struct GAME_LIBRARY_EXPORT Editor_Data {
     bool changed;
 
-    i8 terrain_octaves;
-    f32 terrain_scaling_bias;
-    uint terrain_seed;
+    Perlin_Params terrain_perlin;
     i8 terrain_max_height;
 
-    i8 forest_octaves;
-    f32 forest_scaling_bias;
-    uint forest_seed;
+    Perlin_Params forest_perlin;
     f32 forest_threshold;
-    i16 max_forest_amount;
+    i16 forest_max_amount;
 };
 
 Editor_Data Default_Editor_Data() {
@@ -62,16 +63,16 @@ Editor_Data Default_Editor_Data() {
 
     res.changed = true;
 
-    res.terrain_octaves = 9;
-    res.terrain_scaling_bias = 2.0f;
-    res.terrain_seed = 0;
+    res.terrain_perlin.octaves = 9;
+    res.terrain_perlin.scaling_bias = 2.0f;
+    res.terrain_perlin.seed = 0;
     res.terrain_max_height = 6;
 
-    res.forest_octaves = 7;
-    res.forest_scaling_bias = 0.7f;
-    res.forest_seed = 1;
+    res.forest_perlin.octaves = 7;
+    res.forest_perlin.scaling_bias = 0.7f;
+    res.forest_perlin.seed = 0;
     res.forest_threshold = 0.47f;
-    res.max_forest_amount = 5;
+    res.forest_max_amount = 5;
 
     return res;
 }
@@ -176,5 +177,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     Game_Bitmap& __restrict bitmap,
     void* __restrict input_events_bytes_ptr,
     size_t input_events_count,
-    Editor_Data& editor_data);
+    Editor_Data& editor_data  //
+);
 // --- EXPORTED FUNCTIONS END ---

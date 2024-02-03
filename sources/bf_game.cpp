@@ -114,7 +114,9 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
 
-    if (!memory.is_initialized) {
+    if (!memory.is_initialized || editor_data.changed) {
+        editor_data.changed = false;
+
         auto& state = memory.state;
         state.offset_x = 0;
         state.offset_y = 0;
@@ -141,8 +143,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto tiles_count = (size_t)dim.x * dim.y;
         state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, tiles_count);
         state.game_map.terrain_resources = Allocate_Array(arena, Terrain_Resource, tiles_count);
-        Regenerate_Terrain_Tiles(state, state.game_map, arena, 0);
 
+        Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 
         memory.is_initialized = true;

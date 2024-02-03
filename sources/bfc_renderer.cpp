@@ -289,7 +289,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap)
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
 
-    GLuint texture_name = 1;
+    GLuint texture_name = 3;
     glBindTexture(GL_TEXTURE_2D, texture_name);
     assert(!glGetError());
 
