@@ -80,6 +80,12 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             Mouse_Scrolled event = {};
             memcpy(&event, events, sizeof(Mouse_Scrolled));
             s = sizeof(Mouse_Scrolled);
+
+            if (event.value > 0) {
+                rstate.zoom_target *= 2.0f;
+            } else if (event.value < 0) {
+                rstate.zoom_target /= 2.0f;
+            }
         } break;
 
         case Event_Type::Keyboard_Pressed: {
@@ -255,5 +261,5 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         }
     }
 
-    Render(state, *state.renderer_state, bitmap);
+    Render(state, *state.renderer_state, bitmap, dt);
 }

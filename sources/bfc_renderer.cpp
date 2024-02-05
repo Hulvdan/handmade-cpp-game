@@ -246,6 +246,10 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         }
     }
 
+    state.zoom = 1;
+    state.zoom_target = 1;
+    state.zoom_t = 0;
+
     return state_;
 }
 
@@ -285,7 +289,19 @@ void Draw_Sprite(
     }
 };
 
-void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap) {
+f32 Move_Towards(f32 value, f32 target, f32 diff) {
+    assert(diff >= 0);
+    auto d = target - value;
+    if (d > 0)
+        value += MIN(d, diff);
+    else if (d < 0)
+        value -= MAX(d, diff);
+    return value;
+}
+
+void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap, f32 dt) {
+    rstate.zoom = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
+
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
 
@@ -329,6 +345,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap)
     projection = glm::translate(projection, glm::vec2(0, 1));
     projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
+    projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
     // projection = glm::rotate(projection, -0.2f);
 
     auto gsize = state.game_map.size;

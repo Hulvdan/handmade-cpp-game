@@ -128,6 +128,10 @@ struct Game_Renderer_State {
     v2f pan_pos;
     v2f pan_offset;
     v2i pan_start_position;
+
+    f32 zoom_target;
+    f32 zoom;
+    f32 zoom_t;
 };
 // --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT
