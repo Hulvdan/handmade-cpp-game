@@ -36,6 +36,7 @@ struct BF_Bitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
+global Editor_Data editor_data;
 global HMODULE game_lib = nullptr;
 global size_t game_memory_size;
 global void* game_memory = nullptr;
@@ -147,6 +148,8 @@ void LoadOrUpdateGameDll() {
     }
 
 #if BFG_INTERNAL
+    editor_data.game_context_set = false;
+    editor_data.changed = true;
     last_game_dll_write_time = filetime.filetime;
 #endif  // BFG_INTERNAL
 
@@ -281,7 +284,6 @@ CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_pe
 // -- XAUDIO STUFF END
 
 global bool running = false;
-global Editor_Data editor_data;
 
 global bool should_recreate_bitmap_after_client_area_resize;
 global BF_Bitmap screen_bitmap;
@@ -718,13 +720,12 @@ int main(int, char**) {
     // --- Initializing OpenGL End ---
 
     // --- ImGui Stuff ---
-    // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
     ImGui::StyleColorsDark();
 

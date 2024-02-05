@@ -63,7 +63,7 @@ struct GAME_LIBRARY_EXPORT Editor_Data {
 Editor_Data Default_Editor_Data() {
     Editor_Data res = {};
 
-    res.changed = true;
+    res.changed = false;
     res.game_context_set = false;
     res.context = nullptr;
 
@@ -73,9 +73,9 @@ Editor_Data Default_Editor_Data() {
     res.terrain_max_height = 6;
 
     res.forest_perlin.octaves = 7;
-    res.forest_perlin.scaling_bias = 0.7f;
+    res.forest_perlin.scaling_bias = 0.38f;
     res.forest_perlin.seed = 0;
-    res.forest_threshold = 0.47f;
+    res.forest_threshold = 0.54f;
     res.forest_max_amount = 5;
 
     return res;
