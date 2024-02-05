@@ -127,34 +127,38 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     }
 
     {  // --- IMGUI ---
-        if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9))
+        if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9)) {
             editor_data.changed = true;
-
+        }
         if (ImGui::SliderFloat(
-                "Terrain Scaling Bias", &editor_data.terrain_perlin.scaling_bias, 0.001f, 2.0f))
+                "Terrain Scaling Bias", &editor_data.terrain_perlin.scaling_bias, 0.001f, 2.0f)) {
             editor_data.changed = true;
-
+        }
         if (ImGui::Button("New Terrain Seed")) {
             editor_data.changed = true;
             editor_data.terrain_perlin.seed++;
         }
-
-        if (ImGui::SliderInt("Terrain Max Height", &editor_data.terrain_max_height, 1, 35))
+        if (ImGui::SliderInt("Terrain Max Height", &editor_data.terrain_max_height, 1, 35)) {
             editor_data.changed = true;
+        }
 
-        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9))
+        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9)) {
             editor_data.changed = true;
+        }
         if (ImGui::SliderFloat(
-                "Forest Scaling Bias", &editor_data.forest_perlin.scaling_bias, 0.001f, 2.0f))
+                "Forest Scaling Bias", &editor_data.forest_perlin.scaling_bias, 0.001f, 2.0f)) {
             editor_data.changed = true;
+        }
         if (ImGui::Button("New Forest Seed")) {
             editor_data.changed = true;
             editor_data.forest_perlin.seed++;
         }
-        if (ImGui::SliderFloat("Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f))
+        if (ImGui::SliderFloat("Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f)) {
             editor_data.changed = true;
-        if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35))
+        }
+        if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35)) {
             editor_data.changed = true;
+        }
     }  // --- IMGUI END ---
 
     if (!memory.is_initialized || editor_data.changed) {
