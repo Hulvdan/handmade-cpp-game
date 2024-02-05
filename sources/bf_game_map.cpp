@@ -10,46 +10,39 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
     return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
-void Regenerate_Terrain_Tiles(Game_State& state, Game_Map& game_map, Arena& arena, uint seed) {
+void Regenerate_Terrain_Tiles(
+    Game_State& state,
+    Game_Map& game_map,
+    Arena& arena,
+    uint seed,
+    Editor_Data& data  //
+) {
     auto size = game_map.size;
 
     auto noise_pitch = Ceil_To_Power_Of_2(MAX(size.x, size.y));
     auto output_size = noise_pitch * noise_pitch;
 
-    // Terrain data
-    PerlinParams terrain_params = {};
-    terrain_params.octaves = 9;
-    terrain_params.scaling_bias = 2.0f;
-    terrain_params.seed = seed;
-    auto max_terrain_height = 6;
-
-    // Forest data
-    PerlinParams forest_params = {};
-    forest_params.octaves = 7;
-    forest_params.scaling_bias = 0.7f;
-    forest_params.seed = seed + 0;
-    auto forest_threshold = 0.47f;
-    auto max_forest_amount = 5;
-
     auto terrain_perlin = Allocate_Array(arena, u16, output_size);
     DEFER(Deallocate_Array(arena, u16, output_size));
     Fill_Perlin_2D(
-        terrain_perlin, sizeof(u16) * output_size, arena, terrain_params, noise_pitch, noise_pitch);
+        terrain_perlin, sizeof(u16) * output_size, arena, data.terrain_perlin, noise_pitch,
+        noise_pitch);
 
     auto forest_perlin = Allocate_Array(arena, u16, output_size);
     DEFER(Deallocate_Array(arena, u16, output_size));
     Fill_Perlin_2D(
-        forest_perlin, sizeof(u16) * output_size, arena, forest_params, noise_pitch, noise_pitch);
+        forest_perlin, sizeof(u16) * output_size, arena, data.forest_perlin, noise_pitch,
+        noise_pitch);
 
     FOR_RANGE(int, y, size.y) {
         FOR_RANGE(int, x, size.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::GRASS;
             auto noise = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
-            tile.height = int((max_terrain_height + 1) * noise);
+            tile.height = int((data.terrain_max_height + 1) * noise);
 
             assert(tile.height >= 0);
-            assert(tile.height <= max_terrain_height);
+            assert(tile.height <= data.terrain_max_height);
         }
     }
 
@@ -97,10 +90,10 @@ void Regenerate_Terrain_Tiles(Game_State& state, Game_Map& game_map, Arena& aren
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
             auto noise = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
-            bool forest = (!tile.is_cliff) && (noise > forest_threshold);
+            bool forest = (!tile.is_cliff) && (noise > data.forest_threshold);
 
             resource.scriptable = (Scriptable_Resource*)((ptrd)scriptable_ptr * forest);
-            resource.amount = max_forest_amount * forest;
+            resource.amount = data.forest_max_amount * forest;
         }
     }
 

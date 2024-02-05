@@ -1,5 +1,3 @@
-#define IMGUI_DEFINE_MATH_OPERATORS
-
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_win32.h"
@@ -24,7 +22,7 @@
 #define internal static
 
 // -- RENDERING STUFF
-struct BFBitmap {
+struct BF_Bitmap {
     Game_Bitmap bitmap;
 
     HBITMAP handle;
@@ -43,7 +41,7 @@ global std::vector<u8> events = {};
 global bool running = false;
 
 global bool should_recreate_bitmap_after_client_area_resize;
-global BFBitmap screen_bitmap;
+global BF_Bitmap screen_bitmap;
 
 global int client_width = -1;
 global int client_height = -1;
@@ -228,7 +226,6 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 int main(int, char**) {
     auto application_handle = GetModuleHandle(nullptr);
-    WNDCLASSA windowClass = {};
 
     events.reserve(Kilobytes(64LL));
 
@@ -243,6 +240,7 @@ int main(int, char**) {
     const i32 SLEEP_MSEC_GRANULARITY = 1;
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
+    WNDCLASSA windowClass = {};
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -363,7 +361,7 @@ int main(int, char**) {
     ImGui_ImplOpenGL3_Init();
 
     // Our state
-    screen_bitmap = BFBitmap();
+    screen_bitmap = BF_Bitmap();
 
     running = true;
 
@@ -430,9 +428,8 @@ int main(int, char**) {
                           (f32)perf_counter_frequency);
                 assert(msec_to_sleep >= 0);
 
-                if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
+                if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY)
                     Sleep(msec_to_sleep - SLEEP_MSEC_GRANULARITY);
-                }
 
                 perf_counter_new = Win32Clock();
             }

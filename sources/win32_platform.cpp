@@ -1,15 +1,24 @@
-#include "windows.h"
-#include "xaudio2.h"
-#include "xinput.h"
+#include "imgui.h"
+#include "imgui_impl_opengl3.h"
+#include "imgui_impl_win32.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <cassert>
 #include <cmath>
 #include <iostream>
 #include <vector>
 
-// #include "glm/vec2.hpp"
-// #include "glm/ext.hpp"
+#include "windows.h"
 #include "glew.h"
 #include "wglew.h"
+#include "timeapi.h"
+#include "xaudio2.h"
+#include "xinput.h"
+
+// #include "glm/vec2.hpp"
+// #include "glm/ext.hpp"
 #include "bf_base.h"
 #include "bf_game.h"
 
@@ -18,7 +27,7 @@
 #define internal static
 
 // -- RENDERING STUFF
-struct BFBitmap {
+struct BF_Bitmap {
     Game_Bitmap bitmap;
 
     HBITMAP handle;
@@ -27,6 +36,7 @@ struct BFBitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
+global Editor_Data editor_data;
 global HMODULE game_lib = nullptr;
 global size_t game_memory_size;
 global void* game_memory = nullptr;
@@ -75,14 +85,17 @@ PeekFiletimeRes PeekFiletime(const char* filename) {
 }
 #endif  // BFG_INTERNAL
 
-using Game_Update_And_Render_Type = void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t);
+using Game_Update_And_Render_Type =
+    void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t, Editor_Data&);
 void Game_Update_And_Render_Stub(
     f32 dt,
     void* memory_ptr,
     size_t memory_size,
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
-    size_t input_events_count) {}
+    size_t input_events_count,
+    Editor_Data& editor_data  //
+) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
 void LoadOrUpdateGameDll() {
@@ -135,6 +148,8 @@ void LoadOrUpdateGameDll() {
     }
 
 #if BFG_INTERNAL
+    editor_data.game_context_set = false;
+    editor_data.changed = true;
     last_game_dll_write_time = filetime.filetime;
 #endif  // BFG_INTERNAL
 
@@ -271,7 +286,7 @@ CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_pe
 global bool running = false;
 
 global bool should_recreate_bitmap_after_client_area_resize;
-global BFBitmap screen_bitmap;
+global BF_Bitmap screen_bitmap;
 
 global int client_width = -1;
 global int client_height = -1;
@@ -311,9 +326,18 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
     Game_Update_And_Render_(
-        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(),
-        events_count);
+        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(), events_count,
+        editor_data);
+
+    ImGui::Render();
+    // glClear(GL_COLOR_BUFFER_BIT);
+    // glViewport(ImGui::GetMainViewport());
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SwapBuffers(device_context);
     assert(!glGetError());
@@ -333,7 +357,13 @@ void Win32GLResize() {
     glOrtho(0, 1, 1, 0, -1, 1);
 }
 
+extern IMGUI_IMPL_API LRESULT
+ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
+    if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
+        return 1;
+
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
         running = false;
@@ -457,12 +487,14 @@ u64 Win32Frequency() {
 }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
-static int WinMain(
-    HINSTANCE application_handle,
-    HINSTANCE previous_window_instance_handle,
-    LPSTR command_line,
-    int show_command) {
-    WNDCLASSA windowClass = {};
+int main(int, char**) {
+    auto application_handle = GetModuleHandle(nullptr);
+    // static int WinMain(
+    //     HINSTANCE application_handle,
+    //     HINSTANCE previous_window_instance_handle,
+    //     LPSTR command_line,
+    //     int show_command  //
+    // ) {
     LoadOrUpdateGameDll();
     LoadXInputDll();
 
@@ -584,6 +616,7 @@ static int WinMain(
     }
     // --- XAudio stuff end ---
 
+    WNDCLASSA windowClass = {};
     // NOTE(hulvdan): Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -620,7 +653,8 @@ static int WinMain(
         return -1;
     }
 
-    ShowWindow(window_handle, show_command);
+    ShowWindow(window_handle, SW_SHOWDEFAULT);
+    // ShowWindow(window_handle, show_command);
     UpdateWindow(window_handle);
 
     assert(client_width >= 0);
@@ -685,7 +719,25 @@ static int WinMain(
     }
     // --- Initializing OpenGL End ---
 
-    screen_bitmap = BFBitmap();
+    // --- ImGui Stuff ---
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    ImGui::StyleColorsDark();
+
+    editor_data = Default_Editor_Data();
+    editor_data.context = ImGui::GetCurrentContext();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplWin32_InitForOpenGL(window_handle);
+    ImGui_ImplOpenGL3_Init();
+    // --- ImGui Stuff End ---
+
+    screen_bitmap = BF_Bitmap();
 
     running = true;
 
@@ -747,7 +799,9 @@ static int WinMain(
         auto device_context = GetDC(window_handle);
 
         auto capped_dt = last_frame_dt > MAX_FRAME_DT ? MAX_FRAME_DT : last_frame_dt;
+
         Win32Paint(capped_dt, window_handle, device_context);
+        // glViewport(-1, -1, 1, 1);
         ReleaseDC(window_handle, device_context);
 
         u64 perf_counter_new = Win32Clock();
@@ -798,6 +852,11 @@ static int WinMain(
     //
     //     // master_voice->Release();
     // }
+    //
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 
     if (xaudio)
         xaudio->Release();

@@ -41,6 +41,45 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 bits_per_pixel;
     void* memory;
 };
+struct Perlin_Params {
+    int octaves;
+    f32 scaling_bias;
+    uint seed;
+};
+
+struct GAME_LIBRARY_EXPORT Editor_Data {
+    bool changed;
+    bool game_context_set;
+    ImGuiContext* context;
+
+    Perlin_Params terrain_perlin;
+    int terrain_max_height;
+
+    Perlin_Params forest_perlin;
+    f32 forest_threshold;
+    int forest_max_amount;
+};
+
+Editor_Data Default_Editor_Data() {
+    Editor_Data res = {};
+
+    res.changed = false;
+    res.game_context_set = false;
+    res.context = nullptr;
+
+    res.terrain_perlin.octaves = 9;
+    res.terrain_perlin.scaling_bias = 2.0f;
+    res.terrain_perlin.seed = 0;
+    res.terrain_max_height = 6;
+
+    res.forest_perlin.octaves = 7;
+    res.forest_perlin.scaling_bias = 0.38f;
+    res.forest_perlin.seed = 0;
+    res.forest_threshold = 0.54f;
+    res.forest_max_amount = 5;
+
+    return res;
+}
 
 // --- EVENTS START ---
 enum class Event_Type {
@@ -141,5 +180,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     size_t memory_size,
     Game_Bitmap& __restrict bitmap,
     void* __restrict input_events_bytes_ptr,
-    size_t input_events_count);
+    size_t input_events_count,
+    Editor_Data& editor_data  //
+);
 // --- EXPORTED FUNCTIONS END ---

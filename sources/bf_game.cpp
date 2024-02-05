@@ -1,3 +1,10 @@
+#include "imgui.h"
+#include "imgui_impl_opengl3.h"
+#include "imgui_impl_win32.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <cassert>
 #include <cstdlib>
 #include <vector>
@@ -108,13 +115,52 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     size_t memory_size,
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
-    size_t input_events_count  //
+    size_t input_events_count,
+    Editor_Data& editor_data  //
 ) {
     auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
 
-    if (!memory.is_initialized) {
+    if (!editor_data.game_context_set) {
+        ImGui::SetCurrentContext(editor_data.context);
+        editor_data.game_context_set = true;
+    }
+
+    {  // --- IMGUI ---
+        if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9))
+            editor_data.changed = true;
+
+        if (ImGui::SliderFloat(
+                "Terrain Scaling Bias", &editor_data.terrain_perlin.scaling_bias, 0.001f, 2.0f))
+            editor_data.changed = true;
+
+        if (ImGui::Button("New Terrain Seed")) {
+            editor_data.changed = true;
+            editor_data.terrain_perlin.seed++;
+        }
+
+        if (ImGui::SliderInt("Terrain Max Height", &editor_data.terrain_max_height, 1, 35))
+            editor_data.changed = true;
+
+        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9))
+            editor_data.changed = true;
+        if (ImGui::SliderFloat(
+                "Forest Scaling Bias", &editor_data.forest_perlin.scaling_bias, 0.001f, 2.0f))
+            editor_data.changed = true;
+        if (ImGui::Button("New Forest Seed")) {
+            editor_data.changed = true;
+            editor_data.forest_perlin.seed++;
+        }
+        if (ImGui::SliderFloat("Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f))
+            editor_data.changed = true;
+        if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35))
+            editor_data.changed = true;
+    }  // --- IMGUI END ---
+
+    if (!memory.is_initialized || editor_data.changed) {
+        editor_data.changed = false;
         auto& state = memory.state;
+
         state.offset_x = 0;
         state.offset_y = 0;
 
@@ -126,12 +172,14 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto file_loading_arena_size = Megabytes((size_t)1);
 
         auto& file_loading_arena = state.file_loading_arena;
-        file_loading_arena.size = file_loading_arena_size;
         file_loading_arena.base = (u8*)memory_ptr + initial_offset;
+        file_loading_arena.size = file_loading_arena_size;
+        file_loading_arena.used = 0;
 
         auto& arena = state.memory_arena;
-        arena.size = memory_size - initial_offset - file_loading_arena_size;
         arena.base = (u8*)memory_ptr + initial_offset + file_loading_arena_size;
+        arena.size = memory_size - initial_offset - file_loading_arena_size;
+        arena.used = 0;
 
         state.game_map = {};
         state.game_map.size = {32, 24};
@@ -140,8 +188,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto tiles_count = (size_t)dim.x * dim.y;
         state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, tiles_count);
         state.game_map.terrain_resources = Allocate_Array(arena, Terrain_Resource, tiles_count);
-        Regenerate_Terrain_Tiles(state, state.game_map, arena, 0);
 
+        Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 
         memory.is_initialized = true;

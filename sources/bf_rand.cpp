@@ -203,7 +203,7 @@ void Fill_Perlin_2D(
     u16* output,
     size_t free_output_space,
     Arena& temp_arena,
-    PerlinParams params,
+    Perlin_Params params,
     u16 sx,
     u16 sy  //
 ) {

@@ -5,6 +5,8 @@ project(game LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
+
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
@@ -23,29 +25,14 @@ target_sources(bf_game PRIVATE sources/bf_game.cpp)
 target_compile_definitions(bf_game PRIVATE
     GAME_LIBRARY_BUILD
     BF_CLIENT
-)
-# TODO(hulvdan): How to decouple from windows OpenGL?
-target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
-
-# === Building win32_platform.exe ===
-add_executable(win32 WIN32 sources/win32_platform.cpp)
-target_compile_definitions(win32 PRIVATE
-    BFG_INTERNAL
-)
-target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
-target_link_libraries(win32 PRIVATE glew glm)
-
-# === Building win32_noise_sandbox.exe ===
-add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)
-target_compile_definitions(win32_noise_sandbox PRIVATE
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+    IMGUI_DEFINE_MATH_OPERATORS
 )
-target_include_directories(win32_noise_sandbox PRIVATE
-    "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1"
-    "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends"
+target_include_directories(bf_game PRIVATE
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends"
 )
-set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
-target_sources(win32_noise_sandbox PRIVATE
+target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
     "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
     "${IMGUI_DIR}/imgui.cpp"
@@ -54,11 +41,57 @@ target_sources(win32_noise_sandbox PRIVATE
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
 )
-target_compile_definitions(win32_noise_sandbox PRIVATE
+# TODO(hulvdan): How to decouple from windows OpenGL?
+target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
+
+# === Building win32_platform.exe ===
+add_executable(win32 sources/win32_platform.cpp)
+target_compile_definitions(win32 PRIVATE
+    BFG_INTERNAL
     BF_CLIENT
+    IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+    IMGUI_DEFINE_MATH_OPERATORS
 )
-target_link_libraries(win32_noise_sandbox PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
-target_link_libraries(win32_noise_sandbox PRIVATE glew glm)
+target_include_directories(win32 PRIVATE
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends"
+)
+target_sources(win32 PRIVATE
+    "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
+    "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+    "${IMGUI_DIR}/imgui.cpp"
+    "${IMGUI_DIR}/imgui_demo.cpp"
+    "${IMGUI_DIR}/imgui_draw.cpp"
+    "${IMGUI_DIR}/imgui_tables.cpp"
+    "${IMGUI_DIR}/imgui_widgets.cpp"
+)
+target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
+target_link_libraries(win32 PRIVATE glew glm)
+
+# === Building win32_noise_sandbox.exe ===
+# add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)
+# target_compile_definitions(win32_noise_sandbox PRIVATE
+#     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+#     IMGUI_DEFINE_MATH_OPERATORS
+# )
+# target_include_directories(win32_noise_sandbox PRIVATE
+#     "${IMGUI_DIR}"
+#     "${IMGUI_DIR}/backends"
+# )
+# target_sources(win32_noise_sandbox PRIVATE
+#     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
+#     "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+#     "${IMGUI_DIR}/imgui.cpp"
+#     "${IMGUI_DIR}/imgui_demo.cpp"
+#     "${IMGUI_DIR}/imgui_draw.cpp"
+#     "${IMGUI_DIR}/imgui_tables.cpp"
+#     "${IMGUI_DIR}/imgui_widgets.cpp"
+# )
+# target_compile_definitions(win32_noise_sandbox PRIVATE
+#     BF_CLIENT
+# )
+# target_link_libraries(win32_noise_sandbox PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
+# target_link_libraries(win32_noise_sandbox PRIVATE glew glm)
 
 # === Building meta_tools.exe ===
 # add_executable(meta_tools sources/meta_tools.cpp)
@@ -70,6 +103,23 @@ target_link_libraries(win32_noise_sandbox PRIVATE glew glm)
 
 # === Tests ===
 add_executable(tests tests/tests.cpp)
+target_include_directories(tests PRIVATE
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends"
+)
+target_compile_definitions(tests PRIVATE
+    IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+    IMGUI_DEFINE_MATH_OPERATORS
+)
+target_sources(tests PRIVATE
+    "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
+    "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+    "${IMGUI_DIR}/imgui.cpp"
+    "${IMGUI_DIR}/imgui_demo.cpp"
+    "${IMGUI_DIR}/imgui_draw.cpp"
+    "${IMGUI_DIR}/imgui_tables.cpp"
+    "${IMGUI_DIR}/imgui_widgets.cpp"
+)
 target_link_libraries(tests PRIVATE opengl32.lib)
 target_link_libraries(tests PRIVATE glew glm)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
