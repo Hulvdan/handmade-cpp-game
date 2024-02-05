@@ -34,9 +34,10 @@
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
-void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count) {
+void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, float dt) {
     assert(memory.is_initialized);
     auto& state = memory.state;
+    auto& rstate = *state.renderer_state;
 
     while (input_events_count > 0) {
         input_events_count--;
@@ -50,18 +51,35 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count) 
             Mouse_Pressed event = {};
             memcpy(&event, events, sizeof(Mouse_Pressed));
             s = sizeof(Mouse_Pressed);
+
+            rstate.panning = true;
+            rstate.pan_start_position = event.position;
+            rstate.pan_offset = v2i(0, 0);
         } break;
 
         case Event_Type::Mouse_Released: {
             Mouse_Released event = {};
             memcpy(&event, events, sizeof(Mouse_Released));
             s = sizeof(Mouse_Released);
+
+            rstate.panning = false;
+            rstate.pan_pos = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
+            rstate.pan_offset = v2i(0, 0);
         } break;
 
         case Event_Type::Mouse_Moved: {
             Mouse_Moved event = {};
             memcpy(&event, events, sizeof(Mouse_Moved));
             s = sizeof(Mouse_Moved);
+
+            if (rstate.panning)
+                rstate.pan_offset = event.position - rstate.pan_start_position;
+        } break;
+
+        case Event_Type::Mouse_Scrolled: {
+            Mouse_Scrolled event = {};
+            memcpy(&event, events, sizeof(Mouse_Scrolled));
+            s = sizeof(Mouse_Scrolled);
         } break;
 
         case Event_Type::Keyboard_Pressed: {
@@ -199,7 +217,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         memory.is_initialized = true;
     }
 
-    Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count);
+    Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);
 
     assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;

@@ -360,6 +360,14 @@ void Win32GLResize() {
 extern IMGUI_IMPL_API LRESULT
 ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+#define BF_MOUSE_POS                              \
+    {                                             \
+        auto pos_ = GetMessagePos();              \
+        auto pos = MAKEPOINTS(pos_);              \
+        event.position.x = pos.x;                 \
+        event.position.y = client_height - pos.y; \
+    }
+
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
         return 1;
@@ -379,6 +387,54 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
         client_height = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
         Win32GLResize();
+    } break;
+
+    case WM_LBUTTONDOWN: {
+        Mouse_Pressed event = {};
+        event.type = Mouse_Button_Type::Left;
+        BF_MOUSE_POS;
+        push_event(event);
+    } break;
+    case WM_LBUTTONUP: {
+        Mouse_Released event = {};
+        event.type = Mouse_Button_Type::Left;
+        BF_MOUSE_POS;
+        push_event(event);
+    } break;
+    case WM_RBUTTONDOWN: {
+        Mouse_Pressed event = {};
+        event.type = Mouse_Button_Type::Right;
+        BF_MOUSE_POS;
+        push_event(event);
+    } break;
+    case WM_RBUTTONUP: {
+        Mouse_Released event = {};
+        event.type = Mouse_Button_Type::Right;
+        BF_MOUSE_POS;
+        push_event(event);
+    } break;
+    case WM_MBUTTONDOWN: {
+        Mouse_Pressed event = {};
+        event.type = Mouse_Button_Type::Middle;
+        BF_MOUSE_POS;
+        push_event(event);
+    } break;
+    case WM_MBUTTONUP: {
+        Mouse_Released event = {};
+        event.type = Mouse_Button_Type::Middle;
+        BF_MOUSE_POS;
+        push_event(event);
+    } break;
+    case WM_MOUSEWHEEL: {
+        Mouse_Scrolled event = {};
+        i16 scroll = (short)HIWORD(wParam);
+        event.value = scroll;
+        push_event(event);
+    } break;
+    case WM_MOUSEMOVE: {
+        Mouse_Moved event = {};
+        BF_MOUSE_POS;
+        push_event(event);
     } break;
 
     case WM_KEYDOWN:
@@ -783,11 +839,11 @@ int main(int, char**) {
                 Controller_Axis_Changed event = {};
                 event.axis = 0;
                 event.value = stick_x_normalized;
-                push_event<Controller_Axis_Changed>(event);
+                push_event(event);
 
                 event.axis = 1;
                 event.value = stick_y_normalized;
-                push_event<Controller_Axis_Changed>(event);
+                push_event(event);
 
                 voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
             } else {

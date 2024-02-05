@@ -110,7 +110,7 @@ struct Mouse_Pressed {
 
     Mouse_ID id;
     Mouse_Button_Type type;
-    v2f position;
+    v2i position;
 };
 
 struct Mouse_Released {
@@ -118,14 +118,21 @@ struct Mouse_Released {
 
     Mouse_ID id;
     Mouse_Button_Type type;
-    v2f position;
+    v2i position;
 };
 
 struct Mouse_Moved {
     const static Event_Type _event_type = Event_Type::Mouse_Moved;
 
     Mouse_ID id;
-    v2f position;
+    v2i position;
+};
+
+struct Mouse_Scrolled {
+    const static Event_Type _event_type = Event_Type::Mouse_Scrolled;
+
+    Mouse_ID id;
+    i32 value;
 };
 
 // KEYBOARD

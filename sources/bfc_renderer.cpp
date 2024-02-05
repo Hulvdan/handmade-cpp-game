@@ -65,7 +65,7 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
 }
 
 Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& temp_arena) {
-    auto state_ = Allocate_For(arena, Game_Renderer_State);
+    auto state_ = Allocate_Zeros_For(arena, Game_Renderer_State);
     auto& state = *state_;
 
     Load_BMP_RGBA_Result bmp_result = {};
@@ -328,6 +328,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap)
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, glm::vec2(0, 1));
     projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+    projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     // projection = glm::rotate(projection, -0.2f);
 
     auto gsize = state.game_map.size;

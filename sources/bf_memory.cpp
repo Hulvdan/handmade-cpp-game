@@ -1,5 +1,6 @@
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
+#define Allocate_Zeros_For(arena, type) rcast<type*>(Allocate_Zeros_(arena, sizeof(type)))
 #define Allocate_Array(arena, type, count) rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
 // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 
@@ -12,6 +13,12 @@ u8* Allocate_(Arena& arena, size_t size) {
 
     u8* result = arena.base + arena.used;
     arena.used += size;
+    return result;
+}
+
+u8* Allocate_Zeros_(Arena& arena, size_t size) {
+    auto result = Allocate_(arena, size);
+    memset(result, 0, size);
     return result;
 }
 

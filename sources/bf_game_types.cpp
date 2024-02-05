@@ -109,6 +109,7 @@ struct Tilemap {
 };
 
 struct Game_Renderer_State {
+    // WARNING(hulvdan): It is not filled with 0 upon initialization!
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
     Tile_ID forest_top_tile_id;
@@ -122,6 +123,11 @@ struct Game_Renderer_State {
 
     u8 terrain_tilemaps_count;
     u8 resources_tilemap_index;
+
+    bool panning;
+    v2f pan_pos;
+    v2f pan_offset;
+    v2i pan_start_position;
 };
 // --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT
