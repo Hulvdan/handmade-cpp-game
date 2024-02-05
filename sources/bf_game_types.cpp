@@ -14,12 +14,10 @@ enum class Terrain {
     GRASS,
 };
 
-using TerrainHeight = i8;
-
 struct Terrain_Tile {
     Terrain terrain;
     // NOTE(hulvdan): Height starts at 0
-    TerrainHeight height;
+    int height;
     bool is_cliff;
 };
 
@@ -124,11 +122,11 @@ struct Game_Renderer_State {
     u8 terrain_tilemaps_count;
     u8 resources_tilemap_index;
 
+    v2i mouse_pos;
     bool panning;
     v2f pan_pos;
     v2f pan_offset;
-    v2i pan_start_position;
-
+    v2i pan_start_pos;
     f32 zoom_target;
     f32 zoom;
     f32 zoom_t;

@@ -299,8 +299,56 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
     return value;
 }
 
+glm::vec3 h(glm::vec2 value) {
+    return glm::vec3(value.x, value.y, 1);
+}
+glm::vec3 h(glm::ivec2 value) {
+    return glm::ivec3(value.x, value.y, 1);
+}
+
 void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap, f32 dt) {
-    rstate.zoom = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
+    // TODO(hulvdan): Zooming around cursor's position
+    auto gsize = state.game_map.size;
+    auto swidth = (f32)bitmap.width;
+    auto sheight = (f32)bitmap.height;
+
+    {
+        glm::mat3x3 projection_inv;
+        {
+            auto projection = glm::mat3(1);
+            projection = glm::translate(projection, glm::vec2(0, 1));
+            projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+            projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
+            projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
+            projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+            projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
+            projection_inv = glm::inverse(projection);
+            // projection_inv = glm::inverse(projection);
+        }
+        auto mouse_pos = glm::vec3(rstate.mouse_pos.x, rstate.mouse_pos.y, 1);
+        auto cursor_on_tilemap_pos = projection_inv * mouse_pos;
+
+        auto new_zoom = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
+        rstate.zoom = new_zoom;
+
+        {
+            auto projection = glm::mat3(1);
+            projection = glm::translate(projection, glm::vec2(0, 1));
+            projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+            projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
+            projection = glm::scale(projection, glm::vec2(new_zoom, new_zoom));
+            projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+            projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
+            projection_inv = glm::inverse(projection);
+            // projection_inv = projection;
+        }
+        auto new_cursor_on_tilemap_pos = projection_inv * mouse_pos;
+        auto dmouse = new_cursor_on_tilemap_pos - cursor_on_tilemap_pos;
+
+        rstate.pan_pos += v2f(dmouse.x, dmouse.y);
+    }
+
+    // rstate.pan_pos -= (new_zoom / zoom)*mouse_pos;
 
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
@@ -338,17 +386,15 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
         glEnd();
     }
 
-    auto swidth = (f32)bitmap.width;
-    auto sheight = (f32)bitmap.height;
-
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, glm::vec2(0, 1));
     projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-    // projection = glm::rotate(projection, -0.2f);
+    projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+    projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
 
-    auto gsize = state.game_map.size;
+    // projection = glm::rotate(projection, -0.2f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     FOR_RANGE(i32, h, rstate.terrain_tilemaps_count) {

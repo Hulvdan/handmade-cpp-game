@@ -53,11 +53,11 @@ void Regenerate_Terrain_Tiles(
             FOR_RANGE(int, x, size.x) {
                 auto& tile = Get_Terrain_Tile(game_map, {x, y});
 
-                TerrainHeight height_above = 0;
+                int height_above = 0;
                 if (y < size.y - 1)
                     height_above = Get_Terrain_Tile(game_map, {x, y + 1}).height;
 
-                TerrainHeight height_below = 0;
+                int height_below = 0;
                 if (y > 0)
                     height_below = Get_Terrain_Tile(game_map, {x, y - 1}).height;
 

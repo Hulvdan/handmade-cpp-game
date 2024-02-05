@@ -53,8 +53,9 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             s = sizeof(Mouse_Pressed);
 
             rstate.panning = true;
-            rstate.pan_start_position = event.position;
+            rstate.pan_start_pos = event.position;
             rstate.pan_offset = v2i(0, 0);
+            rstate.mouse_pos = event.position;
         } break;
 
         case Event_Type::Mouse_Released: {
@@ -65,6 +66,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             rstate.panning = false;
             rstate.pan_pos = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
             rstate.pan_offset = v2i(0, 0);
+            rstate.mouse_pos = event.position;
         } break;
 
         case Event_Type::Mouse_Moved: {
@@ -73,7 +75,9 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             s = sizeof(Mouse_Moved);
 
             if (rstate.panning)
-                rstate.pan_offset = event.position - rstate.pan_start_position;
+                rstate.pan_offset = event.position - rstate.pan_start_pos;
+
+            rstate.mouse_pos = event.position;
         } break;
 
         case Event_Type::Mouse_Scrolled: {
