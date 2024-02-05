@@ -49,6 +49,7 @@ struct Perlin_Params {
 
 struct GAME_LIBRARY_EXPORT Editor_Data {
     bool changed;
+    ImGuiContext* context;
 
     Perlin_Params terrain_perlin;
     i8 terrain_max_height;
@@ -62,6 +63,7 @@ Editor_Data Default_Editor_Data() {
     Editor_Data res = {};
 
     res.changed = true;
+    res.context = nullptr;
 
     res.terrain_perlin.octaves = 9;
     res.terrain_perlin.scaling_bias = 2.0f;

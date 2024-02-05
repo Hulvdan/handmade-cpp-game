@@ -103,6 +103,23 @@ target_link_libraries(win32 PRIVATE glew glm)
 
 # === Tests ===
 add_executable(tests tests/tests.cpp)
+target_include_directories(tests PRIVATE
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends"
+)
+target_compile_definitions(tests PRIVATE
+    IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+    IMGUI_DEFINE_MATH_OPERATORS
+)
+target_sources(tests PRIVATE
+    "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
+    "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+    "${IMGUI_DIR}/imgui.cpp"
+    "${IMGUI_DIR}/imgui_demo.cpp"
+    "${IMGUI_DIR}/imgui_draw.cpp"
+    "${IMGUI_DIR}/imgui_tables.cpp"
+    "${IMGUI_DIR}/imgui_widgets.cpp"
+)
 target_link_libraries(tests PRIVATE opengl32.lib)
 target_link_libraries(tests PRIVATE glew glm)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")

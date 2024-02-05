@@ -1,3 +1,10 @@
+#include "imgui.h"
+#include "imgui_impl_opengl3.h"
+#include "imgui_impl_win32.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <cassert>
 #include <cstdlib>
 #include <vector>
@@ -113,11 +120,12 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
 ) {
     auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
+    ImGui::SetCurrentContext(editor_data.context);
 
     if (!memory.is_initialized || editor_data.changed) {
         editor_data.changed = false;
-
         auto& state = memory.state;
+
         state.offset_x = 0;
         state.offset_y = 0;
 
@@ -189,4 +197,11 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     }
 
     Render(state, *state.renderer_state, bitmap);
+
+    int new_total;
+    if (ImGui::SliderInt("Octaves Count", &new_total, 1, 9, "", 0)) {
+    }
+
+    if (ImGui::Button("New Seed")) {
+    }
 }

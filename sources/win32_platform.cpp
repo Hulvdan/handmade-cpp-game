@@ -324,20 +324,13 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
-    Game_Update_And_Render_(
-        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(), events_count,
-        editor_data);
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    int new_total;
-    if (ImGui::SliderInt("Octaves Count", &new_total, 1, 9, "", 0)) {
-    }
-
-    if (ImGui::Button("New Seed")) {
-    }
+    Game_Update_And_Render_(
+        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(), events_count,
+        editor_data);
 
     ImGui::Render();
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -735,14 +728,16 @@ int main(int, char**) {
 
     ImGui::StyleColorsDark();
 
+    editor_data = Default_Editor_Data();
+    editor_data.context = ImGui::CreateContext();
+    ImGui::SetCurrentContext(editor_data.context);
+
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);
     ImGui_ImplOpenGL3_Init();
     // --- ImGui Stuff End ---
 
     screen_bitmap = BF_Bitmap();
-
-    editor_data = Default_Editor_Data();
 
     running = true;
 
