@@ -729,8 +729,7 @@ int main(int, char**) {
     ImGui::StyleColorsDark();
 
     editor_data = Default_Editor_Data();
-    editor_data.context = ImGui::CreateContext();
-    ImGui::SetCurrentContext(editor_data.context);
+    editor_data.context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);

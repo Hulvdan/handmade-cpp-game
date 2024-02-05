@@ -42,27 +42,29 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     void* memory;
 };
 struct Perlin_Params {
-    u8 octaves;
+    int octaves;
     f32 scaling_bias;
     uint seed;
 };
 
 struct GAME_LIBRARY_EXPORT Editor_Data {
     bool changed;
+    bool game_context_set;
     ImGuiContext* context;
 
     Perlin_Params terrain_perlin;
-    i8 terrain_max_height;
+    int terrain_max_height;
 
     Perlin_Params forest_perlin;
     f32 forest_threshold;
-    i16 forest_max_amount;
+    int forest_max_amount;
 };
 
 Editor_Data Default_Editor_Data() {
     Editor_Data res = {};
 
     res.changed = true;
+    res.game_context_set = false;
     res.context = nullptr;
 
     res.terrain_perlin.octaves = 9;
