@@ -1,6 +1,7 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_win32.h"
+#include "imgui_internal.h"
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -373,6 +374,10 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
     if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
         return 1;
 
+    auto mouse_captured = false;
+    if (editor_data.context != nullptr)
+        mouse_captured = editor_data.context->IO.WantCaptureMouse;
+
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
         running = false;
@@ -391,51 +396,74 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
     } break;
 
     case WM_LBUTTONDOWN: {
-        Mouse_Pressed event = {};
-        event.type = Mouse_Button_Type::Left;
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Pressed event = {};
+            event.type = Mouse_Button_Type::Left;
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
+
     case WM_LBUTTONUP: {
-        Mouse_Released event = {};
-        event.type = Mouse_Button_Type::Left;
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Released event = {};
+            event.type = Mouse_Button_Type::Left;
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
+
     case WM_RBUTTONDOWN: {
-        Mouse_Pressed event = {};
-        event.type = Mouse_Button_Type::Right;
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Pressed event = {};
+            event.type = Mouse_Button_Type::Right;
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
+
     case WM_RBUTTONUP: {
-        Mouse_Released event = {};
-        event.type = Mouse_Button_Type::Right;
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Released event = {};
+            event.type = Mouse_Button_Type::Right;
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
+
     case WM_MBUTTONDOWN: {
-        Mouse_Pressed event = {};
-        event.type = Mouse_Button_Type::Middle;
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Pressed event = {};
+            event.type = Mouse_Button_Type::Middle;
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
+
     case WM_MBUTTONUP: {
-        Mouse_Released event = {};
-        event.type = Mouse_Button_Type::Middle;
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Released event = {};
+            event.type = Mouse_Button_Type::Middle;
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
+
     case WM_MOUSEWHEEL: {
-        Mouse_Scrolled event = {};
-        i16 scroll = (short)HIWORD(wParam);
-        event.value = scroll;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Scrolled event = {};
+            i16 scroll = (short)HIWORD(wParam);
+            event.value = scroll;
+            push_event(event);
+        }
     } break;
+
     case WM_MOUSEMOVE: {
-        Mouse_Moved event = {};
-        BF_MOUSE_POS;
-        push_event(event);
+        if (!mouse_captured) {
+            Mouse_Moved event = {};
+            BF_MOUSE_POS;
+            push_event(event);
+        }
     } break;
 
     case WM_KEYDOWN:
