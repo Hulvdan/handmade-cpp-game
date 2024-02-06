@@ -360,12 +360,13 @@ void Win32GLResize() {
 extern IMGUI_IMPL_API LRESULT
 ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-#define BF_MOUSE_POS                              \
-    {                                             \
-        auto pos_ = GetMessagePos();              \
-        auto pos = MAKEPOINTS(pos_);              \
-        event.position.x = pos.x;                 \
-        event.position.y = client_height - pos.y; \
+#define BF_MOUSE_POS                            \
+    {                                           \
+        POINT p;                                \
+        GetCursorPos(&p);                       \
+        ScreenToClient(window_handle, &p);      \
+        event.position.x = p.x;                 \
+        event.position.y = client_height - p.y; \
     }
 
 LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {

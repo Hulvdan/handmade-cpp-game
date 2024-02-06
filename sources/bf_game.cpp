@@ -90,6 +90,8 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             } else if (event.value < 0) {
                 rstate.zoom_target /= 2.0f;
             }
+
+            rstate.zoom_target = MAX(0.5f, MIN(8.0f, rstate.zoom_target));
         } break;
 
         case Event_Type::Keyboard_Pressed: {
@@ -154,7 +156,13 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         editor_data.game_context_set = true;
     }
 
-    {  // --- IMGUI ---
+    // --- IMGUI ---
+    {
+        if (state.renderer_state != nullptr) {
+            auto& rstate = *state.renderer_state;
+            ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
+        }
+
         if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9)) {
             editor_data.changed = true;
         }
