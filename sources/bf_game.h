@@ -9,7 +9,8 @@
 // NOTE(hulvdan): This importing nonsense was hastily taken from
 // https://blog.shaduri.dev/easily-create-shared-libraries-with-cmake-part-1
 // I just wanted to enable dll builds as fast as possible.
-// TODO(hulvdan): We need to find a better way of writing this BS.
+// TODO(hulvdan): Rewrite this shiet in a better way
+//
 // Is it possible to write this
 #if GAME_LIBRARY_BUILD
 // Building the library

@@ -89,7 +89,8 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
                 rstate.zoom_target *= 2.0f;
             } else if (event.value < 0) {
                 rstate.zoom_target /= 2.0f;
-            }
+            } else
+                assert(false);
 
             rstate.zoom_target = MAX(0.5f, MIN(8.0f, rstate.zoom_target));
         } break;
@@ -195,7 +196,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35)) {
             editor_data.changed = true;
         }
-    }  // --- IMGUI END ---
+    }
+    // --- IMGUI END ---
 
     if (!memory.is_initialized || editor_data.changed) {
         editor_data.changed = false;

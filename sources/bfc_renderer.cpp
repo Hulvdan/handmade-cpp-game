@@ -248,7 +248,6 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
     state.zoom = 1;
     state.zoom_target = 1;
-    state.zoom_t = 0;
 
     return state_;
 }
