@@ -572,14 +572,14 @@ u64 Win32Frequency() {
 }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
-int main(int, char**) {
-    auto application_handle = GetModuleHandle(nullptr);
-    // static int WinMain(
-    //     HINSTANCE application_handle,
-    //     HINSTANCE previous_window_instance_handle,
-    //     LPSTR command_line,
-    //     int show_command  //
-    // ) {
+// int main(int, char**) {
+// auto application_handle = GetModuleHandle(nullptr);
+static int WinMain(
+    HINSTANCE application_handle,
+    HINSTANCE previous_window_instance_handle,
+    LPSTR command_line,
+    int show_command  //
+) {
     LoadOrUpdateGameDll();
     LoadXInputDll();
 
@@ -738,8 +738,8 @@ int main(int, char**) {
         return -1;
     }
 
-    ShowWindow(window_handle, SW_SHOWDEFAULT);
-    // ShowWindow(window_handle, show_command);
+    // ShowWindow(window_handle, SW_SHOWDEFAULT);
+    ShowWindow(window_handle, show_command);
     UpdateWindow(window_handle);
 
     assert(client_width >= 0);

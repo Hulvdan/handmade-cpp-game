@@ -237,6 +237,10 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 
         memory.is_initialized = true;
+
+        state.On_Item_Built.functions =
+            (decltype(state.On_Item_Built.functions))(Allocate_(arena, sizeof(ptrd) * 1));
+        *(state.On_Item_Built.functions + 0) = Renderer__On_Item_Built;
     }
 
     Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);

@@ -154,3 +154,25 @@ void Regenerate_Element_Tiles(
         assert(tile.building == nullptr);
     }
 }
+
+bool Try_Build(Game_State& state, Game_Map& game_map, v2i pos, Item_To_Build item) {
+    auto gsize = game_map.size;
+    assert(pos.x >= 0);
+    assert(pos.y >= 0);
+    assert(pos.x < gsize.x);
+    assert(pos.y < gsize.y);
+
+    if (item == Item_To_Build::Road) {
+        auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
+        if (tile.type != Element_Tile_Type::None)
+            return false;
+
+        assert(tile.building == nullptr);
+        tile.type = Element_Tile_Type::Road;
+
+        INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item));
+    } else
+        assert(false);
+
+    return true;
+}

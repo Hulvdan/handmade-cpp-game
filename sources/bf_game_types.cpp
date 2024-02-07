@@ -1,5 +1,14 @@
 #pragma once
 
+// --- Forward Declarations ---
+// SHIT(hulvdan): Oh, god, I hate this shit
+struct Game_State;
+
+#ifdef BF_CLIENT
+struct Game_Renderer_State;
+#endif
+// --- Forward Declarations End ---
+
 // --- Memory ---
 struct Arena {
     size_t used;
@@ -62,6 +71,11 @@ struct Terrain_Resource {
     u8 amount;
 };
 
+enum class Item_To_Build {
+    None,
+    Road,
+};
+
 struct Game_Map {
     v2i size;
     Terrain_Tile* terrain_tiles;
@@ -69,9 +83,28 @@ struct Game_Map {
     Element_Tile* element_tiles;
 };
 
-#ifdef BF_CLIENT
-struct Game_Renderer_State;
-#endif
+template <typename T>
+struct Observer {
+    size_t count;
+    T* functions;
+};
+
+// Usage:
+//     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
+#define INVOKE_OBSERVER(observer, code)                 \
+    {                                                   \
+        FOR_RANGE(size_t, i, observer.count) {          \
+            auto& function = *(observer.functions + i); \
+            function code;                              \
+        }                                               \
+    }
+
+// using On_Item_Built_FType =
+//     void (*)(Game_State& state, Game_Map& game_map, v2i pos, Item_To_Build item);
+
+#define On_Item_Built__Function(name_) \
+    void name_(Game_State& state, Game_Map& game_map, v2i pos, Item_To_Build item)
+#define On_Item_Built__Type On_Item_Built__Function((*))
 
 struct Game_State {
     f32 offset_x;
@@ -88,6 +121,8 @@ struct Game_State {
 #ifdef BF_CLIENT
     Game_Renderer_State* renderer_state;
 #endif  // BF_CLIENT
+
+    Observer<On_Item_Built__Type> On_Item_Built;
 };
 
 struct Game_Memory {

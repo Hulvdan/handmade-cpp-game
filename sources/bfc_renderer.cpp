@@ -586,3 +586,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());
 }
+
+On_Item_Built__Function(Renderer__On_Item_Built) {
+    printf("Renderer__On_Item_Built\n");
+}
