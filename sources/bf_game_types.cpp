@@ -9,9 +9,16 @@ struct Arena {
 // --- Memory End ---
 
 // --- Game Logic ---
+using BuildingID = u32;
+
+struct Building {
+    BuildingID id;
+    v2i pos;
+};
+
 enum class Terrain {
-    NONE,
-    GRASS,
+    None,
+    Grass,
 };
 
 struct Terrain_Tile {
@@ -20,6 +27,29 @@ struct Terrain_Tile {
     int height;
     bool is_cliff;
 };
+
+// NOTE(hulvdan): Upon editing ensure `Validate_Element_Tile` gets rewritten too
+enum class Element_Tile_Type {
+    None = 0,
+    Road = 1,
+    Building = 2,
+    Flag = 3,
+};
+
+struct Element_Tile {
+    Element_Tile_Type type;
+    Building* building;
+};
+
+void Validate_Element_Tile(Element_Tile& tile) {
+    assert((int)tile.type >= 0);
+    assert((int)tile.type <= 3);
+
+    if (tile.type == Element_Tile_Type::Building)
+        assert(tile.building != nullptr);
+    else
+        assert(tile.building == nullptr);
+}
 
 struct Scriptable_Resource {
     u32 id;
@@ -80,9 +110,9 @@ struct Loaded_Texture {
 using Tile_ID = u32;
 
 enum class Tile_State_Check {
-    SKIP,
-    EXCLUDED,
-    INCLUDED,
+    Skip,
+    Excluded,
+    Included,
 };
 
 struct Tile_Rule {

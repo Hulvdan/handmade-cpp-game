@@ -212,7 +212,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
                 auto& tile = *(game_map.terrain_tiles + y * gsize.x + x);
                 auto& tilemap_tile = *(tilemap.tiles + y * gsize.x + x);
 
-                bool grass = tile.terrain == Terrain::GRASS && tile.height >= h;
+                bool grass = tile.terrain == Terrain::Grass && tile.height >= h;
                 tilemap_tile = grass * state.grass_smart_tile.id;
             }
         }
@@ -455,7 +455,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
         FOR_RANGE(int, y, gsize.y) {
             FOR_RANGE(int, x, gsize.x) {
                 auto& tile = Get_Terrain_Tile(state.game_map, {x, y});
-                if (tile.terrain != Terrain::GRASS)
+                if (tile.terrain != Terrain::Grass)
                     continue;
 
                 if (tile.height < h)

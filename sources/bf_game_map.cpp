@@ -37,7 +37,7 @@ void Regenerate_Terrain_Tiles(
     FOR_RANGE(int, y, size.y) {
         FOR_RANGE(int, x, size.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
-            tile.terrain = Terrain::GRASS;
+            tile.terrain = Terrain::Grass;
             auto noise = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
             tile.height = int((data.terrain_max_height + 1) * noise);
 

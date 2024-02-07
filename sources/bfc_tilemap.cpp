@@ -7,19 +7,19 @@
 Tile_State_Check Parse_Tile_State_Check(u8 data) {
     switch (data) {
     case '@':
-        return Tile_State_Check::INCLUDED;
+        return Tile_State_Check::Included;
 
     case ' ':
-        return Tile_State_Check::SKIP;
+        return Tile_State_Check::Skip;
 
     case '*':
-        return Tile_State_Check::EXCLUDED;
+        return Tile_State_Check::Excluded;
 
     default:
         assert(false);
     }
 
-    return Tile_State_Check::SKIP;
+    return Tile_State_Check::Skip;
 }
 
 Load_Smart_Tile_Result
@@ -178,22 +178,22 @@ BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& t
         b32 found = true;
         for (int i = 0; (i < 8) && found; i++) {
             Tile_State_Check state = *(rule.states + i);
-            if (state == Tile_State_Check::SKIP)
+            if (state == Tile_State_Check::Skip)
                 continue;
 
             auto& offset = offsets[i];
             auto new_pos = pos + offset;
 
             if (!Pos_Is_In_Bounds(new_pos, size)) {
-                found &= state != Tile_State_Check::INCLUDED;
+                found &= state != Tile_State_Check::Included;
                 continue;
             }
 
             Tile_ID tile_id = *(tilemap.tiles + size.x * new_pos.y + new_pos.x);
 
-            if (state == Tile_State_Check::INCLUDED)
+            if (state == Tile_State_Check::Included)
                 found &= tile_id == tile.id;
-            else if (state == Tile_State_Check::EXCLUDED)
+            else if (state == Tile_State_Check::Excluded)
                 found &= tile_id != tile.id;
         }
 
