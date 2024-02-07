@@ -883,10 +883,8 @@ static int WinMain(
 
         auto device_context = GetDC(window_handle);
 
-        auto capped_dt = last_frame_dt > MAX_FRAME_DT ? MAX_FRAME_DT : last_frame_dt;
-
+        auto capped_dt = MIN(last_frame_dt, MAX_FRAME_DT);
         Win32Paint(capped_dt, window_handle, device_context);
-        // glViewport(-1, -1, 1, 1);
         ReleaseDC(window_handle, device_context);
 
         u64 perf_counter_new = Win32Clock();
