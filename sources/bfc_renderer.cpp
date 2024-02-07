@@ -1,3 +1,4 @@
+//
 #pragma once
 
 #ifndef BF_CLIENT
@@ -21,6 +22,8 @@ struct Debug_BMP_Header {
     u32 compression;
 };
 #pragma pack(pop)
+
+const i32 road_starting_tile_id = 3;
 
 struct Load_BMP_RGBA_Result {
     bool success;
@@ -87,7 +90,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
     char buffer[512] = {};
     FOR_RANGE(int, i, 17) {
-        sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i + 1);
+        sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i);
 
         Load_BMP_RGBA_Result bmp_result = {};
         {
@@ -103,7 +106,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
         constexpr size_t NAME_SIZE = 64;
         char name[NAME_SIZE] = {};
-        sprintf(name, "grass_%d", i + 1);
+        sprintf(name, "grass_%d", i);
 
         texture.id = scast<BF_Texture_ID>(Hash32_String(name));
         texture.size = {bmp_result.width, bmp_result.height};
@@ -124,7 +127,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     }
 
     FOR_RANGE(int, i, 3) {
-        sprintf(buffer, "assets/art/tiles/forest_%d.bmp", i + 1);
+        sprintf(buffer, "assets/art/tiles/forest_%d.bmp", i);
 
         Load_BMP_RGBA_Result bmp_result = {};
         {
@@ -140,7 +143,44 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
         constexpr size_t NAME_SIZE = 64;
         char name[NAME_SIZE] = {};
-        sprintf(name, "forest_%d", i + 1);
+        sprintf(name, "forest_%d", i);
+
+        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
+        texture.size = {bmp_result.width, bmp_result.height};
+        texture.address = bmp_result.output;
+
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        assert(!glGetError());
+
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
+            GL_UNSIGNED_BYTE, texture.address);
+        assert(!glGetError());
+    }
+
+    FOR_RANGE(int, i, 16) {
+        sprintf(buffer, "assets/art/tiles/road_%d.bmp", i);
+
+        Load_BMP_RGBA_Result bmp_result = {};
+        {
+            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
+            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+            assert(load_result.success);
+
+            bmp_result = Load_BMP_RGBA(arena, load_result.output);
+            assert(bmp_result.success);
+        }
+
+        Loaded_Texture& texture = state.road_textures[i];
+
+        constexpr size_t NAME_SIZE = 64;
+        char name[NAME_SIZE] = {};
+        sprintf(name, "road_%d", i);
 
         texture.id = scast<BF_Texture_ID>(Hash32_String(name));
         texture.size = {bmp_result.width, bmp_result.height};
@@ -201,6 +241,9 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     state.resources_tilemap_index = state.tilemaps_count;
     state.tilemaps_count += 2;  // Terrain Resources (forests, stones, etc.)
 
+    state.element_tilemap_index = state.tilemaps_count;
+    state.tilemaps_count += 1;  // Element Tiles (roads, buildings, etc.)
+
     state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
 
     FOR_RANGE(i32, h, state.tilemaps_count) {
@@ -225,15 +268,15 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         FOR_RANGE(i32, x, gsize.x) {
             auto& resource = *(game_map.terrain_resources + y * gsize.x + x);
 
-            auto& tilemap_tile = *(resources_tilemap.tiles + y * gsize.x + x);
-            if (tilemap_tile)
+            auto& tile = *(resources_tilemap.tiles + y * gsize.x + x);
+            if (tile)
                 continue;
 
             bool forest = resource.amount > 0;
             if (!forest)
                 continue;
 
-            tilemap_tile = state.forest_smart_tile.id;
+            tile = state.forest_smart_tile.id;
 
             bool forest_above = false;
             if (!is_last_row) {
@@ -245,6 +288,40 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
                 *(resources_tilemap2.tiles + y * gsize.x + x) = state.forest_top_tile_id;
         }
     }
+
+    // --- Element Tiles ---
+    auto& element_tilemap = *(state.tilemaps + state.element_tilemap_index);
+    v2i adjacent_offsets[4] = {
+        {1, 0},
+        {0, 1},
+        {-1, 0},
+        {0, -1},
+    };
+    FOR_RANGE(i32, y, gsize.y) {
+        FOR_RANGE(i32, x, gsize.x) {
+            Element_Tile& element_tile = *(game_map.element_tiles + y * gsize.x + x);
+            if (element_tile.type != Element_Tile_Type::Road)
+                continue;
+
+            int road_texture_number = 0;
+            FOR_RANGE(int, i, 4) {
+                auto offset = adjacent_offsets[i];
+                auto new_x = x + offset.x;
+                auto new_y = y + offset.y;
+
+                if (new_x >= gsize.x || new_y >= gsize.y || new_x < 0 || new_y < 0)
+                    continue;
+
+                Element_Tile& adjacent_tile = *(game_map.element_tiles + new_y * gsize.x + new_x);
+                if (adjacent_tile.type == Element_Tile_Type::Road)
+                    road_texture_number += (1 << i);
+            }
+
+            auto& tile_id = *(element_tilemap.tiles + y * gsize.x + x);
+            tile_id = road_starting_tile_id + road_texture_number;
+        }
+    }
+    // --- Element Tiles End ---
 
     state.zoom = 1;
     state.zoom_target = 1;
@@ -298,35 +375,39 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
     return value;
 }
 
-v2f World_To_Screen(Game_Renderer_State& rstate, v2f screen, f32 swidth, f32 sheight, v2i gsize) {
+v2f World_To_Screen(
+    Game_Renderer_State& rstate,
+    v2f screen,
+    f32 swidth,
+    f32 sheight,
+    v2i gsize,
+    f32 cell_size  //
+) {
     auto projection = glm::mat3(1);
-    // projection = glm::translate(projection, glm::vec2(0, 1));
-    // projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-    // projection = glm::scale(projection, v2f(32, 32));
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-    // projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
     projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-    projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
-    // projection = glm::translate(projection, -v2f(1, 1) * (f32)cell_size / 2.0f);
-    projection = glm::scale(projection, glm::vec2(32, 32));
+    projection = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
+    projection = glm::scale(projection, glm::vec2(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
     return projection * glm::vec3(screen.x, screen.y, 1);
 }
 
-v2f Screen_To_World(Game_Renderer_State& rstate, v2f screen, f32 swidth, f32 sheight, v2i gsize) {
+v2f Screen_To_World(
+    Game_Renderer_State& rstate,
+    v2f screen,
+    f32 swidth,
+    f32 sheight,
+    v2i gsize,
+    f32 cell_size  //
+) {
     auto projection = glm::mat3(1);
-    // projection = glm::translate(projection, glm::vec2(0, 1));
-    // projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-    // projection = glm::scale(projection, v2f(32, 32));
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-    // projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
     projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-    projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
-    // projection = glm::translate(projection, -v2f(1, 1) * (f32)cell_size / 2.0f);
-    projection = glm::scale(projection, glm::vec2(32, 32));
+    projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
+    projection = glm::scale(projection, glm::vec2(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
     return projection_inv * glm::vec3(screen.x, screen.y, 1);
@@ -339,34 +420,15 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
     auto cell_size = 32;
 
     {
-        // glm::mat3x3 projection_inv;
-        // {
-        //     auto projection = glm::mat3(1);
-        //     // projection = glm::translate(projection, glm::vec2(0, 1));
-        //     // projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-        //     // projection = glm::scale(projection, v2f(32, 32));
-        //     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-        //     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-        //     // projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-        //     projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-        //     projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
-        //     // projection = glm::translate(projection, -v2f(1, 1) * (f32)cell_size / 2.0f);
-        //     projection = glm::scale(projection, glm::vec2(32, 32));
-        //     projection_inv = glm::inverse(projection);
-        // }
-        //
-        // auto mouse_pos = glm::vec3(rstate.mouse_pos.x, rstate.mouse_pos.y, 1);
-        // auto cursor_on_tilemap_pos = projection_inv * mouse_pos;
-
         auto cursor_on_tilemap_pos =
-            Screen_To_World(rstate, rstate.mouse_pos, swidth, sheight, gsize);
+            Screen_To_World(rstate, rstate.mouse_pos, swidth, sheight, gsize, cell_size);
         ImGui::Text("Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y);
 
         auto new_zoom = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
         rstate.zoom = new_zoom;
 
         auto cursor_on_tilemap_pos2 =
-            Screen_To_World(rstate, rstate.mouse_pos, swidth, sheight, gsize);
+            Screen_To_World(rstate, rstate.mouse_pos, swidth, sheight, gsize, cell_size);
 
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
@@ -376,31 +438,13 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
         projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
         projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
         projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-        projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
+        projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
         auto d = projection * glm::vec3(cursor_d.x, cursor_d.y, 0);
         rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
 
-        auto d3 = World_To_Screen(rstate, v2f(0, 0), swidth, sheight, gsize);
+        auto d3 = World_To_Screen(rstate, v2f(0, 0), swidth, sheight, gsize, cell_size);
         ImGui::Text("d3 %.3f.%.3f", d3.x, d3.y);
-
-        // {
-        //     auto projection = glm::mat3(1);
-        //     projection = glm::translate(projection, glm::vec2(0, 1));
-        //     projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-        //     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-        //     projection = glm::scale(projection, glm::vec2(new_zoom, new_zoom));
-        //     projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-        //     projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
-        //     projection_inv = glm::inverse(projection);
-        //     // projection_inv = projection;
-        // }
-        // auto new_cursor_on_tilemap_pos = projection_inv * mouse_pos;
-        // auto dmouse = new_cursor_on_tilemap_pos - cursor_on_tilemap_pos;
-
-        // rstate.pan_pos += v2f(dmouse.x, dmouse.y);
     }
-
-    // rstate.pan_pos -= (new_zoom / zoom)*mouse_pos;
 
     glClear(GL_COLOR_BUFFER_BIT);
     assert(!glGetError());
@@ -444,9 +488,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
     projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
-    projection = glm::translate(projection, -(v2f)gsize * 32.0f / 2.0f);
-
-    // projection = glm::rotate(projection, -0.2f);
+    projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     FOR_RANGE(i32, h, rstate.terrain_tilemaps_count) {
@@ -478,6 +520,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
         }
     }
 
+    // --- Drawing Resoures ---
     auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
     FOR_RANGE(int, y, gsize.y) {
         FOR_RANGE(int, x, gsize.x) {
@@ -524,6 +567,32 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
                 assert(false);
         }
     }
+    // --- Drawing Resoures End ---
+
+    // --- Drawing Element Tiles ---
+    auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            auto& tile = *(element_tilemap.tiles + y * gsize.x + x);
+            if (tile < road_starting_tile_id)
+                continue;
+
+            auto road_texture_offset = tile - road_starting_tile_id;
+            assert(road_texture_offset >= 0);
+            assert(road_texture_offset <= 16);
+
+            glBindTexture(GL_TEXTURE_2D, rstate.road_textures[road_texture_offset].id);
+
+            auto cell_size = 32;
+            auto sprite_pos = v2i(x, y) * cell_size;
+            auto sprite_size = v2i(1, 1) * cell_size;
+
+            glBegin(GL_TRIANGLES);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            glEnd();
+        }
+    }
+    // --- Drawing Element Tiles End ---
 
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());

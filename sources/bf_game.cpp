@@ -230,8 +230,10 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto tiles_count = (size_t)dim.x * dim.y;
         state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, tiles_count);
         state.game_map.terrain_resources = Allocate_Array(arena, Terrain_Resource, tiles_count);
+        state.game_map.element_tiles = Allocate_Array(arena, Element_Tile, tiles_count);
 
         Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
+        Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 
         memory.is_initialized = true;

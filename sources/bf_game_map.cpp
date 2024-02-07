@@ -106,3 +106,51 @@ void Regenerate_Terrain_Tiles(
     //     elementTiles[pos.y][pos.x] = new (ElementTileType.Building, building);
     // }
 }
+
+void Regenerate_Element_Tiles(
+    Game_State& state,
+    Game_Map& game_map,
+    Arena& arena,
+    uint seed,
+    Editor_Data& data  //
+) {
+    auto size = game_map.size;
+
+    v2i road_tiles[] = {
+        {0, 1},
+        {0, 2},
+        {0, 3},
+        {1, 2},
+        {2, 1},
+        {2, 2},
+        {2, 3},
+        {3, 2},
+        {4, 1},
+        {4, 2},
+        {4, 3},
+        {1, 0},
+        {2, 0},
+        {3, 0},
+        {1, 4},
+        {2, 4},
+        {3, 4},
+        //
+        {6, 1},
+        {7, 1},
+        {8, 1},
+        {6, 2},
+        {8, 2},
+        {6, 3},
+        {7, 3},
+        {8, 3},
+    };
+
+    auto base_offset = v2i(1, 1);
+    for (auto offset : road_tiles) {
+        auto o = offset + base_offset;
+        Element_Tile& tile = *(game_map.element_tiles + o.y * size.x + o.x);
+
+        tile.type = Element_Tile_Type::Road;
+        assert(tile.building == nullptr);
+    }
+}

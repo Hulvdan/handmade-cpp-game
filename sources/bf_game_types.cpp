@@ -28,7 +28,7 @@ struct Terrain_Tile {
     bool is_cliff;
 };
 
-// NOTE(hulvdan): Upon editing ensure `Validate_Element_Tile` gets rewritten too
+// NOTE(hulvdan): Upon editing ensure `Validate_Element_Tile` remains correct
 enum class Element_Tile_Type {
     None = 0,
     Road = 1,
@@ -66,6 +66,7 @@ struct Game_Map {
     v2i size;
     Terrain_Tile* terrain_tiles;
     Terrain_Resource* terrain_resources;
+    Element_Tile* element_tiles;
 };
 
 #ifdef BF_CLIENT
@@ -145,12 +146,14 @@ struct Game_Renderer_State {
     Loaded_Texture human_texture;
     Loaded_Texture grass_textures[17];
     Loaded_Texture forest_textures[3];
+    Loaded_Texture road_textures[16];
 
     int tilemaps_count;
     Tilemap* tilemaps;
 
     u8 terrain_tilemaps_count;
     u8 resources_tilemap_index;
+    u8 element_tilemap_index;
 
     v2i mouse_pos;
     bool panning;
