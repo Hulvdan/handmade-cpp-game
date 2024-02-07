@@ -67,6 +67,21 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
     return res;
 }
 
+void Send_Texture_To_GPU(Loaded_Texture& texture) {
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    assert(!glGetError());
+
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
+        GL_UNSIGNED_BYTE, texture.address);
+    assert(!glGetError());
+}
+
 Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& temp_arena) {
     auto state_ = Allocate_Zeros_For(arena, Game_Renderer_State);
     auto& state = *state_;
@@ -111,19 +126,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         texture.id = scast<BF_Texture_ID>(Hash32_String(name));
         texture.size = {bmp_result.width, bmp_result.height};
         texture.address = bmp_result.output;
-
-        glBindTexture(GL_TEXTURE_2D, texture.id);
-
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        assert(!glGetError());
-
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, texture.address);
-        assert(!glGetError());
+        Send_Texture_To_GPU(texture);
     }
 
     FOR_RANGE(int, i, 3) {
@@ -148,19 +151,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         texture.id = scast<BF_Texture_ID>(Hash32_String(name));
         texture.size = {bmp_result.width, bmp_result.height};
         texture.address = bmp_result.output;
-
-        glBindTexture(GL_TEXTURE_2D, texture.id);
-
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        assert(!glGetError());
-
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, texture.address);
-        assert(!glGetError());
+        Send_Texture_To_GPU(texture);
     }
 
     FOR_RANGE(int, i, 16) {
@@ -185,19 +176,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         texture.id = scast<BF_Texture_ID>(Hash32_String(name));
         texture.size = {bmp_result.width, bmp_result.height};
         texture.address = bmp_result.output;
-
-        glBindTexture(GL_TEXTURE_2D, texture.id);
-
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        assert(!glGetError());
-
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, texture.address);
-        assert(!glGetError());
+        Send_Texture_To_GPU(texture);
     }
 
     state.grass_smart_tile.id = 1;
