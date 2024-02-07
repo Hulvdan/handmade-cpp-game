@@ -99,12 +99,8 @@ struct Observer {
         }                                               \
     }
 
-// using On_Item_Built_FType =
-//     void (*)(Game_State& state, Game_Map& game_map, v2i pos, Item_To_Build item);
-
 #define On_Item_Built__Function(name_) \
     void name_(Game_State& state, Game_Map& game_map, v2i pos, Item_To_Build item)
-#define On_Item_Built__Type On_Item_Built__Function((*))
 
 struct Game_State {
     f32 offset_x;
@@ -122,7 +118,7 @@ struct Game_State {
     Game_Renderer_State* renderer_state;
 #endif  // BF_CLIENT
 
-    Observer<On_Item_Built__Type> On_Item_Built;
+    Observer<On_Item_Built__Function((*))> On_Item_Built;
 };
 
 struct Game_Memory {
