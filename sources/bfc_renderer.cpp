@@ -569,7 +569,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 
             auto road_texture_offset = tile - road_starting_tile_id;
             assert(road_texture_offset >= 0);
-            assert(road_texture_offset <= 16);
+            assert(road_texture_offset <= 15);
 
             glBindTexture(GL_TEXTURE_2D, rstate.road_textures[road_texture_offset].id);
 
