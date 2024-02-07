@@ -413,6 +413,16 @@ v2f Screen_To_World(
     return projection_inv * glm::vec3(screen.x, screen.y, 1);
 }
 
+v2i World_Pos_To_Tile(v2f pos, v2i gsize) {
+    auto x = (int)(pos.x + 0.5f);
+    auto y = (int)(pos.y + 0.5f);
+    if (pos.x < -0.5f)
+        x--;
+    if (pos.y < -0.5f)
+        y--;
+    return v2i(x, y);
+}
+
 void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap, f32 dt) {
     auto gsize = state.game_map.size;
     auto swidth = (f32)bitmap.width;
@@ -444,6 +454,9 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 
         auto d3 = World_To_Screen(rstate, v2f(0, 0), swidth, sheight, gsize, cell_size);
         ImGui::Text("d3 %.3f.%.3f", d3.x, d3.y);
+
+        auto d4 = World_Pos_To_Tile(cursor_on_tilemap_pos2, gsize);
+        ImGui::Text("d4 %d.%d", d4.x, d4.y);
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
@@ -534,7 +547,6 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
-                auto cell_size = 32;
                 auto sprite_pos = v2i(x, y) * cell_size;
                 auto sprite_size = v2i(1, 1) * cell_size;
 
@@ -556,7 +568,6 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
             if (tile == rstate.forest_top_tile_id) {
                 glBindTexture(GL_TEXTURE_2D, rstate.forest_textures[0].id);
 
-                auto cell_size = 32;
                 auto sprite_pos = v2i(x, y + 1) * cell_size;
                 auto sprite_size = v2i(1, 1) * cell_size;
 
@@ -583,7 +594,6 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 
             glBindTexture(GL_TEXTURE_2D, rstate.road_textures[road_texture_offset].id);
 
-            auto cell_size = 32;
             auto sprite_pos = v2i(x, y) * cell_size;
             auto sprite_size = v2i(1, 1) * cell_size;
 
