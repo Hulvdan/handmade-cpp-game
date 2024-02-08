@@ -1,7 +1,0 @@
----
-Checks:          'clang-diagnostic-*,clang-analyzer-*,bugprone-*,-bugprone-easily-swappable-parameters'
-WarningsAsErrors: true
-HeaderFilterRegex: ''
-AnalyzeTemporaryDtors: false
-FormatStyle:     google
-...
