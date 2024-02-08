@@ -158,7 +158,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     }
 
     // --- IMGUI ---
-    {
+    if (memory.is_initialized) {
         if (state.renderer_state != nullptr) {
             auto& rstate = *state.renderer_state;
             ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
@@ -201,7 +201,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
 
     if (!memory.is_initialized || editor_data.changed) {
         editor_data.changed = false;
-        auto& state = memory.state;
 
         state.offset_x = 0;
         state.offset_y = 0;

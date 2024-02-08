@@ -18,8 +18,6 @@
 #include "xaudio2.h"
 #include "xinput.h"
 
-// #include "glm/vec2.hpp"
-// #include "glm/ext.hpp"
 #include "bf_base.h"
 #include "bf_game.h"
 
@@ -65,13 +63,13 @@ void push_event(T& event) {
 #if BFG_INTERNAL
 global FILETIME last_game_dll_write_time;
 
-struct PeekFiletimeRes {
+struct Peek_Filetime_Result {
     bool success;
     FILETIME filetime;
 };
 
-PeekFiletimeRes PeekFiletime(const char* filename) {
-    PeekFiletimeRes res = {};
+Peek_Filetime_Result Peek_Filetime(const char* filename) {
+    Peek_Filetime_Result res = {};
 
     WIN32_FIND_DATAA find_data;
     auto handle = FindFirstFileA(filename, &find_data);
@@ -99,11 +97,11 @@ void Game_Update_And_Render_Stub(
 ) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
-void LoadOrUpdateGameDll() {
+void Load_Or_Update_Game_Dll() {
     auto path = "bf_game.dll";
 
 #if BFG_INTERNAL
-    auto filetime = PeekFiletime(path);
+    auto filetime = Peek_Filetime(path);
     if (!filetime.success)
         return;
     if (CompareFileTime(&last_game_dll_write_time, &filetime.filetime) == 0)
@@ -347,7 +345,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     events.clear();
 
 #if BFG_INTERNAL
-    LoadOrUpdateGameDll();
+    Load_Or_Update_Game_Dll();
 #endif  // BFG_INTERNAL
 }
 
@@ -580,7 +578,7 @@ static int WinMain(
     LPSTR command_line,
     int show_command  //
 ) {
-    LoadOrUpdateGameDll();
+    Load_Or_Update_Game_Dll();
     LoadXInputDll();
 
     events.reserve(Kilobytes(64LL));
