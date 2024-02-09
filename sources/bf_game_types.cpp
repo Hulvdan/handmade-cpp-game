@@ -74,6 +74,7 @@ struct Terrain_Resource {
 enum class Item_To_Build {
     None,
     Road,
+    Flag,
 };
 
 struct Game_Map {
@@ -192,6 +193,7 @@ struct Game_Renderer_State {
     Loaded_Texture grass_textures[17];
     Loaded_Texture forest_textures[3];
     Loaded_Texture road_textures[16];
+    Loaded_Texture flag_textures[4];
 
     int tilemaps_count;
     Tilemap* tilemaps;

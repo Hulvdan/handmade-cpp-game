@@ -158,22 +158,32 @@ void Regenerate_Element_Tiles(
 bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
-    assert(pos.x >= 0);
-    assert(pos.y >= 0);
-    assert(pos.x < gsize.x);
-    assert(pos.y < gsize.y);
+    assert(Pos_Is_In_Bounds(pos, gsize));
 
-    if (item == Item_To_Build::Road) {
-        auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
+    auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
+
+    switch (item) {
+    case Item_To_Build::Flag: {
+        if (tile.type != Element_Tile_Type::Road)
+            return false;
+
+        assert(tile.building == nullptr);
+        tile.type = Element_Tile_Type::Flag;
+    } break;
+
+    case Item_To_Build::Road: {
         if (tile.type != Element_Tile_Type::None)
             return false;
 
         assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
+    } break;
 
-        INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));
-    } else
+    default:
         assert(false);
+    }
+
+    INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));
 
     return true;
 }

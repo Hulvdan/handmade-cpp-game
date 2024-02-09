@@ -23,7 +23,8 @@ struct Debug_BMP_Header {
 };
 #pragma pack(pop)
 
-const i32 road_starting_tile_id = 3;
+const i32 global_road_starting_tile_id = 4;
+const i32 global_flag_starting_tile_id = global_road_starting_tile_id + 16;
 
 struct Load_BMP_RGBA_Result {
     bool success;
@@ -85,6 +86,8 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
     v2i adjacent_offsets[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
+    Element_Tile& tile = *(element_tiles + pos.y * gsize.x + pos.x);
+
     int road_texture_number = 0;
     FOR_RANGE(int, i, 4) {
         auto new_pos = pos + adjacent_offsets[i];
@@ -92,7 +95,15 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
             continue;
 
         Element_Tile& adjacent_tile = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
-        if (adjacent_tile.type == Element_Tile_Type::Road)
+
+        auto both_are_flags =
+            adjacent_tile.type == Element_Tile_Type::Flag && tile.type == Element_Tile_Type::Flag;
+        auto adjacent_is_either_road_or_flag = adjacent_tile.type == Element_Tile_Type::Road ||
+            adjacent_tile.type == Element_Tile_Type::Flag;
+
+        if (both_are_flags)
+            continue;
+        if (adjacent_is_either_road_or_flag)
             road_texture_number += (1 << i);
     }
 
@@ -196,6 +207,31 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         Send_Texture_To_GPU(texture);
     }
 
+    FOR_RANGE(int, i, 4) {
+        sprintf(buffer, "assets/art/tiles/flag_%d.bmp", i);
+
+        Load_BMP_RGBA_Result bmp_result = {};
+        {
+            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
+            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+            assert(load_result.success);
+
+            bmp_result = Load_BMP_RGBA(arena, load_result.output);
+            assert(bmp_result.success);
+        }
+
+        Loaded_Texture& texture = state.flag_textures[i];
+
+        constexpr size_t NAME_SIZE = 64;
+        char name[NAME_SIZE] = {};
+        sprintf(name, "flag_%d", i);
+
+        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
+        texture.size = {bmp_result.width, bmp_result.height};
+        texture.address = bmp_result.output;
+        Send_Texture_To_GPU(texture);
+    }
+
     state.grass_smart_tile.id = 1;
     state.forest_smart_tile.id = 2;
     state.forest_top_tile_id = 3;
@@ -231,14 +267,23 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     }
 
     state.tilemaps_count = 0;
-    state.terrain_tilemaps_count = max_height + 1;  // Terrain (NOTE: [0; max_height])
+    // NOTE(hulvdan): Terrain tilemaps ([0; max_height])
+    state.terrain_tilemaps_count = max_height + 1;
     state.tilemaps_count += state.terrain_tilemaps_count;
 
+    // NOTE(hulvdan): Terrain Resources (forests, stones, etc.)
+    // Currently use 2 tilemaps:
+    // 1) Forests
+    // 2) Tree's top tiles
     state.resources_tilemap_index = state.tilemaps_count;
-    state.tilemaps_count += 2;  // Terrain Resources (forests, stones, etc.)
+    state.tilemaps_count += 2;
 
+    // NOTE(hulvdan): Element Tiles (roads, buildings, etc.)
+    // Currently use 2 tilemaps:
+    // 1) Roads
+    // 2) Flags above roads
     state.element_tilemap_index = state.tilemaps_count;
-    state.tilemaps_count += 1;  // Element Tiles (roads, buildings, etc.)
+    state.tilemaps_count += 2;
 
     state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
 
@@ -301,7 +346,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
             auto tex = Get_Road_Texture_Number(game_map.element_tiles, v2i(x, y), gsize);
             auto& tile_id = *(element_tilemap.tiles + y * gsize.x + x);
-            tile_id = road_starting_tile_id + tex;
+            tile_id = global_road_starting_tile_id + tex;
         }
     }
     // --- Element Tiles End ---
@@ -577,17 +622,35 @@ void Render(Game_State& state, f32 dt) {
 
     // --- Drawing Element Tiles ---
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
+    auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
     FOR_RANGE(int, y, gsize.y) {
         FOR_RANGE(int, x, gsize.x) {
             auto& tile = *(element_tilemap.tiles + y * gsize.x + x);
-            if (tile < road_starting_tile_id)
+            if (tile < global_road_starting_tile_id)
                 continue;
 
-            auto road_texture_offset = tile - road_starting_tile_id;
+            auto road_texture_offset = tile - global_road_starting_tile_id;
             assert(road_texture_offset >= 0);
-            assert(road_texture_offset <= 15);
 
             glBindTexture(GL_TEXTURE_2D, rstate.road_textures[road_texture_offset].id);
+
+            auto sprite_pos = v2i(x, y) * cell_size;
+            auto sprite_size = v2i(1, 1) * cell_size;
+
+            glBegin(GL_TRIANGLES);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            glEnd();
+        }
+    }
+
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            auto& tile = *(element_tilemap_2.tiles + y * gsize.x + x);
+            if (tile < global_flag_starting_tile_id)
+                continue;
+
+            glBindTexture(
+                GL_TEXTURE_2D, rstate.flag_textures[tile - global_flag_starting_tile_id].id);
 
             auto sprite_pos = v2i(x, y) * cell_size;
             auto sprite_size = v2i(1, 1) * cell_size;
@@ -611,24 +674,66 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     auto gsize = game_map.size;
 
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
+    auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
     auto tile_index = pos.y * gsize.x + pos.x;
 
     auto& element_tile = *(game_map.element_tiles + tile_index);
-    element_tile.type = Element_Tile_Type::Road;
+
+    switch (item) {
+    case (Item_To_Build::Road): {
+        element_tile.type = Element_Tile_Type::Road;
+    } break;
+
+    case (Item_To_Build::Flag): {
+        element_tile.type = Element_Tile_Type::Flag;
+        // if (element_tile.type == Element_Tile_Type::Flag) {
+        //     element_tile.type = Element_Tile_Type::Road;
+        //     *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = 0;
+        //
+        // } else if (element_tile.type == Element_Tile_Type::Road) {
+        //     element_tile.type = Element_Tile_Type::Flag;
+        //     *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
+        //
+        // } else
+        //     assert(false);
+    } break;
+
+    default:
+        assert(false);
+    }
     assert(element_tile.building == nullptr);
+
+    if (element_tile.type == Element_Tile_Type::Flag) {
+        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
+    }
 
     v2i offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
     for (auto offset : offsets) {
         auto new_pos = pos + offset;
-        if (!Pos_Is_In_Bounds(pos + offset, gsize))
+        if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
 
-        Element_Tile& element_tile = *(game_map.element_tiles + new_pos.y * gsize.x + new_pos.x);
-        if (element_tile.type != Element_Tile_Type::Road)
-            continue;
+        auto element_tiles = game_map.element_tiles;
+        Element_Tile& element_tile = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
 
-        auto tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-        auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
-        tile_id = road_starting_tile_id + tex;
+        switch (element_tile.type) {
+        case (Element_Tile_Type::Flag): {
+            auto tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
+            auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
+            tile_id = global_road_starting_tile_id + tex;
+        } break;
+
+        case (Element_Tile_Type::Road): {
+            auto tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
+            auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
+            tile_id = global_road_starting_tile_id + tex;
+        } break;
+
+        case (Element_Tile_Type::None):
+            break;
+
+        default:
+            assert(false);
+        }
     }
 }
