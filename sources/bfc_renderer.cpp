@@ -680,11 +680,11 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     auto& element_tile = *(game_map.element_tiles + tile_index);
 
     switch (element_tile.type) {
-    case (Element_Tile_Type::Road): {
+    case Element_Tile_Type::Road: {
         *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = 0;
     } break;
 
-    case (Element_Tile_Type::Flag): {
+    case Element_Tile_Type::Flag: {
         *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
     } break;
 
@@ -703,19 +703,19 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
         Element_Tile& element_tile = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
 
         switch (element_tile.type) {
-        case (Element_Tile_Type::Flag): {
+        case Element_Tile_Type::Flag: {
             auto tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
             auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
             tile_id = global_road_starting_tile_id + tex;
         } break;
 
-        case (Element_Tile_Type::Road): {
+        case Element_Tile_Type::Road: {
             auto tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
             auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
             tile_id = global_road_starting_tile_id + tex;
         } break;
 
-        case (Element_Tile_Type::None):
+        case Element_Tile_Type::None:
             break;
 
         default:
