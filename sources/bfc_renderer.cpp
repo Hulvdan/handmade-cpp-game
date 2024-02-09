@@ -304,6 +304,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
 
     state.zoom = 1;
     state.zoom_target = 1;
+    state.cell_size = 32;
 
     return state_;
 }
@@ -354,14 +355,17 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
     return value;
 }
 
-v2f World_To_Screen(
-    Game_Renderer_State& rstate,
-    v2f screen,
-    f32 swidth,
-    f32 sheight,
-    v2i gsize,
-    f32 cell_size  //
-) {
+v2f World_To_Screen(Game_State& state, v2f pos) {
+    assert(state.renderer_state != nullptr);
+    auto& rstate = *state.renderer_state;
+    assert(rstate.bitmap != nullptr);
+    Game_Bitmap& bitmap = *rstate.bitmap;
+
+    auto swidth = (f32)bitmap.width;
+    auto sheight = (f32)bitmap.height;
+    auto gsize = state.game_map.size;
+    auto cell_size = rstate.cell_size;
+
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
@@ -370,17 +374,20 @@ v2f World_To_Screen(
     projection = glm::scale(projection, glm::vec2(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
-    return projection * glm::vec3(screen.x, screen.y, 1);
+    return projection * glm::vec3(pos.x, pos.y, 1);
 }
 
-v2f Screen_To_World(
-    Game_Renderer_State& rstate,
-    v2f screen,
-    f32 swidth,
-    f32 sheight,
-    v2i gsize,
-    f32 cell_size  //
-) {
+v2f Screen_To_World(Game_State& state, v2f pos) {
+    assert(state.renderer_state != nullptr);
+    auto& rstate = *state.renderer_state;
+    assert(rstate.bitmap != nullptr);
+    Game_Bitmap& bitmap = *rstate.bitmap;
+
+    auto swidth = (f32)bitmap.width;
+    auto sheight = (f32)bitmap.height;
+    auto gsize = state.game_map.size;
+    auto cell_size = rstate.cell_size;
+
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
@@ -389,10 +396,10 @@ v2f Screen_To_World(
     projection = glm::scale(projection, glm::vec2(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
-    return projection_inv * glm::vec3(screen.x, screen.y, 1);
+    return projection_inv * glm::vec3(pos.x, pos.y, 1);
 }
 
-v2i World_Pos_To_Tile(v2f pos, v2i gsize) {
+v2i World_Pos_To_Tile(v2f pos) {
     auto x = (int)(pos.x + 0.5f);
     auto y = (int)(pos.y + 0.5f);
     if (pos.x < -0.5f)
@@ -402,22 +409,27 @@ v2i World_Pos_To_Tile(v2f pos, v2i gsize) {
     return v2i(x, y);
 }
 
-void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap, f32 dt) {
-    auto gsize = state.game_map.size;
+void Render(Game_State& state, f32 dt) {
+    assert(state.renderer_state != nullptr);
+    auto& rstate = *state.renderer_state;
+    auto& game_map = state.game_map;
+
+    assert(rstate.bitmap != nullptr);
+    Game_Bitmap& bitmap = *rstate.bitmap;
+
+    auto gsize = game_map.size;
     auto swidth = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
     auto cell_size = 32;
 
     {
-        auto cursor_on_tilemap_pos =
-            Screen_To_World(rstate, rstate.mouse_pos, swidth, sheight, gsize, cell_size);
+        auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
         ImGui::Text("Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y);
 
         auto new_zoom = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
         rstate.zoom = new_zoom;
 
-        auto cursor_on_tilemap_pos2 =
-            Screen_To_World(rstate, rstate.mouse_pos, swidth, sheight, gsize, cell_size);
+        auto cursor_on_tilemap_pos2 = Screen_To_World(state, rstate.mouse_pos);
 
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
@@ -431,10 +443,10 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
         auto d = projection * glm::vec3(cursor_d.x, cursor_d.y, 0);
         rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
 
-        auto d3 = World_To_Screen(rstate, v2f(0, 0), swidth, sheight, gsize, cell_size);
+        auto d3 = World_To_Screen(state, v2f(0, 0));
         ImGui::Text("d3 %.3f.%.3f", d3.x, d3.y);
 
-        auto d4 = World_Pos_To_Tile(cursor_on_tilemap_pos2, gsize);
+        auto d4 = World_Pos_To_Tile(cursor_on_tilemap_pos2);
         ImGui::Text("d4 %d.%d", d4.x, d4.y);
     }
 
@@ -488,7 +500,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 
         FOR_RANGE(int, y, gsize.y) {
             FOR_RANGE(int, x, gsize.x) {
-                auto& tile = Get_Terrain_Tile(state.game_map, {x, y});
+                auto& tile = Get_Terrain_Tile(game_map, {x, y});
                 if (tile.terrain != Terrain::Grass)
                     continue;
 
@@ -498,7 +510,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
                 // TODO(hulvdan): Spritesheets! Vertices array,
                 // texture vertices array, indices array
                 auto texture_id =
-                    Test_Smart_Tile(tilemap, state.game_map.size, {x, y}, rstate.grass_smart_tile);
+                    Test_Smart_Tile(tilemap, game_map.size, {x, y}, rstate.grass_smart_tile);
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
@@ -522,7 +534,7 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 
             if (tile == rstate.forest_smart_tile.id) {
                 auto texture_id = Test_Smart_Tile(
-                    resources_tilemap, state.game_map.size, {x, y}, rstate.forest_smart_tile);
+                    resources_tilemap, game_map.size, {x, y}, rstate.forest_smart_tile);
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
@@ -588,5 +600,5 @@ void Render(Game_State& state, Game_Renderer_State& rstate, Game_Bitmap& bitmap,
 }
 
 On_Item_Built__Function(Renderer__On_Item_Built) {
-    printf("Renderer__On_Item_Built\n");
+    OutputDebugStringA("Renderer__On_Item_Built\n");
 }

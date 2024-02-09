@@ -99,8 +99,20 @@ struct Observer {
         }                                               \
     }
 
-#define On_Item_Built__Function(name_) \
-    void name_(Game_State& state, Game_Map& game_map, v2i pos, Item_To_Build item)
+// Usage:
+//     On_Item_Built__Function((*on_item_built[])) = {
+//         Renderer__On_Item_Built,
+//     };
+//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, on_item_built, arena);
+#define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                       \
+    {                                                                                \
+        (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                 \
+        (observer).functions =                                                       \
+            (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
+        memcpy((observer).functions, callbacks, sizeof(callbacks));                  \
+    }
+
+#define On_Item_Built__Function(name_) void name_(Game_State& state, v2i pos, Item_To_Build item)
 
 struct Game_State {
     f32 offset_x;
@@ -169,6 +181,8 @@ struct Tilemap {
 };
 
 struct Game_Renderer_State {
+    Game_Bitmap* bitmap;
+
     // WARNING(hulvdan): It is not filled with 0 upon initialization!
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
@@ -187,12 +201,15 @@ struct Game_Renderer_State {
     u8 element_tilemap_index;
 
     v2i mouse_pos;
+
     bool panning;
     v2f pan_pos;
     v2f pan_offset;
     v2i pan_start_pos;
     f32 zoom_target;
     f32 zoom;
+
+    f32 cell_size;
 };
 // --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT

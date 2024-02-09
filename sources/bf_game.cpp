@@ -52,10 +52,16 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             memcpy(&event, events, sizeof(Mouse_Pressed));
             s = sizeof(Mouse_Pressed);
 
-            rstate.panning = true;
-            rstate.pan_start_pos = event.position;
-            rstate.pan_offset = v2i(0, 0);
             rstate.mouse_pos = event.position;
+
+            if (event.type == Mouse_Button_Type::Left) {
+                auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
+                Try_Build(state, tile_pos, Item_To_Build::Road);
+            } else if (event.type == Mouse_Button_Type::Right) {
+                rstate.panning = true;
+                rstate.pan_start_pos = event.position;
+                rstate.pan_offset = v2i(0, 0);
+            }
         } break;
 
         case Event_Type::Mouse_Released: {
@@ -63,10 +69,14 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             memcpy(&event, events, sizeof(Mouse_Released));
             s = sizeof(Mouse_Released);
 
-            rstate.panning = false;
-            rstate.pan_pos = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
-            rstate.pan_offset = v2i(0, 0);
             rstate.mouse_pos = event.position;
+
+            if (event.type == Mouse_Button_Type::Left) {
+            } else if (event.type == Mouse_Button_Type::Right) {
+                rstate.panning = false;
+                rstate.pan_pos = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
+                rstate.pan_offset = v2i(0, 0);
+            }
         } break;
 
         case Event_Type::Mouse_Moved: {
@@ -237,10 +247,13 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
 
         memory.is_initialized = true;
 
-        state.On_Item_Built.functions =
-            (decltype(state.On_Item_Built.functions))(Allocate_(arena, sizeof(ptrd) * 1));
-        *(state.On_Item_Built.functions + 0) = Renderer__On_Item_Built;
+        {
+            On_Item_Built__Function((*on_item_built[])) = {Renderer__On_Item_Built};
+            INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, on_item_built, arena);
+        }
     }
+
+    state.renderer_state->bitmap = &bitmap;
 
     Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);
 
@@ -280,5 +293,5 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         }
     }
 
-    Render(state, *state.renderer_state, bitmap, dt);
+    Render(state, dt);
 }
