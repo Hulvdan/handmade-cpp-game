@@ -51,6 +51,8 @@ void push_event(T& event) {
     if (!can_push) {
         // TODO(hulvdan): Diagnostic
         assert(false);
+        OutputDebugStringA("win32_platform: push_event(): skipped");
+        return;
     }
 
     events_count++;
@@ -780,6 +782,7 @@ static int WinMain(
             // TODO(hulvdan): Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
             assert(false);
+            return -1;
         }
 
         // NOTE(hulvdan): Enabling VSync

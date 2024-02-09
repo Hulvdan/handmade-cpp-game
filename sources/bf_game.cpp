@@ -146,7 +146,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
 
         default:
             // TODO(hulvdan): Diagnostic
-            assert(false);
+            UNREACHABLE;
         }
 
         events += s;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -258,7 +258,11 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         memory.is_initialized = true;
     }
 
-    state.renderer_state->bitmap = &bitmap;
+    // TODO(hulvdan): Оно ругается на null-pointer dereference. Если так написать, норм?
+    if (state.renderer_state != nullptr)
+        state.renderer_state->bitmap = &bitmap;
+    else
+        UNREACHABLE;
 
     Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);
 

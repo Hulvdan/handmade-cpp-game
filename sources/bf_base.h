@@ -8,6 +8,8 @@ using v2i = glm::ivec2;
 
 #include "bf_types.h"
 
+#define UNREACHABLE assert(false)
+
 #define scast static_cast
 #define rcast reinterpret_cast
 

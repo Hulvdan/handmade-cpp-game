@@ -183,7 +183,7 @@ bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
     } break;
 
     default:
-        assert(false);
+        UNREACHABLE;
     }
 
     INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));

@@ -594,7 +594,7 @@ void Render(Game_State& state, f32 dt) {
                 Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
                 glEnd();
             } else
-                assert(false);
+                UNREACHABLE;
         }
     }
 
@@ -615,7 +615,7 @@ void Render(Game_State& state, f32 dt) {
                 Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
                 glEnd();
             } else
-                assert(false);
+                UNREACHABLE;
         }
     }
     // --- Drawing Resoures End ---
@@ -632,7 +632,8 @@ void Render(Game_State& state, f32 dt) {
             auto road_texture_offset = tile - global_road_starting_tile_id;
             assert(road_texture_offset >= 0);
 
-            glBindTexture(GL_TEXTURE_2D, rstate.road_textures[road_texture_offset].id);
+            auto tex_id = rstate.road_textures[road_texture_offset].id;
+            glBindTexture(GL_TEXTURE_2D, tex_id);
 
             auto sprite_pos = v2i(x, y) * cell_size;
             auto sprite_size = v2i(1, 1) * cell_size;
@@ -649,8 +650,8 @@ void Render(Game_State& state, f32 dt) {
             if (tile < global_flag_starting_tile_id)
                 continue;
 
-            glBindTexture(
-                GL_TEXTURE_2D, rstate.flag_textures[tile - global_flag_starting_tile_id].id);
+            auto tex_id = rstate.flag_textures[tile - global_flag_starting_tile_id].id;
+            glBindTexture(GL_TEXTURE_2D, tex_id);
 
             auto sprite_pos = v2i(x, y) * cell_size;
             auto sprite_size = v2i(1, 1) * cell_size;
@@ -689,7 +690,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     } break;
 
     default:
-        assert(false);
+        UNREACHABLE;
     }
     assert(element_tile.building == nullptr);
 
@@ -719,7 +720,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
             break;
 
         default:
-            assert(false);
+            UNREACHABLE;
         }
     }
 }
