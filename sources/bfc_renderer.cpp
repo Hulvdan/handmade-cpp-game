@@ -666,8 +666,8 @@ void Render(Game_State& state, f32 dt) {
     assert(!glGetError());
 }
 
+// NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item
 On_Item_Built__Function(Renderer__On_Item_Built) {
-    // Game_State& state, v2i pos, Item_To_Build item
     assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
@@ -679,33 +679,19 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
 
     auto& element_tile = *(game_map.element_tiles + tile_index);
 
-    switch (item) {
-    case (Item_To_Build::Road): {
-        element_tile.type = Element_Tile_Type::Road;
+    switch (element_tile.type) {
+    case (Element_Tile_Type::Road): {
+        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = 0;
     } break;
 
-    case (Item_To_Build::Flag): {
-        element_tile.type = Element_Tile_Type::Flag;
-        // if (element_tile.type == Element_Tile_Type::Flag) {
-        //     element_tile.type = Element_Tile_Type::Road;
-        //     *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = 0;
-        //
-        // } else if (element_tile.type == Element_Tile_Type::Road) {
-        //     element_tile.type = Element_Tile_Type::Flag;
-        //     *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
-        //
-        // } else
-        //     assert(false);
+    case (Element_Tile_Type::Flag): {
+        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
     } break;
 
     default:
         assert(false);
     }
     assert(element_tile.building == nullptr);
-
-    if (element_tile.type == Element_Tile_Type::Flag) {
-        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
-    }
 
     v2i offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
     for (auto offset : offsets) {

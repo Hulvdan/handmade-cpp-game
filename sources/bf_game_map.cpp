@@ -164,11 +164,14 @@ bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
 
     switch (item) {
     case Item_To_Build::Flag: {
-        if (tile.type != Element_Tile_Type::Road)
+        if (tile.type == Element_Tile_Type::Flag)
+            tile.type = Element_Tile_Type::Road;
+        else if (tile.type == Element_Tile_Type::Road)
+            tile.type = Element_Tile_Type::Flag;
+        else
             return false;
 
         assert(tile.building == nullptr);
-        tile.type = Element_Tile_Type::Flag;
     } break;
 
     case Item_To_Build::Road: {
