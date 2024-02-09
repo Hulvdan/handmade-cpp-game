@@ -82,6 +82,23 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     assert(!glGetError());
 }
 
+int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
+    v2i adjacent_offsets[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+
+    int road_texture_number = 0;
+    FOR_RANGE(int, i, 4) {
+        auto new_pos = pos + adjacent_offsets[i];
+        if (!Pos_Is_In_Bounds(new_pos, gsize))
+            continue;
+
+        Element_Tile& adjacent_tile = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
+        if (adjacent_tile.type == Element_Tile_Type::Road)
+            road_texture_number += (1 << i);
+    }
+
+    return road_texture_number;
+}
+
 Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& temp_arena) {
     auto state_ = Allocate_Zeros_For(arena, Game_Renderer_State);
     auto& state = *state_;
@@ -282,22 +299,9 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
             if (element_tile.type != Element_Tile_Type::Road)
                 continue;
 
-            int road_texture_number = 0;
-            FOR_RANGE(int, i, 4) {
-                auto offset = adjacent_offsets[i];
-                auto new_x = x + offset.x;
-                auto new_y = y + offset.y;
-
-                if (new_x >= gsize.x || new_y >= gsize.y || new_x < 0 || new_y < 0)
-                    continue;
-
-                Element_Tile& adjacent_tile = *(game_map.element_tiles + new_y * gsize.x + new_x);
-                if (adjacent_tile.type == Element_Tile_Type::Road)
-                    road_texture_number += (1 << i);
-            }
-
+            auto tex = Get_Road_Texture_Number(game_map.element_tiles, v2i(x, y), gsize);
             auto& tile_id = *(element_tilemap.tiles + y * gsize.x + x);
-            tile_id = road_starting_tile_id + road_texture_number;
+            tile_id = road_starting_tile_id + tex;
         }
     }
     // --- Element Tiles End ---
@@ -600,5 +604,31 @@ void Render(Game_State& state, f32 dt) {
 }
 
 On_Item_Built__Function(Renderer__On_Item_Built) {
-    OutputDebugStringA("Renderer__On_Item_Built\n");
+    // Game_State& state, v2i pos, Item_To_Build item
+    assert(state.renderer_state != nullptr);
+    auto& rstate = *state.renderer_state;
+    auto& game_map = state.game_map;
+    auto gsize = game_map.size;
+
+    auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
+    auto tile_index = pos.y * gsize.x + pos.x;
+
+    auto& element_tile = *(game_map.element_tiles + tile_index);
+    element_tile.type = Element_Tile_Type::Road;
+    assert(element_tile.building == nullptr);
+
+    v2i offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+    for (auto offset : offsets) {
+        auto new_pos = pos + offset;
+        if (!Pos_Is_In_Bounds(pos + offset, gsize))
+            continue;
+
+        Element_Tile& element_tile = *(game_map.element_tiles + new_pos.y * gsize.x + new_pos.x);
+        if (element_tile.type != Element_Tile_Type::Road)
+            continue;
+
+        auto tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
+        auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
+        tile_id = road_starting_tile_id + tex;
+    }
 }

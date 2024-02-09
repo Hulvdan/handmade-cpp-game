@@ -181,9 +181,7 @@ BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& t
             if (state == Tile_State_Check::Skip)
                 continue;
 
-            auto& offset = offsets[i];
-            auto new_pos = pos + offset;
-
+            auto new_pos = pos + offsets[i];
             if (!Pos_Is_In_Bounds(new_pos, size)) {
                 found &= state != Tile_State_Check::Included;
                 continue;

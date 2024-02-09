@@ -56,7 +56,9 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
 
             if (event.type == Mouse_Button_Type::Left) {
                 auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
-                Try_Build(state, tile_pos, Item_To_Build::Road);
+                auto gsize = state.game_map.size;
+                if (Pos_Is_In_Bounds(tile_pos, gsize))
+                    Try_Build(state, tile_pos, Item_To_Build::Road);
             } else if (event.type == Mouse_Button_Type::Right) {
                 rstate.panning = true;
                 rstate.pan_start_pos = event.position;
@@ -245,12 +247,14 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
         state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
 
-        memory.is_initialized = true;
-
         {
-            On_Item_Built__Function((*on_item_built[])) = {Renderer__On_Item_Built};
-            INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, on_item_built, arena);
+            On_Item_Built__Function((*callbacks[])) = {
+                Renderer__On_Item_Built,
+            };
+            INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
         }
+
+        memory.is_initialized = true;
     }
 
     state.renderer_state->bitmap = &bitmap;

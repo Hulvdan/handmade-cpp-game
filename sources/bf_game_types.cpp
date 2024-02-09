@@ -100,11 +100,11 @@ struct Observer {
     }
 
 // Usage:
-//     On_Item_Built__Function((*on_item_built[])) = {
+//     On_Item_Built__Function((*callbacks[])) = {
 //         Renderer__On_Item_Built,
 //     };
-//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, on_item_built, arena);
-#define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                       \
+//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+#define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)               \
     {                                                                                \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                 \
         (observer).functions =                                                       \
