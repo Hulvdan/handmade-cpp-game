@@ -35,6 +35,11 @@ bool Is_Multiple_Of_2(int number, u8& power) {
     return true;
 }
 
+// Usage:
+//     32 -> 32
+//     26 -> 32
+//     13 -> 16
+//     8 -> 8
 i32 Ceil_To_Power_Of_2(i32 max_pow2size) {
     i32 number = i32_max;
     assert(number >= 1);

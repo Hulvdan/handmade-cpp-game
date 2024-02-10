@@ -105,6 +105,7 @@ struct Observer {
 //         Renderer__On_Item_Built,
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+// TODO(hulvdan): Allocate_ should know about alignment of pointers!
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)               \
     {                                                                                \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                 \
