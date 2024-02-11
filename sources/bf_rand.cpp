@@ -5,6 +5,13 @@ f32 frand() {
     return (f32)rand() / RAND_MAX;
 }
 
+// Usage:
+//     -1 -> false
+//     0  -> false
+//     1  -> false
+//     2  -> true
+//     3  -> false
+//     4  -> true
 bool Is_Multiple_Of_2(int number) {
     if (number < 2)
         return false;
@@ -238,10 +245,10 @@ void Fill_Perlin_2D(
     f32 sum_of_division = 0;
     octaves = MIN(sx_power, octaves);
 
-    f32 iteration = 1;
+
     u16 offset = sx;
 
-    f32 octave_c = 1.0f;
+    auto octave_c = 1.0f;
     FOR_RANGE(int, _, octaves) {
         sum_of_division += octave_c;
 
