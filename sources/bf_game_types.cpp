@@ -69,6 +69,7 @@ struct Building {
     Building_ID id;
     f32 time_since_human_was_created;
     // f32 time_since_item_was_placed;
+    bool active;
 };
 
 enum class Terrain {

@@ -273,6 +273,23 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
         state.renderer_state = Initialize_Renderer(state, arena, file_loading_arena);
 
+        state.game_map.buildings_count = 16;
+        state.game_map.buildings = Allocate_Zeros_Array(arena, Building, 16);
+        {
+            auto& b = *(state.game_map.buildings + 0);
+            b.id = 1;
+            b.pos = {2, 2};
+            b.active = true;
+            b.scriptable_id = 1;
+        }
+        {
+            auto& b = *(state.game_map.buildings + 1);
+            b.id = 2;
+            b.pos = {4, 2};
+            b.active = true;
+            b.scriptable_id = 2;
+        }
+
         {
             On_Item_Built__Function((*callbacks[])) = {
                 Renderer__On_Item_Built,

@@ -292,14 +292,13 @@ Game_Renderer_State* Initialize_Renderer(Game_State& state, Arena& arena, Arena&
 
     {
         auto& b = *Get_Scriptable_Building(state, global_city_hall_building_id);
-        sprintf(texture_name, "tiles/building_house");
         b.texture = Allocate_For(arena, Loaded_Texture);
-        DEBUG_Load_Texture(arena, temp_arena, texture_name, *b.texture);
+        DEBUG_Load_Texture(arena, temp_arena, "tiles/building_house", *b.texture);
     }
     {
         auto& b = *Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
         b.texture = Allocate_For(arena, Loaded_Texture);
-        // std::cout << "A";
+        DEBUG_Load_Texture(arena, temp_arena, "tiles/building_lumberjack", *b.texture);
     }
 
     return rstate_;
@@ -609,6 +608,27 @@ void Render(Game_State& state, f32 dt) {
         }
     }
     // --- Drawing Element Tiles End ---
+
+    Building* building_ = game_map.buildings;
+    for (int _ = 0; _ < game_map.buildings_count; _++, building_++) {
+        auto& building = *building_;
+        if (!building.active)
+            continue;
+
+        auto scriptable_building_ = Get_Scriptable_Building(state, building.scriptable_id);
+        assert(scriptable_building_ != nullptr);
+        auto& scriptable_building = *scriptable_building_;
+
+        auto tex_id = scriptable_building.texture->id;
+        glBindTexture(GL_TEXTURE_2D, tex_id);
+
+        auto sprite_pos = building.pos * cell_size;
+        auto sprite_size = v2i(1, 1) * cell_size;
+
+        glBegin(GL_TRIANGLES);
+        Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+        glEnd();
+    }
 
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());
