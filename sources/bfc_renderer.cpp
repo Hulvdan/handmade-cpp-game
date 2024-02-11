@@ -355,6 +355,8 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     state.zoom_target = 1;
     state.cell_size = 32;
 
+    // state.building_textures = nullptr;
+
     return state_;
 }
 
