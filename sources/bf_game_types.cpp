@@ -18,29 +18,40 @@ struct Arena {
 // --- Memory End ---
 
 // --- Game Logic ---
-using BuildingID = u32;
+
+using Scriptable_Building_ID = u32;
+using Scriptable_Resource_ID = u32;
+global Scriptable_Resource_ID global_forest_resource_id = 1;
+
+using Building_ID = u32;
+using Human_ID = u32;
 
 struct Scriptable_Building {};
 
 struct Human {};
-struct Resource_To_Book {};
+
+struct Resource_To_Book {
+    Scriptable_Building_ID scriptable_id;
+    i8 amount;
+};
 
 struct Building {
-    Human* constructor;
-    Human* employee;
-    Scriptable_Building* scriptable;
+    Human_ID constructor;
+    Human_ID employee;
+
+    Scriptable_Building_ID scriptable_id;
 
     size_t resources_to_book_count;
     Resource_To_Book* resources_to_book;
     v2i pos;
 
-    BuildingID id;
+    Building_ID id;
     f32 timeSinceHumanWasCreated;
     f32 timeSinceItemWasPlaced;
 };
 
 enum class Terrain {
-    None,
+    None = 0,
     Grass,
 };
 
@@ -75,13 +86,14 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource {
-    u32 id;
+    // u32 id;
     const char* name;
 };
 
 // NOTE(hulvdan): `scriptable` is `null` when `amount` = 0
 struct Terrain_Resource {
-    Scriptable_Resource* scriptable;
+    Scriptable_Resource_ID scriptable_id;
+
     u8 amount;
 };
 
@@ -122,7 +134,6 @@ struct Observer {
 //         Renderer__On_Item_Built,
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
-// TODO(hulvdan): Allocate_ should know about alignment of pointers!
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)               \
     {                                                                                \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                 \
@@ -140,7 +151,10 @@ struct Game_State {
     v2f player_pos;
     Game_Map game_map;
 
-    Scriptable_Resource DEBUG_forest;
+    size_t scriptable_resources_count;
+    Scriptable_Resource* scriptable_resources;
+    size_t scriptable_buildings_count;
+    Scriptable_Building* scriptable_buildings;
 
     Arena memory_arena;
     Arena file_loading_arena;
@@ -214,9 +228,6 @@ struct Game_Renderer_State {
 
     size_t building_textures_count;
     Loaded_Texture* building_textures;
-
-    size_t scriptable_buildings_count;
-    Scriptable_Building* scriptable_buildings;
 
     int tilemaps_count;
     Tilemap* tilemaps;

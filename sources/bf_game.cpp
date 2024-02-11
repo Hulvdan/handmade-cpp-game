@@ -217,10 +217,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         state.offset_x = 0;
         state.offset_y = 0;
 
-        auto forest_string = "forest";
-        state.DEBUG_forest.name = forest_string;
-        state.DEBUG_forest.id = Hash32_String(forest_string);
-
         auto initial_offset = sizeof(Game_Memory);
         auto file_loading_arena_size = Megabytes((size_t)1);
 
@@ -242,6 +238,9 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, tiles_count);
         state.game_map.terrain_resources = Allocate_Array(arena, Terrain_Resource, tiles_count);
         state.game_map.element_tiles = Allocate_Array(arena, Element_Tile, tiles_count);
+
+        state.scriptable_resources = Allocate_Array(arena, Scriptable_Resource, 1);
+        (*state.scriptable_resources).name = "forest";
 
         Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
         Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
