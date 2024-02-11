@@ -6,6 +6,10 @@
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
 
+#define local_persist static
+#define global static
+#define internal static
+
 #include "bf_types.h"
 
 #define UNREACHABLE assert(false)

@@ -1,7 +1,10 @@
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
-#define Allocate_Zeros_For(arena, type) rcast<type*>(Allocate_Zeros_(arena, sizeof(type)))
 #define Allocate_Array(arena, type, count) rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
+
+#define Allocate_Zeros_For(arena, type) rcast<type*>(Allocate_Zeros_(arena, sizeof(type)))
+#define Allocate_Zeros_Array(arena, type, count) \
+    rcast<type*>(Allocate_Zeros_(arena, sizeof(type) * (count)))
 // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 
 #define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))

@@ -235,16 +235,43 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto& dim = state.game_map.size;
 
         auto tiles_count = (size_t)dim.x * dim.y;
-        state.game_map.terrain_tiles = Allocate_Array(arena, Terrain_Tile, tiles_count);
-        state.game_map.terrain_resources = Allocate_Array(arena, Terrain_Resource, tiles_count);
-        state.game_map.element_tiles = Allocate_Array(arena, Element_Tile, tiles_count);
+        state.game_map.terrain_tiles = Allocate_Zeros_Array(arena, Terrain_Tile, tiles_count);
+        state.game_map.terrain_resources =
+            Allocate_Zeros_Array(arena, Terrain_Resource, tiles_count);
+        state.game_map.element_tiles = Allocate_Zeros_Array(arena, Element_Tile, tiles_count);
 
-        state.scriptable_resources = Allocate_Array(arena, Scriptable_Resource, 1);
-        (*state.scriptable_resources).name = "forest";
+        state.scriptable_resources_count = 1;
+        state.scriptable_resources = Allocate_Zeros_Array(arena, Scriptable_Resource, 1);
+        {
+            auto r_ = Get_Scriptable_Resource(state, 1);
+            assert(r_ != nullptr);
+            auto r = *r_;
+
+            r.name = "forest";
+        }
+
+        state.scriptable_buildings_count = 2;
+        state.scriptable_buildings = Allocate_Zeros_Array(arena, Scriptable_Building, 2);
+        {
+            auto b_ = Get_Scriptable_Building(state, 1);
+            assert(b_ != nullptr);
+            auto b = *b_;
+
+            b.name = "City Hall";
+            b.type = Building_Type::City_Hall;
+        }
+        {
+            auto b_ = Get_Scriptable_Building(state, 2);
+            assert(b_ != nullptr);
+            auto b = *b_;
+
+            b.name = "Lumberjack's Hut";
+            b.type = Building_Type::Harvest;
+        }
 
         Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
         Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
-        state.renderer_state = Initialize_Renderer(state.game_map, arena, file_loading_arena);
+        state.renderer_state = Initialize_Renderer(state, arena, file_loading_arena);
 
         {
             On_Item_Built__Function((*callbacks[])) = {

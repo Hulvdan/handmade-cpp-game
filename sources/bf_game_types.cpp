@@ -6,6 +6,7 @@ struct Game_State;
 
 #ifdef BF_CLIENT
 struct Game_Renderer_State;
+struct Loaded_Texture;
 #endif
 // --- Forward Declarations End ---
 
@@ -19,20 +20,40 @@ struct Arena {
 
 // --- Game Logic ---
 
-using Scriptable_Building_ID = u32;
-using Scriptable_Resource_ID = u32;
+using Scriptable_Building_ID = u16;
+global Scriptable_Building_ID global_city_hall_building_id = 1;
+global Scriptable_Building_ID global_lumberjacks_hut_building_id = 2;
+
+using Scriptable_Resource_ID = u16;
 global Scriptable_Resource_ID global_forest_resource_id = 1;
 
 using Building_ID = u32;
 using Human_ID = u32;
 
-struct Scriptable_Building {};
+enum class Building_Type {
+    City_Hall,
+    Harvest,
+    Plant,
+    Fish,
+    Produce,
+};
+
+struct Scriptable_Building {
+    const char* name;
+    Building_Type type;
+
+#ifdef BF_CLIENT
+    Loaded_Texture* texture;
+#endif  // BF_CLIENT
+
+    Scriptable_Resource_ID harvestable_resource_id;
+};
 
 struct Human {};
 
 struct Resource_To_Book {
-    Scriptable_Building_ID scriptable_id;
-    i8 amount;
+    Scriptable_Resource_ID scriptable_id;
+    u8 amount;
 };
 
 struct Building {
@@ -46,8 +67,8 @@ struct Building {
     v2i pos;
 
     Building_ID id;
-    f32 timeSinceHumanWasCreated;
-    f32 timeSinceItemWasPlaced;
+    f32 time_since_human_was_created;
+    // f32 time_since_item_was_placed;
 };
 
 enum class Terrain {
@@ -86,7 +107,6 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource {
-    // u32 id;
     const char* name;
 };
 

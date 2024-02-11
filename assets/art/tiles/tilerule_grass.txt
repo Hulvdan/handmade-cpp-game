@@ -1,109 +1,109 @@
-grass_1
-grass_10
+tiles/grass_1
+tiles/grass_10
 | @ |
 |@@@|
 |*@*|
-grass_4
+tiles/grass_4
 | @ |
 |@@@|
 |*@ |
-grass_3
+tiles/grass_3
 | @ |
 |@@@|
 | @*|
-grass_6
+tiles/grass_6
 | @ |
 |@@@|
 | @ |
-grass_16
+tiles/grass_16
 |   |
 |*@*|
 | * |
-grass_13
+tiles/grass_13
 |* @|
 |@@@|
 | * |
-grass_15
+tiles/grass_15
 |@ *|
 |@@@|
 | * |
-grass_16
+tiles/grass_16
 |* *|
 |@@@|
 | * |
-grass_16
+tiles/grass_16
 |*  |
 |@@ |
 | * |
-grass_16
+tiles/grass_16
 |  *|
 | @@|
 | * |
-grass_15
+tiles/grass_15
 | @*|
 |@@@|
 | * |
-grass_15
+tiles/grass_15
 |   |
 |@@*|
 | * |
-grass_13
+tiles/grass_13
 |   |
 |*@@|
 | * |
-grass_14
+tiles/grass_14
 |   |
 |@@@|
 | * |
-grass_8
+tiles/grass_8
 | * |
 |*@*|
 | @ |
-grass_8
+tiles/grass_8
 | * |
 |@@@|
 |*@*|
-grass_8
+tiles/grass_8
 | * |
 |*@@|
 | @*|
-grass_8
+tiles/grass_8
 | * |
 |@@*|
 |*@ |
-grass_9
+tiles/grass_9
 | @ |
 |*@@|
 | @*|
-grass_11
+tiles/grass_11
 | @ |
 |@@*|
 |*@ |
-grass_0
+tiles/grass_0
 | * |
 |*@@|
 | @ |
-grass_2
+tiles/grass_2
 | * |
 |@@*|
 | @ |
-grass_7
+tiles/grass_7
 | @ |
 |@@*|
 | @ |
-grass_5
+tiles/grass_5
 | @ |
 |*@@|
 | @ |
-grass_12
+tiles/grass_12
 | @ |
 |*@*|
 | @ |
-grass_0
+tiles/grass_0
 | * |
 |@@@|
 |*@ |
-grass_2
+tiles/grass_2
 | * |
 |@@@|
 | @*|
