@@ -87,7 +87,7 @@ void Fill_Perlin_1D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves) {
+    FOR_RANGE(u8, _, octaves) {
         sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
@@ -112,7 +112,7 @@ void Fill_Perlin_1D(
         octave_c /= scaling_bias;
     }
 
-    FOR_RANGE(int, x, sx) {
+    FOR_RANGE(u16, x, sx) {
         auto t = (*(accumulator + x)) / sum_of_division;
         assert(t <= 1.0f);
         assert(t >= 0);

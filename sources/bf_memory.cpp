@@ -6,6 +6,9 @@
 
 #define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))
 
+// TODO(hulvdan): Introduce the notion of `alignment` here!
+// NOTE: Refer to Casey's memory allocation functions
+// https://youtu.be/MvDUe2evkHg?list=PLEMXAbCVnmY6Azbmzj3BiC3QRYHE9QoG7&t=2121
 u8* Allocate_(Arena& arena, size_t size) {
     assert(size > 0);
     assert(arena.size >= size);

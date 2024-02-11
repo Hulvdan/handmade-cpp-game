@@ -20,9 +20,23 @@ struct Arena {
 // --- Game Logic ---
 using BuildingID = u32;
 
+struct Scriptable_Building {};
+
+struct Human {};
+struct Resource_To_Book {};
+
 struct Building {
-    BuildingID id;
+    Human* constructor;
+    Human* employee;
+    Scriptable_Building* scriptable;
+
+    size_t resources_to_book_count;
+    Resource_To_Book* resources_to_book;
     v2i pos;
+
+    BuildingID id;
+    f32 timeSinceHumanWasCreated;
+    f32 timeSinceItemWasPlaced;
 };
 
 enum class Terrain {
@@ -82,6 +96,9 @@ struct Game_Map {
     Terrain_Tile* terrain_tiles;
     Terrain_Resource* terrain_resources;
     Element_Tile* element_tiles;
+
+    size_t buildings_count;
+    Building* buildings;
 };
 
 template <typename T>
@@ -185,7 +202,6 @@ struct Tilemap {
 struct Game_Renderer_State {
     Game_Bitmap* bitmap;
 
-    // WARNING(hulvdan): It is not filled with 0 upon initialization!
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
     Tile_ID forest_top_tile_id;
@@ -195,6 +211,12 @@ struct Game_Renderer_State {
     Loaded_Texture forest_textures[3];
     Loaded_Texture road_textures[16];
     Loaded_Texture flag_textures[4];
+
+    size_t building_textures_count;
+    Loaded_Texture* building_textures;
+
+    size_t scriptable_buildings_count;
+    Scriptable_Building* scriptable_buildings;
 
     int tilemaps_count;
     Tilemap* tilemaps;

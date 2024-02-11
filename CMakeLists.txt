@@ -125,7 +125,7 @@ target_link_libraries(tests PRIVATE glew glm)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 
-set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=undefined /fsanitize=address)
+set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)
 target_compile_options(bf_game PRIVATE ${COMPILATION_FLAGS})
 target_compile_options(win32 PRIVATE ${COMPILATION_FLAGS})
 target_compile_options(tests PRIVATE ${COMPILATION_FLAGS})

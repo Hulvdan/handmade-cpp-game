@@ -7,7 +7,6 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <vector>
 #include <memory>
 
 #include "glew.h"
