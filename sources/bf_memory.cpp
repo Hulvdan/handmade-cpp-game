@@ -39,7 +39,7 @@ u8* Book_Single_Page(Game_State& state) {
     auto& os_data = *state.os_data;
 
     // NOTE(hulvdan): If there exists allocated page that is not in use -> return it
-    FOR_RANGE(u32, i, pages.already_allocated_pages_count) {
+    FOR_RANGE(u32, i, pages.already_allocated_count) {
         bool& in_use = *(pages.in_use + i);
         if (!in_use) {
             in_use = true;
@@ -48,21 +48,21 @@ u8* Book_Single_Page(Game_State& state) {
     }
 
     // NOTE(hulvdan): Allocating more pages and mapping them
-    assert(pages.already_allocated_pages_count < pages.total_pages_count_cap);
+    assert(pages.already_allocated_count < pages.total_count_cap);
 
     auto pages_to_allocate = os_data.min_pages_per_allocation;
     auto allocation_address = os_data.Allocate_Pages(pages_to_allocate);
 
     FOR_RANGE(u32, i, pages_to_allocate) {
-        auto& page = *(pages.base + pages.already_allocated_pages_count + i);
+        auto& page = *(pages.base + pages.already_allocated_count + i);
         page.base = allocation_address + (ptrd)i * os_data.page_size;
     }
 
     // NOTE(hulvdan): Booking the first page that we allocated and returning it
-    Page* result = pages.base + (ptrd)pages.already_allocated_pages_count;
+    Page* result = pages.base + (ptrd)pages.already_allocated_count;
 
-    *(pages.in_use + pages.already_allocated_pages_count) = true;
-    pages.already_allocated_pages_count += pages_to_allocate;
+    *(pages.in_use + pages.already_allocated_count) = true;
+    pages.already_allocated_count += pages_to_allocate;
 
     return result->base;
 }

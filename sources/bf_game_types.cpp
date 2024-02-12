@@ -63,8 +63,8 @@ struct Page {
 };
 
 struct Pages {
-    size_t total_pages_count_cap;
-    size_t already_allocated_pages_count;
+    size_t total_count_cap;
+    size_t already_allocated_count;
     Page* base;
     bool* in_use;
 };

@@ -219,7 +219,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;
         state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
         state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
-        state.pages.total_pages_count_cap = pages_count_that_fit_2GB;
+        state.pages.total_count_cap = pages_count_that_fit_2GB;
 
         state.game_map = {};
         state.game_map.size = {32, 24};
