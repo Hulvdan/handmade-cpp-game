@@ -1,4 +1,3 @@
-//
 #pragma once
 
 #ifndef BF_CLIENT
@@ -79,8 +78,33 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
 
     glTexImage2D(
         GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE, texture.address);
+        GL_UNSIGNED_BYTE, texture.base);
     assert(!glGetError());
+}
+
+void DEBUG_Load_Texture(
+    Arena& arena,
+    Arena& temp_arena,
+    const char* texture_name,
+    Loaded_Texture& out_texture  //
+) {
+    char filepath[512];
+    sprintf(filepath, "assets/art/%s.bmp", texture_name);
+
+    Load_BMP_RGBA_Result bmp_result = {};
+    {
+        auto load_result = Debug_Load_File_To_Arena(filepath, temp_arena);
+        assert(load_result.success);
+        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+
+        bmp_result = Load_BMP_RGBA(arena, load_result.output);
+        assert(bmp_result.success);
+    }
+
+    out_texture.id = scast<BF_Texture_ID>(Hash32_String(texture_name));
+    out_texture.size = {bmp_result.width, bmp_result.height};
+    out_texture.base = bmp_result.output;
+    Send_Texture_To_GPU(out_texture);
 }
 
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
@@ -110,131 +134,41 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
     return road_texture_number;
 }
 
-Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena& temp_arena) {
-    auto state_ = Allocate_Zeros_For(arena, Game_Renderer_State);
-    auto& state = *state_;
+Game_Renderer_State* Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
+    auto rstate_ = Allocate_Zeros_For(arena, Game_Renderer_State);
+    auto& rstate = *rstate_;
+    auto& game_map = state.game_map;
 
-    Load_BMP_RGBA_Result bmp_result = {};
-    {
-        auto load_result = Debug_Load_File_To_Arena("assets/art/human.bmp", temp_arena);
-        assert(load_result.success);
-        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
-
-        bmp_result = Load_BMP_RGBA(arena, load_result.output);
-        assert(bmp_result.success);
-    }
-
-    state.human_texture.size = {bmp_result.width, bmp_result.height};
-    state.human_texture.address = bmp_result.output;
+    DEBUG_Load_Texture(arena, temp_arena, "human", rstate.human_texture);
 
     glEnable(GL_TEXTURE_2D);
 
     auto gsize = game_map.size;
 
-    char buffer[512] = {};
+    char texture_name[512] = {};
     FOR_RANGE(int, i, 17) {
-        sprintf(buffer, "assets/art/tiles/grass_%d.bmp", i);
-
-        Load_BMP_RGBA_Result bmp_result = {};
-        {
-            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
-            assert(load_result.success);
-            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
-
-            bmp_result = Load_BMP_RGBA(arena, load_result.output);
-            assert(bmp_result.success);
-        }
-
-        Loaded_Texture& texture = state.grass_textures[i];
-
-        constexpr size_t NAME_SIZE = 64;
-        char name[NAME_SIZE] = {};
-        sprintf(name, "grass_%d", i);
-
-        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
-        texture.size = {bmp_result.width, bmp_result.height};
-        texture.address = bmp_result.output;
-        Send_Texture_To_GPU(texture);
+        sprintf(texture_name, "tiles/grass_%d", i);
+        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.grass_textures[i]);
     }
 
     FOR_RANGE(int, i, 3) {
-        sprintf(buffer, "assets/art/tiles/forest_%d.bmp", i);
-
-        Load_BMP_RGBA_Result bmp_result = {};
-        {
-            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
-            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
-            assert(load_result.success);
-
-            bmp_result = Load_BMP_RGBA(arena, load_result.output);
-            assert(bmp_result.success);
-        }
-
-        Loaded_Texture& texture = state.forest_textures[i];
-
-        constexpr size_t NAME_SIZE = 64;
-        char name[NAME_SIZE] = {};
-        sprintf(name, "forest_%d", i);
-
-        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
-        texture.size = {bmp_result.width, bmp_result.height};
-        texture.address = bmp_result.output;
-        Send_Texture_To_GPU(texture);
+        sprintf(texture_name, "tiles/forest_%d", i);
+        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.forest_textures[i]);
     }
 
     FOR_RANGE(int, i, 16) {
-        sprintf(buffer, "assets/art/tiles/road_%d.bmp", i);
-
-        Load_BMP_RGBA_Result bmp_result = {};
-        {
-            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
-            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
-            assert(load_result.success);
-
-            bmp_result = Load_BMP_RGBA(arena, load_result.output);
-            assert(bmp_result.success);
-        }
-
-        Loaded_Texture& texture = state.road_textures[i];
-
-        constexpr size_t NAME_SIZE = 64;
-        char name[NAME_SIZE] = {};
-        sprintf(name, "road_%d", i);
-
-        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
-        texture.size = {bmp_result.width, bmp_result.height};
-        texture.address = bmp_result.output;
-        Send_Texture_To_GPU(texture);
+        sprintf(texture_name, "tiles/road_%d", i);
+        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.road_textures[i]);
     }
 
     FOR_RANGE(int, i, 4) {
-        sprintf(buffer, "assets/art/tiles/flag_%d.bmp", i);
-
-        Load_BMP_RGBA_Result bmp_result = {};
-        {
-            auto load_result = Debug_Load_File_To_Arena(buffer, temp_arena);
-            DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
-            assert(load_result.success);
-
-            bmp_result = Load_BMP_RGBA(arena, load_result.output);
-            assert(bmp_result.success);
-        }
-
-        Loaded_Texture& texture = state.flag_textures[i];
-
-        constexpr size_t NAME_SIZE = 64;
-        char name[NAME_SIZE] = {};
-        sprintf(name, "flag_%d", i);
-
-        texture.id = scast<BF_Texture_ID>(Hash32_String(name));
-        texture.size = {bmp_result.width, bmp_result.height};
-        texture.address = bmp_result.output;
-        Send_Texture_To_GPU(texture);
+        sprintf(texture_name, "tiles/flag_%d", i);
+        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.flag_textures[i]);
     }
 
-    state.grass_smart_tile.id = 1;
-    state.forest_smart_tile.id = 2;
-    state.forest_top_tile_id = 3;
+    rstate.grass_smart_tile.id = 1;
+    rstate.forest_smart_tile.id = 2;
+    rstate.forest_top_tile_id = 3;
 
     {
         auto path = "assets/art/tiles/tilerule_grass.txt";
@@ -243,7 +177,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
 
         auto rule_loading_result = Load_Smart_Tile_Rules(
-            state.grass_smart_tile, arena, load_result.output, load_result.size);
+            rstate.grass_smart_tile, arena, load_result.output, load_result.size);
         assert(rule_loading_result.success);
     }
 
@@ -254,7 +188,7 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
 
         auto rule_loading_result = Load_Smart_Tile_Rules(
-            state.forest_smart_tile, arena, load_result.output, load_result.size);
+            rstate.forest_smart_tile, arena, load_result.output, load_result.size);
         assert(rule_loading_result.success);
     }
 
@@ -266,29 +200,29 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
         }
     }
 
-    state.tilemaps_count = 0;
+    rstate.tilemaps_count = 0;
     // NOTE(hulvdan): Terrain tilemaps ([0; max_height])
-    state.terrain_tilemaps_count = max_height + 1;
-    state.tilemaps_count += state.terrain_tilemaps_count;
+    rstate.terrain_tilemaps_count = max_height + 1;
+    rstate.tilemaps_count += rstate.terrain_tilemaps_count;
 
     // NOTE(hulvdan): Terrain Resources (forests, stones, etc.)
     // Currently use 2 tilemaps:
     // 1) Forests
     // 2) Tree's top tiles
-    state.resources_tilemap_index = state.tilemaps_count;
-    state.tilemaps_count += 2;
+    rstate.resources_tilemap_index = rstate.tilemaps_count;
+    rstate.tilemaps_count += 2;
 
     // NOTE(hulvdan): Element Tiles (roads, buildings, etc.)
     // Currently use 2 tilemaps:
     // 1) Roads
     // 2) Flags above roads
-    state.element_tilemap_index = state.tilemaps_count;
-    state.tilemaps_count += 2;
+    rstate.element_tilemap_index = rstate.tilemaps_count;
+    rstate.tilemaps_count += 2;
 
-    state.tilemaps = Allocate_Array(arena, Tilemap, state.tilemaps_count);
+    rstate.tilemaps = Allocate_Array(arena, Tilemap, rstate.tilemaps_count);
 
-    FOR_RANGE(i32, h, state.tilemaps_count) {
-        auto& tilemap = *(state.tilemaps + h);
+    FOR_RANGE(i32, h, rstate.tilemaps_count) {
+        auto& tilemap = *(rstate.tilemaps + h);
         tilemap.tiles = Allocate_Array(arena, Tile_ID, gsize.x * gsize.y);
 
         FOR_RANGE(i32, y, gsize.y) {
@@ -297,13 +231,13 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
                 auto& tilemap_tile = *(tilemap.tiles + y * gsize.x + x);
 
                 bool grass = tile.terrain == Terrain::Grass && tile.height >= h;
-                tilemap_tile = grass * state.grass_smart_tile.id;
+                tilemap_tile = grass * rstate.grass_smart_tile.id;
             }
         }
     }
 
-    auto& resources_tilemap = *(state.tilemaps + state.resources_tilemap_index);
-    auto& resources_tilemap2 = *(state.tilemaps + state.resources_tilemap_index + 1);
+    auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
+    auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
     FOR_RANGE(i32, y, gsize.y) {
         auto is_last_row = y == gsize.y - 1;
         FOR_RANGE(i32, x, gsize.x) {
@@ -317,21 +251,21 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
             if (!forest)
                 continue;
 
-            tile = state.forest_smart_tile.id;
+            tile = rstate.forest_smart_tile.id;
 
             bool forest_above = false;
             if (!is_last_row) {
                 auto& tile_above = *(resources_tilemap.tiles + (y + 1) * gsize.x + x);
-                forest_above = tile_above == state.forest_smart_tile.id;
+                forest_above = tile_above == rstate.forest_smart_tile.id;
             }
 
             if (!forest_above)
-                *(resources_tilemap2.tiles + y * gsize.x + x) = state.forest_top_tile_id;
+                *(resources_tilemap2.tiles + y * gsize.x + x) = rstate.forest_top_tile_id;
         }
     }
 
     // --- Element Tiles ---
-    auto& element_tilemap = *(state.tilemaps + state.element_tilemap_index);
+    auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
     v2i adjacent_offsets[4] = {
         {1, 0},
         {0, 1},
@@ -351,13 +285,22 @@ Game_Renderer_State* Initialize_Renderer(Game_Map& game_map, Arena& arena, Arena
     }
     // --- Element Tiles End ---
 
-    state.zoom = 1;
-    state.zoom_target = 1;
-    state.cell_size = 32;
+    rstate.zoom = 1;
+    rstate.zoom_target = 1;
+    rstate.cell_size = 32;
 
-    // state.building_textures = nullptr;
+    {
+        auto& b = *Get_Scriptable_Building(state, global_city_hall_building_id);
+        b.texture = Allocate_For(arena, Loaded_Texture);
+        DEBUG_Load_Texture(arena, temp_arena, "tiles/building_house", *b.texture);
+    }
+    {
+        auto& b = *Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
+        b.texture = Allocate_For(arena, Loaded_Texture);
+        DEBUG_Load_Texture(arena, temp_arena, "tiles/building_lumberjack", *b.texture);
+    }
 
-    return state_;
+    return rstate_;
 }
 
 void Draw_Sprite(
@@ -664,6 +607,32 @@ void Render(Game_State& state, f32 dt) {
         }
     }
     // --- Drawing Element Tiles End ---
+
+    FOR_RANGE(size_t, building_page_index, game_map.building_pages_used) {
+        auto& building_page = *(game_map.building_pages + building_page_index);
+        auto buildings_count =
+            *rcast<size_t*>(building_page.base + state.os_data->page_size - sizeof(size_t));
+
+        FOR_RANGE(size_t, building_index, buildings_count) {
+            Building& building = *(rcast<Building*>(building_page.base) + building_index);
+            if (!building.active)
+                continue;
+
+            auto scriptable_building_ = Get_Scriptable_Building(state, building.scriptable_id);
+            assert(scriptable_building_ != nullptr);
+            auto& scriptable_building = *scriptable_building_;
+
+            auto tex_id = scriptable_building.texture->id;
+            glBindTexture(GL_TEXTURE_2D, tex_id);
+
+            auto sprite_pos = building.pos * cell_size;
+            auto sprite_size = v2i(1, 1) * cell_size;
+
+            glBegin(GL_TRIANGLES);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            glEnd();
+        }
+    }
 
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());

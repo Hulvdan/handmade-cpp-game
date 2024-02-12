@@ -6,6 +6,7 @@ struct Game_State;
 
 #ifdef BF_CLIENT
 struct Game_Renderer_State;
+struct Loaded_Texture;
 #endif
 // --- Forward Declarations End ---
 
@@ -18,29 +19,74 @@ struct Arena {
 // --- Memory End ---
 
 // --- Game Logic ---
-using BuildingID = u32;
 
-struct Scriptable_Building {};
+using Scriptable_Building_ID = u16;
+global Scriptable_Building_ID global_city_hall_building_id = 1;
+global Scriptable_Building_ID global_lumberjacks_hut_building_id = 2;
 
-struct Human {};
-struct Resource_To_Book {};
+using Scriptable_Resource_ID = u16;
+global Scriptable_Resource_ID global_forest_resource_id = 1;
+
+using Building_ID = u32;
+using Human_ID = u32;
+
+enum class Building_Type {
+    City_Hall,
+    Harvest,
+    Plant,
+    Fish,
+    Produce,
+};
+
+struct Scriptable_Building {
+    const char* name;
+    Building_Type type;
+
+#ifdef BF_CLIENT
+    Loaded_Texture* texture;
+#endif  // BF_CLIENT
+
+    Scriptable_Resource_ID harvestable_resource_id;
+};
+
+struct Human {
+    //
+};
+
+struct Resource_To_Book {
+    Scriptable_Resource_ID scriptable_id;
+    u8 amount;
+};
+
+struct Page {
+    u8* base;
+};
+
+struct Pages {
+    size_t total_pages_count_cap;
+    size_t already_allocated_pages_count;
+    Page* base;
+    bool* in_use;
+};
 
 struct Building {
-    Human* constructor;
-    Human* employee;
-    Scriptable_Building* scriptable;
+    Human_ID constructor;
+    Human_ID employee;
+
+    Scriptable_Building_ID scriptable_id;
 
     size_t resources_to_book_count;
     Resource_To_Book* resources_to_book;
     v2i pos;
 
-    BuildingID id;
-    f32 timeSinceHumanWasCreated;
-    f32 timeSinceItemWasPlaced;
+    Building_ID id;
+    f32 time_since_human_was_created;
+    // f32 time_since_item_was_placed;
+    bool active;
 };
 
 enum class Terrain {
-    None,
+    None = 0,
     Grass,
 };
 
@@ -75,13 +121,13 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource {
-    u32 id;
     const char* name;
 };
 
 // NOTE(hulvdan): `scriptable` is `null` when `amount` = 0
 struct Terrain_Resource {
-    Scriptable_Resource* scriptable;
+    Scriptable_Resource_ID scriptable_id;
+
     u8 amount;
 };
 
@@ -97,8 +143,9 @@ struct Game_Map {
     Terrain_Resource* terrain_resources;
     Element_Tile* element_tiles;
 
-    size_t buildings_count;
-    Building* buildings;
+    size_t building_pages_used;
+    size_t building_pages_total;
+    Page* building_pages;
 };
 
 template <typename T>
@@ -122,7 +169,6 @@ struct Observer {
 //         Renderer__On_Item_Built,
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
-// TODO(hulvdan): Allocate_ should know about alignment of pointers!
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)               \
     {                                                                                \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                 \
@@ -140,10 +186,16 @@ struct Game_State {
     v2f player_pos;
     Game_Map game_map;
 
-    Scriptable_Resource DEBUG_forest;
+    size_t scriptable_resources_count;
+    Scriptable_Resource* scriptable_resources;
+    size_t scriptable_buildings_count;
+    Scriptable_Building* scriptable_buildings;
 
     Arena memory_arena;
     Arena file_loading_arena;
+
+    OS_Data* os_data;
+    Pages pages;
 
 #ifdef BF_CLIENT
     Game_Renderer_State* renderer_state;
@@ -165,7 +217,7 @@ using BF_Texture_ID = u32;
 struct Loaded_Texture {
     BF_Texture_ID id;
     v2i size;
-    u8* address;
+    u8* base;
 };
 // --- CLIENT. Rendering End ---
 
@@ -211,12 +263,6 @@ struct Game_Renderer_State {
     Loaded_Texture forest_textures[3];
     Loaded_Texture road_textures[16];
     Loaded_Texture flag_textures[4];
-
-    size_t building_textures_count;
-    Loaded_Texture* building_textures;
-
-    size_t scriptable_buildings_count;
-    Scriptable_Building* scriptable_buildings;
 
     int tilemaps_count;
     Tilemap* tilemaps;

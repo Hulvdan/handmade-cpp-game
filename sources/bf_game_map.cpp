@@ -1,5 +1,25 @@
 #pragma once
 
+Scriptable_Resource* Get_Scriptable_Resource(Game_State& game_state, Scriptable_Resource_ID id) {
+    assert(id - 1 < game_state.scriptable_resources_count);
+
+    auto exists = id != 0;
+    ptrd offset_resource = (ptrd)(game_state.scriptable_resources + (ptrd)id - 1);
+
+    auto result = offset_resource * exists;
+    return (Scriptable_Resource*)result;
+}
+
+Scriptable_Building* Get_Scriptable_Building(Game_State& game_state, Scriptable_Building_ID id) {
+    assert(id - 1 < game_state.scriptable_buildings_count);
+
+    auto exists = id != 0;
+    ptrd offset_building = (ptrd)(game_state.scriptable_buildings + (ptrd)id - 1);
+
+    auto result = offset_building * exists;
+    return (Scriptable_Building*)result;
+}
+
 Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos) {
     assert(Pos_Is_In_Bounds(pos, game_map.size));
     return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
@@ -17,9 +37,9 @@ void Regenerate_Terrain_Tiles(
     uint seed,
     Editor_Data& data  //
 ) {
-    auto size = game_map.size;
+    auto gsize = game_map.size;
 
-    auto noise_pitch = Ceil_To_Power_Of_2(MAX(size.x, size.y));
+    auto noise_pitch = Ceil_To_Power_Of_2(MAX(gsize.x, gsize.y));
     auto output_size = noise_pitch * noise_pitch;
 
     auto terrain_perlin = Allocate_Array(arena, u16, output_size);
@@ -34,8 +54,8 @@ void Regenerate_Terrain_Tiles(
         forest_perlin, sizeof(u16) * output_size, arena, data.forest_perlin, noise_pitch,
         noise_pitch);
 
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::Grass;
             auto noise = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
@@ -49,12 +69,12 @@ void Regenerate_Terrain_Tiles(
     // NOTE(hulvdan): Removing one-tile-high grass blocks because they'd look ugly
     while (true) {
         bool changed = false;
-        FOR_RANGE(int, y, size.y) {
-            FOR_RANGE(int, x, size.x) {
+        FOR_RANGE(int, y, gsize.y) {
+            FOR_RANGE(int, x, gsize.x) {
                 auto& tile = Get_Terrain_Tile(game_map, {x, y});
 
                 int height_above = 0;
-                if (y < size.y - 1)
+                if (y < gsize.y - 1)
                     height_above = Get_Terrain_Tile(game_map, {x, y + 1}).height;
 
                 int height_below = 0;
@@ -73,8 +93,8 @@ void Regenerate_Terrain_Tiles(
             break;
     }
 
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             if (tile.is_cliff)
                 continue;
@@ -83,17 +103,16 @@ void Regenerate_Terrain_Tiles(
         }
     }
 
-    auto scriptable_ptr = &state.DEBUG_forest;
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
             auto noise = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
-            bool forest = (!tile.is_cliff) && (noise > data.forest_threshold);
+            bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
-            resource.scriptable = (Scriptable_Resource*)((ptrd)scriptable_ptr * forest);
-            resource.amount = data.forest_max_amount * forest;
+            resource.scriptable_id = global_forest_resource_id * generate;
+            resource.amount = data.forest_max_amount * generate;
         }
     }
 
@@ -114,7 +133,7 @@ void Regenerate_Element_Tiles(
     uint seed,
     Editor_Data& data  //
 ) {
-    auto size = game_map.size;
+    auto gsize = game_map.size;
 
     v2i road_tiles[] = {
         {0, 1},
@@ -148,11 +167,74 @@ void Regenerate_Element_Tiles(
     auto base_offset = v2i(1, 1);
     for (auto offset : road_tiles) {
         auto o = offset + base_offset;
-        Element_Tile& tile = *(game_map.element_tiles + o.y * size.x + o.x);
+        Element_Tile& tile = *(game_map.element_tiles + o.y * gsize.x + o.x);
 
         tile.type = Element_Tile_Type::Road;
         assert(tile.building == nullptr);
     }
+
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            Element_Tile& tile = *(game_map.element_tiles + y * gsize.x + x);
+            Validate_Element_Tile(tile);
+        }
+    }
+}
+
+void Increate_Buildings_Count(Game_State& state, Page& page) {
+    const auto page_size = state.os_data->page_size;
+    size_t& buildings_count = *rcast<size_t*>(page.base + page_size - sizeof(size_t));
+    buildings_count++;
+}
+
+void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
+    auto& game_map = state.game_map;
+    auto gsize = game_map.size;
+    auto& os_data = *state.os_data;
+
+    const auto page_size = os_data.page_size;
+    assert(Pos_Is_In_Bounds(pos, gsize));
+
+    const auto max_buildings_per_page = (page_size - sizeof(size_t)) / sizeof(Building);
+
+    Building* found_building = nullptr;
+    FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
+        auto& page_candidate = *(game_map.building_pages + page_index);
+
+        size_t& buildings_count = *rcast<size_t*>(page_candidate.base + page_size - sizeof(size_t));
+        if (buildings_count >= max_buildings_per_page)
+            continue;
+
+        FOR_RANGE(size_t, building_index, max_buildings_per_page) {
+            auto& building = *(rcast<Building*>(page_candidate.base) + building_index);
+            if (!building.active) {
+                found_building = &building;
+                buildings_count++;
+                break;
+            }
+        }
+
+        if (found_building != nullptr)
+            break;
+    }
+
+    if (found_building == nullptr) {
+        assert(state.game_map.building_pages_used < state.game_map.building_pages_total);
+        Page& next_page = *(state.game_map.building_pages + state.game_map.building_pages_used);
+
+        next_page.base = Book_Single_Page(state);
+        state.game_map.building_pages_used++;
+
+        found_building = rcast<Building*>(next_page.base);
+        assert(found_building != nullptr);
+        Increate_Buildings_Count(state, next_page);
+    }
+
+    auto& b = *found_building;
+
+    b.pos = pos;
+    b.active = true;
+    b.scriptable_id = id;
 }
 
 bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {

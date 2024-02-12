@@ -21,9 +21,7 @@
 #include "bf_base.h"
 #include "bf_game.h"
 
-#define local_persist static
-#define global static
-#define internal static
+global OS_Data os_data;
 
 // -- RENDERING STUFF
 struct BF_Bitmap {
@@ -37,8 +35,8 @@ struct BF_Bitmap {
 // -- GAME STUFF
 global Editor_Data editor_data;
 global HMODULE game_lib = nullptr;
-global size_t game_memory_size;
-global void* game_memory = nullptr;
+global size_t initial_game_memory_size;
+global void* initial_game_memory = nullptr;
 
 global size_t events_count = 0;
 global std::vector<u8> events = {};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
@@ -87,7 +85,7 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
 #endif  // BFG_INTERNAL
 
 using Game_Update_And_Render_Type =
-    void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t, Editor_Data&);
+    void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t, Editor_Data&, OS_Data&);
 void Game_Update_And_Render_Stub(
     f32 dt,
     void* memory_ptr,
@@ -95,7 +93,8 @@ void Game_Update_And_Render_Stub(
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
     size_t input_events_count,
-    Editor_Data& editor_data  //
+    Editor_Data& editor_data,
+    OS_Data& os_data  //
 ) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
@@ -175,7 +174,7 @@ bool controller_support_loaded = false;
 XInputGetStateType XInputGetState_ = XInputGetStateStub;
 XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
-void LoadXInputDll() {
+void Load_XInput_Dll() {
     auto library = LoadLibraryA("xinput1_4.dll");
     if (!library)
         library = LoadLibraryA("xinput1_3.dll");
@@ -202,7 +201,7 @@ HRESULT XAudio2CreateStub(IXAudio2** ppXAudio2, UINT32 Flags, XAUDIO2_PROCESSOR 
 
 XAudio2CreateType XAudio2Create_ = XAudio2CreateStub;
 
-void LoadXAudioDll() {
+void Load_XAudio_Dll() {
     auto library = LoadLibraryA("xaudio2_9.dll");
     if (!library)
         library = LoadLibraryA("xaudio2_8.dll");
@@ -332,8 +331,8 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     ImGui::NewFrame();
 
     Game_Update_And_Render_(
-        dt, game_memory, game_memory_size, screen_bitmap.bitmap, (void*)events.data(), events_count,
-        editor_data);
+        dt, initial_game_memory, initial_game_memory_size, screen_bitmap.bitmap,
+        (void*)events.data(), events_count, editor_data, os_data);
 
     ImGui::Render();
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -571,34 +570,44 @@ u64 Win32Frequency() {
     return res.QuadPart;
 }
 
+Allocate_Pages__Function(Win32_Allocate_Pages) {
+    assert(count % os_data.min_pages_per_allocation == 0);
+
+    return (u8*)VirtualAlloc(
+        0, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+}
+
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
-// int main(int, char**) {
-// auto application_handle = GetModuleHandle(nullptr);
 static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
     LPSTR command_line,
     int show_command  //
 ) {
+    SYSTEM_INFO system_info;
+    GetSystemInfo(&system_info);
+    os_data.page_size = system_info.dwPageSize;
+    os_data.min_pages_per_allocation = system_info.dwAllocationGranularity / os_data.page_size;
+    os_data.Allocate_Pages = Win32_Allocate_Pages;
+
     Load_Or_Update_Game_Dll();
-    LoadXInputDll();
+    Load_XInput_Dll();
+    Load_XAudio_Dll();
 
     events.reserve(Kilobytes(64LL));
 
-    game_memory_size = Megabytes(64LL);
-    game_memory =
-        VirtualAlloc(0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-    if (!game_memory) {
+    initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
+    initial_game_memory =
+        VirtualAlloc(0, initial_game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!initial_game_memory) {
         // TODO(hulvdan): Diagnostic
         return -1;
     }
 
-    const i32 SLEEP_MSEC_GRANULARITY = 1;
+    const auto SLEEP_MSEC_GRANULARITY = 1;
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
     // --- XAudio stuff ---
-    LoadXAudioDll();
-
     IXAudio2* xaudio = nullptr;
     IXAudio2MasteringVoice* master_voice = nullptr;
     IXAudio2SourceVoice* source_voice = nullptr;

@@ -125,10 +125,12 @@ target_link_libraries(tests PRIVATE glew glm)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 
-set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)
-target_compile_options(bf_game PRIVATE ${COMPILATION_FLAGS})
-target_compile_options(win32 PRIVATE ${COMPILATION_FLAGS})
-target_compile_options(tests PRIVATE ${COMPILATION_FLAGS})
+IF(WIN32 AND NOT CMAKE_GENERATOR STREQUAL Ninja)
+    set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)
+    target_compile_options(bf_game PRIVATE ${COMPILATION_FLAGS})
+    target_compile_options(win32 PRIVATE ${COMPILATION_FLAGS})
+    target_compile_options(tests PRIVATE ${COMPILATION_FLAGS})
+ENDIF()
 
 # === Cleaning Up Stale Files ===
 # Kinda related information:
@@ -146,19 +148,19 @@ IF (WIN32)
         ${CMAKE_BINARY_DIR}/Debug/bf_game_*.dll
     )
     list(LENGTH files_to_delete files_to_delete_length)
-    if (files_to_delete_length GREATER 0)
+    IF (files_to_delete_length GREATER 0)
         file(REMOVE ${files_to_delete})
-    endif()
+    ENDIF()
 ENDIF()
 
 # === Enabling Linting On Win32 ===
-if(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
+IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glm-0.9.9.8")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends")
-endif()
+ENDIf()
 
 # === Other Win32 Bullshiet ===
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT win32)

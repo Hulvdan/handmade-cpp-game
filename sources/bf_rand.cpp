@@ -193,7 +193,7 @@ void Perlin_1D(
         octave_c /= scaling_bias;
     }
 
-    auto pixel = (u32*)texture.address;
+    auto pixel = (u32*)texture.base;
     FOR_RANGE(int, y, sy) {
         FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + x)) / sum_of_division;
@@ -396,7 +396,7 @@ void Perlin_2D(
         octave_c /= scaling_bias;
     }
 
-    auto pixel = (u32*)texture.address;
+    auto pixel = (u32*)texture.base;
     FOR_RANGE(int, y, sy) {
         FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;

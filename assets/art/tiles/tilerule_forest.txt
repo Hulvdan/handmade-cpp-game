@@ -1,5 +1,5 @@
-forest_1
-forest_2
+tiles/forest_1
+tiles/forest_2
 |   |
 | @ |
 | * |
