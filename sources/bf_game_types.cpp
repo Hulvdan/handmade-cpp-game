@@ -64,7 +64,7 @@ struct Page {
 
 struct Pages {
     size_t total_count_cap;
-    size_t already_allocated_count;
+    size_t allocated_count;
     Page* base;
     bool* in_use;
 };
