@@ -22,6 +22,7 @@
 #include "bf_memory.cpp"
 #include "bf_rand.cpp"
 #include "bf_file.cpp"
+#include "bf_math.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -33,6 +34,11 @@
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
+#define PROCESS_EVENTS__CONSUME(event_type_, variable_name_) \
+    event_type_ variable_name_ = {};                         \
+    memcpy(&variable_name_, events, sizeof(event_type_));    \
+    events += sizeof(event_type_);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
 void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, float dt) {
     assert(memory.is_initialized);
     auto& state = memory.state;
@@ -43,13 +49,9 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         auto type = (Event_Type)*events;
         events++;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-        size_t s = 0;
-
         switch (type) {
         case Event_Type::Mouse_Pressed: {
-            Mouse_Pressed event = {};
-            memcpy(&event, events, sizeof(Mouse_Pressed));
-            s = sizeof(Mouse_Pressed);
+            PROCESS_EVENTS__CONSUME(Mouse_Pressed, event);
 
             rstate.mouse_pos = event.position;
 
@@ -67,9 +69,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Mouse_Released: {
-            Mouse_Released event = {};
-            memcpy(&event, events, sizeof(Mouse_Released));
-            s = sizeof(Mouse_Released);
+            PROCESS_EVENTS__CONSUME(Mouse_Released, event);
 
             rstate.mouse_pos = event.position;
 
@@ -82,9 +82,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Mouse_Moved: {
-            Mouse_Moved event = {};
-            memcpy(&event, events, sizeof(Mouse_Moved));
-            s = sizeof(Mouse_Moved);
+            PROCESS_EVENTS__CONSUME(Mouse_Moved, event);
 
             if (rstate.panning)
                 rstate.pan_offset = event.position - rstate.pan_start_pos;
@@ -93,9 +91,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Mouse_Scrolled: {
-            Mouse_Scrolled event = {};
-            memcpy(&event, events, sizeof(Mouse_Scrolled));
-            s = sizeof(Mouse_Scrolled);
+            PROCESS_EVENTS__CONSUME(Mouse_Scrolled, event);
 
             if (event.value > 0) {
                 rstate.zoom_target *= 2.0f;
@@ -108,33 +104,23 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Keyboard_Pressed: {
-            Keyboard_Pressed event = {};
-            memcpy(&event, events, sizeof(Keyboard_Pressed));
-            s = sizeof(Keyboard_Pressed);
+            PROCESS_EVENTS__CONSUME(Keyboard_Pressed, event);
         } break;
 
         case Event_Type::Keyboard_Released: {
-            Keyboard_Released event = {};
-            memcpy(&event, events, sizeof(Keyboard_Released));
-            s = sizeof(Keyboard_Released);
+            PROCESS_EVENTS__CONSUME(Keyboard_Released, event);
         } break;
 
         case Event_Type::Controller_Button_Pressed: {
-            Controller_Button_Pressed event = {};
-            memcpy(&event, events, sizeof(Controller_Button_Pressed));
-            s = sizeof(Controller_Button_Pressed);
+            PROCESS_EVENTS__CONSUME(Controller_Button_Pressed, event);
         } break;
 
         case Event_Type::Controller_Button_Released: {
-            Controller_Button_Released event = {};
-            memcpy(&event, events, sizeof(Controller_Button_Released));
-            s = sizeof(Controller_Button_Released);
+            PROCESS_EVENTS__CONSUME(Controller_Button_Released, event);
         } break;
 
         case Event_Type::Controller_Axis_Changed: {
-            Controller_Axis_Changed event = {};
-            memcpy(&event, events, sizeof(Controller_Axis_Changed));
-            s = sizeof(Controller_Axis_Changed);
+            PROCESS_EVENTS__CONSUME(Controller_Axis_Changed, event);
 
             assert(event.axis >= 0 && event.axis <= 1);
             if (event.axis == 0)
@@ -147,8 +133,6 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
             // TODO(hulvdan): Diagnostic
             UNREACHABLE;
         }
-
-        events += s;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 }
 
@@ -159,7 +143,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     Game_Bitmap& bitmap,
     void* input_events_bytes_ptr,
     size_t input_events_count,
-    Editor_Data& editor_data  //
+    Editor_Data& editor_data,
+    OS_Data& os_data  //
 ) {
     auto& memory = *(Game_Memory*)memory_ptr;
     auto& state = memory.state;
@@ -212,6 +197,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     // --- IMGUI END ---
 
     if (!memory.is_initialized || editor_data.changed) {
+        state.os_data = &os_data;
         editor_data.changed = false;
 
         state.offset_x = 0;
@@ -230,11 +216,16 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         arena.size = memory_size - initial_offset - file_loading_arena_size;
         arena.used = 0;
 
+        auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;
+        state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
+        state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
+        state.pages.total_pages_count_cap = pages_count_that_fit_2GB;
+
         state.game_map = {};
         state.game_map.size = {32, 24};
-        auto& dim = state.game_map.size;
+        auto& gsize = state.game_map.size;
 
-        auto tiles_count = (size_t)dim.x * dim.y;
+        auto tiles_count = (size_t)gsize.x * gsize.y;
         state.game_map.terrain_tiles = Allocate_Zeros_Array(arena, Terrain_Tile, tiles_count);
         state.game_map.terrain_resources =
             Allocate_Zeros_Array(arena, Terrain_Resource, tiles_count);
@@ -273,22 +264,19 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
         state.renderer_state = Initialize_Renderer(state, arena, file_loading_arena);
 
-        state.game_map.buildings_count = 16;
-        state.game_map.buildings = Allocate_Zeros_Array(arena, Building, 16);
-        {
-            auto& b = *(state.game_map.buildings + 0);
-            b.id = 1;
-            b.pos = {2, 2};
-            b.active = true;
-            b.scriptable_id = 1;
-        }
-        {
-            auto& b = *(state.game_map.buildings + 1);
-            b.id = 2;
-            b.pos = {4, 2};
-            b.active = true;
-            b.scriptable_id = 2;
-        }
+        auto max_hypothetical_count_of_building_pages =
+            Ceil_To_i32((f32)tiles_count * sizeof(Building) / os_data.page_size);
+
+        assert(max_hypothetical_count_of_building_pages < 100);
+        assert(max_hypothetical_count_of_building_pages > 0);
+
+        state.game_map.building_pages_total = max_hypothetical_count_of_building_pages;
+        state.game_map.building_pages_used = 0;
+        state.game_map.building_pages =
+            Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
+
+        Place_Building(state, {2, 2}, 1);
+        Place_Building(state, {4, 2}, 2);
 
         {
             On_Item_Built__Function((*callbacks[])) = {

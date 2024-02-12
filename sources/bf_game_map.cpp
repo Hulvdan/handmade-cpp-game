@@ -181,6 +181,62 @@ void Regenerate_Element_Tiles(
     }
 }
 
+void Increate_Buildings_Count(Game_State& state, Page& page) {
+    const auto page_size = state.os_data->page_size;
+    size_t& buildings_count = *rcast<size_t*>(page.base + page_size - sizeof(size_t));
+    buildings_count++;
+}
+
+void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
+    auto& game_map = state.game_map;
+    auto gsize = game_map.size;
+    auto& os_data = *state.os_data;
+
+    const auto page_size = os_data.page_size;
+    assert(Pos_Is_In_Bounds(pos, gsize));
+
+    const auto max_buildings_per_page = (page_size - sizeof(size_t)) / sizeof(Building);
+
+    Building* found_building = nullptr;
+    FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
+        auto& page_candidate = *(game_map.building_pages + page_index);
+
+        size_t& buildings_count = *rcast<size_t*>(page_candidate.base + page_size - sizeof(size_t));
+        if (buildings_count >= max_buildings_per_page)
+            continue;
+
+        FOR_RANGE(size_t, building_index, max_buildings_per_page) {
+            auto& building = *(rcast<Building*>(page_candidate.base) + building_index);
+            if (!building.active) {
+                found_building = &building;
+                buildings_count++;
+                break;
+            }
+        }
+
+        if (found_building != nullptr)
+            break;
+    }
+
+    if (found_building == nullptr) {
+        assert(state.game_map.building_pages_used < state.game_map.building_pages_total);
+        Page& next_page = *(state.game_map.building_pages + state.game_map.building_pages_used);
+
+        next_page.base = Book_Single_Page(state);
+        state.game_map.building_pages_used++;
+
+        found_building = rcast<Building*>(next_page.base);
+        assert(found_building != nullptr);
+        Increate_Buildings_Count(state, next_page);
+    }
+
+    auto& b = *found_building;
+
+    b.pos = pos;
+    b.active = true;
+    b.scriptable_id = id;
+}
+
 bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;

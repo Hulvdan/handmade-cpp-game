@@ -35,6 +35,14 @@
 #endif
 #endif
 
+#define Allocate_Pages__Function(name_) u8* name_(u32 count)
+
+struct GAME_LIBRARY_EXPORT OS_Data {
+    size_t page_size;  // in bytes
+    size_t min_pages_per_allocation;
+    Allocate_Pages__Function((*Allocate_Pages));
+};
+
 struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 width;
     i32 height;
@@ -42,6 +50,7 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 bits_per_pixel;
     void* memory;
 };
+
 struct Perlin_Params {
     int octaves;
     f32 scaling_bias;
@@ -189,6 +198,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     Game_Bitmap& __restrict bitmap,
     void* __restrict input_events_bytes_ptr,
     size_t input_events_count,
-    Editor_Data& editor_data  //
+    Editor_Data& editor_data,
+    OS_Data& os_data  //
 );
 // --- EXPORTED FUNCTIONS END ---

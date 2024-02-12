@@ -1,4 +1,3 @@
-//
 #pragma once
 
 #ifndef BF_CLIENT
@@ -79,7 +78,7 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
 
     glTexImage2D(
         GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE, texture.address);
+        GL_UNSIGNED_BYTE, texture.base);
     assert(!glGetError());
 }
 
@@ -104,7 +103,7 @@ void DEBUG_Load_Texture(
 
     out_texture.id = scast<BF_Texture_ID>(Hash32_String(texture_name));
     out_texture.size = {bmp_result.width, bmp_result.height};
-    out_texture.address = bmp_result.output;
+    out_texture.base = bmp_result.output;
     Send_Texture_To_GPU(out_texture);
 }
 
@@ -609,25 +608,30 @@ void Render(Game_State& state, f32 dt) {
     }
     // --- Drawing Element Tiles End ---
 
-    Building* building_ = game_map.buildings;
-    for (int _ = 0; _ < game_map.buildings_count; _++, building_++) {
-        auto& building = *building_;
-        if (!building.active)
-            continue;
+    FOR_RANGE(size_t, building_page_index, game_map.building_pages_used) {
+        auto& building_page = *(game_map.building_pages + building_page_index);
+        auto buildings_count =
+            *rcast<size_t*>(building_page.base + state.os_data->page_size - sizeof(size_t));
 
-        auto scriptable_building_ = Get_Scriptable_Building(state, building.scriptable_id);
-        assert(scriptable_building_ != nullptr);
-        auto& scriptable_building = *scriptable_building_;
+        FOR_RANGE(size_t, building_index, buildings_count) {
+            Building& building = *(rcast<Building*>(building_page.base) + building_index);
+            if (!building.active)
+                continue;
 
-        auto tex_id = scriptable_building.texture->id;
-        glBindTexture(GL_TEXTURE_2D, tex_id);
+            auto scriptable_building_ = Get_Scriptable_Building(state, building.scriptable_id);
+            assert(scriptable_building_ != nullptr);
+            auto& scriptable_building = *scriptable_building_;
 
-        auto sprite_pos = building.pos * cell_size;
-        auto sprite_size = v2i(1, 1) * cell_size;
+            auto tex_id = scriptable_building.texture->id;
+            glBindTexture(GL_TEXTURE_2D, tex_id);
 
-        glBegin(GL_TRIANGLES);
-        Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-        glEnd();
+            auto sprite_pos = building.pos * cell_size;
+            auto sprite_size = v2i(1, 1) * cell_size;
+
+            glBegin(GL_TRIANGLES);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            glEnd();
+        }
     }
 
     glDeleteTextures(1, (GLuint*)&texture_name);

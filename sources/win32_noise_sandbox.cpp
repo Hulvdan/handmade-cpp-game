@@ -215,7 +215,7 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
 
         glTexImage2D(
             GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
-            tex.address);
+            tex.base);
     }
 
     ImGui::Image(
@@ -282,7 +282,7 @@ int main(int, char**) {
     Loaded_Texture tex;
     tex.id = 1771;
     tex.size = {512, 512};
-    tex.address = (u8*)Allocate_Array(arena, u32, tex.size.x * tex.size.y);
+    tex.base = (u8*)Allocate_Array(arena, u32, tex.size.x * tex.size.y);
 
     assert(client_width >= 0);
     assert(client_height >= 0);

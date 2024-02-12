@@ -49,11 +49,24 @@ struct Scriptable_Building {
     Scriptable_Resource_ID harvestable_resource_id;
 };
 
-struct Human {};
+struct Human {
+    //
+};
 
 struct Resource_To_Book {
     Scriptable_Resource_ID scriptable_id;
     u8 amount;
+};
+
+struct Page {
+    u8* base;
+};
+
+struct Pages {
+    size_t total_pages_count_cap;
+    size_t already_allocated_pages_count;
+    Page* base;
+    bool* in_use;
 };
 
 struct Building {
@@ -130,8 +143,9 @@ struct Game_Map {
     Terrain_Resource* terrain_resources;
     Element_Tile* element_tiles;
 
-    size_t buildings_count;
-    Building* buildings;
+    size_t building_pages_used;
+    size_t building_pages_total;
+    Page* building_pages;
 };
 
 template <typename T>
@@ -180,6 +194,9 @@ struct Game_State {
     Arena memory_arena;
     Arena file_loading_arena;
 
+    OS_Data* os_data;
+    Pages pages;
+
 #ifdef BF_CLIENT
     Game_Renderer_State* renderer_state;
 #endif  // BF_CLIENT
@@ -200,7 +217,7 @@ using BF_Texture_ID = u32;
 struct Loaded_Texture {
     BF_Texture_ID id;
     v2i size;
-    u8* address;
+    u8* base;
 };
 // --- CLIENT. Rendering End ---
 
@@ -246,9 +263,6 @@ struct Game_Renderer_State {
     Loaded_Texture forest_textures[3];
     Loaded_Texture road_textures[16];
     Loaded_Texture flag_textures[4];
-
-    size_t building_textures_count;
-    Loaded_Texture* building_textures;
 
     int tilemaps_count;
     Tilemap* tilemaps;
