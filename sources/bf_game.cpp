@@ -274,6 +274,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         state.game_map.building_pages_used = 0;
         state.game_map.building_pages =
             Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
+        state.game_map.max_buildings_per_page =
+            (u16)((os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
 
         Place_Building(state, {2, 2}, 1);
         Place_Building(state, {4, 2}, 2);

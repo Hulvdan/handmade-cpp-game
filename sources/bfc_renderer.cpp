@@ -608,13 +608,12 @@ void Render(Game_State& state, f32 dt) {
     }
     // --- Drawing Element Tiles End ---
 
-    FOR_RANGE(size_t, building_page_index, game_map.building_pages_used) {
-        auto& building_page = *(game_map.building_pages + building_page_index);
-        auto buildings_count =
-            *rcast<size_t*>(building_page.base + state.os_data->page_size - sizeof(size_t));
+    FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
+        auto& page = *(game_map.building_pages + page_index);
+        auto count = Get_Building_Page_Meta(state.os_data->page_size, page).count;
 
-        FOR_RANGE(size_t, building_index, buildings_count) {
-            Building& building = *(rcast<Building*>(building_page.base) + building_index);
+        FOR_RANGE(size_t, index, count) {
+            Building& building = *(rcast<Building*>(page.base) + index);
             if (!building.active)
                 continue;
 

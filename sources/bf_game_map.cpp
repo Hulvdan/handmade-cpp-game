@@ -181,10 +181,8 @@ void Regenerate_Element_Tiles(
     }
 }
 
-void Increate_Buildings_Count(Game_State& state, Page& page) {
-    const auto page_size = state.os_data->page_size;
-    size_t& buildings_count = *rcast<size_t*>(page.base + page_size - sizeof(size_t));
-    buildings_count++;
+Building_Page_Meta& Get_Building_Page_Meta(size_t page_size, Page& page) {
+    return *rcast<Building_Page_Meta*>(page.base + page_size - sizeof(Building_Page_Meta));
 }
 
 void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
@@ -195,21 +193,19 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     const auto page_size = os_data.page_size;
     assert(Pos_Is_In_Bounds(pos, gsize));
 
-    const auto max_buildings_per_page = (page_size - sizeof(size_t)) / sizeof(Building);
-
+    Page* page = nullptr;
     Building* found_building = nullptr;
     FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
-        auto& page_candidate = *(game_map.building_pages + page_index);
+        page = game_map.building_pages + page_index;
+        auto& meta = Get_Building_Page_Meta(page_size, *page);
 
-        size_t& buildings_count = *rcast<size_t*>(page_candidate.base + page_size - sizeof(size_t));
-        if (buildings_count >= max_buildings_per_page)
+        if (meta.count >= game_map.max_buildings_per_page)
             continue;
 
-        FOR_RANGE(size_t, building_index, max_buildings_per_page) {
-            auto& building = *(rcast<Building*>(page_candidate.base) + building_index);
+        FOR_RANGE(size_t, building_index, game_map.max_buildings_per_page) {
+            auto& building = *(rcast<Building*>(page->base) + building_index);
             if (!building.active) {
                 found_building = &building;
-                buildings_count++;
                 break;
             }
         }
@@ -220,16 +216,16 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
 
     if (found_building == nullptr) {
         assert(state.game_map.building_pages_used < state.game_map.building_pages_total);
-        Page& next_page = *(state.game_map.building_pages + state.game_map.building_pages_used);
+        page = state.game_map.building_pages + state.game_map.building_pages_used;
 
-        next_page.base = Book_Single_Page(state);
+        page->base = Book_Single_Page(state);
         state.game_map.building_pages_used++;
 
-        found_building = rcast<Building*>(next_page.base);
+        found_building = rcast<Building*>(page->base);
         assert(found_building != nullptr);
-        Increate_Buildings_Count(state, next_page);
     }
 
+    Get_Building_Page_Meta(page_size, *page).count++;
     auto& b = *found_building;
 
     b.pos = pos;

@@ -69,6 +69,11 @@ struct Pages {
     bool* in_use;
 };
 
+// NOTE(hulvdan): Gets placed at the end of the `Page`
+struct Building_Page_Meta {
+    u16 count;
+};
+
 struct Building {
     Human_ID constructor;
     Human_ID employee;
@@ -143,9 +148,10 @@ struct Game_Map {
     Terrain_Resource* terrain_resources;
     Element_Tile* element_tiles;
 
-    size_t building_pages_used;
-    size_t building_pages_total;
     Page* building_pages;
+    u16 building_pages_used;
+    u16 building_pages_total;
+    u16 max_buildings_per_page;
 };
 
 template <typename T>
