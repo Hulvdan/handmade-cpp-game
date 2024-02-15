@@ -36,11 +36,13 @@
 #endif
 
 #define Allocate_Pages__Function(name_) u8* name_(u32 count)
+// #define Deallocate_Pages__Function(name_) void name_(u8* base)
 
 struct GAME_LIBRARY_EXPORT OS_Data {
     size_t page_size;  // in bytes
     size_t min_pages_per_allocation;
     Allocate_Pages__Function((*Allocate_Pages));
+    // Deallocate_Pages__Function((*Deallocate_Pages));
 };
 
 struct GAME_LIBRARY_EXPORT Game_Bitmap {

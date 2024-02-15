@@ -69,7 +69,7 @@ struct Pages {
     bool* in_use;
 };
 
-// NOTE(hulvdan): Gets placed at the end of the `Page`
+// NOTE(hulvdan): `Building_Page_Meta` gets placed at the end of the `Page`
 struct Building_Page_Meta {
     u16 count;
 };
@@ -197,8 +197,9 @@ struct Game_State {
     size_t scriptable_buildings_count;
     Scriptable_Building* scriptable_buildings;
 
-    Arena memory_arena;
-    Arena file_loading_arena;
+    Arena arena;
+    Arena non_persistent_arena;  // Flushes on DLL reload
+    Arena temp_arena;  // For transient calculations
 
     OS_Data* os_data;
     Pages pages;
@@ -257,7 +258,32 @@ struct Tilemap {
     Tile_ID* tiles;
 };
 
+struct UI_Buildable {
+    Item_To_Build item;
+};
+
+struct UI_Buildable_Texture {
+    // Texture_Asset_Handle handle;
+};
+
+struct UI_Sprite_Params {
+    bool smart_stretchable;
+    v2i stretch_paddings_h;
+    v2i stretch_paddings_v;
+};
+
+struct Game_UI_State {
+    UI_Sprite_Params buildables_panel_params;
+    Loaded_Texture buildables_panel_background;
+    Loaded_Texture buildables_placeholder_background;
+
+    u16 buildables_count;
+    UI_Buildable* buildables;
+};
+
 struct Game_Renderer_State {
+    bool is_initialized;
+    Game_UI_State* ui_state;
     Game_Bitmap* bitmap;
 
     Smart_Tile grass_smart_tile;

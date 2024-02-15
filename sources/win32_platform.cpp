@@ -577,6 +577,10 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
         0, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
 
+// Deallocate_Pages__Function(Win32_Deallocate_Pages) {
+//     return (u8*)VirtualAlloc(0, os_data.page_size * count, MEM_RESET, PAGE_EXECUTE_READWRITE);
+// }
+
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,

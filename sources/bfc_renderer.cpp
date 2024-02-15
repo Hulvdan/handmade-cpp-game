@@ -134,9 +134,12 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
     return road_texture_number;
 }
 
-Game_Renderer_State* Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
-    auto rstate_ = Allocate_Zeros_For(arena, Game_Renderer_State);
-    auto& rstate = *rstate_;
+void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
+    if (state.renderer_state != nullptr && state.renderer_state->is_initialized)
+        return;
+
+    state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+    auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
 
     DEBUG_Load_Texture(arena, temp_arena, "human", rstate.human_texture);
@@ -300,14 +303,25 @@ Game_Renderer_State* Initialize_Renderer(Game_State& state, Arena& arena, Arena&
         DEBUG_Load_Texture(arena, temp_arena, "tiles/building_lumberjack", *b.texture);
     }
 
-    return rstate_;
+    rstate.ui_state = Allocate_Zeros_For(arena, Game_UI_State);
+    auto& ui_state = *rstate.ui_state;
+
+    ui_state.buildables_panel_params.smart_stretchable = true;
+    ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
+    ui_state.buildables_panel_params.stretch_paddings_v = {5, 5};
+    DEBUG_Load_Texture(
+        arena, temp_arena, "ui/buildables_panel", ui_state.buildables_panel_background);
+    DEBUG_Load_Texture(
+        arena, temp_arena, "ui/buildables_placeholder", ui_state.buildables_placeholder_background);
+
+    rstate.is_initialized = true;
 }
 
 void Draw_Sprite(
-    u16 x0,
-    u16 y0,
-    u16 x1,
-    u16 y1,
+    f32 x0,
+    f32 y0,
+    f32 x1,
+    f32 y1,
     glm::vec2 pos,
     glm::vec2 size,
     float rotation,
@@ -318,12 +332,13 @@ void Draw_Sprite(
 
     auto model = glm::mat3(1);
     model = glm::translate(model, pos);
+    // model = glm::translate(model, pos / size);
     model = glm::rotate(model, rotation);
-    model = glm::scale(model, size / 2.0f);
+    model = glm::scale(model, size);
 
     auto matrix = projection * model;
     // TODO(hulvdan): How bad is it that there are vec3, but not vec2?
-    glm::vec3 vertices[] = {{-1, -1, 1}, {-1, 1, 1}, {1, -1, 1}, {1, 1, 1}};
+    glm::vec3 vertices[] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}};
     for (auto& vertex : vertices) {
         vertex = matrix * vertex;
         // Converting from homogeneous to eucledian
@@ -331,7 +346,26 @@ void Draw_Sprite(
         // vertex.y = vertex.y / vertex.z;
     }
 
-    u16 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
+    f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
+    for (ptrd i : {0, 1, 2, 2, 1, 3}) {
+        // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
+        glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
+        glVertex2f(vertices[i].x, vertices[i].y);
+    }
+};
+
+void Draw_UI_Sprite(f32 x0, f32 y0, f32 x1, f32 y1, glm::vec2 pos, glm::vec2 size) {
+    assert(x0 < x1);
+    assert(y0 < y1);
+
+    glm::vec2 vertices[] = {
+        {pos.x + size.x * 0, pos.y + size.y * 0},
+        {pos.x + size.x * 0, pos.y + size.y * 1},
+        {pos.x + size.x * 1, pos.y + size.y * 0},
+        {pos.x + size.x * 1, pos.y + size.y * 1},
+    };
+
+    f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
     for (ptrd i : {0, 1, 2, 2, 1, 3}) {
         // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
         glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
@@ -394,12 +428,12 @@ v2f Screen_To_World(Game_State& state, v2f pos) {
 }
 
 v2i World_Pos_To_Tile(v2f pos) {
-    auto x = (int)(pos.x + 0.5f);
-    auto y = (int)(pos.y + 0.5f);
-    if (pos.x < -0.5f)
-        x--;
-    if (pos.y < -0.5f)
-        y--;
+    auto x = (int)(pos.x);
+    auto y = (int)(pos.y);
+    // if (pos.x < 0.5f)
+    //     x--;
+    // if (pos.y < -0.5f)
+    //     y--;
     return v2i(x, y);
 }
 
@@ -487,6 +521,8 @@ void Render(Game_State& state, f32 dt) {
     projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
     projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
     projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
+    // projection = glm::scale(projection, glm::vec2(1, 1) * (f32)cell_size);
+    // projection = glm::scale(projection, glm::vec2(2, 2) / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     FOR_RANGE(i32, h, rstate.terrain_tilemaps_count) {
@@ -635,6 +671,91 @@ void Render(Game_State& state, f32 dt) {
 
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());
+
+    {
+        // Drawing left buildables thingy
+        auto& ui_state = *rstate.ui_state;
+        auto sprite_params = ui_state.buildables_panel_params;
+        auto& pad_h = sprite_params.stretch_paddings_h;
+        auto& pad_v = sprite_params.stretch_paddings_v;
+
+        auto texture = ui_state.buildables_panel_background;
+        auto placeholder_texture = ui_state.buildables_placeholder_background;
+        auto& psize = placeholder_texture.size;
+
+        auto scale = 4.0f;
+        auto in_scale = 1.0f;
+        v2f sprite_anchor = {0.0f, 0.5f};
+
+        v2f padding = {4, 4};
+        f32 placeholders_gap = 4;
+        auto placeholders = 2;
+        auto panel_size =
+            v2f(psize.x + 2 * padding.x,
+                2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
+
+        auto projection = glm::mat3(1);
+        projection = glm::translate(projection, glm::vec2(0, 1));
+        projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+        projection = glm::translate(projection, glm::vec2(0, sheight / 2));
+        projection = glm::scale(projection, glm::vec2(scale, scale));
+
+        auto model = glm::mat3(1);
+        model = glm::scale(model, glm::vec2(panel_size));
+
+        // |-----|          |-----|
+        // |0    |x1        |x2   |1
+        f32 x1 = (f32)pad_h.x / texture.size.x;
+        f32 x2 = (f32)pad_h.y / texture.size.x;
+        f32 y1 = (f32)pad_v.x / texture.size.y;
+        f32 y2 = (f32)pad_v.y / texture.size.y;
+        assert(y1 * in_scale + y2 * in_scale <= 1);
+        assert(x1 * in_scale + x2 * in_scale <= 1);
+
+        auto a = glm::vec3(sprite_anchor.x, sprite_anchor.y, 0);
+        glm::vec3 p0 = model * (glm::vec3(0, 0, 1) - a);
+        glm::vec3 p3 = model * (glm::vec3(1, 1, 1) - a);
+        auto d = p3 - p0;
+        glm::vec3 p1 = p0 + glm::vec3(pad_h.x * in_scale, pad_v.x * in_scale, 0);
+        glm::vec3 p2 = p3 - glm::vec3(pad_h.y * in_scale, pad_v.y * in_scale, 0);
+
+        p0 = projection * p0;
+        p1 = projection * p1;
+        p2 = projection * p2;
+        p3 = projection * p3;
+
+        glm::vec3 points[] = {p0, p1, p2, p3};
+
+        f32 texture_vertices_x[] = {0, x1, 1 - x2, 1};
+        f32 texture_vertices_y[] = {0, y1, 1 - y2, 1};
+
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+        glBegin(GL_TRIANGLES);
+
+        FOR_RANGE(int, y, 3) {
+            auto tex_y0 = texture_vertices_y[2 - y];
+            auto tex_y1 = texture_vertices_y[3 - y];
+            auto sprite_y0 = points[2 - y].y;
+            auto sy = points[3 - y].y - points[2 - y].y;
+
+            FOR_RANGE(int, x, 3) {
+                auto tex_x0 = texture_vertices_x[x];
+                auto tex_x1 = texture_vertices_x[x + 1];
+                auto sprite_x0 = points[x].x;
+                auto sx = points[x + 1].x - sprite_x0;
+                assert(sx >= 0);
+
+                Draw_UI_Sprite(
+                    tex_x0, tex_y0,  //
+                    tex_x1, tex_y1,  //
+                    v2f(sprite_x0, sprite_y0),  //
+                    v2f(sx, sy)  //
+                );
+            }
+        }
+
+        glEnd();
+    }
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item

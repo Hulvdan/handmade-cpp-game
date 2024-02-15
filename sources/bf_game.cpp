@@ -136,6 +136,16 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
     }
 }
 
+void Map_Arena(Arena& arena_where_to_map, Arena& arena_to_map, size_t size) {
+    arena_to_map.base = Allocate_Array(arena_where_to_map, u8, size);
+    arena_to_map.size = size;
+}
+
+void Reset_Arena(Arena& arena) {
+    memset(arena.base, 0, arena.size);
+    arena.used = 0;
+}
+
 extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     f32 dt,
     void* memory_ptr,
@@ -146,7 +156,12 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     Editor_Data& editor_data,
     OS_Data& os_data  //
 ) {
-    auto& memory = *(Game_Memory*)memory_ptr;
+    Arena fake_arena;
+    fake_arena.base = (u8*)memory_ptr;
+    fake_arena.size = memory_size;
+    fake_arena.used = 0;
+
+    auto& memory = *Allocate_For(fake_arena, Game_Memory);
     auto& state = memory.state;
 
     if (!editor_data.game_context_set) {
@@ -203,23 +218,29 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         state.offset_x = 0;
         state.offset_y = 0;
 
-        auto initial_offset = sizeof(Game_Memory);
-        auto file_loading_arena_size = Megabytes((size_t)1);
+        auto temp_arena_size = Megabytes((size_t)1);
+        auto non_persistent_arena_size = Megabytes((size_t)1);
+        auto arena_size =
+            fake_arena.size - fake_arena.used - non_persistent_arena_size - temp_arena_size;
 
-        auto& file_loading_arena = state.file_loading_arena;
-        file_loading_arena.base = (u8*)memory_ptr + initial_offset;
-        file_loading_arena.size = file_loading_arena_size;
-        file_loading_arena.used = 0;
+        // NOTE(hulvdan): `arena` remains the same on DLL reloads
+        auto& arena = state.arena;
+        Map_Arena(fake_arena, arena, arena_size);
 
-        auto& arena = state.memory_arena;
-        arena.base = (u8*)memory_ptr + initial_offset + file_loading_arena_size;
-        arena.size = memory_size - initial_offset - file_loading_arena_size;
-        arena.used = 0;
+        auto& non_persistent_arena = state.non_persistent_arena;
+        Map_Arena(fake_arena, non_persistent_arena, non_persistent_arena_size);
+        Reset_Arena(non_persistent_arena);
 
-        auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;
-        state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
-        state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
-        state.pages.total_count_cap = pages_count_that_fit_2GB;
+        auto& temp_arena = state.temp_arena;
+        Map_Arena(fake_arena, temp_arena, temp_arena_size);
+        Reset_Arena(temp_arena);
+
+        if (!memory.is_initialized) {
+            auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;
+            state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
+            state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
+            state.pages.total_count_cap = pages_count_that_fit_2GB;
+        }
 
         state.game_map = {};
         state.game_map.size = {32, 24};
@@ -262,30 +283,37 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
 
         Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
         Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
-        state.renderer_state = Initialize_Renderer(state, arena, file_loading_arena);
 
-        auto max_hypothetical_count_of_building_pages =
-            Ceil_To_i32((f32)tiles_count * sizeof(Building) / os_data.page_size);
+        if (!memory.is_initialized) {
+            auto max_hypothetical_count_of_building_pages =
+                Ceil_To_i32((f32)tiles_count * sizeof(Building) / os_data.page_size);
 
-        assert(max_hypothetical_count_of_building_pages < 100);
-        assert(max_hypothetical_count_of_building_pages > 0);
+            assert(max_hypothetical_count_of_building_pages < 100);
+            assert(max_hypothetical_count_of_building_pages > 0);
 
-        state.game_map.building_pages_total = max_hypothetical_count_of_building_pages;
-        state.game_map.building_pages_used = 0;
-        state.game_map.building_pages =
-            Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
-        state.game_map.max_buildings_per_page =
-            (u16)((os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
+            state.game_map.building_pages_total = max_hypothetical_count_of_building_pages;
+            state.game_map.building_pages_used = 0;
+            state.game_map.building_pages =
+                Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
+            state.game_map.max_buildings_per_page = Assert_Truncate_To_u16(
+                (os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
 
-        Place_Building(state, {2, 2}, 1);
-        Place_Building(state, {4, 2}, 2);
-
-        {
-            On_Item_Built__Function((*callbacks[])) = {
-                Renderer__On_Item_Built,
-            };
-            INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+            Place_Building(state, {2, 2}, 1);
+            Place_Building(state, {4, 2}, 2);
+            Place_Building(state, {5, 2}, 2);
+            Place_Building(state, {6, 2}, 2);
+            Place_Building(state, {4, 3}, 2);
+            Place_Building(state, {4, 5}, 2);
+            Place_Building(state, {4, 7}, 2);
         }
+
+        On_Item_Built__Function((*callbacks[])) = {
+            Renderer__On_Item_Built,
+        };
+        INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+
+        Initialize_Renderer(state, arena, temp_arena);
+        // state.renderer_state = Initialize_Renderer(state, non_persistent_arena, temp_arena);
 
         memory.is_initialized = true;
     }
