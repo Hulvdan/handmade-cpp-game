@@ -1,3 +1,4 @@
+# SHIT(hulvdan): Oh, god, I hate this shit
 cmake_minimum_required(VERSION 3.27)
 
 project(game LANGUAGES CXX)
@@ -59,7 +60,6 @@ target_sources(win32 PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
     "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
     "${IMGUI_DIR}/imgui.cpp"
-    "${IMGUI_DIR}/imgui_demo.cpp"
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
@@ -151,6 +151,13 @@ IF (WIN32)
         file(REMOVE ${files_to_delete})
     ENDIF()
 ENDIF()
+
+# === Disabling incremental linking warning on win32 ===
+if(MSVC)
+    set_target_properties(bf_game PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
+    set_target_properties(win32 PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
+    set_target_properties(tests PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
+endif()
 
 # === Enabling Linting On Win32 ===
 IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
