@@ -437,6 +437,69 @@ v2i World_Pos_To_Tile(v2f pos) {
     return v2i(x, y);
 }
 
+void Draw_Stretchable_Sprite(
+    f32 x0,
+    f32 x3,
+    f32 y0,
+    f32 y3,
+    Loaded_Texture& texture,
+    UI_Sprite_Params& sprite_params,
+    v2i panel_size,
+    f32 in_scale  //
+) {
+    auto& pad_h = sprite_params.stretch_paddings_h;
+    auto& pad_v = sprite_params.stretch_paddings_v;
+
+    f32 x1 = (f32)pad_h.x / texture.size.x;
+    f32 x2 = (f32)pad_h.y / texture.size.x;
+    f32 y1 = (f32)pad_v.x / texture.size.y;
+    f32 y2 = (f32)pad_v.y / texture.size.y;
+    assert(y1 * in_scale + y2 * in_scale <= 1);
+    assert(x1 * in_scale + x2 * in_scale <= 1);
+
+    auto p0 = glm::vec3(x0, y0, 1);
+    auto p3 = glm::vec3(x3, y3, 1);
+    auto dx = x3 - x0;
+    auto dy = y3 - y0;
+    auto dp1 = glm::vec3(
+        pad_h.x * in_scale * dx / panel_size.x, pad_v.x * in_scale * dy / panel_size.y, 0);
+    auto dp2 = glm::vec3(
+        pad_h.y * in_scale * dx / panel_size.x, pad_v.y * in_scale * dy / panel_size.y, 0);
+    glm::vec3 p1 = p0 + dp1;
+    glm::vec3 p2 = p3 - dp2;
+
+    glm::vec3 points[] = {p0, p1, p2, p3};
+
+    f32 texture_vertices_x[] = {0, x1, 1 - x2, 1};
+    f32 texture_vertices_y[] = {0, y1, 1 - y2, 1};
+
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+    glBegin(GL_TRIANGLES);
+
+    FOR_RANGE(int, y, 3) {
+        auto tex_y0 = texture_vertices_y[2 - y];
+        auto tex_y1 = texture_vertices_y[3 - y];
+        auto sprite_y0 = points[2 - y].y;
+        auto sy = points[3 - y].y - points[2 - y].y;
+
+        FOR_RANGE(int, x, 3) {
+            auto tex_x0 = texture_vertices_x[x];
+            auto tex_x1 = texture_vertices_x[x + 1];
+            auto sprite_x0 = points[x].x;
+            auto sx = points[x + 1].x - sprite_x0;
+            assert(sx >= 0);
+
+            Draw_UI_Sprite(
+                tex_x0, tex_y0,  //
+                tex_x1, tex_y1,  //
+                v2f(sprite_x0, sprite_y0),  //
+                v2f(sx, sy)  //
+            );
+        }
+    }
+    glEnd();
+}
+
 void Render(Game_State& state, f32 dt) {
     assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
@@ -698,72 +761,23 @@ void Render(Game_State& state, f32 dt) {
 
         auto outer_anchor = v2f(0.0f, 0.5f);
         auto outer_container_size = v2i(swidth, sheight);
+        auto outer_x = outer_container_size.x * outer_anchor.x;
+        auto outer_y = outer_container_size.y * outer_anchor.y;
 
         auto projection = glm::mat3(1);
         projection = glm::translate(projection, glm::vec2(0, 1));
         projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-
-        auto outer_x = outer_container_size.x * outer_anchor.x;
-        auto outer_y = outer_container_size.y * outer_anchor.y;
-
         projection = glm::translate(projection, glm::vec2((int)outer_x, (int)outer_y));
         projection = glm::scale(projection, glm::vec2(scale, scale));
 
         auto model = glm::mat3(1);
         model = glm::scale(model, glm::vec2(panel_size));
 
-        // |-----|          |-----|
-        // |0    |x1        |x2   |1
-        f32 x1 = (f32)pad_h.x / texture.size.x;
-        f32 x2 = (f32)pad_h.y / texture.size.x;
-        f32 y1 = (f32)pad_v.x / texture.size.y;
-        f32 y2 = (f32)pad_v.y / texture.size.y;
-        assert(y1 * in_scale + y2 * in_scale <= 1);
-        assert(x1 * in_scale + x2 * in_scale <= 1);
-
-        auto a = glm::vec3(sprite_anchor.x, sprite_anchor.y, 0);
-        glm::vec3 p0 = model * (glm::vec3(0, 0, 1) - a);
-        glm::vec3 p3 = model * (glm::vec3(1, 1, 1) - a);
-        auto d = p3 - p0;
-        glm::vec3 p1 = p0 + glm::vec3(pad_h.x, pad_v.x, 0) * in_scale;
-        glm::vec3 p2 = p3 - glm::vec3(pad_h.y, pad_v.y, 0) * in_scale;
-
-        p0 = projection * p0;
-        p1 = projection * p1;
-        p2 = projection * p2;
-        p3 = projection * p3;
-
-        glm::vec3 points[] = {p0, p1, p2, p3};
-
-        f32 texture_vertices_x[] = {0, x1, 1 - x2, 1};
-        f32 texture_vertices_y[] = {0, y1, 1 - y2, 1};
-
-        glBindTexture(GL_TEXTURE_2D, texture.id);
-        glBegin(GL_TRIANGLES);
-
-        FOR_RANGE(int, y, 3) {
-            auto tex_y0 = texture_vertices_y[2 - y];
-            auto tex_y1 = texture_vertices_y[3 - y];
-            auto sprite_y0 = points[2 - y].y;
-            auto sy = points[3 - y].y - points[2 - y].y;
-
-            FOR_RANGE(int, x, 3) {
-                auto tex_x0 = texture_vertices_x[x];
-                auto tex_x1 = texture_vertices_x[x + 1];
-                auto sprite_x0 = points[x].x;
-                auto sx = points[x + 1].x - sprite_x0;
-                assert(sx >= 0);
-
-                Draw_UI_Sprite(
-                    tex_x0, tex_y0,  //
-                    tex_x1, tex_y1,  //
-                    v2f(sprite_x0, sprite_y0),  //
-                    v2f(sx, sy)  //
-                );
-            }
-        }
-
-        glEnd();
+        auto sa = glm::vec3(sprite_anchor.x, sprite_anchor.y, 0);
+        glm::vec3 p0 = projection * model * (glm::vec3(0, 0, 1) - sa);
+        glm::vec3 p3 = projection * model * (glm::vec3(1, 1, 1) - sa);
+        Draw_Stretchable_Sprite(
+            p0.x, p3.x, p0.y, p3.y, texture, sprite_params, panel_size, in_scale);
     }
 }
 
