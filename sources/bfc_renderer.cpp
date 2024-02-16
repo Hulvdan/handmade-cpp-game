@@ -696,10 +696,17 @@ void Render(Game_State& state, f32 dt) {
             v2f(psize.x + 2 * padding.x,
                 2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
 
+        auto outer_anchor = v2f(0.0f, 0.5f);
+        auto outer_container_size = v2i(swidth, sheight);
+
         auto projection = glm::mat3(1);
         projection = glm::translate(projection, glm::vec2(0, 1));
         projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-        projection = glm::translate(projection, glm::vec2(0, sheight / 2));
+
+        auto outer_x = outer_container_size.x * outer_anchor.x;
+        auto outer_y = outer_container_size.y * outer_anchor.y;
+
+        projection = glm::translate(projection, glm::vec2((int)outer_x, (int)outer_y));
         projection = glm::scale(projection, glm::vec2(scale, scale));
 
         auto model = glm::mat3(1);
@@ -718,8 +725,8 @@ void Render(Game_State& state, f32 dt) {
         glm::vec3 p0 = model * (glm::vec3(0, 0, 1) - a);
         glm::vec3 p3 = model * (glm::vec3(1, 1, 1) - a);
         auto d = p3 - p0;
-        glm::vec3 p1 = p0 + glm::vec3(pad_h.x * in_scale, pad_v.x * in_scale, 0);
-        glm::vec3 p2 = p3 - glm::vec3(pad_h.y * in_scale, pad_v.y * in_scale, 0);
+        glm::vec3 p1 = p0 + glm::vec3(pad_h.x, pad_v.x, 0) * in_scale;
+        glm::vec3 p2 = p3 - glm::vec3(pad_h.y, pad_v.y, 0) * in_scale;
 
         p0 = projection * p0;
         p1 = projection * p1;
