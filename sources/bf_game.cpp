@@ -34,12 +34,17 @@
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
-#define PROCESS_EVENTS__CONSUME(event_type_, variable_name_) \
-    event_type_ variable_name_ = {};                         \
-    memcpy(&variable_name_, events, sizeof(event_type_));    \
-    events += sizeof(event_type_);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+#define PROCESS_EVENTS_CONSUME(event_type_, variable_name_) \
+    event_type_ variable_name_ = {};                        \
+    memcpy(&(variable_name_), events, sizeof(event_type_)); \
+    events += sizeof(event_type_);
 
-void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, float dt) {
+void Process_Events(
+    Game_Memory& memory,
+    const u8* events,
+    size_t input_events_count,
+    float dt  //
+) {
     assert(memory.is_initialized);
     auto& state = memory.state;
     auto& rstate = *state.renderer_state;
@@ -47,11 +52,11 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
     while (input_events_count > 0) {
         input_events_count--;
         auto type = (Event_Type)*events;
-        events++;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        events++;
 
         switch (type) {
         case Event_Type::Mouse_Pressed: {
-            PROCESS_EVENTS__CONSUME(Mouse_Pressed, event);
+            PROCESS_EVENTS_CONSUME(Mouse_Pressed, event);
 
             rstate.mouse_pos = event.position;
 
@@ -69,7 +74,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Mouse_Released: {
-            PROCESS_EVENTS__CONSUME(Mouse_Released, event);
+            PROCESS_EVENTS_CONSUME(Mouse_Released, event);
 
             rstate.mouse_pos = event.position;
 
@@ -82,7 +87,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Mouse_Moved: {
-            PROCESS_EVENTS__CONSUME(Mouse_Moved, event);
+            PROCESS_EVENTS_CONSUME(Mouse_Moved, event);
 
             if (rstate.panning)
                 rstate.pan_offset = event.position - rstate.pan_start_pos;
@@ -91,7 +96,7 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Mouse_Scrolled: {
-            PROCESS_EVENTS__CONSUME(Mouse_Scrolled, event);
+            PROCESS_EVENTS_CONSUME(Mouse_Scrolled, event);
 
             if (event.value > 0) {
                 rstate.zoom_target *= 2.0f;
@@ -104,23 +109,23 @@ void Process_Events(Game_Memory& memory, u8* events, size_t input_events_count, 
         } break;
 
         case Event_Type::Keyboard_Pressed: {
-            PROCESS_EVENTS__CONSUME(Keyboard_Pressed, event);
+            PROCESS_EVENTS_CONSUME(Keyboard_Pressed, event);
         } break;
 
         case Event_Type::Keyboard_Released: {
-            PROCESS_EVENTS__CONSUME(Keyboard_Released, event);
+            PROCESS_EVENTS_CONSUME(Keyboard_Released, event);
         } break;
 
         case Event_Type::Controller_Button_Pressed: {
-            PROCESS_EVENTS__CONSUME(Controller_Button_Pressed, event);
+            PROCESS_EVENTS_CONSUME(Controller_Button_Pressed, event);
         } break;
 
         case Event_Type::Controller_Button_Released: {
-            PROCESS_EVENTS__CONSUME(Controller_Button_Released, event);
+            PROCESS_EVENTS_CONSUME(Controller_Button_Released, event);
         } break;
 
         case Event_Type::Controller_Axis_Changed: {
-            PROCESS_EVENTS__CONSUME(Controller_Axis_Changed, event);
+            PROCESS_EVENTS_CONSUME(Controller_Axis_Changed, event);
 
             assert(event.axis >= 0 && event.axis <= 1);
             if (event.axis == 0)
@@ -156,12 +161,12 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     Editor_Data& editor_data,
     OS_Data& os_data  //
 ) {
-    Arena fake_arena;
-    fake_arena.base = (u8*)memory_ptr;
-    fake_arena.size = memory_size;
-    fake_arena.used = 0;
+    Arena root_arena = {};
+    root_arena.base = (u8*)memory_ptr;
+    root_arena.size = memory_size;
+    root_arena.used = 0;
 
-    auto& memory = *Allocate_For(fake_arena, Game_Memory);
+    auto& memory = *Allocate_For(root_arena, Game_Memory);
     auto& state = memory.state;
 
     if (!editor_data.game_context_set) {
@@ -215,24 +220,24 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         state.os_data = &os_data;
         editor_data.changed = false;
 
-        state.offset_x = 0;
-        state.offset_y = 0;
+        // state.offset_x = 0;
+        // state.offset_y = 0;
 
         auto temp_arena_size = Megabytes((size_t)1);
         auto non_persistent_arena_size = Megabytes((size_t)1);
         auto arena_size =
-            fake_arena.size - fake_arena.used - non_persistent_arena_size - temp_arena_size;
+            root_arena.size - root_arena.used - non_persistent_arena_size - temp_arena_size;
 
         // NOTE(hulvdan): `arena` remains the same on DLL reloads
         auto& arena = state.arena;
-        Map_Arena(fake_arena, arena, arena_size);
+        Map_Arena(root_arena, arena, arena_size);
 
         auto& non_persistent_arena = state.non_persistent_arena;
-        Map_Arena(fake_arena, non_persistent_arena, non_persistent_arena_size);
+        Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Reset_Arena(non_persistent_arena);
 
         auto& temp_arena = state.temp_arena;
-        Map_Arena(fake_arena, temp_arena, temp_arena_size);
+        Map_Arena(root_arena, temp_arena, temp_arena_size);
         Reset_Arena(temp_arena);
 
         if (!memory.is_initialized) {
@@ -281,12 +286,12 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
             b.type = Building_Type::Harvest;
         }
 
-        Regenerate_Terrain_Tiles(state, state.game_map, arena, 0, editor_data);
-        Regenerate_Element_Tiles(state, state.game_map, arena, 0, editor_data);
+        Regenerate_Terrain_Tiles(state, state.game_map, arena, temp_arena, 0, editor_data);
+        Regenerate_Element_Tiles(state, state.game_map, arena, temp_arena, 0, editor_data);
 
         if (!memory.is_initialized) {
             auto max_hypothetical_count_of_building_pages =
-                Ceil_To_i32((f32)tiles_count * sizeof(Building) / os_data.page_size);
+                Ceil_Division(tiles_count * sizeof(Building), os_data.page_size);
 
             assert(max_hypothetical_count_of_building_pages < 100);
             assert(max_hypothetical_count_of_building_pages > 0);
@@ -324,8 +329,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     else
         UNREACHABLE;
 
-    Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);
-
     assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
 
@@ -362,5 +365,6 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         }
     }
 
+    Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);
     Render(state, dt);
 }

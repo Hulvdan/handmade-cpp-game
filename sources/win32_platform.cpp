@@ -39,7 +39,7 @@ global size_t initial_game_memory_size;
 global void* initial_game_memory = nullptr;
 
 global size_t events_count = 0;
-global std::vector<u8> events = {};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+global std::vector<u8> events = {};
 
 // TODO(hulvdan): Is there any way to restrict T
 // to be only one of event structs specified in game.h?
@@ -311,7 +311,7 @@ void Win32UpdateBitmap(HDC device_context) {
         VirtualFree(game_bitmap.memory, 0, MEM_RELEASE);
 
     game_bitmap.memory = VirtualAlloc(
-        0, game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
+        nullptr, game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
         MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
     if (screen_bitmap.handle)
@@ -502,7 +502,8 @@ LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam,
     return 0;
 }
 
-class BFVoiceCallback : public IXAudio2VoiceCallback {
+class BFVoiceCallback  // NOLINT(cppcoreguidelines-virtual-class-destructor)
+    : public IXAudio2VoiceCallback {
 public:
     f32 frequency = -1;
     i32 samples_count_per_channel = -1;
@@ -533,14 +534,14 @@ public:
         std::swap(s1, s2);
     }
 
-    void OnStreamEnd() noexcept { RecalculateAndSwap(); }
+    void OnStreamEnd() noexcept override { RecalculateAndSwap(); }
 
-    void OnBufferEnd(void* pBufferContext) noexcept {}
-    void OnBufferStart(void* pBufferContext) noexcept {}
-    void OnLoopEnd(void* pBufferContext) noexcept {}
-    void OnVoiceError(void* pBufferContext, HRESULT Error) noexcept {}
-    void OnVoiceProcessingPassEnd() noexcept {}
-    void OnVoiceProcessingPassStart(UINT32 BytesRequired) noexcept {}
+    void OnBufferEnd(void* pBufferContext) noexcept override {}
+    void OnBufferStart(void* pBufferContext) noexcept override {}
+    void OnLoopEnd(void* pBufferContext) noexcept override {}
+    void OnVoiceError(void* pBufferContext, HRESULT Error) noexcept override {}
+    void OnVoiceProcessingPassEnd() noexcept override {}
+    void OnVoiceProcessingPassStart(UINT32 BytesRequired) noexcept override {}
 
     void Validate() {
         assert(samples_count_per_channel > 0);
@@ -574,11 +575,12 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
     assert(count % os_data.min_pages_per_allocation == 0);
 
     return (u8*)VirtualAlloc(
-        0, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        nullptr, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
 
 // Deallocate_Pages__Function(Win32_Deallocate_Pages) {
-//     return (u8*)VirtualAlloc(0, os_data.page_size * count, MEM_RESET, PAGE_EXECUTE_READWRITE);
+//     return (u8*)VirtualAlloc(0, os_data.page_size * count, MEM_RESET,
+//     PAGE_EXECUTE_READWRITE);
 // }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
@@ -601,8 +603,8 @@ static int WinMain(
     events.reserve(Kilobytes(64LL));
 
     initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
-    initial_game_memory =
-        VirtualAlloc(0, initial_game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    initial_game_memory = VirtualAlloc(
+        nullptr, initial_game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     if (!initial_game_memory) {
         // TODO(hulvdan): Diagnostic
         return -1;
@@ -740,10 +742,10 @@ static int WinMain(
     auto window_handle = CreateWindowExA(
         0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
         CW_USEDEFAULT, 640, 480,
-        NULL,  // [in, optional] HWND      hWndParent,
-        NULL,  // [in, optional] HMENU     hMenu,
+        nullptr,  // [in, optional] HWND      hWndParent,
+        nullptr,  // [in, optional] HMENU     hMenu,
         application_handle,  // [in, optional] HINSTANCE hInstance,
-        NULL  // [in, optional] LPVOID    lpParam
+        nullptr  // [in, optional] LPVOID    lpParam
     );
 
     if (!window_handle) {
@@ -853,7 +855,7 @@ static int WinMain(
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
 
         MSG message = {};
-        while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
+        while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;
                 break;

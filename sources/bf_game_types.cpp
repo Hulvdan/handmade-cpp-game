@@ -281,6 +281,8 @@ struct Game_UI_State {
     UI_Buildable* buildables;
 };
 
+
+
 struct Game_Renderer_State {
     bool is_initialized;
     Game_UI_State* ui_state;

@@ -36,7 +36,6 @@ target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
     "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
     "${IMGUI_DIR}/imgui.cpp"
-    "${IMGUI_DIR}/imgui_demo.cpp"
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"

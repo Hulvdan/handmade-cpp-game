@@ -34,6 +34,7 @@ void Regenerate_Terrain_Tiles(
     Game_State& state,
     Game_Map& game_map,
     Arena& arena,
+    Arena& temp_arena,
     uint seed,
     Editor_Data& data  //
 ) {
@@ -42,16 +43,16 @@ void Regenerate_Terrain_Tiles(
     auto noise_pitch = Ceil_To_Power_Of_2(MAX(gsize.x, gsize.y));
     auto output_size = noise_pitch * noise_pitch;
 
-    auto terrain_perlin = Allocate_Array(arena, u16, output_size);
-    DEFER(Deallocate_Array(arena, u16, output_size));
+    auto terrain_perlin = Allocate_Array(temp_arena, u16, output_size);
+    DEFER(Deallocate_Array(temp_arena, u16, output_size));
     Fill_Perlin_2D(
-        terrain_perlin, sizeof(u16) * output_size, arena, data.terrain_perlin, noise_pitch,
+        terrain_perlin, sizeof(u16) * output_size, temp_arena, data.terrain_perlin, noise_pitch,
         noise_pitch);
 
-    auto forest_perlin = Allocate_Array(arena, u16, output_size);
-    DEFER(Deallocate_Array(arena, u16, output_size));
+    auto forest_perlin = Allocate_Array(temp_arena, u16, output_size);
+    DEFER(Deallocate_Array(temp_arena, u16, output_size));
     Fill_Perlin_2D(
-        forest_perlin, sizeof(u16) * output_size, arena, data.forest_perlin, noise_pitch,
+        forest_perlin, sizeof(u16) * output_size, temp_arena, data.forest_perlin, noise_pitch,
         noise_pitch);
 
     FOR_RANGE(int, y, gsize.y) {
@@ -130,6 +131,7 @@ void Regenerate_Element_Tiles(
     Game_State& state,
     Game_Map& game_map,
     Arena& arena,
+    Arena& temp_arena,
     uint seed,
     Editor_Data& data  //
 ) {

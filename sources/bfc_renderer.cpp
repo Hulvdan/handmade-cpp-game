@@ -308,7 +308,7 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
 
     ui_state.buildables_panel_params.smart_stretchable = true;
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
-    ui_state.buildables_panel_params.stretch_paddings_v = {5, 5};
+    ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
     DEBUG_Load_Texture(
         arena, temp_arena, "ui/buildables_panel", ui_state.buildables_panel_background);
     DEBUG_Load_Texture(
@@ -675,6 +675,8 @@ void Render(Game_State& state, f32 dt) {
     {
         // Drawing left buildables thingy
         auto& ui_state = *rstate.ui_state;
+        ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
+
         auto sprite_params = ui_state.buildables_panel_params;
         auto& pad_h = sprite_params.stretch_paddings_h;
         auto& pad_v = sprite_params.stretch_paddings_v;
