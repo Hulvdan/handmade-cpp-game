@@ -63,8 +63,8 @@ void Process_Events(
             if (event.type == Mouse_Button_Type::Left) {
                 auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
                 if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
-                    Try_Build(state, tile_pos, Item_To_Build::Flag);
-                    Try_Build(state, tile_pos, Item_To_Build::Road);
+                    Try_Build(state, tile_pos, Item_To_Build_Flag);
+                    Try_Build(state, tile_pos, Item_To_Build_Road);
                 }
             } else if (event.type == Mouse_Button_Type::Right) {
                 rstate.panning = true;

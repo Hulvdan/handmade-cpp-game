@@ -136,11 +136,20 @@ struct Terrain_Resource {
     u8 amount;
 };
 
-enum class Item_To_Build {
+enum class Item_To_Build_Type {
     None,
     Road,
     Flag,
+    Building,
 };
+
+struct Item_To_Build {
+    Item_To_Build_Type type;
+    Scriptable_Building_ID scriptable_building_id;
+};
+
+static constexpr Item_To_Build Item_To_Build_Road = Item_To_Build(Item_To_Build_Type::Road, 0);
+static constexpr Item_To_Build Item_To_Build_Flag = Item_To_Build(Item_To_Build_Type::Flag, 0);
 
 struct Game_Map {
     v2i size;
@@ -258,14 +267,6 @@ struct Tilemap {
     Tile_ID* tiles;
 };
 
-struct UI_Buildable {
-    Item_To_Build item;
-};
-
-struct UI_Buildable_Texture {
-    // Texture_Asset_Handle handle;
-};
-
 struct UI_Sprite_Params {
     bool smart_stretchable;
     v2i stretch_paddings_h;
@@ -278,10 +279,8 @@ struct Game_UI_State {
     Loaded_Texture buildables_placeholder_background;
 
     u16 buildables_count;
-    UI_Buildable* buildables;
+    Item_To_Build* buildables;
 };
-
-
 
 struct Game_Renderer_State {
     bool is_initialized;

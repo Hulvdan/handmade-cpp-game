@@ -314,6 +314,14 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
     DEBUG_Load_Texture(
         arena, temp_arena, "ui/buildables_placeholder", ui_state.buildables_placeholder_background);
 
+    auto buildables_count = 2;
+    ui_state.buildables = Allocate_Array(arena, Item_To_Build, buildables_count);
+    ui_state.buildables_count = buildables_count;
+    (ui_state.buildables + 0)->type = Item_To_Build_Type::Road;
+    (ui_state.buildables + 0)->scriptable_building_id = 0;
+    (ui_state.buildables + 1)->type = Item_To_Build_Type::Building;
+    (ui_state.buildables + 1)->scriptable_building_id = global_lumberjacks_hut_building_id;
+
     rstate.is_initialized = true;
 }
 
@@ -509,7 +517,46 @@ void Draw_Stretchable_Sprite(
     glEnd();
 }
 
+struct Get_Buildable_Textures_Result {
+    size_t deallocation_size;
+    GLuint* textures;
+};
+
+Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& temp_arena, Game_State& state) {
+    auto& rstate = *state.renderer_state;
+    assert(state.renderer_state != nullptr);
+    auto& ui_state = *rstate.ui_state;
+    assert(rstate.ui_state != nullptr);
+
+    Get_Buildable_Textures_Result res = {};
+    auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
+
+    res.deallocation_size = allocation_size;
+    res.textures = Allocate_Array(temp_arena, GLuint, allocation_size);
+
+    FOR_RANGE(int, i, ui_state.buildables_count) {
+        auto& buildable = *(ui_state.buildables + i);
+        switch (buildable.type) {
+        case Item_To_Build_Type::Road: {
+            *(res.textures + i) = (rstate.road_textures + 15)->id;
+        } break;
+
+        case Item_To_Build_Type::Building: {
+            *(res.textures + i) =
+                Get_Scriptable_Building(state, buildable.scriptable_building_id)->texture->id;
+        } break;
+
+        default:
+            assert(false);
+        }
+    }
+
+    return res;
+}
+
 void Render(Game_State& state, f32 dt) {
+    Arena& temp_arena = state.temp_arena;
+
     assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
@@ -807,10 +854,9 @@ void Render(Game_State& state, f32 dt) {
             }
             glEnd();
 
-            GLuint buildable_textures[] = {
-                (state.scriptable_buildings + 1)->texture->id,
-                (rstate.road_textures + 15)->id,
-            };
+            auto buildable_textures = Get_Buildable_Textures(temp_arena, state);
+            DEFER(Deallocate_Array(temp_arena, u8, buildable_textures.deallocation_size));
+
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE(int, i, placeholders) {
                 auto drawing_point = origin;
@@ -819,7 +865,7 @@ void Render(Game_State& state, f32 dt) {
 
                 auto p = projection * drawing_point;
                 auto s = projection * v3f(buildable_size, 0);
-                glBindTexture(GL_TEXTURE_2D, buildable_textures[i]);
+                glBindTexture(GL_TEXTURE_2D, *(buildable_textures.textures + i));
                 glBegin(GL_TRIANGLES);
                 Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
                 glEnd();

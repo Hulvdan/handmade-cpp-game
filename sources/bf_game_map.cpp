@@ -242,8 +242,8 @@ bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
 
     auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
 
-    switch (item) {
-    case Item_To_Build::Flag: {
+    switch (item.type) {
+    case Item_To_Build_Type::Flag: {
         if (tile.type == Element_Tile_Type::Flag)
             tile.type = Element_Tile_Type::Road;
         else if (tile.type == Element_Tile_Type::Road)
@@ -254,12 +254,20 @@ bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
         assert(tile.building == nullptr);
     } break;
 
-    case Item_To_Build::Road: {
+    case Item_To_Build_Type::Road: {
         if (tile.type != Element_Tile_Type::None)
             return false;
 
         assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
+    } break;
+
+    case Item_To_Build_Type::Building: {
+        if (tile.type != Element_Tile_Type::None)
+            return false;
+
+        assert(item.scriptable_building_id != 0);
+        Place_Building(state, pos, item.scriptable_building_id);
     } break;
 
     default:
