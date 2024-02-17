@@ -52,7 +52,6 @@ target_sources(bf_game PRIVATE
 )
 # TODO(hulvdan): How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
-target_link_libraries(bf_game PRIVATE tracy)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)

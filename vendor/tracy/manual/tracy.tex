@@ -1,5 +1,5 @@
 % !TeX spellcheck = en_US
-\documentclass[hidelinks,titlepage,a4paper,twoside]{article}
+\documentclass[hidelinks,titlepage,a4paper]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -39,7 +39,7 @@
 \fancyfoot{} % Blank out the default footer
 \fancyhead[L]{Tracy Profiler}
 \fancyhead[R]{The user manual}
-\fancyfoot[RO,LE]{\thepage} % Custom footer text
+\fancyfoot[RO]{\thepage} % Custom footer text
 
 \usepackage{listings}
 \usepackage{xcolor}
@@ -138,7 +138,7 @@ There's much more Tracy can do, which can be explored by carefully reading this 
 \section{A quick look at Tracy Profiler}
 \label{quicklook}
 
-Tracy is a real-time, nanosecond resolution \emph{hybrid frame and sampling profiler} that you can use for remote or embedded telemetry of games and other applications. It can profile CPU\footnote{Direct support is provided for C, C++, and Lua integration. At the same time, third-party bindings to many other languages exist on the internet, such as Rust, Zig, C\#, OCaml, Odin, etc.}, GPU\footnote{All major graphic APIs: OpenGL, Vulkan, Direct3D 11/12, OpenCL.}, memory allocations, locks, context switches, automatically attribute screenshots to captured frames, and much more.
+Tracy is a real-time, nanosecond resolution \emph{hybrid frame and sampling profiler} that can you can use for remote or embedded telemetry of games and other applications. It can profile CPU\footnote{Direct support is provided for C, C++, and Lua integration. At the same time, third-party bindings to many other languages exist on the internet, such as Rust, Zig, C\#, OCaml, Odin, etc.}, GPU\footnote{All major graphic APIs: OpenGL, Vulkan, Direct3D 11/12, OpenCL.}, memory allocations, locks, context switches, automatically attribute screenshots to captured frames, and much more.
 
 While Tracy can perform statistical analysis of sampled call stack data, just like other \emph{statistical profilers} (such as VTune, perf, or Very Sleepy), it mainly focuses on manual markup of the source code. Such markup allows frame-by-frame inspection of the program execution. For example, you will be able to see exactly which functions are called, how much time they require, and how they interact with each other in a multi-threaded environment. In contrast, the statistical analysis may show you the hot spots in your code, but it cannot accurately pinpoint the underlying cause for semi-random frame stutter that may occur every couple of seconds.
 
@@ -373,7 +373,6 @@ Tracy Profiler supports  MSVC, GCC, and clang. You will need to use a reasonably
 \item WSL (x64)
 \item OSX (x64)
 \item iOS (ARM, ARM64)
-\item QNX (x64)
 \end{itemize}
 
 Moreover, the following platforms are not supported due to how secretive their owners are but were reported to be working after extending the system integration layer:
@@ -426,16 +425,11 @@ You should compile the application you want to profile with all the usual optimi
 
 Finally, on Unix, make sure that the application is linked with libraries \texttt{libpthread} and \texttt{libdl}. BSD systems will also need to be linked with \texttt{libexecinfo}.
 
-\subsubsection{Static library}
-
-If you are compiling Tracy as a static library to link with your application, you may encounter some unexpected problems.
-
-When you link a library into your executable, the linker checks if the library provides symbols needed by the program. The library is only used if this is the case. This can be an issue because one of the use cases of Tracy is to simply add it to the application, without any manual instrumentation, and let it profile the execution by sampling. If you use any kind of Tracy macros in your program, this won't be a problem.
-
-However, if you find yourself in a situation where this is a consideration, you can simply add the \texttt{TracyNoop} macro somewhere in your code, for example in the \texttt{main} function. The macro doesn't do anything useful, but it inserts a reference that is satisfied by the static library, which results in the Tracy code being linked in and the profiler being able to work as intended.
-
-\subsubsection{CMake integration}
-
+\begin{bclogo}[
+noborder=true,
+couleur=black!5,
+logo=\bclampe
+]{CMake integration}
 You can integrate Tracy with CMake by adding the git submodule folder as a subdirectory.
 
 \begin{lstlisting}
@@ -451,6 +445,7 @@ Link \texttt{Tracy::TracyClient} to any target where you use Tracy for profiling
 \begin{lstlisting}
 target_link_libraries(<TARGET> PUBLIC Tracy::TracyClient)
 \end{lstlisting}
+\end{bclogo}
 
 \begin{bclogo}[
 noborder=true,
@@ -477,43 +472,6 @@ Then add this to any target where you use tracy for profiling:
 target_link_libraries(<TARGET> PUBLIC TracyClient)
 \end{lstlisting}
 \end{bclogo}
-
-\subsubsection{Meson integration}
-
-If you are using the Meson build system, you can add Tracy using the Wrap dependency system. To do this, place the \texttt{tracy.wrap} file in the \texttt{subprojects} directory of your project, with the following content. The \texttt{head} \texttt{revision} field tracks Tracy's \texttt{master} branch. If you want to lock to a specific version of Tracy instead, you can just set the \texttt{revision} field to an appropriate git tag.
-
-\begin{lstlisting}
-[wrap-git]
-url = https://github.com/wolfpld/tracy.git
-revision = head
-depth = 1
-\end{lstlisting}
-
-Then, add the following option entry to the \texttt{meson.options} file. Use the name \texttt{tracy\_enable} as shown, because the Tracy subproject options inherit it.
-
-\begin{lstlisting}
-option('tracy_enable', type: 'boolean', value: false, description: 'Enable profiling')
-\end{lstlisting}
-
-Next, add the Tracy dependency to the \texttt{meson.build} project definition file. Don't forget to include this dependency in the appropriate executable or library definitions. This dependency will set all the appropriate definitions (such as \texttt{TRACY\_ENABLE}) in your program, so you don't have to do it manually.
-
-\begin{lstlisting}
-tracy = dependency('tracy', static: true)
-\end{lstlisting}
-
-Finally, let's check if the \texttt{debugoptimized} build type is enabled, and print a little reminder message if it is not. For profiling we want the debug annotations to be present, but we also want to have the code to be optimized.
-
-\begin{lstlisting}
-if get_option('tracy_enable') and get_option('buildtype') != 'debugoptimized'
-    message('Profiling builds should set --buildtype=debugoptimized')
-endif
-\end{lstlisting}
-
-Here's a sample command to set up a build directory with profiling enabled. The last option, \texttt{tracy:on\_demand}, is used to demonstrate how to set options in the Tracy subproject.
-
-\begin{lstlisting}
-meson setup build --buildtype=debugoptimized -Dtracy_enable=true -Dtracy:on_demand=true
-\end{lstlisting}
 
 \subsubsection{Short-lived applications}
 
@@ -543,8 +501,6 @@ The program name that is sent out in the broadcast messages can be customized by
 \subsubsection{Client network interface}
 
 By default, the Tracy client will listen on all network interfaces. If you want to restrict it to only listening on the localhost interface, define the \texttt{TRACY\_ONLY\_LOCALHOST} macro at compile-time, or set the \texttt{TRACY\_ONLY\_LOCALHOST} environment variable to $1$ at runtime.
-
-If you need to use a specific Tracy client address, such as QNX requires, define the \texttt{TRACY\_CLIENT\_ADDRESS} macro at compile-time as the desired string address.
 
 By default, the Tracy client will listen on IPv6 interfaces, falling back to IPv4 only if IPv6 is unavailable. If you want to restrict it to only listening on IPv4 interfaces, define the \texttt{TRACY\_ONLY\_IPV4} macro at compile-time, or set the \texttt{TRACY\_ONLY\_IPV4} environment variable to $1$ at runtime.
 
@@ -625,16 +581,6 @@ The best way to run Tracy is on bare metal. Avoid profiling applications in virt
 \item Inability to obtain precise timestamps, resulting in error messages such as \emph{CPU doesn't support RDTSC instruction}, or \emph{CPU doesn't support invariant TSC}. On Windows, you can work this around by rebuilding the profiled application with the \texttt{TRACY\_TIMER\_QPC} define, which severely lowers the resolution of time readings.
 \item Frequency of call stack sampling may be reduced.
 \item Call stack sampling might lack time stamps. While you can use such a reduced data set to perform statistical analysis, you won't be able to limit the time range or see the sampling zones on the timeline.
-\end{itemize}
-
-\paragraph{Docker on Linux}
-
-Although the basic features will work without them, you'll have to grant elevated access rights to the container running your client. Here is a sample configuration that \textit{may} enable the CPU sampling features\footnote{Tested on Ubuntu 22.04.3, docker 24.0.4}.
-\begin{itemize}
-    \item \texttt{-{}-privileged}
-    \item \texttt{-{}-mount "type=bind,source=/sys/kernel/debug,target=/sys/kernel/debug,readonly"}
-    \item \texttt{-{}-user 0:0}
-    \item \texttt{-{}-pid=host}
 \end{itemize}
 
 \subsubsection{Changing network port}
@@ -918,27 +864,26 @@ Some features of the profiler are only available on selected platforms. Please r
 
 \begin{table}[h]
 \centering
-\begin{tabular}[h]{c|c|c|c|c|c|c|c}
-\textbf{Feature} & \textbf{Windows} & \textbf{Linux} & \textbf{Android} & \textbf{OSX} & \textbf{iOS} & \textbf{BSD} & \textbf{QNX} \\ \hline
-Profiling program init & \faCheck & \faCheck & \faCheck & \faPoo & \faPoo & \faCheck & \faCheck \\
-CPU zones & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
-Locks & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
-Plots & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
-Messages & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
-Memory & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faTimes \\
-% GPU zones fields intentionally left blank for BSDs
-GPU zones (OpenGL) & \faCheck & \faCheck & \faCheck & \faPoo & \faPoo & & \faTimes \\
-GPU zones (Vulkan) & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & & \faTimes \\
-Call stacks & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faTimes \\
-Symbol resolution & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
-Crash handling & \faCheck & \faCheck & \faCheck & \faTimes & \faTimes & \faTimes & \faTimes \\
-CPU usage probing & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faTimes \\
-Context switches & \faCheck & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes & \faTimes \\
-Wait stacks & \faCheck & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes & \faTimes \\
-CPU topology information & \faCheck & \faCheck & \faCheck & \faTimes & \faTimes & \faTimes & \faTimes \\
-Call stack sampling & \faCheck & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes & \faTimes \\
-Hardware sampling & \faCheck{}\textsuperscript{\emph{a}} & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes & \faTimes \\
-VSync capture & \faCheck & \faCheck & \faTimes & \faTimes & \faTimes & \faTimes & \faTimes \\
+\begin{tabular}[h]{c|c|c|c|c|c|c}
+\textbf{Feature} & \textbf{Windows} & \textbf{Linux} & \textbf{Android} & \textbf{OSX} & \textbf{iOS} & \textbf{BSD} \\ \hline
+Profiling program init & \faCheck & \faCheck & \faCheck & \faPoo & \faPoo & \faCheck \\
+CPU zones & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Locks & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Plots & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Messages & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Memory & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+GPU zones (OpenGL) & \faCheck & \faCheck & \faCheck & \faPoo & \faPoo & \\
+GPU zones (Vulkan) & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \\
+Call stacks & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Symbol resolution & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Crash handling & \faCheck & \faCheck & \faCheck & \faTimes & \faTimes & \faTimes \\
+CPU usage probing & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck & \faCheck \\
+Context switches & \faCheck & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes \\
+Wait stacks & \faCheck & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes \\
+CPU topology information & \faCheck & \faCheck & \faCheck & \faTimes & \faTimes & \faTimes \\
+Call stack sampling & \faCheck & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes \\
+Hardware sampling & \faCheck{}\textsuperscript{\emph{a}} & \faCheck & \faCheck & \faTimes & \faPoo & \faTimes \\
+VSync capture & \faCheck & \faCheck & \faTimes & \faTimes & \faTimes & \faTimes \\
 \end{tabular}
 
 \vspace{1em}
@@ -1233,8 +1178,6 @@ To record a zone's\footnote{A \texttt{zone} represents the lifetime of a special
 Use the \texttt{ZoneText(text, size)} macro to add a custom text string that the profiler will display along with the zone information (for example, name of the file you are opening). Multiple text strings can be attached to any single zone. The dynamic color of a zone can be specified with the \texttt{ZoneColor(uint32\_t)} macro to override the source location color. If you want to send a numeric value and don't want to pay the cost of converting it to a string, you may use the \texttt{ZoneValue(uint64\_t)} macro. Finally, you can check if the current zone is active with the \texttt{ZoneIsActive} macro.
 
 If you want to set zone name on a per-call basis, you may do so using the \texttt{ZoneName(text, size)} macro. However, this name won't be used in the process of grouping the zones for statistical purposes (sections~\ref{statistics} and~\ref{findzone}).
-
-To use printf-like formatting, you can use the \texttt{ZoneTextF(fmt, ...)} and \texttt{ZoneNameF(fmt, ...)} macros.
 
 \begin{bclogo}[
 noborder=true,
@@ -1543,8 +1486,6 @@ The profiling results you will get can be unreliable or plainly wrong. It all de
 
 For example, on Linux, the Intel GPU driver will report 64-bit precision of time stamps. Unfortunately, this is not true, as the driver will only provide timestamps with 36-bit precision, rolling over the exceeding values. Tracy can detect such problems and employ workarounds. This is, sadly, not enough to make the readings reliable, as this timer we can access through the API is not a real one. Deep down, the driver has access to the actual timer, which it uses to provide the virtual values we can get. Unfortunately, this hardware timer has a period which \emph{does not match} the period of the API timer. As a result, the virtual timer will sometimes overflow \emph{in midst} of a cycle, making the reported time values jump forward. This is a problem that only the driver vendor can fix.
 
-Another problem discovered on AMD GPUs under Linux causes the timestamp register to be reset every time the GPU enters a low-power mode. This can happen virtually every frame if you are rendering with vertical synchronization disabled. Needless to say, the timestamp data is not very useful in this case. The solution to this problem is to navigate to the \texttt{/sys/devices/pci*/*/*/} directory corresponding to the GPU and set the \texttt{power\_dpm\_force\_performance\_level} value to \texttt{manual} and the \texttt{pp\_power\_profile\_mode} value to the number corresponding to the \texttt{COMPUTE} profile. Your mileage may vary, however -- on my system I only have one of these values available to set. Nevertheless, you will find a similar solution suggested by the system vendor in a Direct3D 12 section later in the manual.
-
 If you experience crippling problems while profiling the GPU, you might get better results with a different driver, different operating system, or different hardware.
 \end{bclogo}
 
@@ -1753,14 +1694,6 @@ logo=\bclampe
 Tracy will prepare for call stack collection regardless of whether you use the functionality or not. In some cases, this may be unwanted or otherwise troublesome for the user. To disable support for collecting call stacks, define the \texttt{TRACY\_NO\_CALLSTACK} macro.
 \end{bclogo}
 
-\begin{bclogo}[
-noborder=true,
-couleur=black!5,
-logo=\bclampe
-]{libunwind}
-On some platforms you can define \texttt{TRACE\_CLIENT\_LIBUNWIND\_BACKTRACE} to use libunwind to perform callstack captures as it might be a faster alternative than the default implementation. If you do, you must compile/link you client against libunwind. See \url{https://github.com/libunwind/libunwind} for more details.
-\end{bclogo}
-
 \subsubsection{Debugging symbols}
 
 You must compile the profiled application with debugging symbols enabled to have correct call stack information. You can achieve that in the following way:
@@ -1831,39 +1764,9 @@ void DbgHelpUnlock() { ReleaseMutex(dbgHelpLock); }
 }
 \end{lstlisting}
 
-At initilization time, tracy will attempt to preload symbols for device drivers and process modules. As this process can be slow when a lot of pdbs are involved, you can set the \texttt{TRACY\_NO\_DBGHELP\_INIT\_LOAD} environment variable to "1" to disable this behavior and rely on-demand symbol loading.
-
 \paragraph{Disabling resolution of inline frames}
 
 Inline frames retrieval on Windows can be multiple orders of magnitude slower than just performing essential symbol resolution. This manifests as profiler seemingly being stuck for a long time, having hundreds of thousands of query backlog entries queued, which are slowly trickling down. If your use case requires speed of operation rather than having call stacks with inline frames included, you may define the \texttt{TRACY\_NO\_CALLSTACK\_INLINES} macro, which will make the profiler stick to the basic but fast frame resolution mode.
-
-\paragraph{Offline symbol resolution}
-
-By default, tracy client resolves callstack symbols in a background thread at runtime.
-This process requires that tracy client load symbols for the shared libraries 
-involved, which requires additial memory allocations, and potential impact runtime performance if a lot of symbol queries are involved.
-As an alternative to to runtime symbol resolution, we can set the environment variable
- \texttt{TRACY\_SYMBOL\_OFFLINE\_RESOLVE} to 1 and instead have tracy client only resolve
- the minimal set of info required for offline resolution (a shared library path and an offset into that shared library).
- 
-The generated tracy capture will have callstack frames symbols showing \texttt{[unresolved]}.
-The \texttt{update} tool can be used to load that capture, perform symbol resolution offline
-(by passing \texttt{-r}) and writing out a new capture with symbols resolved.
-By default \texttt{update} will use the original shared libraries paths that were recorded 
-in the capture (which assumes running in the same machine or a machine with identical 
-filesystem setup as the one used to run the tracy instrumented application).
- You can do path substitution with the \texttt{-p} option to perform any number of path
-substitions in order to use symbols located elsewhere.
-
-\begin{bclogo}[
-noborder=true,
-couleur=black!5,
-logo=\bcbombe
-]{Important}
-Beware that \texttt{update} will use any matching symbol file to the path it resolved to (no symbol version checking is done), so if the symbol file doesn't match the code that was used when doing the callstack capturing you will get incorrect results.
-
-Also note that in the case of using offline symbol resolving, even after running the \texttt{update} tool to resolve symbols, the symbols statistics are not updated and will still report the unresolved symbols.
-\end{bclogo}
 
 \subsection{Lua support}
 
@@ -2070,8 +1973,6 @@ GPU zones are ended via \texttt{\_\_\_tracy\_emit\_gpu\_zone\_end}.
 
 When the timestamps are fetched from the GPU, they must then be emitted via the \texttt{\_\_\_tracy\_emit\_gpu\_time} function. After all timestamps for a frame are emitted, \texttt{queryIds} may be re-used.
 
-CPU and GPU timestamps may be periodically resynchronized via the \texttt{\_\_\_tracy\_emit\_gpu\_time\_sync} function, which takes the GPU timestamp closest to the moment of the call. This can help with timestamp drift and work around compounding GPU timestamp overflowing. Note that this requires CPU and GPU synchronization, which will block execution of your application. Do not do this every frame.
-
 To see how you should use this API, you should look at the reference implementation contained in API-specific C++ headers provided by Tracy. For example, to see how to write your instrumentation of OpenGL, you should closely follow the contents of the \texttt{TracyOpenGL.hpp} implementation.
 
 \subsubsection{Fibers}
@@ -2142,7 +2043,7 @@ Tracy will perform an automatic collection of system data without user intervent
 
 Some profiling data can only be retrieved using the kernel facilities, which are not available to users with normal privilege level. To collect such data, you will need to elevate your rights to the administrator level. You can do so either by running the profiled program from the \texttt{root} account on Unix or through the \emph{Run as administrator} option on Windows\footnote{To make this easier, you can run MSVC with admin privileges, which will be inherited by your program when you start it from within the IDE.}. On Android, you will need to have a rooted device (see section~\ref{androidlunacy} for additional information).
 
-As this system-level tracing functionality is part of the automated collection process, no user intervention is necessary to enable it (assuming that the program was granted the rights needed). However, if, for some reason, you would want to prevent your application from trying to access kernel data, you may recompile your program with the \texttt{TRACY\_NO\_SYSTEM\_TRACING} define. If you want to disable this functionality dynamically at runtime instead, you can set the \texttt{TRACY\_NO\_SYSTEM\_TRACING} environment variable to "1".
+As this system-level tracing functionality is part of the automated collection process, no user intervention is necessary to enable it (assuming that the program was granted the rights needed). However, if, for some reason, you would want to prevent your application from trying to access kernel data, you may recompile your program with the \texttt{TRACY\_NO\_SYSTEM\_TRACING} define.
 
 \begin{bclogo}[
 noborder=true,
@@ -3173,7 +3074,7 @@ If GPU zones were captured, you would also have the \emph{\faEye{}~GPU} option t
 
 \subsubsection{Instrumentation mode}
 
-Here you will find a multi-column display of captured zones, which contains: the zone \emph{name} and \emph{location}, \emph{total time} spent in the zone, the \emph{count} of zone executions, the \emph{mean time spent in the zone per call} and the number of threads the zone has appeared in, labeled with a \emph{\faRandom~thread icon}. You may sort the view according to the four displayed values or by the name.
+Here you will find a multi-column display of captured zones, which contains: the zone \emph{name} and \emph{location}, \emph{total time} spent in the zone, the \emph{count} of zone executions and the \emph{mean time spent in the zone per call}. You may sort the view according to the three displayed values.
 
 In the \emph{~Timing} menu, the \emph{~With children} selection displays inclusive measurements, that is, containing execution time of zone's children. The \emph{~Self only} selection switches the measurement to exclusive, displaying just the time spent in the zone, subtracting the child calls. Finally, the \emph{~Non-reentrant} selection shows inclusive time but counts only the first appearance of a given zone on a thread's stack.
 
@@ -3190,7 +3091,7 @@ Data displayed in this mode is, in essence, very similar to the instrumentation 
 
 First and foremost, the presented information is constructed from many call stack samples, which represent real addresses in the application's binary code, mapped to the line numbers in the source files. This reverse mapping may not always be possible or could be erroneous. Furthermore, due to the nature of the sampling process, it is impossible to obtain exact time measurements. Instead, time values are guesstimated by multiplying the number of sample counts by mean time between two different samples.
 
-The \emph{Name} column contains name of the function in which the sampling was done. Kernel-mode function samples are distinguished with the red color. If the \emph{\faSitemap{}~Inlines} option is enabled, functions which were inlined will be preceded with a \faCaretRight{} symbol and additionally display their parent function name in parenthesis. Otherwise, only non-inlined functions are listed, with a count of inlined functions in parenthesis. You may expand any entry containing an inlined function to display the corresponding functions list (some functions may be hidden if the \emph{\faPuzzlePiece{}~Show all} option is disabled due to lack of sampling data). Clicking on a function name will open the sample entry call stacks window (see chapter~\ref{sampleparents}). Note that if inclusive times are displayed, listed functions will be partially or completely coming from mid-stack frames, preventing, or limiting the capability to display parent call stacks.
+The \emph{Name} column contains name of the function in which the sampling was done. Kernel-mode function samples are distinguished with the red color. If the \emph{\faSitemap{}~Inlines} option is enabled, functions which were inlined will be preceded with a '\faCaretRight{}' symbol and additionally display their parent function name in parenthesis. Otherwise, only non-inlined functions are listed, with a count of inlined functions in parenthesis. You may expand any entry containing an inlined function to display the corresponding functions list (some functions may be hidden if the \emph{\faPuzzlePiece{}~Show all} option is disabled due to lack of sampling data). Clicking on a function name will open the sample entry call stacks window (see chapter~\ref{sampleparents}). Note that if inclusive times are displayed, listed functions will be partially or completely coming from mid-stack frames, preventing, or limiting the capability to display parent call stacks.
 
 The \emph{Location} column displays the corresponding source file name and line number. Depending on the \emph{Location} option selection, it can either show the function entry address or the instruction at which the sampling was performed. The \emph{Entry} mode points at the beginning of a non-inlined function or at the place where the compiler inserted an inlined function in its parent function. The \emph{Sample} mode is not useful for non-inlined functions, as it points to one randomly selected sampling point out of many that were captured. However, in the case of inlined functions, this random sampling point is within the inlined function body. Using these options in tandem lets you look at both the inlined function code and the place where it was inserted. If the \emph{Smart} location is selected, the profiler will display the entry point position for non-inlined functions and sample location for inlined functions. Selecting the \emph{\faAt{}~Address} option will instead print the symbol address.
 
@@ -3215,9 +3116,7 @@ The individual behavior of zones may be influenced by many factors, like CPU cac
 
 Tracy gives you the ability to display an execution time histogram of all occurrences of a zone. On this view, you can see how the function behaves in general. You can inspect how various data inputs influence the execution time. You can filter the data to eventually drill down to the individual zone calls to see the environment in which they were called.
 
-You start by entering a search query, which will be matched against known zone names (see section~\ref{markingzones} for information on the grouping of zone names). If the search found some results, you will be presented with a list of zones in the \emph{matched source locations} drop-down. The selected zone's graph is displayed on the \emph{histogram} drop-down, and also the matching zones are highlighted on the timeline view.
-
-Clicking the \RMB{} right mouse button on the source file location will open the source file view window (if applicable, see section~\ref{sourceview}). If symbol data is available Tracy will try to match the instrumented zone name to a captured symbol. If this succeeds and there are no duplicate matches, the source file view will be accompanied by the disassembly of the code. Since this matching is not exact, in rare cases you may get the wrong data here. To just display the source code, press and hold the \keys{\ctrl} key while clicking the \RMB{} right mouse button.
+You start by entering a search query, which will be matched against known zone names (see section~\ref{markingzones} for information on the grouping of zone names). If the search found some results, you will be presented with a list of zones in the \emph{matched source locations} drop-down. The selected zone's graph is displayed on the \emph{histogram} drop-down, and also the matching zones are highlighted on the timeline view. Clicking the \RMB{} right mouse button on the source file location will open the source file view window (if applicable, see section~\ref{sourceview}).
 
 An example histogram is presented in figure~\ref{findzonehistogram}. Here you can see that the majority of zone calls (by count) are clustered in the 300~\si{\nano\second} group, closely followed by the 10~\si{\micro\second} cluster. There are some outliers at the 1~and~10~\si{\milli\second} marks, which can be ignored on most occasions, as these are single occurrences.
 
@@ -3892,28 +3791,7 @@ You can customize the output with the following command line options:
 \section{Importing external profiling data}
 \label{importingdata}
 
-Tracy can import data generated by other profilers. This external data cannot be directly loaded but must be converted first.
-Currently, there's support for the following formats:
-\begin{itemize}
-  \item chrome:tracing data through the \texttt{import-chrome} utility. The trace files
-    typically have a \texttt{.json} or \texttt{.json.zst} extension.
-    To use this tool to process a file named \texttt{mytracefile.json}, assuming it's compiled, run:
-    \begin{lstlisting}[language=sh]
-    $ import-chrome mytracefile.json mytracefile.tracy
-    $ tracy mytracefile.tracy
-    \end{lstlisting}
-  \item Fuchsia's tracing format\footnote{\url{https://fuchsia.dev/fuchsia-src/reference/tracing/trace-format}}
-    data through the \texttt{import-fuchsia} utility.
-    This format has many commonalities with the chrome:tracing format, but it uses a
-    compact and efficient binary encoding that can help lower tracing overhead.
-    The file extension is \texttt{.fxt} or \texttt{.fxt.zst}.
-
-    To this this tool, assuming it's compiled, run:
-    \begin{lstlisting}[language=sh]
-    $ import-fuchsia mytracefile.fxt mytracefile.tracy
-    $ tracy mytracefile.tracy
-    \end{lstlisting}
-\end{itemize}
+Tracy can import data generated by other profilers. This external data cannot be directly loaded but must be converted first. Currently, there's only support for converting chrome:tracing data through the \texttt{import-chrome} utility.
 
 \begin{bclogo}[
 noborder=true,
@@ -3921,7 +3799,6 @@ couleur=black!5,
 logo=\bclampe
 ]{Compressed traces}
 Tracy can import traces compressed with the Zstandard algorithm (for example, using the \texttt{zstd} command-line utility). Traces ending with \texttt{.zst} extension are assumed to be compressed.
-This applies for both chrome and fuchsia traces.
 \end{bclogo}
 
 \begin{bclogo}[
@@ -3929,8 +3806,7 @@ noborder=true,
 couleur=black!5,
 logo=\bclampe
 ]{Source locations}
-Chrome tracing format doesn't document a way to provide source location data.
-  The \texttt{import-chrome} and \texttt{import-fuchsia} utilities will however recognize a custom \texttt{loc} tag in the root of zone begin events. You should be formatting this data in the usual \texttt{filename:line} style, for example: \texttt{hello.c:42}. Providing the line number (including a colon) is optional but highly recommended.
+Chrome tracing format doesn't document a way to provide source location data. The \texttt{import-chrome} utility will however recognize a custom \texttt{loc} tag in the root of zone begin events. You should be formatting this data in the usual \texttt{filename:line} style, for example: \texttt{hello.c:42}. Providing the line number (including a colon) is optional but highly recommended.
 \end{bclogo}
 
 \begin{bclogo}[

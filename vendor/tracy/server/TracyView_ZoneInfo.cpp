@@ -356,7 +356,7 @@ void View::DrawZoneInfoWindow()
             }
             if( ImGui::Button( ICON_FA_FILE_LINES " Source" ) )
             {
-                ViewSourceCheckKeyMod( fileName, srcloc.line, m_worker.GetString( srcloc.function ) );
+                ViewSource( fileName, srcloc.line );
             }
             if( hilite )
             {
@@ -955,7 +955,7 @@ void View::DrawZoneInfoWindow()
             {
                 if( SourceFileValid( fileName, m_worker.GetCaptureTime(), *this, m_worker ) )
                 {
-                    ViewSourceCheckKeyMod( fileName, srcloc.line, m_worker.GetString( srcloc.function ) );
+                    ViewSource( fileName, srcloc.line );
                 }
                 else
                 {
@@ -1407,7 +1407,7 @@ void View::DrawGpuInfoWindow()
             }
             if( ImGui::Button( ICON_FA_FILE_LINES " Source" ) )
             {
-                ViewSourceCheckKeyMod( fileName, srcloc.line, m_worker.GetString( srcloc.function ) );
+                ViewSource( fileName, srcloc.line );
             }
             if( hilite )
             {
@@ -1527,7 +1527,7 @@ void View::DrawGpuInfoWindow()
             {
                 if( SourceFileValid( fileName, m_worker.GetCaptureTime(), *this, m_worker ) )
                 {
-                    ViewSourceCheckKeyMod( fileName, srcloc.line, m_worker.GetString( srcloc.function ) );
+                    ViewSource( fileName, srcloc.line );
                 }
                 else
                 {

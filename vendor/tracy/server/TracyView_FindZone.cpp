@@ -367,7 +367,7 @@ void View::DrawFindZone()
                     {
                         if( SourceFileValid( fileName, m_worker.GetCaptureTime(), *this, m_worker ) )
                         {
-                            ViewSourceCheckKeyMod( fileName, srcloc.line, m_worker.GetString( srcloc.function ) );
+                            ViewSource( fileName, srcloc.line );
                         }
                         else
                         {
@@ -1439,7 +1439,7 @@ void View::DrawFindZone()
         const auto highlightActive = m_findZone.highlight.active;
         const auto limitRange = m_findZone.range.active;
         FindZone::Group* group = nullptr;
-        constexpr uint64_t invalidGid = std::numeric_limits<uint64_t>::max() - 1;
+        const uint64_t invalidGid = std::numeric_limits<uint64_t>::max() - 1;
         uint64_t lastGid = invalidGid;
         auto zptr = zones.data() + m_findZone.processed;
         const auto zend = zones.data() + zones.size();
@@ -1731,7 +1731,6 @@ void View::DrawFindZone()
         }
         else
         {
-            TextFocused( "Number of groups:", RealToString( groups.size() ) );
             for( auto& v : groups )
             {
                 bool isFiber = false;

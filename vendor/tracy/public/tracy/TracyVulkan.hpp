@@ -61,9 +61,7 @@ namespace tracy
     Operation(vkResetQueryPool)
 
 #define LoadVkDeviceExtensionSymbols(Operation) \
-    Operation(vkGetCalibratedTimestampsEXT)
-
-#define LoadVkInstanceExtensionSymbols(Operation) \
+    Operation(vkGetCalibratedTimestampsEXT) \
     Operation(vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)
 
 #define LoadVkInstanceCoreSymbols(Operation) \
@@ -74,7 +72,6 @@ struct VkSymbolTable
 #define MAKE_PFN(name) PFN_##name name;
     LoadVkDeviceCoreSymbols(MAKE_PFN)
     LoadVkDeviceExtensionSymbols(MAKE_PFN)
-    LoadVkInstanceExtensionSymbols(MAKE_PFN)
     LoadVkInstanceCoreSymbols(MAKE_PFN)
 #undef MAKE_PFN
 };
@@ -323,6 +320,7 @@ public:
         m_tail += cnt;
     }
 
+private:
     tracy_force_inline unsigned int NextQueryId()
     {
         const uint64_t id = m_head.fetch_add(1, std::memory_order_relaxed);
@@ -334,12 +332,6 @@ public:
         return m_context;
     }
 
-    tracy_force_inline VkQueryPool GetQueryPool() const
-    {
-         return m_query;
-    }
-
-private:
     tracy_force_inline void Calibrate( VkDevice device, int64_t& tCpu, int64_t& tGpu )
     {
         assert( m_timeDomain != VK_TIME_DOMAIN_DEVICE_EXT );
@@ -465,7 +457,6 @@ private:
 
         LoadVkDeviceCoreSymbols( VK_LOAD_DEVICE_SYMBOL )
         LoadVkDeviceExtensionSymbols( VK_LOAD_DEVICE_SYMBOL )
-        LoadVkInstanceExtensionSymbols( VK_LOAD_INSTANCE_SYMBOL )
         LoadVkInstanceCoreSymbols( VK_LOAD_INSTANCE_SYMBOL )
 #undef VK_GET_DEVICE_SYMBOL
 #undef VK_LOAD_DEVICE_SYMBOL

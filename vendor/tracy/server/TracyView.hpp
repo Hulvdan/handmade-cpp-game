@@ -89,7 +89,6 @@ class View
         size_t sourceCount;
         size_t count;
         int64_t total;
-        uint16_t threadNum;
     };
 
 public:
@@ -112,8 +111,6 @@ public:
 
     void NotifyRootWindowSize( float w, float h ) { m_rootWidth = w; m_rootHeight = h; }
     void ViewSource( const char* fileName, int line );
-    void ViewSource( const char* fileName, int line, const char* functionName );
-    void ViewSourceCheckKeyMod( const char* fileName, int line, const char* functionName );
     void ViewSymbol( const char* fileName, int line, uint64_t baseAddr, uint64_t symAddr );
     bool ViewDispatch( const char* fileName, int line, uint64_t symAddr );
 

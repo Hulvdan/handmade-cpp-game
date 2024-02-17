@@ -1,4 +1,4 @@
-name: linux
+name: gcc
 
 on:
   push:
@@ -9,12 +9,20 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-22.04
-    container: archlinux:base-devel
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macOS-latest]
+
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
     - name: Install linux libraries
-      run: pacman -Syu --noconfirm && pacman -S --noconfirm --needed freetype2 capstone tbb debuginfod wayland dbus libxkbcommon libglvnd meson
+      if: ${{ matrix.os == 'ubuntu-22.04' }}
+      run: sudo apt-get update && sudo apt-get -y install libdbus-1-dev libcapstone-dev libtbb-dev libdebuginfod-dev libxkbcommon-dev libegl-dev libwayland-dev
+    - name: Install macos libraries
+      if: ${{ matrix.os == 'macOS-latest' }}
+      run: brew install capstone tbb pkg-config glfw
     - name: Profiler GUI
       run: make -j`nproc` -C profiler/build/unix debug release
     - name: Update utility
@@ -25,12 +33,8 @@ jobs:
       run: make -j`nproc` -C csvexport/build/unix debug release
     - name: Import-chrome utility
       run: make -j`nproc` -C import-chrome/build/unix debug release
-    - name: Import-fuchsia utility
-      run: make -j`nproc` -C import-fuchsia/build/unix debug release
     - name: Library
       run: make -j`nproc` -C library/unix debug release
-    - name: Library (meson)
-      run: meson setup -Dprefix=$PWD/install build && meson compile -C build && meson install -C build
     - name: Test application
       run: |
         make -j`nproc` -C test

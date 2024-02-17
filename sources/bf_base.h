@@ -18,7 +18,6 @@ using v3i = glm::ivec3;
 
 #define local_persist static
 #define global static
-#define internal static
 
 #include "bf_types.h"
 

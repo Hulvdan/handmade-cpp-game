@@ -150,9 +150,6 @@
     <ClCompile Include="..\..\..\public\common\TracySystem.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\server\TracyPrint.cpp">
-      <Filter>server</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\server\TracyCharUtil.hpp">
@@ -349,9 +346,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\public\common\TracyYield.hpp">
       <Filter>common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\server\TracyPrint.hpp">
-      <Filter>server</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

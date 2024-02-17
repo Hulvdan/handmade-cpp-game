@@ -1,7 +1,7 @@
 CFLAGS +=
 CXXFLAGS := $(CFLAGS) -std=c++17
 DEFINES += -DIMGUI_ENABLE_FREETYPE
-INCLUDES := -I../../../imgui $(shell pkg-config --cflags freetype2 capstone wayland-egl egl wayland-cursor xkbcommon)
+INCLUDES := $(shell pkg-config --cflags freetype2 capstone wayland-egl egl wayland-cursor xkbcommon) -I../../../imgui
 LIBS := $(shell pkg-config --libs freetype2 capstone wayland-egl egl wayland-cursor xkbcommon) -lpthread -ldl
 
 PROJECT := Tracy

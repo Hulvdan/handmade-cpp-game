@@ -1,7 +1,7 @@
 CFLAGS +=
 CXXFLAGS := $(CFLAGS) -std=c++17
 DEFINES += -DIMGUI_ENABLE_FREETYPE
-INCLUDES := -I../../../imgui $(shell pkg-config --cflags glfw3 freetype2 capstone)
+INCLUDES := $(shell pkg-config --cflags glfw3 freetype2 capstone) -I../../../imgui
 LIBS := $(shell pkg-config --libs glfw3 freetype2 capstone) -lpthread -ldl
 
 PROJECT := Tracy
