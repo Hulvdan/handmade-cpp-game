@@ -130,11 +130,15 @@ target_sources(tests PRIVATE
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 target_link_libraries(tests PRIVATE opengl32.lib)
 target_link_libraries(tests PRIVATE glew glm)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
-target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
+target_include_directories(tests PRIVATE
+    "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest"
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public"
+)
 
 IF(WIN32 AND NOT CMAKE_GENERATOR STREQUAL Ninja)
     set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)
