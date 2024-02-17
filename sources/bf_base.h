@@ -5,6 +5,15 @@
 
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
+constexpr v2f v2f_zero = v2f(0, 0);
+constexpr v2f v2f_one = v2f(1, 1);
+constexpr v2f v2f_right = v2f(1, 0);
+constexpr v2f v2f_up = v2f(0, 1);
+constexpr v2f v2f_left = v2f(-1, 0);
+constexpr v2f v2f_bottom = v2f(0, -1);
+
+using v3f = glm::vec3;
+using v3i = glm::ivec3;
 
 #define local_persist static
 #define global static

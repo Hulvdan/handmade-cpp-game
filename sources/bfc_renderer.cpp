@@ -322,8 +322,8 @@ void Draw_Sprite(
     f32 y0,
     f32 x1,
     f32 y1,
-    glm::vec2 pos,
-    glm::vec2 size,
+    v2f pos,
+    v2f size,
     float rotation,
     const glm::mat3& projection  //
 ) {
@@ -338,7 +338,7 @@ void Draw_Sprite(
 
     auto matrix = projection * model;
     // TODO(hulvdan): How bad is it that there are vec3, but not vec2?
-    glm::vec3 vertices[] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}};
+    v3f vertices[] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}};
     for (auto& vertex : vertices) {
         vertex = matrix * vertex;
         // Converting from homogeneous to eucledian
@@ -354,15 +354,23 @@ void Draw_Sprite(
     }
 };
 
-void Draw_UI_Sprite(f32 x0, f32 y0, f32 x1, f32 y1, glm::vec2 pos, glm::vec2 size) {
+void Draw_UI_Sprite(
+    f32 x0,
+    f32 y0,
+    f32 x1,
+    f32 y1,
+    v2f pos,
+    v2f size,
+    v2f anchor  //
+) {
     assert(x0 < x1);
     assert(y0 < y1);
 
-    glm::vec2 vertices[] = {
-        {pos.x + size.x * 0, pos.y + size.y * 0},
-        {pos.x + size.x * 0, pos.y + size.y * 1},
-        {pos.x + size.x * 1, pos.y + size.y * 0},
-        {pos.x + size.x * 1, pos.y + size.y * 1},
+    v2f vertices[] = {
+        {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (0 - anchor.y)},
+        {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (1 - anchor.y)},
+        {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (0 - anchor.y)},
+        {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (1 - anchor.y)},
     };
 
     f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
@@ -396,13 +404,13 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
 
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-    projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+    projection = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+    projection = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
     projection = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
-    projection = glm::scale(projection, glm::vec2(cell_size, cell_size));
+    projection = glm::scale(projection, v2f(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
-    return projection * glm::vec3(pos.x, pos.y, 1);
+    return projection * v3f(pos.x, pos.y, 1);
 }
 
 v2f Screen_To_World(Game_State& state, v2f pos) {
@@ -418,13 +426,13 @@ v2f Screen_To_World(Game_State& state, v2f pos) {
 
     auto projection = glm::mat3(1);
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-    projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+    projection = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+    projection = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
     projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
-    projection = glm::scale(projection, glm::vec2(cell_size, cell_size));
+    projection = glm::scale(projection, v2f(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
-    return projection_inv * glm::vec3(pos.x, pos.y, 1);
+    return projection_inv * v3f(pos.x, pos.y, 1);
 }
 
 v2i World_Pos_To_Tile(v2f pos) {
@@ -457,18 +465,18 @@ void Draw_Stretchable_Sprite(
     assert(y1 * in_scale + y2 * in_scale <= 1);
     assert(x1 * in_scale + x2 * in_scale <= 1);
 
-    auto p0 = glm::vec3(x0, y0, 1);
-    auto p3 = glm::vec3(x3, y3, 1);
+    auto p0 = v3f(x0, y0, 1);
+    auto p3 = v3f(x3, y3, 1);
     auto dx = x3 - x0;
     auto dy = y3 - y0;
-    auto dp1 = glm::vec3(
-        pad_h.x * in_scale * dx / panel_size.x, pad_v.x * in_scale * dy / panel_size.y, 0);
-    auto dp2 = glm::vec3(
-        pad_h.y * in_scale * dx / panel_size.x, pad_v.y * in_scale * dy / panel_size.y, 0);
-    glm::vec3 p1 = p0 + dp1;
-    glm::vec3 p2 = p3 - dp2;
+    auto dp1 =
+        v3f(pad_h.x * in_scale * dx / panel_size.x, pad_v.x * in_scale * dy / panel_size.y, 0);
+    auto dp2 =
+        v3f(pad_h.y * in_scale * dx / panel_size.x, pad_v.y * in_scale * dy / panel_size.y, 0);
+    v3f p1 = p0 + dp1;
+    v3f p2 = p3 - dp2;
 
-    glm::vec3 points[] = {p0, p1, p2, p3};
+    v3f points[] = {p0, p1, p2, p3};
 
     f32 texture_vertices_x[] = {0, x1, 1 - x2, 1};
     f32 texture_vertices_y[] = {0, y1, 1 - y2, 1};
@@ -493,7 +501,8 @@ void Draw_Stretchable_Sprite(
                 tex_x0, tex_y0,  //
                 tex_x1, tex_y1,  //
                 v2f(sprite_x0, sprite_y0),  //
-                v2f(sx, sy)  //
+                v2f(sx, sy),  //
+                v2f(0, 0)  //
             );
         }
     }
@@ -525,13 +534,13 @@ void Render(Game_State& state, f32 dt) {
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
         auto projection = glm::mat3(1);
-        projection = glm::translate(projection, glm::vec2(0, 1));
-        projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+        projection = glm::translate(projection, v2f(0, 1));
+        projection = glm::scale(projection, v2f(1 / swidth, -1 / sheight));
         projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-        projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-        projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+        projection = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+        projection = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
         projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
-        auto d = projection * glm::vec3(cursor_d.x, cursor_d.y, 0);
+        auto d = projection * v3f(cursor_d.x, cursor_d.y, 0);
         rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
 
         auto d3 = World_To_Screen(state, v2f(0, 0));
@@ -567,7 +576,7 @@ void Render(Game_State& state, f32 dt) {
         glBindTexture(GL_TEXTURE_2D, texture_name);
         glBegin(GL_TRIANGLES);
 
-        glm::vec2 vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+        v2f vertices[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
         for (auto i : {0, 1, 2, 2, 1, 3}) {
             auto& v = vertices[i];
             glTexCoord2f(v.x, v.y);
@@ -578,14 +587,14 @@ void Render(Game_State& state, f32 dt) {
     }
 
     auto projection = glm::mat3(1);
-    projection = glm::translate(projection, glm::vec2(0, 1));
-    projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
+    projection = glm::translate(projection, v2f(0, 1));
+    projection = glm::scale(projection, v2f(1 / swidth, -1 / sheight));
     projection = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection = glm::scale(projection, glm::vec2(rstate.zoom, rstate.zoom));
-    projection = glm::translate(projection, glm::vec2(swidth, sheight) / 2.0f);
+    projection = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+    projection = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
     projection = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
-    // projection = glm::scale(projection, glm::vec2(1, 1) * (f32)cell_size);
-    // projection = glm::scale(projection, glm::vec2(2, 2) / 2.0f);
+    // projection = glm::scale(projection, v2f(1, 1) * (f32)cell_size);
+    // projection = glm::scale(projection, v2f(2, 2) / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     FOR_RANGE(i32, h, rstate.terrain_tilemaps_count) {
@@ -754,7 +763,7 @@ void Render(Game_State& state, f32 dt) {
 
         v2f padding = {6, 6};
         f32 placeholders_gap = 4;
-        auto placeholders = 4;
+        auto placeholders = 2;
         auto panel_size =
             v2f(psize.x + 2 * padding.x,
                 2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
@@ -765,20 +774,19 @@ void Render(Game_State& state, f32 dt) {
         auto outer_y = outer_container_size.y * outer_anchor.y;
 
         auto projection = glm::mat3(1);
-        projection = glm::translate(projection, glm::vec2(0, 1));
-        projection = glm::scale(projection, glm::vec2(1 / swidth, -1 / sheight));
-        projection = glm::translate(projection, glm::vec2((int)outer_x, (int)outer_y));
-        projection = glm::scale(projection, glm::vec2(scale, scale));
+        projection = glm::translate(projection, v2f(0, 1));
+        projection = glm::scale(projection, v2f(1 / swidth, -1 / sheight));
+        projection = glm::translate(projection, v2f((int)outer_x, (int)outer_y));
+        projection = glm::scale(projection, v2f(scale));
 
         {
             auto model = glm::mat3(1);
-            model = glm::scale(model, glm::vec2(panel_size));
+            model = glm::scale(model, v2f(panel_size));
 
-            auto sa = glm::vec3(sprite_anchor.x, sprite_anchor.y, 0);
-            auto p0_local = model * (glm::vec3(0, 0, 1) - sa);
-            auto p1_local = model * (glm::vec3(1, 1, 1) - sa);
-            glm::vec3 p0 = projection * p0_local;
-            glm::vec3 p1 = projection * p1_local;
+            auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
+            auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
+            auto p0 = projection * p0_local;
+            auto p1 = projection * p1_local;
             Draw_Stretchable_Sprite(
                 p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale);
 
@@ -786,16 +794,36 @@ void Render(Game_State& state, f32 dt) {
 
             glBindTexture(GL_TEXTURE_2D, ui_state.buildables_placeholder_background.id);
             glBegin(GL_TRIANGLES);
-            // auto offset = (projection*).y;
+            // Aligning items in a column
+            // justify-content: center
             FOR_RANGE(int, i, placeholders) {
                 auto drawing_point = origin;
-                drawing_point -= glm::vec3(
-                    psize.x / 2,
-                    psize.y * placeholders / 2 + (placeholders - 1) * placeholders_gap / 2, 0);
+                drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
                 drawing_point.y += i * (placeholders_gap + psize.y);
-                Draw_Sprite(0, 0, 1, 1, drawing_point, psize, 0, projection);
+
+                auto p = projection * drawing_point;
+                auto s = projection * v3f(psize, 0);
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
             }
             glEnd();
+
+            GLuint buildable_textures[] = {
+                (state.scriptable_buildings + 1)->texture->id,
+                (rstate.road_textures + 15)->id,
+            };
+            auto buildable_size = v2f(psize) * (2.0f / 3.0f);
+            FOR_RANGE(int, i, placeholders) {
+                auto drawing_point = origin;
+                drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
+                drawing_point.y += i * (placeholders_gap + psize.y);
+
+                auto p = projection * drawing_point;
+                auto s = projection * v3f(buildable_size, 0);
+                glBindTexture(GL_TEXTURE_2D, buildable_textures[i]);
+                glBegin(GL_TRIANGLES);
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
+                glEnd();
+            }
         }
     }
 }
