@@ -748,13 +748,13 @@ void Render(Game_State& state, f32 dt) {
         auto placeholder_texture = ui_state.buildables_placeholder_background;
         auto& psize = placeholder_texture.size;
 
-        auto scale = 4.0f;
+        auto scale = 3.0f;
         auto in_scale = 1.0f;
         v2f sprite_anchor = {0.0f, 0.5f};
 
-        v2f padding = {4, 4};
+        v2f padding = {6, 6};
         f32 placeholders_gap = 4;
-        auto placeholders = 2;
+        auto placeholders = 4;
         auto panel_size =
             v2f(psize.x + 2 * padding.x,
                 2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
@@ -770,14 +770,33 @@ void Render(Game_State& state, f32 dt) {
         projection = glm::translate(projection, glm::vec2((int)outer_x, (int)outer_y));
         projection = glm::scale(projection, glm::vec2(scale, scale));
 
-        auto model = glm::mat3(1);
-        model = glm::scale(model, glm::vec2(panel_size));
+        {
+            auto model = glm::mat3(1);
+            model = glm::scale(model, glm::vec2(panel_size));
 
-        auto sa = glm::vec3(sprite_anchor.x, sprite_anchor.y, 0);
-        glm::vec3 p0 = projection * model * (glm::vec3(0, 0, 1) - sa);
-        glm::vec3 p3 = projection * model * (glm::vec3(1, 1, 1) - sa);
-        Draw_Stretchable_Sprite(
-            p0.x, p3.x, p0.y, p3.y, texture, sprite_params, panel_size, in_scale);
+            auto sa = glm::vec3(sprite_anchor.x, sprite_anchor.y, 0);
+            auto p0_local = model * (glm::vec3(0, 0, 1) - sa);
+            auto p1_local = model * (glm::vec3(1, 1, 1) - sa);
+            glm::vec3 p0 = projection * p0_local;
+            glm::vec3 p1 = projection * p1_local;
+            Draw_Stretchable_Sprite(
+                p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale);
+
+            auto origin = (p1_local + p0_local) / 2.0f;
+
+            glBindTexture(GL_TEXTURE_2D, ui_state.buildables_placeholder_background.id);
+            glBegin(GL_TRIANGLES);
+            // auto offset = (projection*).y;
+            FOR_RANGE(int, i, placeholders) {
+                auto drawing_point = origin;
+                drawing_point -= glm::vec3(
+                    psize.x / 2,
+                    psize.y * placeholders / 2 + (placeholders - 1) * placeholders_gap / 2, 0);
+                drawing_point.y += i * (placeholders_gap + psize.y);
+                Draw_Sprite(0, 0, 1, 1, drawing_point, psize, 0, projection);
+            }
+            glEnd();
+        }
     }
 }
 
