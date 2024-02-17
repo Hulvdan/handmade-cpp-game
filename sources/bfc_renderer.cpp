@@ -555,6 +555,8 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& temp_arena, Game_Sta
 }
 
 void Render(Game_State& state, f32 dt) {
+    ZoneScoped;
+
     Arena& temp_arena = state.temp_arena;
 
     assert(state.renderer_state != nullptr);

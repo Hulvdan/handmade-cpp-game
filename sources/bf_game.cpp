@@ -161,6 +161,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     Editor_Data& editor_data,
     OS_Data& os_data  //
 ) {
+    ZoneScoped;
+
     Arena root_arena = {};
     root_arena.base = (u8*)memory_ptr;
     root_arena.size = memory_size;

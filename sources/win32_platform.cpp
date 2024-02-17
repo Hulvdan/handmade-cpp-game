@@ -903,6 +903,8 @@ static int WinMain(
         Win32Paint(capped_dt, window_handle, device_context);
         ReleaseDC(window_handle, device_context);
 
+        FrameMark;
+
         u64 perf_counter_new = Win32Clock();
         last_frame_dt =
             (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;

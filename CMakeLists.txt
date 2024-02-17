@@ -8,6 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 
+add_compile_definitions(TRACY_ENABLE)
+
+# # === tracy ===
+# add_library(tracy STATIC)
+# target_include_directories(tracy INTERFACE "${PROJECT_SOURCE_DIR}/vendor/tracy/public/")
+# target_sources(tracy PRIVATE "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp")
+
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
@@ -32,6 +39,7 @@ target_compile_definitions(bf_game PRIVATE
 target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public"
 )
 target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
@@ -40,9 +48,11 @@ target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 # TODO(hulvdan): How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
+target_link_libraries(bf_game PRIVATE tracy)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
@@ -55,6 +65,7 @@ target_compile_definitions(win32 PRIVATE
 target_include_directories(win32 PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public"
 )
 target_sources(win32 PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
@@ -63,6 +74,7 @@ target_sources(win32 PRIVATE
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm)

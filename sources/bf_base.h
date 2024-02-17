@@ -1,4 +1,5 @@
 #pragma once
+#include "tracy/Tracy.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
