@@ -104,7 +104,7 @@ bool UI_Clicked(Game_State& state) {
 
             auto p = projection * drawing_point;
             auto s = projection * v3f(psize, 0);
-            auto off = v2f(rstate.mouse_pos) - v2f(p);
+            auto off = v2f(rstate.mouse_pos) - (v2f(p) - v2f(s) * 0.5f);
             if (Pos_Is_In_Bounds(off, s)) {
                 clicked_buildable_index = i;
                 break;
