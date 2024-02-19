@@ -273,6 +273,21 @@ struct UI_Sprite_Params {
     v2i stretch_paddings_v;
 };
 
+struct BF_Color {
+    f32 r;
+    f32 g;
+    f32 b;
+};
+
+static constexpr BF_Color BF_Color_White = BF_Color(1, 1, 1);
+static constexpr BF_Color BF_Color_Black = BF_Color(0, 0, 0);
+static constexpr BF_Color BF_Color_Red = BF_Color(1, 0, 0);
+static constexpr BF_Color BF_Color_Green = BF_Color(0, 1, 0);
+static constexpr BF_Color BF_Color_Blue = BF_Color(0, 0, 1);
+static constexpr BF_Color BF_Color_Yellow = BF_Color(1, 1, 0);
+static constexpr BF_Color BF_Color_Cyan = BF_Color(0, 1, 1);
+static constexpr BF_Color BF_Color_Magenta = BF_Color(1, 0, 1);
+
 struct Game_UI_State {
     UI_Sprite_Params buildables_panel_params;
     Loaded_Texture buildables_panel_background;
@@ -280,6 +295,18 @@ struct Game_UI_State {
 
     u16 buildables_count;
     Item_To_Build* buildables;
+
+    i8 selected_buildable_index;
+    BF_Color selected_buildable_color;
+    BF_Color not_selected_buildable_color;
+    v2f buildables_panel_sprite_anchor;
+    v2f buildables_panel_container_anchor;
+    f32 buildables_panel_in_scale;
+    f32 scale;
+
+    v2i padding;
+    i8 placeholders;
+    i16 placeholders_gap;
 };
 
 struct Game_Renderer_State {

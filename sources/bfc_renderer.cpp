@@ -322,6 +322,22 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
     (ui_state.buildables + 1)->type = Item_To_Build_Type::Building;
     (ui_state.buildables + 1)->scriptable_building_id = global_lumberjacks_hut_building_id;
 
+    ui_state.padding = {6, 6};
+    ui_state.placeholders = 2;
+    ui_state.placeholders_gap = 4;
+    ui_state.selected_buildable_index = -1;
+    ui_state.buildables_panel_sprite_anchor = {0.0f, 0.5f};
+    ui_state.scale = 3;
+    ui_state.buildables_panel_in_scale = 1;
+    ui_state.buildables_panel_container_anchor = {0.0f, 0.5f};
+
+    ui_state.selected_buildable_color.r = 255.0f / 255.0f;
+    ui_state.selected_buildable_color.g = 255.0f / 255.0f;
+    ui_state.selected_buildable_color.b = 255.0f / 255.0f;
+    ui_state.not_selected_buildable_color.r = 255.0f / 255.0f;
+    ui_state.not_selected_buildable_color.g = 233.0f / 255.0f;
+    ui_state.not_selected_buildable_color.b = 176.0f / 255.0f;
+
     rstate.is_initialized = true;
 }
 
@@ -369,7 +385,8 @@ void Draw_UI_Sprite(
     f32 y1,
     v2f pos,
     v2f size,
-    v2f anchor  //
+    v2f anchor,
+    BF_Color color  //
 ) {
     assert(x0 < x1);
     assert(y0 < y1);
@@ -510,7 +527,8 @@ void Draw_Stretchable_Sprite(
                 tex_x1, tex_y1,  //
                 v2f(sprite_x0, sprite_y0),  //
                 v2f(sx, sy),  //
-                v2f(0, 0)  //
+                v2f(0, 0),  //
+                BF_Color_White  //
             );
         }
     }
@@ -793,11 +811,9 @@ void Render(Game_State& state, f32 dt) {
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());
 
+    auto& ui_state = *rstate.ui_state;
     {
         // Drawing left buildables thingy
-        auto& ui_state = *rstate.ui_state;
-        ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
-
         auto sprite_params = ui_state.buildables_panel_params;
         auto& pad_h = sprite_params.stretch_paddings_h;
         auto& pad_v = sprite_params.stretch_paddings_v;
@@ -806,18 +822,18 @@ void Render(Game_State& state, f32 dt) {
         auto placeholder_texture = ui_state.buildables_placeholder_background;
         auto& psize = placeholder_texture.size;
 
-        auto scale = 3.0f;
-        auto in_scale = 1.0f;
-        v2f sprite_anchor = {0.0f, 0.5f};
+        auto scale = ui_state.scale;
+        auto in_scale = ui_state.buildables_panel_in_scale;
+        v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-        v2f padding = {6, 6};
-        f32 placeholders_gap = 4;
-        auto placeholders = 2;
+        v2f padding = ui_state.padding;
+        f32 placeholders_gap = ui_state.placeholders_gap;
+        auto placeholders = ui_state.placeholders;
         auto panel_size =
             v2f(psize.x + 2 * padding.x,
                 2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
 
-        auto outer_anchor = v2f(0.0f, 0.5f);
+        auto outer_anchor = ui_state.buildables_panel_container_anchor;
         auto outer_container_size = v2i(swidth, sheight);
         auto outer_x = outer_container_size.x * outer_anchor.x;
         auto outer_y = outer_container_size.y * outer_anchor.y;
@@ -852,7 +868,10 @@ void Render(Game_State& state, f32 dt) {
 
                 auto p = projection * drawing_point;
                 auto s = projection * v3f(psize, 0);
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
+                auto color = (i == ui_state.selected_buildable_index)
+                    ? ui_state.selected_buildable_color
+                    : ui_state.not_selected_buildable_color;
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color);
             }
             glEnd();
 
@@ -869,11 +888,13 @@ void Render(Game_State& state, f32 dt) {
                 auto s = projection * v3f(buildable_size, 0);
                 glBindTexture(GL_TEXTURE_2D, *(buildable_textures.textures + i));
                 glBegin(GL_TRIANGLES);
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, BF_Color_White);
                 glEnd();
             }
         }
     }
+
+    ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item

@@ -39,6 +39,86 @@
     memcpy(&(variable_name_), events, sizeof(event_type_)); \
     events += sizeof(event_type_);
 
+void On_Buildable_Pressed(Game_State& state, u8 buildable_index) {
+    auto& ui_state = *state.renderer_state->ui_state;
+    ui_state.selected_buildable_index = buildable_index;
+}
+
+bool UI_Clicked(Game_State& state) {
+    auto& game_map = state.game_map;
+    auto& rstate = *state.renderer_state;
+    auto& ui_state = *rstate.ui_state;
+
+    assert(rstate.bitmap != nullptr);
+    Game_Bitmap& bitmap = *rstate.bitmap;
+
+    auto gsize = game_map.size;
+    auto swidth = (f32)bitmap.width;
+    auto sheight = (f32)bitmap.height;
+
+    auto sprite_params = ui_state.buildables_panel_params;
+    auto& pad_h = sprite_params.stretch_paddings_h;
+    auto& pad_v = sprite_params.stretch_paddings_v;
+
+    auto texture = ui_state.buildables_panel_background;
+    auto placeholder_texture = ui_state.buildables_placeholder_background;
+    auto& psize = placeholder_texture.size;
+
+    auto scale = ui_state.scale;
+    auto in_scale = ui_state.buildables_panel_in_scale;
+    v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+
+    v2f padding = ui_state.padding;
+    f32 placeholders_gap = ui_state.placeholders_gap;
+    auto placeholders = ui_state.placeholders;
+    auto panel_size =
+        v2f(psize.x + 2 * padding.x,
+            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
+
+    auto outer_anchor = ui_state.buildables_panel_container_anchor;
+    auto outer_container_size = v2i(swidth, sheight);
+    auto outer_x = outer_container_size.x * outer_anchor.x;
+    auto outer_y = outer_container_size.y * outer_anchor.y;
+
+    auto projection = glm::mat3(1);
+    // projection = glm::translate(projection, v2f(0, 1));
+    // projection = glm::scale(projection, v2f(1 / swidth, -1 / sheight));
+    projection = glm::translate(projection, v2f((int)outer_x, (int)outer_y));
+    projection = glm::scale(projection, v2f(scale));
+
+    i8 clicked_buildable_index = -1;
+
+    {
+        auto model = glm::mat3(1);
+        model = glm::scale(model, v2f(panel_size));
+        auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
+        auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
+        auto origin = (p1_local + p0_local) / 2.0f;
+
+        // Aligning items in a column
+        // justify-content: center
+        FOR_RANGE(int, i, placeholders) {
+            auto drawing_point = origin;
+            drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
+            drawing_point.y += i * (placeholders_gap + psize.y);
+
+            auto p = projection * drawing_point;
+            auto s = projection * v3f(psize, 0);
+            auto off = v2f(rstate.mouse_pos) - v2f(p);
+            if (Pos_Is_In_Bounds(off, s)) {
+                clicked_buildable_index = i;
+                break;
+            }
+        }
+    }
+
+    if (clicked_buildable_index != -1) {
+        ui_state.selected_buildable_index = clicked_buildable_index;
+    }
+
+    return clicked_buildable_index != -1;
+}
+
 void Process_Events(
     Game_Memory& memory,
     const u8* events,
@@ -60,16 +140,18 @@ void Process_Events(
 
             rstate.mouse_pos = event.position;
 
-            if (event.type == Mouse_Button_Type::Left) {
-                auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
-                if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
-                    Try_Build(state, tile_pos, Item_To_Build_Flag);
-                    Try_Build(state, tile_pos, Item_To_Build_Road);
+            if (!UI_Clicked(state)) {
+                if (event.type == Mouse_Button_Type::Left) {
+                    auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
+                    if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
+                        Try_Build(state, tile_pos, Item_To_Build_Flag);
+                        Try_Build(state, tile_pos, Item_To_Build_Road);
+                    }
+                } else if (event.type == Mouse_Button_Type::Right) {
+                    rstate.panning = true;
+                    rstate.pan_start_pos = event.position;
+                    rstate.pan_offset = v2i(0, 0);
                 }
-            } else if (event.type == Mouse_Button_Type::Right) {
-                rstate.panning = true;
-                rstate.pan_start_pos = event.position;
-                rstate.pan_offset = v2i(0, 0);
             }
         } break;
 
