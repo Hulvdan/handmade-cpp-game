@@ -1,5 +1,7 @@
 # Handmade C++ Game
 
+> This is a C++ port of my [RoadsOfHorses WIP game in Unity, C#](https://github.com/Hulvdan/RoadsOfHorses)
+
 Paving my path to the C++ competency following the steps of [Casey Muratori](https://caseymuratori.com/about) in his ["Handmade Hero"](https://handmadehero.org/) programming series.
 
 ## Interesting Things I'd Point Out About This Repo
