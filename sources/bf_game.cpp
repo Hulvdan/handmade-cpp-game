@@ -104,7 +104,8 @@ bool UI_Clicked(Game_State& state) {
 
             auto p = projection * drawing_point;
             auto s = projection * v3f(psize, 0);
-            auto off = v2f(rstate.mouse_pos) - (v2f(p) - v2f(s) * 0.5f);
+            auto p2 = v2f(p) - v2f(s) * 0.5f;  // anchor
+            auto off = v2f(rstate.mouse_pos) - p2;
             if (Pos_Is_In_Bounds(off, s)) {
                 clicked_buildable_index = i;
                 break;
@@ -112,9 +113,8 @@ bool UI_Clicked(Game_State& state) {
         }
     }
 
-    if (clicked_buildable_index != -1) {
+    if (clicked_buildable_index != -1)
         ui_state.selected_buildable_index = clicked_buildable_index;
-    }
 
     return clicked_buildable_index != -1;
 }

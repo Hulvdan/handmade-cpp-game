@@ -31,8 +31,10 @@ add_library(bf_game SHARED)
 target_sources(bf_game PUBLIC sources/bf_game.h)
 target_sources(bf_game PRIVATE sources/bf_game.cpp)
 target_compile_definitions(bf_game PRIVATE
-    GAME_LIBRARY_BUILD
     BF_CLIENT
+    BF_INTERNAL
+    GAME_LIBRARY_BUILD
+
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
 )
@@ -56,7 +58,7 @@ target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
 target_compile_definitions(win32 PRIVATE
-    BFG_INTERNAL
+    BF_INTERNAL
     BF_CLIENT
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
@@ -106,7 +108,7 @@ target_link_libraries(win32 PRIVATE glew glm)
 # === Building meta_tools.exe ===
 # add_executable(meta_tools sources/meta_tools.cpp)
 # target_compile_definitions(win32 PRIVATE
-#     BFG_INTERNAL
+#     BF_INTERNAL
 # )
 # target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 # target_link_libraries(win32 PRIVATE glew glm)

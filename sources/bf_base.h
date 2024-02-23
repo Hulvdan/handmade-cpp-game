@@ -4,6 +4,46 @@
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
 
+#ifdef BF_INTERNAL
+static constexpr auto DEBUG_MAX_LEN = 512;
+// #define DEBUG_Error(text_, ...)                           \
+//     {                                                     \
+//         char buf[DEBUG_MAX_LEN];                          \
+//         snprintf(buf, DEBUG_MAX_LEN, text_, __VA_ARGS__); \
+//         ::OutputDebugStringA(buf);                        \
+//     }
+// #define DEBUG_Print(text_, ...)                           \
+//     {                                                     \
+//         char buf[DEBUG_MAX_LEN];                          \
+//         snprintf(buf, DEBUG_MAX_LEN, text_, __VA_ARGS__); \
+//         ::OutputDebugStringA(buf);                        \
+//     }
+
+void DEBUG_Error(auto text, ...) {
+    va_list args;
+    va_start(args, text);
+    char buf[DEBUG_MAX_LEN];
+    vsnprintf(buf, DEBUG_MAX_LEN, text, args);
+
+    ::OutputDebugStringA(buf);
+    va_end(args);
+}
+
+void DEBUG_Print(auto text, ...) {
+    va_list args;
+    va_start(args, text);
+    char buf[DEBUG_MAX_LEN];
+    vsnprintf(buf, DEBUG_MAX_LEN, text, args);
+
+    ::OutputDebugStringA(buf);
+    va_end(args);
+}
+
+#else
+#define DEBUG_Error(text_, ...)
+#define DEBUG_Print(text_, ...)
+#endif
+
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
 constexpr v2f v2f_zero = v2f(0, 0);

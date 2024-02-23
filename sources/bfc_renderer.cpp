@@ -135,6 +135,66 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 }
 
 void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
+    // NOTE(hulvdan): I could not find a way of initializing glew once
+    // in win32 layer so that initializing here'd unnecessary.
+    // However, I did not dig very deep into using GLEW as a dll.
+    assert(glewInit() == GLEW_OK);
+
+    if (state.renderer_state == nullptr) {
+        GLint success;
+
+        // Vertex Shader
+        auto vertex_code = R"Shader(
+version
+)Shader";
+        auto vertex = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertex, 1, &vertex_code, nullptr);
+        glCompileShader(vertex);
+        // print compile errors if any
+        glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
+
+        GLint log_length;
+        glGetShaderiv(vertex, GL_INFO_LOG_LENGTH, &log_length);
+        auto info_log = Allocate_Array(temp_arena, GLchar, log_length);
+        glGetShaderInfoLog(vertex, log_length, nullptr, info_log);
+        if (success)
+            DEBUG_Print("INFO:\tVertex shader compilation succeeded: %s\n", info_log);
+        else
+            DEBUG_Error("ERROR:\tVertex shader compilation failed: %s\n", info_log);
+
+        // Similiar for Fragment Shader
+        auto fragment_code = R"Shader(
+version
+)Shader";
+
+        auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragment, 1, &fragment_code, nullptr);
+        glCompileShader(fragment);
+        // print compile errors if any
+        glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(fragment, 512, nullptr, info_log);
+            // std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << info_log <<
+            // std::endl;
+        };
+
+        // shader Program
+        auto program_id = glCreateProgram();
+        glAttachShader(program_id, vertex);
+        glAttachShader(program_id, fragment);
+        glLinkProgram(program_id);
+        // print linking errors if any
+        glGetProgramiv(program_id, GL_LINK_STATUS, &success);
+        if (!success) {
+            glGetProgramInfoLog(program_id, 512, nullptr, info_log);
+            // std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << info_log << std::endl;
+        }
+
+        // delete the shaders as they're linked into our program now and no longer necessary
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+    }
+
     if (state.renderer_state != nullptr && state.renderer_state->is_initialized)
         return;
 

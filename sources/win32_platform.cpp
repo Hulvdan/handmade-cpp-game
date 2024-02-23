@@ -60,7 +60,7 @@ void push_event(T& event) {
     events.insert(events.end(), data, data + sizeof(T));
 }
 
-#if BFG_INTERNAL
+#if BF_INTERNAL
 global FILETIME last_game_dll_write_time;
 
 struct Peek_Filetime_Result {
@@ -82,7 +82,7 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
 
     return res;
 }
-#endif  // BFG_INTERNAL
+#endif  // BF_INTERNAL
 
 using Game_Update_And_Render_Type =
     void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t, Editor_Data&, OS_Data&);
@@ -101,7 +101,7 @@ Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stu
 void Load_Or_Update_Game_Dll() {
     auto path = "bf_game.dll";
 
-#if BFG_INTERNAL
+#if BF_INTERNAL
     auto filetime = Peek_Filetime(path);
     if (!filetime.success)
         return;
@@ -128,7 +128,7 @@ void Load_Or_Update_Game_Dll() {
     }
 
     path = temp_path;
-#endif  // BFG_INTERNAL
+#endif  // BF_INTERNAL
 
     Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
@@ -147,11 +147,11 @@ void Load_Or_Update_Game_Dll() {
         return;
     }
 
-#if BFG_INTERNAL
+#if BF_INTERNAL
     editor_data.game_context_set = false;
     editor_data.changed = true;
     last_game_dll_write_time = filetime.filetime;
-#endif  // BFG_INTERNAL
+#endif  // BF_INTERNAL
 
     game_lib = lib;
     Game_Update_And_Render_ = loaded_Game_Update_And_Render;
@@ -345,9 +345,9 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     events_count = 0;
     events.clear();
 
-#if BFG_INTERNAL
+#if BF_INTERNAL
     Load_Or_Update_Game_Dll();
-#endif  // BFG_INTERNAL
+#endif  // BF_INTERNAL
 }
 
 void Win32GLResize() {
