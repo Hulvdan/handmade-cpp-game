@@ -650,6 +650,9 @@ void Render(Game_State& state, f32 dt) {
     auto sheight = (f32)bitmap.height;
     auto cell_size = 32;
 
+    if (swidth == 0.0f || sheight == 0.0f)
+        return;
+
     {
         auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
         ImGui::Text("Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y);
