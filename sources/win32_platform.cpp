@@ -33,6 +33,8 @@ struct BF_Bitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
+global bool hot_reloaded = false;
+
 global Editor_Data editor_data;
 global HMODULE game_lib = nullptr;
 global size_t initial_game_memory_size;
@@ -84,18 +86,8 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
 }
 #endif  // BF_INTERNAL
 
-using Game_Update_And_Render_Type =
-    void (*)(f32, void*, size_t, Game_Bitmap&, void*, size_t, Editor_Data&, OS_Data&);
-void Game_Update_And_Render_Stub(
-    f32 dt,
-    void* memory_ptr,
-    size_t memory_size,
-    Game_Bitmap& bitmap,
-    void* input_events_bytes_ptr,
-    size_t input_events_count,
-    Editor_Data& editor_data,
-    OS_Data& os_data  //
-) {}
+using Game_Update_And_Render_Type = Game_Update_And_Render__Function((*));
+Game_Update_And_Render__Function(Game_Update_And_Render_Stub) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
 void Load_Or_Update_Game_Dll() {
@@ -123,8 +115,13 @@ void Load_Or_Update_Game_Dll() {
         return;
 
     if (game_lib) {
-        assert(FreeLibrary(game_lib));
+        if (!FreeLibrary(game_lib)) {
+            DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: FreeLibrary failed!");
+            assert(false);
+        }
+
         game_lib = 0;
+        Game_Update_And_Render_ = nullptr;
     }
 
     path = temp_path;
@@ -134,8 +131,8 @@ void Load_Or_Update_Game_Dll() {
 
     HMODULE lib = LoadLibraryA(path);
     if (!lib) {
-        // TODO(hulvdan): Diagnostic
-        return;
+        DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: LoadLibraryA failed!");
+        assert(false);
     }
 
     auto loaded_Game_Update_And_Render =
@@ -143,14 +140,15 @@ void Load_Or_Update_Game_Dll() {
 
     bool functions_loaded = loaded_Game_Update_And_Render;
     if (!functions_loaded) {
-        // TODO(hulvdan): Diagnostic
-        return;
+        DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: Functions couldn't be loaded!");
+        assert(false);
     }
 
 #if BF_INTERNAL
     editor_data.game_context_set = false;
     editor_data.changed = true;
     last_game_dll_write_time = filetime.filetime;
+    hot_reloaded = true;
 #endif  // BF_INTERNAL
 
     game_lib = lib;
@@ -332,7 +330,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
 
     Game_Update_And_Render_(
         dt, initial_game_memory, initial_game_memory_size, screen_bitmap.bitmap,
-        (void*)events.data(), events_count, editor_data, os_data);
+        (void*)events.data(), events_count, editor_data, os_data, hot_reloaded);
 
     ImGui::Render();
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -346,6 +344,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     events.clear();
 
 #if BF_INTERNAL
+    hot_reloaded = false;
     Load_Or_Update_Game_Dll();
 #endif  // BF_INTERNAL
 }

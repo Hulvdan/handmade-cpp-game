@@ -6,20 +6,8 @@
 
 #ifdef BF_INTERNAL
 static constexpr auto DEBUG_MAX_LEN = 512;
-// #define DEBUG_Error(text_, ...)                           \
-//     {                                                     \
-//         char buf[DEBUG_MAX_LEN];                          \
-//         snprintf(buf, DEBUG_MAX_LEN, text_, __VA_ARGS__); \
-//         ::OutputDebugStringA(buf);                        \
-//     }
-// #define DEBUG_Print(text_, ...)                           \
-//     {                                                     \
-//         char buf[DEBUG_MAX_LEN];                          \
-//         snprintf(buf, DEBUG_MAX_LEN, text_, __VA_ARGS__); \
-//         ::OutputDebugStringA(buf);                        \
-//     }
 
-void DEBUG_Error(auto text, ...) {
+void DEBUG_Error(const char* text, ...) {
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
@@ -29,7 +17,7 @@ void DEBUG_Error(auto text, ...) {
     va_end(args);
 }
 
-void DEBUG_Print(auto text, ...) {
+void DEBUG_Print(const char* text, ...) {
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];

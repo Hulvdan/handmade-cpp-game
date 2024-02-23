@@ -34,16 +34,6 @@
 #endif  // BF_SERVER
 // NOLINTEND(bugprone-suspicious-include)
 
-#define PROCESS_EVENTS_CONSUME(event_type_, variable_name_) \
-    event_type_ variable_name_ = {};                        \
-    memcpy(&(variable_name_), events, sizeof(event_type_)); \
-    events += sizeof(event_type_);
-
-void On_Buildable_Pressed(Game_State& state, u8 buildable_index) {
-    auto& ui_state = *state.renderer_state->ui_state;
-    ui_state.selected_buildable_index = buildable_index;
-}
-
 bool UI_Clicked(Game_State& state) {
     auto& game_map = state.game_map;
     auto& rstate = *state.renderer_state;
@@ -65,7 +55,6 @@ bool UI_Clicked(Game_State& state) {
     auto& psize = placeholder_texture.size;
 
     auto scale = ui_state.scale;
-    auto in_scale = ui_state.buildables_panel_in_scale;
     v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
     v2f padding = ui_state.padding;
@@ -97,7 +86,7 @@ bool UI_Clicked(Game_State& state) {
 
         // Aligning items in a column
         // justify-content: center
-        FOR_RANGE(int, i, placeholders) {
+        FOR_RANGE(i8, i, placeholders) {
             auto drawing_point = origin;
             drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
             drawing_point.y += i * (placeholders_gap + psize.y);
@@ -118,6 +107,11 @@ bool UI_Clicked(Game_State& state) {
 
     return clicked_buildable_index != -1;
 }
+
+#define PROCESS_EVENTS_CONSUME(event_type_, variable_name_) \
+    event_type_ variable_name_ = {};                        \
+    memcpy(&(variable_name_), events, sizeof(event_type_)); \
+    events += sizeof(event_type_);
 
 void Process_Events(
     Game_Memory& memory,
@@ -233,16 +227,7 @@ void Reset_Arena(Arena& arena) {
     arena.used = 0;
 }
 
-extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
-    f32 dt,
-    void* memory_ptr,
-    size_t memory_size,
-    Game_Bitmap& bitmap,
-    void* input_events_bytes_ptr,
-    size_t input_events_count,
-    Editor_Data& editor_data,
-    OS_Data& os_data  //
-) {
+extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
 
     Arena root_arena = {};
@@ -300,7 +285,7 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
     }
     // --- IMGUI END ---
 
-    if (!memory.is_initialized || editor_data.changed) {
+    if (!memory.is_initialized || editor_data.changed || hot_reloaded) {
         state.os_data = &os_data;
         editor_data.changed = false;
 
@@ -402,7 +387,8 @@ extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
         INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
 
         Initialize_Renderer(state, arena, temp_arena);
-        // state.renderer_state = Initialize_Renderer(state, non_persistent_arena, temp_arena);
+        // state.renderer_state = Initialize_Renderer(state, non_persistent_arena,
+        // temp_arena);
 
         memory.is_initialized = true;
     }

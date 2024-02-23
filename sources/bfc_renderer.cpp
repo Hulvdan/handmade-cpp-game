@@ -140,8 +140,9 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
     // However, I did not dig very deep into using GLEW as a dll.
     assert(glewInit() == GLEW_OK);
 
-    if (state.renderer_state == nullptr) {
-        GLint success;
+    // if (state.renderer_state == nullptr) {
+    {
+        GLint success = 0;
 
         // Vertex Shader
         auto vertex_code = R"Shader(
@@ -610,7 +611,7 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& temp_arena, Game_Sta
     auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
 
     res.deallocation_size = allocation_size;
-    res.textures = Allocate_Array(temp_arena, GLuint, allocation_size);
+    res.textures = Allocate_Array(temp_arena, GLuint, ui_state.buildables_count);
 
     FOR_RANGE(int, i, ui_state.buildables_count) {
         auto& buildable = *(ui_state.buildables + i);

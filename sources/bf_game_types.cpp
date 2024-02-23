@@ -148,8 +148,8 @@ struct Item_To_Build {
     Scriptable_Building_ID scriptable_building_id;
 };
 
-static constexpr Item_To_Build Item_To_Build_Road = Item_To_Build(Item_To_Build_Type::Road, 0);
-static constexpr Item_To_Build Item_To_Build_Flag = Item_To_Build(Item_To_Build_Type::Flag, 0);
+static constexpr Item_To_Build Item_To_Build_Road = {Item_To_Build_Type::Road, 0};
+static constexpr Item_To_Build Item_To_Build_Flag = {Item_To_Build_Type::Flag, 0};
 
 struct Game_Map {
     v2i size;
@@ -279,14 +279,14 @@ struct BF_Color {
     f32 b;
 };
 
-static constexpr BF_Color BF_Color_White = BF_Color(1, 1, 1);
-static constexpr BF_Color BF_Color_Black = BF_Color(0, 0, 0);
-static constexpr BF_Color BF_Color_Red = BF_Color(1, 0, 0);
-static constexpr BF_Color BF_Color_Green = BF_Color(0, 1, 0);
-static constexpr BF_Color BF_Color_Blue = BF_Color(0, 0, 1);
-static constexpr BF_Color BF_Color_Yellow = BF_Color(1, 1, 0);
-static constexpr BF_Color BF_Color_Cyan = BF_Color(0, 1, 1);
-static constexpr BF_Color BF_Color_Magenta = BF_Color(1, 0, 1);
+static constexpr BF_Color BF_Color_White = {1, 1, 1};
+static constexpr BF_Color BF_Color_Black = {0, 0, 0};
+static constexpr BF_Color BF_Color_Red = {1, 0, 0};
+static constexpr BF_Color BF_Color_Green = {0, 1, 0};
+static constexpr BF_Color BF_Color_Blue = {0, 0, 1};
+static constexpr BF_Color BF_Color_Yellow = {1, 1, 0};
+static constexpr BF_Color BF_Color_Cyan = {0, 1, 1};
+static constexpr BF_Color BF_Color_Magenta = {1, 0, 1};
 
 struct Game_UI_State {
     UI_Sprite_Params buildables_panel_params;
