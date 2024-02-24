@@ -89,8 +89,7 @@ _privDefer<F> _defer_func(F f) {
 #define _DEFER_3(x) _DEFER_2(x, __COUNTER__)
 #define DEFER(code) auto _DEFER_3(_defer_) = _defer_func([&]() { code; })
 
-class Non_Copyable {
-public:
+struct Non_Copyable {
     Non_Copyable() = default;
     Non_Copyable(const Non_Copyable&) = delete;
     Non_Copyable& operator=(const Non_Copyable&) = delete;

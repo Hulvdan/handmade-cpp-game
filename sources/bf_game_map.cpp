@@ -2,22 +2,18 @@
 
 Scriptable_Resource* Get_Scriptable_Resource(Game_State& state, Scriptable_Resource_ID id) {
     assert(id - 1 < state.scriptable_resources_count);
-
     auto exists = id != 0;
-    ptrd offset_resource = (ptrd)(state.scriptable_resources + (ptrd)id - 1);
-
-    auto result = offset_resource * exists;
-    return (Scriptable_Resource*)result;
+    auto ptr_offset = (ptrd)(state.scriptable_resources + id - 1);
+    auto result = ptr_offset * exists;
+    return rcast<Scriptable_Resource*>(result);
 }
 
 Scriptable_Building* Get_Scriptable_Building(Game_State& state, Scriptable_Building_ID id) {
     assert(id - 1 < state.scriptable_buildings_count);
-
     auto exists = id != 0;
-    ptrd offset_building = (ptrd)(state.scriptable_buildings + (ptrd)id - 1);
-
-    auto result = offset_building * exists;
-    return (Scriptable_Building*)result;
+    auto ptr_offset = (ptrd)(state.scriptable_buildings + id - 1);
+    auto result = ptr_offset * exists;
+    return rcast<Scriptable_Building*>(result);
 }
 
 Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos) {

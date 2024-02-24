@@ -236,8 +236,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     auto& memory = *Allocate_For(root_arena, Game_Memory);
     auto& state = memory.state;
     state.hot_reloaded = hot_reloaded;
-    if (hot_reloaded)
-        BREAKPOINT;
 
     if (!editor_data.game_context_set) {
         ImGui::SetCurrentContext(editor_data.context);
@@ -333,7 +331,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         {
             auto r_ = Get_Scriptable_Resource(state, 1);
             assert(r_ != nullptr);
-            auto r = *r_;
+            auto& r = *r_;
 
             r.name = "forest";
         }
@@ -344,7 +342,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         {
             auto b_ = Get_Scriptable_Building(state, global_city_hall_building_id);
             assert(b_ != nullptr);
-            auto b = *b_;
+            auto& b = *b_;
 
             b.name = "City Hall";
             b.type = Building_Type::City_Hall;
@@ -352,7 +350,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         {
             auto b_ = Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
             assert(b_ != nullptr);
-            auto b = *b_;
+            auto& b = *b_;
 
             b.name = "Lumberjack's Hut";
             b.type = Building_Type::Harvest;

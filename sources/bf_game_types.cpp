@@ -38,7 +38,7 @@ enum class Building_Type {
     Produce,
 };
 
-struct Scriptable_Building {
+struct Scriptable_Building : public Non_Copyable {
     const char* name;
     Building_Type type;
 
@@ -125,7 +125,7 @@ void Validate_Element_Tile(Element_Tile& tile) {
         assert(tile.building == nullptr);
 }
 
-struct Scriptable_Resource {
+struct Scriptable_Resource : public Non_Copyable {
     const char* name;
 };
 

@@ -163,8 +163,6 @@ void Initialize_Renderer(
 ) {
     auto hot_reloaded = state.hot_reloaded;
     auto first_time_initializing = state.renderer_state == nullptr;
-    if (hot_reloaded)
-        BREAKPOINT;
     if (!first_time_initializing && !hot_reloaded)
         return;
 
