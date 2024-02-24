@@ -114,13 +114,11 @@ bool UI_Clicked(Game_State& state) {
     events += sizeof(event_type_);
 
 void Process_Events(
-    Game_Memory& memory,
+    Game_State& state,
     const u8* events,
     size_t input_events_count,
     float dt  //
 ) {
-    assert(memory.is_initialized);
-    auto& state = memory.state;
     auto& rstate = *state.renderer_state;
 
     while (input_events_count > 0) {
@@ -293,24 +291,21 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.os_data = &os_data;
         editor_data.changed = false;
 
-        // state.offset_x = 0;
-        // state.offset_y = 0;
-
         auto trash_arena_size = Megabytes((size_t)1);
         auto non_persistent_arena_size = Megabytes((size_t)1);
         auto arena_size =
             root_arena.size - root_arena.used - non_persistent_arena_size - trash_arena_size;
 
-        // NOTE(hulvdan): `arena` remains the same on DLL reloads
+        // NOTE(hulvdan): `arena` remains the same after hot reloading unlike others
         auto& arena = state.arena;
-        Map_Arena(root_arena, arena, arena_size);
-
         auto& non_persistent_arena = state.non_persistent_arena;
-        Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
-        Reset_Arena(non_persistent_arena);
-
         auto& trash_arena = state.trash_arena;
+
+        Map_Arena(root_arena, arena, arena_size);
+        Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
+
+        Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
         if (first_time_initializing) {
@@ -443,6 +438,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
     }
 
-    Process_Events(memory, (u8*)input_events_bytes_ptr, input_events_count, dt);
+    Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt);
     Render(state, dt);
 }
