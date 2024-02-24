@@ -17,10 +17,6 @@
 
 #include "bf_game.cpp"
 
-#define local_persist static
-#define global static
-#define internal static
-
 // -- RENDERING STUFF
 struct BF_Bitmap {
     Game_Bitmap bitmap;

@@ -3,6 +3,7 @@
 
 #define BF_CLIENT
 
+#include "bf_game.h"
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)

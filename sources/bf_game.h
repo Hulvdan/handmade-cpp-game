@@ -12,7 +12,9 @@
 // SHIT(hulvdan): Rewrite this shiet in a better way
 //
 // Is it possible to write this
-#if GAME_LIBRARY_BUILD
+
+#ifdef GAME_LIBRARY_BUILD
+// #error "We are compiling the library"
 // Building the library
 #if _WIN32
 // Use the Windows-specific export attribute
@@ -24,7 +26,8 @@
 // Assume that no export attributes are needed
 #define GAME_LIBRARY_EXPORT
 #endif
-#else
+#else  // GAME_LIBRARY_BUILD
+// #error "We are including the library"
 // Using (including) the library
 #if _WIN32
 // Use the Windows-specific import attribute
@@ -33,7 +36,7 @@
 // Assume that no import attributes are needed
 #define GAME_LIBRARY_EXPORT
 #endif
-#endif
+#endif  // GAME_LIBRARY_BUILD
 
 #define Allocate_Pages__Function(name_) u8* name_(u32 count)
 // #define Deallocate_Pages__Function(name_) void name_(u8* base)
@@ -59,6 +62,7 @@ struct Perlin_Params {
     uint seed;
 };
 
+struct ImGuiContext;
 struct GAME_LIBRARY_EXPORT Editor_Data {
     bool changed;
     bool game_context_set;
@@ -193,14 +197,17 @@ struct Controller_Axis_Changed {
 // --- EVENTS END ---
 
 // --- EXPORTED FUNCTIONS ---
-extern "C" GAME_LIBRARY_EXPORT inline void Game_Update_And_Render(
-    f32 dt,
-    void* __restrict memory_ptr,
-    size_t memory_size,
-    Game_Bitmap& __restrict bitmap,
-    void* __restrict input_events_bytes_ptr,
-    size_t input_events_count,
-    Editor_Data& editor_data,
-    OS_Data& os_data  //
-);
+#define Game_Update_And_Render__Function(name_) \
+    void name_(                                 \
+        f32 dt, /**/                            \
+        void* memory_ptr, /**/                  \
+        size_t memory_size, /**/                \
+        Game_Bitmap& bitmap, /**/               \
+        void* input_events_bytes_ptr, /**/      \
+        size_t input_events_count, /**/         \
+        Editor_Data& editor_data, /**/          \
+        OS_Data& os_data, /**/                  \
+        bool hot_reloaded)
+
+extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render);
 // --- EXPORTED FUNCTIONS END ---

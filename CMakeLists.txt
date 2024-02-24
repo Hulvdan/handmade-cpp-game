@@ -8,6 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 
+add_compile_definitions(
+    TRACY_ENABLE
+    TRACY_ON_DEMAND
+)
+
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
@@ -19,19 +24,35 @@ set_target_properties(glew PROPERTIES
 target_include_directories(glew INTERFACE "${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
 target_compile_definitions(glew INTERFACE GLEW_STATIC)
 
-# === Building bf_game.dll ===
+# === Tracy Profiler as Dll ===
+add_library(tracy SHARED)
+target_include_directories(tracy PUBLIC "${PROJECT_SOURCE_DIR}/vendor/tracy/public")
+target_compile_definitions(tracy PRIVATE
+    TRACY_EXPORTS
+)
+target_compile_definitions(tracy INTERFACE
+    TRACY_IMPORTS
+)
+target_sources(tracy PRIVATE
+    "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
+)
+
+# === bf_game.dll ===
 add_library(bf_game SHARED)
 target_sources(bf_game PUBLIC sources/bf_game.h)
 target_sources(bf_game PRIVATE sources/bf_game.cpp)
 target_compile_definitions(bf_game PRIVATE
-    GAME_LIBRARY_BUILD
     BF_CLIENT
+    BF_INTERNAL
+    GAME_LIBRARY_BUILD
+
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
 )
 target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
+    # "${PROJECT_SOURCE_DIR}/vendor/tracy/public"
 )
 target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
@@ -40,21 +61,24 @@ target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
+    # "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 # TODO(hulvdan): How to decouple from windows OpenGL?
-target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib)
+target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib tracy)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
 target_compile_definitions(win32 PRIVATE
-    BFG_INTERNAL
+    BF_INTERNAL
     BF_CLIENT
+
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
 )
 target_include_directories(win32 PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
+    # "${PROJECT_SOURCE_DIR}/vendor/tracy/public"
 )
 target_sources(win32 PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
@@ -63,9 +87,10 @@ target_sources(win32 PRIVATE
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
+    # "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
-target_link_libraries(win32 PRIVATE glew glm)
+target_link_libraries(win32 PRIVATE glew glm tracy)
 
 # === Building win32_noise_sandbox.exe ===
 # add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)
@@ -95,7 +120,7 @@ target_link_libraries(win32 PRIVATE glew glm)
 # === Building meta_tools.exe ===
 # add_executable(meta_tools sources/meta_tools.cpp)
 # target_compile_definitions(win32 PRIVATE
-#     BFG_INTERNAL
+#     BF_INTERNAL
 # )
 # target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 # target_link_libraries(win32 PRIVATE glew glm)
@@ -107,6 +132,8 @@ target_include_directories(tests PRIVATE
     "${IMGUI_DIR}/backends"
 )
 target_compile_definitions(tests PRIVATE
+    GAME_LIBRARY_BUILD
+
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
 )
@@ -118,11 +145,15 @@ target_sources(tests PRIVATE
     "${IMGUI_DIR}/imgui_draw.cpp"
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
+    # "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 target_link_libraries(tests PRIVATE opengl32.lib)
-target_link_libraries(tests PRIVATE glew glm)
+target_link_libraries(tests PRIVATE glew glm tracy)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
-target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
+target_include_directories(tests PRIVATE
+    "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest"
+    # "${PROJECT_SOURCE_DIR}/vendor/tracy/public"
+)
 
 IF(WIN32 AND NOT CMAKE_GENERATOR STREQUAL Ninja)
     set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)

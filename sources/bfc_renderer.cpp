@@ -83,8 +83,8 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
 }
 
 void DEBUG_Load_Texture(
-    Arena& arena,
-    Arena& temp_arena,
+    Arena& destination_arena,
+    Arena& trash_arena,
     const char* texture_name,
     Loaded_Texture& out_texture  //
 ) {
@@ -93,11 +93,11 @@ void DEBUG_Load_Texture(
 
     Load_BMP_RGBA_Result bmp_result = {};
     {
-        auto load_result = Debug_Load_File_To_Arena(filepath, temp_arena);
+        auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
         assert(load_result.success);
-        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+        DEFER(Deallocate_Array(trash_arena, u8, load_result.size));
 
-        bmp_result = Load_BMP_RGBA(arena, load_result.output);
+        bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
         assert(bmp_result.success);
     }
 
@@ -134,65 +134,162 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
     return road_texture_number;
 }
 
-void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
-    if (state.renderer_state != nullptr && state.renderer_state->is_initialized)
+#define Debug_Load_File_And_Defer_Deallocate(variable_name_, filepath_, arena_) \
+    auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_));     \
+    assert((variable_name_).success);                                           \
+    DEFER(Deallocate_Array((arena_), u8, (variable_name_).size));
+
+void Debug_Print_Shader_Info_Log(GLuint shader_id, Arena& trash_arena, const char* aboba) {
+    GLint succeeded;
+    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
+
+    GLint log_length;
+    glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
+    auto info_log = Allocate_Array(trash_arena, GLchar, log_length);
+    DEFER(Deallocate_Array(trash_arena, GLchar, log_length));
+    glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
+
+    if (succeeded)
+        DEBUG_Print("INFO:\t%s succeeded: %s\n", aboba, info_log);
+    else
+        DEBUG_Error("ERROR:\t%s failed: %s\n", aboba, info_log);
+}
+
+void Initialize_Renderer(
+    Game_State& state,
+    Arena& arena,
+    Arena& non_persistent_arena,
+    Arena& trash_arena  //
+) {
+    auto hot_reloaded = state.hot_reloaded;
+    auto first_time_initializing = state.renderer_state == nullptr;
+    if (!first_time_initializing && !hot_reloaded)
         return;
 
-    state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+    // NOTE(hulvdan): I could not find a way of initializing glew once
+    // in win32 layer so that initializing here'd unnecessary.
+    // However, I did not dig very deep into using GLEW as a dll.
+    local_persist bool glew_was_initialized = false;
+    if (!glew_was_initialized) {
+        assert(glewInit() == GLEW_OK);
+        glew_was_initialized = true;
+    }
+
+    // NOTE(hulvdan): Reloading shaders
+    {
+        GLint fragment_success = 0;
+        GLint vertex_success = 0;
+        GLint program_success = 0;
+
+        // Vertex Shader
+        auto vertex_code = R"Shader(
+version
+)Shader";
+        auto vertex = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertex, 1, &vertex_code, nullptr);
+        glCompileShader(vertex);
+        glGetShaderiv(vertex, GL_COMPILE_STATUS, &vertex_success);
+        Debug_Print_Shader_Info_Log(vertex, trash_arena, "Vertex shader compilation");
+
+        // Similiar for Fragment Shader
+        auto fragment_code = R"Shader(
+version
+)Shader";
+
+        auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragment, 1, &fragment_code, nullptr);
+        glCompileShader(fragment);
+        glGetShaderiv(fragment, GL_COMPILE_STATUS, &fragment_success);
+        Debug_Print_Shader_Info_Log(fragment, trash_arena, "Fragment shader compilation");
+
+        if (fragment_success && vertex_success) {
+            // shader Program
+            auto program_id = glCreateProgram();
+            glAttachShader(program_id, vertex);
+            glAttachShader(program_id, fragment);
+            glLinkProgram(program_id);
+            // print linking errors if any
+            GLint log_length;
+            glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &log_length);
+            glGetProgramiv(program_id, GL_LINK_STATUS, &program_success);
+
+            auto info_log = Allocate_Array(trash_arena, GLchar, log_length);
+            DEFER(Deallocate_Array(trash_arena, GLchar, log_length));
+            glGetProgramInfoLog(program_id, log_length, nullptr, info_log);
+            if (program_success)
+                DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
+            else
+                DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
+        }
+
+        // delete the shaders as they're linked into our program now and no longer necessary
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+    }
+
+    if (first_time_initializing)
+        state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+
+    assert(state.renderer_state != nullptr);
+
     auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
-
-    DEBUG_Load_Texture(arena, temp_arena, "human", rstate.human_texture);
-
-    glEnable(GL_TEXTURE_2D);
-
     auto gsize = game_map.size;
 
-    char texture_name[512] = {};
-    FOR_RANGE(int, i, 17) {
-        sprintf(texture_name, "tiles/grass_%d", i);
-        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.grass_textures[i]);
-    }
-
-    FOR_RANGE(int, i, 3) {
-        sprintf(texture_name, "tiles/forest_%d", i);
-        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.forest_textures[i]);
-    }
-
-    FOR_RANGE(int, i, 16) {
-        sprintf(texture_name, "tiles/road_%d", i);
-        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.road_textures[i]);
-    }
-
-    FOR_RANGE(int, i, 4) {
-        sprintf(texture_name, "tiles/flag_%d", i);
-        DEBUG_Load_Texture(arena, temp_arena, texture_name, rstate.flag_textures[i]);
-    }
+    glEnable(GL_TEXTURE_2D);
 
     rstate.grass_smart_tile.id = 1;
     rstate.forest_smart_tile.id = 2;
     rstate.forest_top_tile_id = 3;
 
+    // if (first_time_initializing) {
     {
-        auto path = "assets/art/tiles/tilerule_grass.txt";
-        auto load_result = Debug_Load_File_To_Arena(path, temp_arena);
-        assert(load_result.success);
-        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+        DEBUG_Load_Texture(non_persistent_arena, trash_arena, "human", rstate.human_texture);
 
-        auto rule_loading_result = Load_Smart_Tile_Rules(
-            rstate.grass_smart_tile, arena, load_result.output, load_result.size);
-        assert(rule_loading_result.success);
-    }
+        char texture_name[512] = {};
+        FOR_RANGE(int, i, 17) {
+            sprintf(texture_name, "tiles/grass_%d", i);
+            DEBUG_Load_Texture(
+                non_persistent_arena, trash_arena, texture_name, rstate.grass_textures[i]);
+        }
 
-    {
-        auto path = "assets/art/tiles/tilerule_forest.txt";
-        auto load_result = Debug_Load_File_To_Arena(path, temp_arena);
-        assert(load_result.success);
-        DEFER(Deallocate_Array(temp_arena, u8, load_result.size));
+        FOR_RANGE(int, i, 3) {
+            sprintf(texture_name, "tiles/forest_%d", i);
+            DEBUG_Load_Texture(
+                non_persistent_arena, trash_arena, texture_name, rstate.forest_textures[i]);
+        }
 
-        auto rule_loading_result = Load_Smart_Tile_Rules(
-            rstate.forest_smart_tile, arena, load_result.output, load_result.size);
-        assert(rule_loading_result.success);
+        FOR_RANGE(int, i, 16) {
+            sprintf(texture_name, "tiles/road_%d", i);
+            DEBUG_Load_Texture(
+                non_persistent_arena, trash_arena, texture_name, rstate.road_textures[i]);
+        }
+
+        FOR_RANGE(int, i, 4) {
+            sprintf(texture_name, "tiles/flag_%d", i);
+            DEBUG_Load_Texture(
+                non_persistent_arena, trash_arena, texture_name, rstate.flag_textures[i]);
+        }
+
+        {
+            auto path = "assets/art/tiles/tilerule_grass.txt";
+            Debug_Load_File_And_Defer_Deallocate(load_result, path, trash_arena);
+
+            auto rule_loading_result = Load_Smart_Tile_Rules(
+                rstate.grass_smart_tile, non_persistent_arena, load_result.output,
+                load_result.size);
+            assert(rule_loading_result.success);
+        }
+
+        {
+            auto path = "assets/art/tiles/tilerule_forest.txt";
+            Debug_Load_File_And_Defer_Deallocate(load_result, path, trash_arena);
+
+            auto rule_loading_result = Load_Smart_Tile_Rules(
+                rstate.forest_smart_tile, non_persistent_arena, load_result.output,
+                load_result.size);
+            assert(rule_loading_result.success);
+        }
     }
 
     i32 max_height = 0;
@@ -222,11 +319,11 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
     rstate.element_tilemap_index = rstate.tilemaps_count;
     rstate.tilemaps_count += 2;
 
-    rstate.tilemaps = Allocate_Array(arena, Tilemap, rstate.tilemaps_count);
+    rstate.tilemaps = Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
     FOR_RANGE(i32, h, rstate.tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
-        tilemap.tiles = Allocate_Array(arena, Tile_ID, gsize.x * gsize.y);
+        tilemap.tiles = Allocate_Array(non_persistent_arena, Tile_ID, gsize.x * gsize.y);
 
         FOR_RANGE(i32, y, gsize.y) {
             FOR_RANGE(i32, x, gsize.x) {
@@ -294,25 +391,27 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
 
     {
         auto& b = *Get_Scriptable_Building(state, global_city_hall_building_id);
-        b.texture = Allocate_For(arena, Loaded_Texture);
-        DEBUG_Load_Texture(arena, temp_arena, "tiles/building_house", *b.texture);
+        b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
+        DEBUG_Load_Texture(non_persistent_arena, trash_arena, "tiles/building_house", *b.texture);
     }
     {
         auto& b = *Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
-        b.texture = Allocate_For(arena, Loaded_Texture);
-        DEBUG_Load_Texture(arena, temp_arena, "tiles/building_lumberjack", *b.texture);
+        b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
+        DEBUG_Load_Texture(
+            non_persistent_arena, trash_arena, "tiles/building_lumberjack", *b.texture);
     }
 
-    rstate.ui_state = Allocate_Zeros_For(arena, Game_UI_State);
+    rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
     auto& ui_state = *rstate.ui_state;
 
     ui_state.buildables_panel_params.smart_stretchable = true;
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
     DEBUG_Load_Texture(
-        arena, temp_arena, "ui/buildables_panel", ui_state.buildables_panel_background);
+        arena, non_persistent_arena, "ui/buildables_panel", ui_state.buildables_panel_background);
     DEBUG_Load_Texture(
-        arena, temp_arena, "ui/buildables_placeholder", ui_state.buildables_placeholder_background);
+        arena, non_persistent_arena, "ui/buildables_placeholder",
+        ui_state.buildables_placeholder_background);
 
     auto buildables_count = 2;
     ui_state.buildables = Allocate_Array(arena, Item_To_Build, buildables_count);
@@ -322,7 +421,21 @@ void Initialize_Renderer(Game_State& state, Arena& arena, Arena& temp_arena) {
     (ui_state.buildables + 1)->type = Item_To_Build_Type::Building;
     (ui_state.buildables + 1)->scriptable_building_id = global_lumberjacks_hut_building_id;
 
-    rstate.is_initialized = true;
+    ui_state.padding = {6, 6};
+    ui_state.placeholders = 2;
+    ui_state.placeholders_gap = 4;
+    ui_state.selected_buildable_index = -1;
+    ui_state.buildables_panel_sprite_anchor = {0.0f, 0.5f};
+    ui_state.scale = 3;
+    ui_state.buildables_panel_in_scale = 1;
+    ui_state.buildables_panel_container_anchor = {0.0f, 0.5f};
+
+    ui_state.selected_buildable_color.r = 255.0f / 255.0f;
+    ui_state.selected_buildable_color.g = 255.0f / 255.0f;
+    ui_state.selected_buildable_color.b = 255.0f / 255.0f;
+    ui_state.not_selected_buildable_color.r = 255.0f / 255.0f;
+    ui_state.not_selected_buildable_color.g = 233.0f / 255.0f;
+    ui_state.not_selected_buildable_color.b = 176.0f / 255.0f;
 }
 
 void Draw_Sprite(
@@ -369,7 +482,8 @@ void Draw_UI_Sprite(
     f32 y1,
     v2f pos,
     v2f size,
-    v2f anchor  //
+    v2f anchor,
+    BF_Color color  //
 ) {
     assert(x0 < x1);
     assert(y0 < y1);
@@ -510,7 +624,8 @@ void Draw_Stretchable_Sprite(
                 tex_x1, tex_y1,  //
                 v2f(sprite_x0, sprite_y0),  //
                 v2f(sx, sy),  //
-                v2f(0, 0)  //
+                v2f(0, 0),  //
+                BF_Color_White  //
             );
         }
     }
@@ -522,7 +637,7 @@ struct Get_Buildable_Textures_Result {
     GLuint* textures;
 };
 
-Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& temp_arena, Game_State& state) {
+Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     auto& rstate = *state.renderer_state;
     assert(state.renderer_state != nullptr);
     auto& ui_state = *rstate.ui_state;
@@ -532,7 +647,9 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& temp_arena, Game_Sta
     auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
 
     res.deallocation_size = allocation_size;
-    res.textures = Allocate_Array(temp_arena, GLuint, allocation_size);
+    res.textures = Allocate_Array(trash_arena, GLuint, ui_state.buildables_count);
+
+    assert(state.scriptable_buildings_count == 2);
 
     FOR_RANGE(int, i, ui_state.buildables_count) {
         auto& buildable = *(ui_state.buildables + i);
@@ -555,7 +672,9 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& temp_arena, Game_Sta
 }
 
 void Render(Game_State& state, f32 dt) {
-    Arena& temp_arena = state.temp_arena;
+    ZoneScoped;
+
+    Arena& trash_arena = state.trash_arena;
 
     assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
@@ -568,6 +687,9 @@ void Render(Game_State& state, f32 dt) {
     auto swidth = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
     auto cell_size = 32;
+
+    if (swidth == 0.0f || sheight == 0.0f)
+        return;
 
     {
         auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
@@ -791,11 +913,9 @@ void Render(Game_State& state, f32 dt) {
     glDeleteTextures(1, (GLuint*)&texture_name);
     assert(!glGetError());
 
+    auto& ui_state = *rstate.ui_state;
     {
         // Drawing left buildables thingy
-        auto& ui_state = *rstate.ui_state;
-        ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
-
         auto sprite_params = ui_state.buildables_panel_params;
         auto& pad_h = sprite_params.stretch_paddings_h;
         auto& pad_v = sprite_params.stretch_paddings_v;
@@ -804,18 +924,18 @@ void Render(Game_State& state, f32 dt) {
         auto placeholder_texture = ui_state.buildables_placeholder_background;
         auto& psize = placeholder_texture.size;
 
-        auto scale = 3.0f;
-        auto in_scale = 1.0f;
-        v2f sprite_anchor = {0.0f, 0.5f};
+        auto scale = ui_state.scale;
+        auto in_scale = ui_state.buildables_panel_in_scale;
+        v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-        v2f padding = {6, 6};
-        f32 placeholders_gap = 4;
-        auto placeholders = 2;
+        v2f padding = ui_state.padding;
+        f32 placeholders_gap = ui_state.placeholders_gap;
+        auto placeholders = ui_state.placeholders;
         auto panel_size =
             v2f(psize.x + 2 * padding.x,
                 2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
 
-        auto outer_anchor = v2f(0.0f, 0.5f);
+        auto outer_anchor = ui_state.buildables_panel_container_anchor;
         auto outer_container_size = v2i(swidth, sheight);
         auto outer_x = outer_container_size.x * outer_anchor.x;
         auto outer_y = outer_container_size.y * outer_anchor.y;
@@ -850,12 +970,15 @@ void Render(Game_State& state, f32 dt) {
 
                 auto p = projection * drawing_point;
                 auto s = projection * v3f(psize, 0);
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
+                auto color = (i == ui_state.selected_buildable_index)
+                    ? ui_state.selected_buildable_color
+                    : ui_state.not_selected_buildable_color;
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color);
             }
             glEnd();
 
-            auto buildable_textures = Get_Buildable_Textures(temp_arena, state);
-            DEFER(Deallocate_Array(temp_arena, u8, buildable_textures.deallocation_size));
+            auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
+            DEFER(Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size));
 
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE(int, i, placeholders) {
@@ -867,11 +990,13 @@ void Render(Game_State& state, f32 dt) {
                 auto s = projection * v3f(buildable_size, 0);
                 glBindTexture(GL_TEXTURE_2D, *(buildable_textures.textures + i));
                 glBegin(GL_TRIANGLES);
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f);
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, BF_Color_White);
                 glEnd();
             }
         }
     }
+
+    ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item

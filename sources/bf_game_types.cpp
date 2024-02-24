@@ -11,7 +11,7 @@ struct Loaded_Texture;
 // --- Forward Declarations End ---
 
 // --- Memory ---
-struct Arena {
+struct Arena : public Non_Copyable {
     size_t used;
     size_t size;
     u8* base;
@@ -38,7 +38,7 @@ enum class Building_Type {
     Produce,
 };
 
-struct Scriptable_Building {
+struct Scriptable_Building : public Non_Copyable {
     const char* name;
     Building_Type type;
 
@@ -62,7 +62,7 @@ struct Page {
     u8* base;
 };
 
-struct Pages {
+struct Pages : public Non_Copyable {
     size_t total_count_cap;
     size_t allocated_count;
     Page* base;
@@ -70,7 +70,7 @@ struct Pages {
 };
 
 // NOTE(hulvdan): `Building_Page_Meta` gets placed at the end of the `Page`
-struct Building_Page_Meta {
+struct Building_Page_Meta : public Non_Copyable {
     u16 count;
 };
 
@@ -125,7 +125,7 @@ void Validate_Element_Tile(Element_Tile& tile) {
         assert(tile.building == nullptr);
 }
 
-struct Scriptable_Resource {
+struct Scriptable_Resource : public Non_Copyable {
     const char* name;
 };
 
@@ -148,10 +148,10 @@ struct Item_To_Build {
     Scriptable_Building_ID scriptable_building_id;
 };
 
-static constexpr Item_To_Build Item_To_Build_Road = Item_To_Build(Item_To_Build_Type::Road, 0);
-static constexpr Item_To_Build Item_To_Build_Flag = Item_To_Build(Item_To_Build_Type::Flag, 0);
+static constexpr Item_To_Build Item_To_Build_Road = {Item_To_Build_Type::Road, 0};
+static constexpr Item_To_Build Item_To_Build_Flag = {Item_To_Build_Type::Flag, 0};
 
-struct Game_Map {
+struct Game_Map : public Non_Copyable {
     v2i size;
     Terrain_Tile* terrain_tiles;
     Terrain_Resource* terrain_resources;
@@ -164,7 +164,7 @@ struct Game_Map {
 };
 
 template <typename T>
-struct Observer {
+struct Observer : public Non_Copyable {
     size_t count;
     T* functions;
 };
@@ -194,7 +194,9 @@ struct Observer {
 
 #define On_Item_Built__Function(name_) void name_(Game_State& state, v2i pos, Item_To_Build item)
 
-struct Game_State {
+struct Game_State : public Non_Copyable {
+    bool hot_reloaded;
+
     f32 offset_x;
     f32 offset_y;
 
@@ -208,7 +210,7 @@ struct Game_State {
 
     Arena arena;
     Arena non_persistent_arena;  // Flushes on DLL reload
-    Arena temp_arena;  // For transient calculations
+    Arena trash_arena;  // For transient calculations
 
     OS_Data* os_data;
     Pages pages;
@@ -220,7 +222,7 @@ struct Game_State {
     Observer<On_Item_Built__Function((*))> On_Item_Built;
 };
 
-struct Game_Memory {
+struct Game_Memory : public Non_Copyable {
     bool is_initialized;
     Game_State state;
 };
@@ -273,17 +275,43 @@ struct UI_Sprite_Params {
     v2i stretch_paddings_v;
 };
 
-struct Game_UI_State {
+struct BF_Color {
+    f32 r;
+    f32 g;
+    f32 b;
+};
+
+static constexpr BF_Color BF_Color_White = {1, 1, 1};
+static constexpr BF_Color BF_Color_Black = {0, 0, 0};
+static constexpr BF_Color BF_Color_Red = {1, 0, 0};
+static constexpr BF_Color BF_Color_Green = {0, 1, 0};
+static constexpr BF_Color BF_Color_Blue = {0, 0, 1};
+static constexpr BF_Color BF_Color_Yellow = {1, 1, 0};
+static constexpr BF_Color BF_Color_Cyan = {0, 1, 1};
+static constexpr BF_Color BF_Color_Magenta = {1, 0, 1};
+
+struct Game_UI_State : public Non_Copyable {
     UI_Sprite_Params buildables_panel_params;
     Loaded_Texture buildables_panel_background;
     Loaded_Texture buildables_placeholder_background;
 
     u16 buildables_count;
     Item_To_Build* buildables;
+
+    i8 selected_buildable_index;
+    BF_Color selected_buildable_color;
+    BF_Color not_selected_buildable_color;
+    v2f buildables_panel_sprite_anchor;
+    v2f buildables_panel_container_anchor;
+    f32 buildables_panel_in_scale;
+    f32 scale;
+
+    v2i padding;
+    i8 placeholders;
+    i16 placeholders_gap;
 };
 
-struct Game_Renderer_State {
-    bool is_initialized;
+struct Game_Renderer_State : public Non_Copyable {
     Game_UI_State* ui_state;
     Game_Bitmap* bitmap;
 
