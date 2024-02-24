@@ -5,6 +5,12 @@
 #include "glm/vec2.hpp"
 
 #ifdef BF_INTERNAL
+#define BREAKPOINT __debugbreak()
+#else
+#define BREAKPOINT
+#endif
+
+#ifdef BF_INTERNAL
 static constexpr auto DEBUG_MAX_LEN = 512;
 
 void DEBUG_Error(const char* text, ...) {
@@ -82,3 +88,15 @@ _privDefer<F> _defer_func(F f) {
 #define _DEFER_2(x, y) _DEFER_1(x, y)
 #define _DEFER_3(x) _DEFER_2(x, __COUNTER__)
 #define DEFER(code) auto _DEFER_3(_defer_) = _defer_func([&]() { code; })
+
+class Non_Copyable {
+public:
+    Non_Copyable() = default;
+    Non_Copyable(const Non_Copyable&) = delete;
+    Non_Copyable& operator=(const Non_Copyable&) = delete;
+};
+
+template <typename T>
+void Initialize_As_Zeros(T& value) {
+    memset(&value, 0, sizeof(T));
+}

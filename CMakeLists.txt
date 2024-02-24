@@ -13,11 +13,6 @@ add_compile_definitions(
     TRACY_ON_DEMAND
 )
 
-# # === tracy ===
-# add_library(tracy STATIC)
-# target_include_directories(tracy INTERFACE "${PROJECT_SOURCE_DIR}/vendor/tracy/public/")
-# target_sources(tracy PRIVATE "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp")
-
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 

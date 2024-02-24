@@ -237,18 +237,22 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     auto& memory = *Allocate_For(root_arena, Game_Memory);
     auto& state = memory.state;
+    state.hot_reloaded = hot_reloaded;
+    if (hot_reloaded)
+        BREAKPOINT;
 
     if (!editor_data.game_context_set) {
         ImGui::SetCurrentContext(editor_data.context);
         editor_data.game_context_set = true;
     }
 
+    auto first_time_initializing = !memory.is_initialized;
+
     // --- IMGUI ---
-    if (memory.is_initialized) {
-        if (state.renderer_state != nullptr) {
-            auto& rstate = *state.renderer_state;
-            ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
-        }
+    if (!first_time_initializing) {
+        assert(state.renderer_state != nullptr);
+        auto& rstate = *state.renderer_state;
+        ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
         if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9)) {
             editor_data.changed = true;
@@ -285,17 +289,17 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     }
     // --- IMGUI END ---
 
-    if (!memory.is_initialized || editor_data.changed || hot_reloaded) {
+    if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
         state.os_data = &os_data;
         editor_data.changed = false;
 
         // state.offset_x = 0;
         // state.offset_y = 0;
 
-        auto temp_arena_size = Megabytes((size_t)1);
+        auto trash_arena_size = Megabytes((size_t)1);
         auto non_persistent_arena_size = Megabytes((size_t)1);
         auto arena_size =
-            root_arena.size - root_arena.used - non_persistent_arena_size - temp_arena_size;
+            root_arena.size - root_arena.used - non_persistent_arena_size - trash_arena_size;
 
         // NOTE(hulvdan): `arena` remains the same on DLL reloads
         auto& arena = state.arena;
@@ -305,29 +309,32 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Reset_Arena(non_persistent_arena);
 
-        auto& temp_arena = state.temp_arena;
-        Map_Arena(root_arena, temp_arena, temp_arena_size);
-        Reset_Arena(temp_arena);
+        auto& trash_arena = state.trash_arena;
+        Map_Arena(root_arena, trash_arena, trash_arena_size);
+        Reset_Arena(trash_arena);
 
-        if (!memory.is_initialized) {
+        if (first_time_initializing) {
             auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;
             state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
             state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
             state.pages.total_count_cap = pages_count_that_fit_2GB;
         }
 
-        state.game_map = {};
+        Initialize_As_Zeros<Game_Map>(state.game_map);
         state.game_map.size = {32, 24};
         auto& gsize = state.game_map.size;
 
         auto tiles_count = (size_t)gsize.x * gsize.y;
-        state.game_map.terrain_tiles = Allocate_Zeros_Array(arena, Terrain_Tile, tiles_count);
+        state.game_map.terrain_tiles =
+            Allocate_Zeros_Array(non_persistent_arena, Terrain_Tile, tiles_count);
         state.game_map.terrain_resources =
-            Allocate_Zeros_Array(arena, Terrain_Resource, tiles_count);
-        state.game_map.element_tiles = Allocate_Zeros_Array(arena, Element_Tile, tiles_count);
+            Allocate_Zeros_Array(non_persistent_arena, Terrain_Resource, tiles_count);
+        state.game_map.element_tiles =
+            Allocate_Zeros_Array(non_persistent_arena, Element_Tile, tiles_count);
 
         state.scriptable_resources_count = 1;
-        state.scriptable_resources = Allocate_Zeros_Array(arena, Scriptable_Resource, 1);
+        state.scriptable_resources =
+            Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
             auto r_ = Get_Scriptable_Resource(state, 1);
             assert(r_ != nullptr);
@@ -337,9 +344,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
 
         state.scriptable_buildings_count = 2;
-        state.scriptable_buildings = Allocate_Zeros_Array(arena, Scriptable_Building, 2);
+        state.scriptable_buildings =
+            Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
-            auto b_ = Get_Scriptable_Building(state, 1);
+            auto b_ = Get_Scriptable_Building(state, global_city_hall_building_id);
             assert(b_ != nullptr);
             auto b = *b_;
 
@@ -347,7 +355,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             b.type = Building_Type::City_Hall;
         }
         {
-            auto b_ = Get_Scriptable_Building(state, 2);
+            auto b_ = Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
             assert(b_ != nullptr);
             auto b = *b_;
 
@@ -355,10 +363,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             b.type = Building_Type::Harvest;
         }
 
-        Regenerate_Terrain_Tiles(state, state.game_map, arena, temp_arena, 0, editor_data);
-        Regenerate_Element_Tiles(state, state.game_map, arena, temp_arena, 0, editor_data);
+        Regenerate_Terrain_Tiles(
+            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
+        Regenerate_Element_Tiles(
+            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
 
-        if (!memory.is_initialized) {
+        if (first_time_initializing) {
             auto max_hypothetical_count_of_building_pages =
                 Ceil_Division(tiles_count * sizeof(Building), os_data.page_size);
 
@@ -384,11 +394,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         On_Item_Built__Function((*callbacks[])) = {
             Renderer__On_Item_Built,
         };
-        INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+        INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, non_persistent_arena);
 
-        Initialize_Renderer(state, arena, temp_arena);
-        // state.renderer_state = Initialize_Renderer(state, non_persistent_arena,
-        // temp_arena);
+        Initialize_Renderer(state, arena, non_persistent_arena, trash_arena);
 
         memory.is_initialized = true;
     }

@@ -214,7 +214,7 @@ void Perlin_1D(
 void Fill_Perlin_2D(
     u16* output,
     size_t free_output_space,
-    Arena& temp_arena,
+    Arena& trash_arena,
     Perlin_Params params,
     u16 sx,
     u16 sy  //
@@ -232,9 +232,9 @@ void Fill_Perlin_2D(
     assert(Is_Multiple_Of_2(sy, sy_power));
 
     auto total_pixels = (size_t)sx * sy;
-    f32* cover = Allocate_Array(temp_arena, f32, total_pixels);
-    f32* accumulator = Allocate_Array(temp_arena, f32, total_pixels);
-    DEFER(Deallocate_Array(temp_arena, f32, 2 * total_pixels));
+    f32* cover = Allocate_Array(trash_arena, f32, total_pixels);
+    f32* accumulator = Allocate_Array(trash_arena, f32, total_pixels);
+    DEFER(Deallocate_Array(trash_arena, f32, 2 * total_pixels));
 
     srand(params.seed);
     FOR_RANGE(size_t, i, total_pixels) {

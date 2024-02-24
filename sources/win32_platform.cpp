@@ -120,6 +120,7 @@ void Load_Or_Update_Game_Dll() {
             assert(false);
         }
 
+        hot_reloaded = true;
         game_lib = 0;
         Game_Update_And_Render_ = nullptr;
     }
@@ -148,7 +149,6 @@ void Load_Or_Update_Game_Dll() {
     editor_data.game_context_set = false;
     editor_data.changed = true;
     last_game_dll_write_time = filetime.filetime;
-    hot_reloaded = true;
 #endif  // BF_INTERNAL
 
     game_lib = lib;
