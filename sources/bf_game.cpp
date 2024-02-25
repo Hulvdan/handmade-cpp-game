@@ -16,6 +16,7 @@
 #include "bf_game.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_opengl.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"

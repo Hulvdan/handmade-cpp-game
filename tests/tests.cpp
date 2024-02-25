@@ -77,3 +77,10 @@ TEST_CASE("frand, interval") {
         CHECK(value < 1);
     }
 }
+
+TEST_CASE("Move_Towards") {
+    CHECK(Move_Towards(0, 1, 0.4f) == 0.4f);
+    CHECK(Move_Towards(0, -1, 0.4f) == -0.4f);
+    CHECK(Move_Towards(1, 1, 0.4f) == 1);
+    CHECK(Move_Towards(-1, -1, 0.4f) == -1);
+}

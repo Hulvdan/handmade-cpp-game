@@ -74,12 +74,12 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     glTexImage2D(
         GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
         GL_UNSIGNED_BYTE, texture.base);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 }
 
 void DEBUG_Load_Texture(
@@ -145,14 +145,21 @@ void Debug_Print_Shader_Info_Log(GLuint shader_id, Arena& trash_arena, const cha
 
     GLint log_length;
     glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
-    auto info_log = Allocate_Array(trash_arena, GLchar, log_length);
-    DEFER(Deallocate_Array(trash_arena, GLchar, log_length));
-    glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
+
+    GLchar zero = GLchar(0);
+    GLchar* info_log = &zero;
+    if (log_length) {
+        info_log = Allocate_Array(trash_arena, GLchar, log_length);
+        glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
+    }
 
     if (succeeded)
         DEBUG_Print("INFO:\t%s succeeded: %s\n", aboba, info_log);
     else
         DEBUG_Error("ERROR:\t%s failed: %s\n", aboba, info_log);
+
+    if (log_length)
+        Deallocate_Array(trash_arena, GLchar, log_length);
 }
 
 void Initialize_Renderer(
@@ -171,9 +178,19 @@ void Initialize_Renderer(
     // However, I did not dig very deep into using GLEW as a dll.
     local_persist bool glew_was_initialized = false;
     if (!glew_was_initialized) {
+        // glewExperimental = GL_TRUE;
         assert(glewInit() == GLEW_OK);
         glew_was_initialized = true;
     }
+
+    if (first_time_initializing)
+        state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+
+    assert(state.renderer_state != nullptr);
+
+    auto& rstate = *state.renderer_state;
+    auto& game_map = state.game_map;
+    auto gsize = game_map.size;
 
     // NOTE(hulvdan): Reloading shaders
     {
@@ -183,8 +200,22 @@ void Initialize_Renderer(
 
         // Vertex Shader
         auto vertex_code = R"Shader(
-version
+#version 330 core
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec2 aTexCoord;
+
+out vec3 ourColor;
+out vec2 TexCoord;
+
+void main() {
+    gl_Position = vec4(aPos, 1.0);
+    ourColor = aColor;
+    TexCoord = aTexCoord;
+}
 )Shader";
+
         auto vertex = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertex, 1, &vertex_code, nullptr);
         glCompileShader(vertex);
@@ -193,7 +224,18 @@ version
 
         // Similiar for Fragment Shader
         auto fragment_code = R"Shader(
-version
+#version 330 core
+out vec4 FragColor;
+
+in vec3 ourColor;
+in vec2 TexCoord;
+
+uniform sampler2D ourTexture;
+
+void main() {
+    // FragColor = texture(ourTexture, TexCoord) * vec4(ourColor, 1);
+    FragColor = texture(ourTexture, TexCoord);
+}
 )Shader";
 
         auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -213,28 +255,30 @@ version
             glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &log_length);
             glGetProgramiv(program_id, GL_LINK_STATUS, &program_success);
 
-            auto info_log = Allocate_Array(trash_arena, GLchar, log_length);
-            DEFER(Deallocate_Array(trash_arena, GLchar, log_length));
-            glGetProgramInfoLog(program_id, log_length, nullptr, info_log);
+            auto zero = GLchar(0);
+            GLchar* info_log = &zero;
+            if (log_length) {
+                info_log = Allocate_Array(trash_arena, GLchar, log_length);
+                glGetProgramInfoLog(program_id, log_length, nullptr, info_log);
+            }
+
             if (program_success)
                 DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
             else
                 DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
+
+            if (log_length)
+                Deallocate_Array(trash_arena, GLchar, log_length);
+
+            if (rstate.ui_shader_program)
+                glDeleteProgram(rstate.ui_shader_program);
+            rstate.ui_shader_program = program_id;
         }
 
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
-
-    if (first_time_initializing)
-        state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
-
-    assert(state.renderer_state != nullptr);
-
-    auto& rstate = *state.renderer_state;
-    auto& game_map = state.game_map;
-    auto gsize = game_map.size;
 
     glEnable(GL_TEXTURE_2D);
 
@@ -483,7 +527,8 @@ void Draw_UI_Sprite(
     v2f pos,
     v2f size,
     v2f anchor,
-    BF_Color color  //
+    BF_Color color,
+    Game_Renderer_State& rstate  //
 ) {
     assert(x0 < x1);
     assert(y0 < y1);
@@ -495,23 +540,44 @@ void Draw_UI_Sprite(
         {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (1 - anchor.y)},
     };
 
-    f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
-    for (ptrd i : {0, 1, 2, 2, 1, 3}) {
-        // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
-        glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
-        glVertex2f(vertices[i].x, vertices[i].y);
-    }
-};
+    // f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
 
-f32 Move_Towards(f32 value, f32 target, f32 diff) {
-    assert(diff >= 0);
-    auto d = target - value;
-    if (d > 0)
-        value += MIN(d, diff);
-    else if (d < 0)
-        value -= MAX(d, diff);
-    return value;
-}
+    f32 verticesss[] = {
+        vertices[0].x, vertices[0].y, 0, 1.0f, 1.0f, 1.0f, x0, y0,  //
+        vertices[1].x, vertices[0].y, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
+        vertices[0].x, vertices[1].y, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
+        vertices[0].x, vertices[1].y, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
+        vertices[1].x, vertices[0].y, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
+        vertices[1].x, vertices[1].y, 0, 1.0f, 1.0f, 1.0f, x1, y1,  //
+    };
+    GLuint VAO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    // 2. copy our vertices array in a buffer for OpenGL to use
+    GLuint VBO;
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // 3. then set our vertex attributes pointers
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(f32)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(f32)));
+    glEnableVertexAttribArray(2);
+
+    // ..:: Drawing code (in render loop) :: ..
+    // 4. draw the object
+    glUseProgram(rstate.ui_shader_program);
+    glBindVertexArray(VAO);
+
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // glBindBuffer(0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+};
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
     assert(state.renderer_state != nullptr);
@@ -575,7 +641,8 @@ void Draw_Stretchable_Sprite(
     Loaded_Texture& texture,
     UI_Sprite_Params& sprite_params,
     v2i panel_size,
-    f32 in_scale  //
+    f32 in_scale,
+    Game_Renderer_State& rstate  //
 ) {
     auto& pad_h = sprite_params.stretch_paddings_h;
     auto& pad_v = sprite_params.stretch_paddings_v;
@@ -603,8 +670,8 @@ void Draw_Stretchable_Sprite(
     f32 texture_vertices_x[] = {0, x1, 1 - x2, 1};
     f32 texture_vertices_y[] = {0, y1, 1 - y2, 1};
 
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id);
-    glBegin(GL_TRIANGLES);
 
     FOR_RANGE(int, y, 3) {
         auto tex_y0 = texture_vertices_y[2 - y];
@@ -625,11 +692,11 @@ void Draw_Stretchable_Sprite(
                 v2f(sprite_x0, sprite_y0),  //
                 v2f(sx, sy),  //
                 v2f(0, 0),  //
-                BF_Color_White  //
+                BF_Color_White,  //
+                rstate  //
             );
         }
     }
-    glEnd();
 }
 
 struct Get_Buildable_Textures_Result {
@@ -720,25 +787,25 @@ void Render(Game_State& state, f32 dt) {
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     GLuint texture_name = 3;
     glBindTexture(GL_TEXTURE_2D, texture_name);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     glTexImage2D(
         GL_TEXTURE_2D, 0, GL_RGBA8, bitmap.width, bitmap.height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
         bitmap.memory);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     {
         glBlendFunc(GL_ONE, GL_ZERO);
@@ -911,7 +978,7 @@ void Render(Game_State& state, f32 dt) {
     }
 
     glDeleteTextures(1, (GLuint*)&texture_name);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     auto& ui_state = *rstate.ui_state;
     {
@@ -955,12 +1022,11 @@ void Render(Game_State& state, f32 dt) {
             auto p0 = projection * p0_local;
             auto p1 = projection * p1_local;
             Draw_Stretchable_Sprite(
-                p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale);
+                p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale, rstate);
 
             auto origin = (p1_local + p0_local) / 2.0f;
 
             glBindTexture(GL_TEXTURE_2D, ui_state.buildables_placeholder_background.id);
-            glBegin(GL_TRIANGLES);
             // Aligning items in a column
             // justify-content: center
             FOR_RANGE(int, i, placeholders) {
@@ -973,9 +1039,8 @@ void Render(Game_State& state, f32 dt) {
                 auto color = (i == ui_state.selected_buildable_index)
                     ? ui_state.selected_buildable_color
                     : ui_state.not_selected_buildable_color;
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color);
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color, rstate);
             }
-            glEnd();
 
             auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
             DEFER(Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size));
@@ -989,9 +1054,7 @@ void Render(Game_State& state, f32 dt) {
                 auto p = projection * drawing_point;
                 auto s = projection * v3f(buildable_size, 0);
                 glBindTexture(GL_TEXTURE_2D, *(buildable_textures.textures + i));
-                glBegin(GL_TRIANGLES);
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, BF_Color_White);
-                glEnd();
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, BF_Color_White, rstate);
             }
         }
     }

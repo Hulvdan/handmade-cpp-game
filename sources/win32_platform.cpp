@@ -18,6 +18,7 @@
 #include "xaudio2.h"
 #include "xinput.h"
 
+#include "bf_opengl.cpp"
 #include "bf_base.h"
 #include "bf_game.h"
 
@@ -338,7 +339,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SwapBuffers(device_context);
-    assert(!glGetError());
+    Check_OpenGL_Errors();
 
     events_count = 0;
     events.clear();
@@ -792,6 +793,7 @@ static int WinMain(
         auto ghRC = wglCreateContext(hdc);
         wglMakeCurrent(hdc, ghRC);
 
+        // glewExperimental = GL_TRUE;
         if (glewInit() != GLEW_OK) {
             // TODO(hulvdan): Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
@@ -809,10 +811,10 @@ static int WinMain(
 
         glEnable(GL_BLEND);
         glClearColor(1, 0, 1, 1);
-        assert(!glGetError());
+        Check_OpenGL_Errors();
 
         glShadeModel(GL_SMOOTH);
-        assert(!glGetError());
+        Check_OpenGL_Errors();
 
         ReleaseDC(window_handle, hdc);
         Win32GLResize();
