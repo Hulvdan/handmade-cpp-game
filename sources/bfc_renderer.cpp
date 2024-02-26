@@ -3,7 +3,6 @@
 #ifndef BF_CLIENT
 #error "This code should run on a client! BF_CLIENT must be defined!"
 #endif  // BF_CLIENT
-
 #pragma pack(push, 1)
 struct Debug_BMP_Header {
     u16 signature;
@@ -549,50 +548,54 @@ void Draw_UI_Sprite(
     assert(x0 < x1);
     assert(y0 < y1);
 
-    v2f vertices[] = {
-        {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (0 - anchor.y)},
-        {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (1 - anchor.y)},
-        {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (0 - anchor.y)},
-        {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (1 - anchor.y)},
-    };
+    f32 xx0 = pos.x + size.x * (0 - anchor.x);
+    f32 xx1 = pos.x + size.x * (1 - anchor.x);
+    f32 yy0 = pos.y + size.y * (0 - anchor.y);
+    f32 yy1 = pos.y + size.y * (1 - anchor.y);
+
+    // v2f vertices[] = {
+    //     {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (0 - anchor.y)},
+    //     {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (1 - anchor.y)},
+    //     {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (0 - anchor.y)},
+    //     {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (1 - anchor.y)},
+    // };
 
     // f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
 
     f32 verticesss[] = {
-        vertices[0].x, vertices[0].y, 10, 1.0f, 1.0f, 1.0f, x0, y0,  //
-        vertices[1].x, vertices[0].y, 10, 1.0f, 1.0f, 1.0f, x1, y0,  //
-        vertices[0].x, vertices[1].y, 10, 1.0f, 1.0f, 1.0f, x0, y1,  //
-        vertices[0].x, vertices[1].y, 10, 1.0f, 1.0f, 1.0f, x0, y1,  //
-        vertices[1].x, vertices[0].y, 10, 1.0f, 1.0f, 1.0f, x1, y0,  //
-        vertices[1].x, vertices[1].y, 10, 1.0f, 1.0f, 1.0f, x1, y1,  //
+        xx0, yy0, 0, 1.0f, 1.0f, 1.0f, x0, y0,  //
+        xx1, yy0, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
+        xx0, yy1, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
+        xx0, yy1, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
+        xx1, yy0, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
+        xx1, yy1, 0, 1.0f, 1.0f, 1.0f, x1, y1,  //
     };
 
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
 
-    // 2. copy our vertices array in a buffer for OpenGL to use
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_DYNAMIC_DRAW);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_STATIC_DRAW);
 
     // 3. then set our vertex attributes pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
     glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32)));
-    // glEnableVertexAttribArray(1);
-    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
-    // glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
     // ..:: Drawing code (in render loop) :: ..
     glUseProgram(rstate.ui_shader_program);
-    glBindVertexArray(VAO);
+    glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindVertexArray(0);
     glUseProgram(0);
-    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &vao);
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
