@@ -489,12 +489,12 @@ void main() {
     ui_state.buildables_panel_in_scale = 1;
     ui_state.buildables_panel_container_anchor = {0.0f, 0.5f};
 
-    ui_state.selected_buildable_color.r = 255.0f / 255.0f;
-    ui_state.selected_buildable_color.g = 255.0f / 255.0f;
-    ui_state.selected_buildable_color.b = 255.0f / 255.0f;
     ui_state.not_selected_buildable_color.r = 255.0f / 255.0f;
-    ui_state.not_selected_buildable_color.g = 233.0f / 255.0f;
-    ui_state.not_selected_buildable_color.b = 176.0f / 255.0f;
+    ui_state.not_selected_buildable_color.g = 255.0f / 255.0f;
+    ui_state.not_selected_buildable_color.b = 255.0f / 255.0f;
+    ui_state.selected_buildable_color.r = 255.0f / 255.0f;
+    ui_state.selected_buildable_color.g = 233.0f / 255.0f;
+    ui_state.selected_buildable_color.b = 176.0f / 255.0f;
 }
 
 void Draw_Sprite(
@@ -554,12 +554,12 @@ void Draw_UI_Sprite(
     f32 yy1 = pos.y + size.y * (1 - anchor.y);
 
     f32 verticesss[] = {
-        xx0, yy0, 0, 1.0f, 1.0f, 1.0f, x0, y0,  //
-        xx1, yy0, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
-        xx0, yy1, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
-        xx0, yy1, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
-        xx1, yy0, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
-        xx1, yy1, 0, 1.0f, 1.0f, 1.0f, x1, y1,  //
+        xx0, yy0, 0, color.r, color.g, color.b, x0, y0,  //
+        xx1, yy0, 0, color.r, color.g, color.b, x1, y0,  //
+        xx0, yy1, 0, color.r, color.g, color.b, x0, y1,  //
+        xx0, yy1, 0, color.r, color.g, color.b, x0, y1,  //
+        xx1, yy0, 0, color.r, color.g, color.b, x1, y0,  //
+        xx1, yy1, 0, color.r, color.g, color.b, x1, y1,  //
     };
 
     GLuint vao;
@@ -1064,7 +1064,11 @@ void Render(Game_State& state, f32 dt) {
                 auto p = projection * drawing_point;
                 auto s = projection * v3f(buildable_size, 0);
                 glBindTexture(GL_TEXTURE_2D, *(buildable_textures.textures + i));
-                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, BF_Color_White, rstate);
+
+                auto color = (i == ui_state.selected_buildable_index)
+                    ? ui_state.selected_buildable_color
+                    : ui_state.not_selected_buildable_color;
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color, rstate);
             }
         }
     }
