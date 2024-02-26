@@ -156,7 +156,7 @@ target_include_directories(tests PRIVATE
 )
 
 IF(WIN32 AND NOT CMAKE_GENERATOR STREQUAL Ninja)
-    set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)
+    # set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)
     target_compile_options(bf_game PRIVATE ${COMPILATION_FLAGS})
     target_compile_options(win32 PRIVATE ${COMPILATION_FLAGS})
     target_compile_options(tests PRIVATE ${COMPILATION_FLAGS})

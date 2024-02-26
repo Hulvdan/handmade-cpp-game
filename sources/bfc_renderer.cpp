@@ -170,6 +170,7 @@ void Initialize_Renderer(
 ) {
     auto hot_reloaded = state.hot_reloaded;
     auto first_time_initializing = state.renderer_state == nullptr;
+
     if (!first_time_initializing && !hot_reloaded)
         return;
 
@@ -203,26 +204,29 @@ void Initialize_Renderer(
 #version 330 core
 
 layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aColor;
-layout (location = 2) in vec2 aTexCoord;
+// layout (location = 1) in vec3 aColor;
+// layout (location = 2) in vec2 aTexCoord;
 
-out vec3 ourColor;
-out vec2 TexCoord;
+// out vec3 ourColor;
+// out vec2 TexCoord;
 
 void main() {
     gl_Position = vec4(aPos, 1.0);
-    ourColor = aColor;
-    TexCoord = aTexCoord;
+    // ourColor = aColor;
+    // TexCoord = aTexCoord;
 }
 )Shader";
 
         auto vertex = glCreateShader(GL_VERTEX_SHADER);
+        DEFER(glDeleteShader(vertex));
+
         glShaderSource(vertex, 1, &vertex_code, nullptr);
         glCompileShader(vertex);
         glGetShaderiv(vertex, GL_COMPILE_STATUS, &vertex_success);
         Debug_Print_Shader_Info_Log(vertex, trash_arena, "Vertex shader compilation");
 
         // Similiar for Fragment Shader
+#if 0
         auto fragment_code = R"Shader(
 #version 330 core
 out vec4 FragColor;
@@ -233,12 +237,25 @@ in vec2 TexCoord;
 uniform sampler2D ourTexture;
 
 void main() {
-    // FragColor = texture(ourTexture, TexCoord) * vec4(ourColor, 1);
-    FragColor = texture(ourTexture, TexCoord);
+    FragColor = texture(ourTexture, TexCoord) * vec4(ourColor, 1);
+    // FragColor = vec4(TexCoord.x,TexCoord.y,0,1) * vec4(ourColor, 1);
+    // FragColor = texture(ourTexture, TexCoord);
 }
 )Shader";
+#else
+        auto fragment_code = R"Shader(
+#version 330 core
+out vec4 FragColor;
+
+void main() {
+    FragColor = vec4(1,1,1,1);
+}
+)Shader";
+#endif
 
         auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
+        DEFER(glDeleteShader(fragment));
+
         glShaderSource(fragment, 1, &fragment_code, nullptr);
         glCompileShader(fragment);
         glGetShaderiv(fragment, GL_COMPILE_STATUS, &fragment_success);
@@ -273,11 +290,10 @@ void main() {
             if (rstate.ui_shader_program)
                 glDeleteProgram(rstate.ui_shader_program);
             rstate.ui_shader_program = program_id;
+            rstate.shaders_compilation_failed = false;
+        } else {
+            rstate.shaders_compilation_failed = true;
         }
-
-        // delete the shaders as they're linked into our program now and no longer necessary
-        glDeleteShader(vertex);
-        glDeleteShader(fragment);
     }
 
     glEnable(GL_TEXTURE_2D);
@@ -543,13 +559,14 @@ void Draw_UI_Sprite(
     // f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
 
     f32 verticesss[] = {
-        vertices[0].x, vertices[0].y, 0, 1.0f, 1.0f, 1.0f, x0, y0,  //
-        vertices[1].x, vertices[0].y, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
-        vertices[0].x, vertices[1].y, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
-        vertices[0].x, vertices[1].y, 0, 1.0f, 1.0f, 1.0f, x0, y1,  //
-        vertices[1].x, vertices[0].y, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
-        vertices[1].x, vertices[1].y, 0, 1.0f, 1.0f, 1.0f, x1, y1,  //
+        vertices[0].x, vertices[0].y, 10, 1.0f, 1.0f, 1.0f, x0, y0,  //
+        vertices[1].x, vertices[0].y, 10, 1.0f, 1.0f, 1.0f, x1, y0,  //
+        vertices[0].x, vertices[1].y, 10, 1.0f, 1.0f, 1.0f, x0, y1,  //
+        vertices[0].x, vertices[1].y, 10, 1.0f, 1.0f, 1.0f, x0, y1,  //
+        vertices[1].x, vertices[0].y, 10, 1.0f, 1.0f, 1.0f, x1, y0,  //
+        vertices[1].x, vertices[1].y, 10, 1.0f, 1.0f, 1.0f, x1, y1,  //
     };
+
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
@@ -558,25 +575,24 @@ void Draw_UI_Sprite(
     GLuint VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_DYNAMIC_DRAW);
+
     // 3. then set our vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(f32)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(f32)));
-    glEnableVertexAttribArray(2);
+    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32)));
+    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
+    // glEnableVertexAttribArray(2);
 
     // ..:: Drawing code (in render loop) :: ..
-    // 4. draw the object
     glUseProgram(rstate.ui_shader_program);
     glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-    // glBindBuffer(0);
     glBindVertexArray(0);
     glUseProgram(0);
+    glDeleteVertexArrays(1, &VAO);
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
