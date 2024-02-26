@@ -203,16 +203,16 @@ void Initialize_Renderer(
 #version 330 core
 
 layout (location = 0) in vec3 aPos;
-// layout (location = 1) in vec3 aColor;
-// layout (location = 2) in vec2 aTexCoord;
+layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec2 aTexCoord;
 
-// out vec3 ourColor;
-// out vec2 TexCoord;
+out vec3 ourColor;
+out vec2 TexCoord;
 
 void main() {
-    gl_Position = vec4(aPos, 1.0);
-    // ourColor = aColor;
-    // TexCoord = aTexCoord;
+    gl_Position = vec4(aPos.x * 2 - 1, 1 - aPos.y * 2, 0, 1.0);
+    ourColor = aColor;
+    TexCoord = aTexCoord;
 }
 )Shader";
 
@@ -225,7 +225,7 @@ void main() {
         Debug_Print_Shader_Info_Log(vertex, trash_arena, "Vertex shader compilation");
 
         // Similiar for Fragment Shader
-#if 0
+#if 1
         auto fragment_code = R"Shader(
 #version 330 core
 out vec4 FragColor;
@@ -553,15 +553,6 @@ void Draw_UI_Sprite(
     f32 yy0 = pos.y + size.y * (0 - anchor.y);
     f32 yy1 = pos.y + size.y * (1 - anchor.y);
 
-    // v2f vertices[] = {
-    //     {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (0 - anchor.y)},
-    //     {pos.x + size.x * (0 - anchor.x), pos.y + size.y * (1 - anchor.y)},
-    //     {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (0 - anchor.y)},
-    //     {pos.x + size.x * (1 - anchor.x), pos.y + size.y * (1 - anchor.y)},
-    // };
-
-    // f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
-
     f32 verticesss[] = {
         xx0, yy0, 0, 1.0f, 1.0f, 1.0f, x0, y0,  //
         xx1, yy0, 0, 1.0f, 1.0f, 1.0f, x1, y0,  //
@@ -582,8 +573,8 @@ void Draw_UI_Sprite(
 
     // 3. then set our vertex attributes pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32)));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
