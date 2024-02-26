@@ -342,6 +342,9 @@ struct Game_Renderer_State : public Non_Copyable {
     f32 zoom;
 
     f32 cell_size;
+
+    bool shaders_compilation_failed;
+    GLint ui_shader_program;
 };
 // --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT

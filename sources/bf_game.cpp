@@ -16,6 +16,7 @@
 #include "bf_game.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_opengl.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
@@ -393,6 +394,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         memory.is_initialized = true;
     }
+
+    if (state.renderer_state != nullptr && state.renderer_state->shaders_compilation_failed)
+        ImGui::Text("ERROR: Shaders compilation failed!");
 
     // TODO(hulvdan): Оно ругается на null-pointer dereference. Если так написать, норм?
     if (state.renderer_state != nullptr)

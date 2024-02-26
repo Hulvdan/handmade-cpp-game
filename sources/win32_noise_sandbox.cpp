@@ -78,7 +78,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
         Win32UpdateBitmap(device_context);
 
     SwapBuffers(device_context);
-    assert(!glGetError());
+    Check_OpenGL_Errors()
 
     events_count = 0;
     events.clear();
@@ -201,13 +201,13 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
             tex, arena.base + arena.used, arena.size - arena.used, octaves, scaling_bias, seed);
 
         glBindTexture(GL_TEXTURE_2D, tex.id);
-        assert(!glGetError());
+        Check_OpenGL_Errors()
 
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        assert(!glGetError());
+        Check_OpenGL_Errors()
 
         glTexImage2D(
             GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
@@ -332,10 +332,10 @@ int main(int, char**) {
 
         glEnable(GL_BLEND);
         glClearColor(1, 0, 1, 1);
-        assert(!glGetError());
+        Check_OpenGL_Errors()
 
         glShadeModel(GL_SMOOTH);
-        assert(!glGetError());
+        Check_OpenGL_Errors()
 
         ReleaseDC(window_handle, hdc);
         Win32GLResize();
