@@ -399,12 +399,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 (os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
 
             Place_Building(state, {2, 2}, 1);
-            // Place_Building(state, {4, 2}, 2);
-            // Place_Building(state, {5, 2}, 2);
-            // Place_Building(state, {6, 2}, 2);
-            // Place_Building(state, {4, 3}, 2);
-            // Place_Building(state, {4, 5}, 2);
-            // Place_Building(state, {4, 7}, 2);
         }
 
         On_Item_Built__Function((*callbacks[])) = {
