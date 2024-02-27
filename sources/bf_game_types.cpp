@@ -16,9 +16,42 @@ struct Arena : public Non_Copyable {
     size_t size;
     u8* base;
 };
+
+struct Page : public Non_Copyable {
+    u8* base;
+};
+
+struct Pages : public Non_Copyable {
+    size_t total_count_cap;
+    size_t allocated_count;
+    Page* base;
+    bool* in_use;
+};
 // --- Memory End ---
 
 // --- Game Logic ---
+using graph_u = u8;
+using graph_double_u = u16;
+
+struct graph_v2u {
+    graph_u x;
+    graph_u y;
+};
+
+struct Movement_Segment_Graph {
+    graph_double_u nodes_count;
+    u8* nodes;  // 0b0000DLUR
+
+    graph_v2u size;
+    graph_v2u offset;
+
+    graph_double_u centers_count;
+    graph_v2u* centers;
+};
+
+struct Movement_Segment_Graph_Precalculated_Data {
+    // TODO(hulvdan): Reimplement `CalculatedGraphPathData` calculation from the old repo
+};
 
 using Scriptable_Building_ID = u16;
 global Scriptable_Building_ID global_city_hall_building_id = 1;
@@ -56,17 +89,6 @@ struct Human {
 struct Resource_To_Book {
     Scriptable_Resource_ID scriptable_id;
     u8 amount;
-};
-
-struct Page {
-    u8* base;
-};
-
-struct Pages : public Non_Copyable {
-    size_t total_count_cap;
-    size_t allocated_count;
-    Page* base;
-    bool* in_use;
 };
 
 // NOTE(hulvdan): `Building_Page_Meta` gets placed at the end of the `Page`
