@@ -30,23 +30,23 @@ struct Pages : public Non_Copyable {
 // --- Memory End ---
 
 // --- Game Logic ---
-using graph_u = u8;
-using graph_double_u = u16;
+using Graph_u = u8;
+using Graph_double_u = u16;
 
-struct graph_v2u {
-    graph_u x;
-    graph_u y;
+struct Graph_v2u {
+    Graph_u x;
+    Graph_u y;
 };
 
 struct Movement_Segment_Graph {
-    graph_double_u nodes_count;
+    Graph_double_u nodes_count;
     u8* nodes;  // 0b0000DLUR
 
-    graph_v2u size;
-    graph_v2u offset;
+    Graph_v2u size;
+    Graph_v2u offset;
 
-    graph_double_u centers_count;
-    graph_v2u* centers;
+    Graph_double_u centers_count;
+    Graph_v2u* centers;
 };
 
 struct Movement_Segment_Graph_Precalculated_Data {
@@ -372,5 +372,5 @@ struct Game_Renderer_State : public Non_Copyable {
     bool shaders_compilation_failed;
     GLint ui_shader_program;
 };
-// --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT
+// --- CLIENT. Game Rendering End ---
