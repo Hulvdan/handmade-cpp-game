@@ -202,17 +202,17 @@ void Initialize_Renderer(
         auto vertex_code = R"Shader(
 #version 330 core
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aColor;
-layout (location = 2) in vec2 aTexCoord;
+layout (location = 0) in vec3 a_pos;
+layout (location = 1) in vec3 a_sprite_color;
+layout (location = 2) in vec2 a_tex_coord;
 
-out vec3 ourColor;
-out vec2 TexCoord;
+out vec3 sprite_color;
+out vec2 tex_coord;
 
 void main() {
-    gl_Position = vec4(aPos.x * 2 - 1, 1 - aPos.y * 2, 0, 1.0);
-    ourColor = aColor;
-    TexCoord = aTexCoord;
+    gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
+    sprite_color = a_sprite_color;
+    tex_coord = a_tex_coord;
 }
 )Shader";
 
@@ -225,32 +225,19 @@ void main() {
         Debug_Print_Shader_Info_Log(vertex, trash_arena, "Vertex shader compilation");
 
         // Similiar for Fragment Shader
-#if 1
         auto fragment_code = R"Shader(
 #version 330 core
-out vec4 FragColor;
+out vec4 frag_color;
 
-in vec3 ourColor;
-in vec2 TexCoord;
+in vec3 sprite_color;
+in vec2 tex_coord;
 
 uniform sampler2D ourTexture;
 
 void main() {
-    FragColor = texture(ourTexture, TexCoord) * vec4(ourColor, 1);
-    // FragColor = vec4(TexCoord.x,TexCoord.y,0,1) * vec4(ourColor, 1);
-    // FragColor = texture(ourTexture, TexCoord);
+    frag_color = texture(ourTexture, tex_coord) * vec4(sprite_color, 1);
 }
 )Shader";
-#else
-        auto fragment_code = R"Shader(
-#version 330 core
-out vec4 FragColor;
-
-void main() {
-    FragColor = vec4(1,1,1,1);
-}
-)Shader";
-#endif
 
         auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
         DEFER(glDeleteShader(fragment));
