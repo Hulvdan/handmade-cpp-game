@@ -183,6 +183,14 @@ Building_Page_Meta& Get_Building_Page_Meta(size_t page_size, Page& page) {
     return *rcast<Building_Page_Meta*>(page.base + page_size - sizeof(Building_Page_Meta));
 }
 
+Graph_Segment_Page_Meta& Get_Graph_Segment_Page_Meta(
+    size_t page_size,
+    Page& page  //
+) {
+    return *rcast<Graph_Segment_Page_Meta*>(
+        page.base + page_size - sizeof(Graph_Segment_Page_Meta));
+}
+
 void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
@@ -192,7 +200,7 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     assert(Pos_Is_In_Bounds(pos, gsize));
 
     Page* page = nullptr;
-    Building* found_building = nullptr;
+    Building* found_instance = nullptr;
     FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
         page = game_map.building_pages + page_index;
         auto& meta = Get_Building_Page_Meta(page_size, *page);
@@ -201,39 +209,86 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
             continue;
 
         FOR_RANGE(size_t, building_index, game_map.max_buildings_per_page) {
-            auto& building = *(rcast<Building*>(page->base) + building_index);
-            if (!building.active) {
-                found_building = &building;
+            auto& instance = *(rcast<Building*>(page->base) + building_index);
+            if (!instance.active) {
+                found_instance = &instance;
                 break;
             }
         }
 
-        if (found_building != nullptr)
+        if (found_instance != nullptr)
             break;
     }
 
-    if (found_building == nullptr) {
+    if (found_instance == nullptr) {
         assert(game_map.building_pages_used < game_map.building_pages_total);
         page = game_map.building_pages + game_map.building_pages_used;
 
         page->base = Book_Single_Page(state);
         game_map.building_pages_used++;
 
-        found_building = rcast<Building*>(page->base);
-        assert(found_building != nullptr);
+        found_instance = rcast<Building*>(page->base);
+        assert(found_instance != nullptr);
     }
 
     Get_Building_Page_Meta(page_size, *page).count++;
-    auto& b = *found_building;
+    auto& instance = *found_instance;
 
-    b.pos = pos;
-    b.active = true;
-    b.scriptable_id = id;
+    instance.pos = pos;
+    instance.active = true;
+    instance.scriptable_id = id;
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     assert(tile.type == Element_Tile_Type::None);
     tile.type = Element_Tile_Type::Building;
-    tile.building = found_building;
+    tile.building = found_instance;
+}
+
+Graph_Segment& New_Graph_Segment(Game_State& state) {
+    auto& game_map = state.game_map;
+    auto gsize = game_map.size;
+    auto& os_data = *state.os_data;
+
+    const auto page_size = os_data.page_size;
+
+    Page* page = nullptr;
+    Graph_Segment* found_instance = nullptr;
+    FOR_RANGE(size_t, page_index, game_map.segment_pages_used) {
+        page = game_map.segment_pages + page_index;
+        auto& meta = Get_Graph_Segment_Page_Meta(page_size, *page);
+
+        if (meta.count >= game_map.max_segments_per_page)
+            continue;
+
+        FOR_RANGE(size_t, segment_index, game_map.max_segments_per_page) {
+            auto& instance = *(rcast<Graph_Segment*>(page->base) + segment_index);
+            if (!instance.active) {
+                found_instance = &instance;
+                break;
+            }
+        }
+
+        if (found_instance != nullptr)
+            break;
+    }
+
+    if (found_instance == nullptr) {
+        assert(game_map.segment_pages_used < game_map.segment_pages_total);
+        page = game_map.segment_pages + game_map.segment_pages_used;
+
+        page->base = Book_Single_Page(state);
+        game_map.segment_pages_used++;
+
+        found_instance = rcast<Graph_Segment*>(page->base);
+        assert(found_instance != nullptr);
+    }
+
+    Get_Graph_Segment_Page_Meta(page_size, *page).count++;
+    auto& instance = *found_instance;
+
+    instance.active = true;
+
+    return instance;
 }
 
 bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
@@ -278,4 +333,18 @@ bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
     INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));
 
     return true;
+}
+
+void On_Tiles_Updated(
+    Game_State& state,
+    Arena& non_pesistent_arena,
+    Arena& trash_arena,
+    u16 tiles_count,
+    Graph_v2u* tiles  //
+) {
+    auto& game_map = state.game_map;
+    auto& gsize = game_map.size;
+    auto& element_tiles = game_map.element_tiles;
+
+    // FOR_RANGE()
 }

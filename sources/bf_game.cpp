@@ -385,18 +385,37 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
 
         if (first_time_initializing) {
-            auto max_hypothetical_count_of_building_pages =
-                Ceil_Division(tiles_count * sizeof(Building), os_data.page_size);
+            {
+                auto meta_size = sizeof(Building_Page_Meta);
+                auto struct_size = sizeof(Building);
 
-            assert(max_hypothetical_count_of_building_pages < 100);
-            assert(max_hypothetical_count_of_building_pages > 0);
+                auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                assert(max_pages_count < 100);
+                assert(max_pages_count > 0);
 
-            state.game_map.building_pages_total = max_hypothetical_count_of_building_pages;
-            state.game_map.building_pages_used = 0;
-            state.game_map.building_pages =
-                Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
-            state.game_map.max_buildings_per_page = Assert_Truncate_To_u16(
-                (os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
+                state.game_map.building_pages_total = max_pages_count;
+                state.game_map.building_pages_used = 0;
+                state.game_map.building_pages =
+                    Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
+                state.game_map.max_buildings_per_page =
+                    Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+            }
+
+            {
+                auto meta_size = sizeof(Graph_Segment_Page_Meta);
+                auto struct_size = sizeof(Graph_Segment);
+
+                auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                assert(max_pages_count < 100);
+                assert(max_pages_count > 0);
+
+                state.game_map.segment_pages_total = max_pages_count;
+                state.game_map.segment_pages_used = 0;
+                state.game_map.segment_pages =
+                    Allocate_Zeros_Array(arena, Page, state.game_map.segment_pages_total);
+                state.game_map.max_segments_per_page = Assert_Truncate_To_u16(
+                    (os_data.page_size - meta_size) / struct_size);
+            }
 
             Place_Building(state, {2, 2}, 1);
         }

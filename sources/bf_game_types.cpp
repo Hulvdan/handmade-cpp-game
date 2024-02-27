@@ -30,26 +30,41 @@ struct Pages : public Non_Copyable {
 // --- Memory End ---
 
 // --- Game Logic ---
+// using Graph_Segment_ID = u32;
 using Graph_u = u8;
 using Graph_double_u = u16;
 
+// 2 x 8
 struct Graph_v2u {
     Graph_u x;
     Graph_u y;
 };
 
-struct Movement_Segment_Graph {
+// NOTE(hulvdan): `Graph_Segment_Page_Meta` gets placed at the end of the `Page`
+struct Graph_Segment_Page_Meta : public Non_Copyable {
+    u16 count;
+};
+
+struct Graph {
     Graph_double_u nodes_count;
     u8* nodes;  // 0b0000DLUR
 
     Graph_v2u size;
     Graph_v2u offset;
 
-    Graph_double_u centers_count;
-    Graph_v2u* centers;
+    // Graph_v2u* centers;
+    // Graph_double_u centers_count;
 };
 
-struct Movement_Segment_Graph_Precalculated_Data {
+struct Graph_Segment {
+    Graph_double_u vertices_count;
+    Graph_v2u* vertices;
+
+    Graph graph;
+    bool active;
+};
+
+struct Graph_Segment_Precalculated_Data {
     // TODO(hulvdan): Reimplement `CalculatedGraphPathData` calculation from the old repo
 };
 
@@ -187,6 +202,11 @@ struct Game_Map : public Non_Copyable {
     u16 building_pages_used;
     u16 building_pages_total;
     u16 max_buildings_per_page;
+
+    Page* segment_pages;
+    u16 segment_pages_used;
+    u16 segment_pages_total;
+    u16 max_segments_per_page;
 };
 
 template <typename T>
