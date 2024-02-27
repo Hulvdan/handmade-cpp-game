@@ -19,8 +19,11 @@
 #include "xinput.h"
 
 #include "bf_base.h"
-#include "bf_opengl.cpp"
 #include "bf_game.h"
+
+// NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_opengl.cpp"
+// NOLINTEND(bugprone-suspicious-include)
 
 global OS_Data os_data;
 
@@ -122,7 +125,7 @@ void Load_Or_Update_Game_Dll() {
         }
 
         hot_reloaded = true;
-        game_lib = 0;
+        game_lib = nullptr;
         Game_Update_And_Render_ = nullptr;
     }
 

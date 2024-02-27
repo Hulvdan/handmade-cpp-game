@@ -42,7 +42,7 @@ bool Is_Multiple_Of_2(int number, u8& power) {
     return true;
 }
 
-// Usage:
+// Usage Examples:
 //     32 -> 32
 //     26 -> 32
 //     13 -> 16
@@ -244,7 +244,6 @@ void Fill_Perlin_2D(
 
     f32 sum_of_division = 0;
     octaves = MIN(sx_power, octaves);
-
 
     u16 offset = sx;
 

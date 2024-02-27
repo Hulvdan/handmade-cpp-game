@@ -53,7 +53,7 @@ bool UI_Clicked(Game_State& state) {
 
     auto texture = ui_state.buildables_panel_background;
     auto placeholder_texture = ui_state.buildables_placeholder_background;
-    auto& psize = placeholder_texture.size;
+    auto psize = v2f(placeholder_texture.size);
 
     auto scale = ui_state.scale;
     v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
@@ -61,14 +61,14 @@ bool UI_Clicked(Game_State& state) {
     v2f padding = ui_state.padding;
     f32 placeholders_gap = ui_state.placeholders_gap;
     auto placeholders = ui_state.placeholders;
-    auto panel_size =
-        v2f(psize.x + 2 * padding.x,
-            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
+    auto panel_size = v2f(
+        psize.x + 2 * padding.x,
+        2 * padding.y + placeholders_gap * (f32)(placeholders - 1) + (f32)placeholders * psize.y);
 
-    auto outer_anchor = ui_state.buildables_panel_container_anchor;
-    auto outer_container_size = v2i(swidth, sheight);
-    auto outer_x = outer_container_size.x * outer_anchor.x;
-    auto outer_y = outer_container_size.y * outer_anchor.y;
+    v2f outer_anchor = ui_state.buildables_panel_container_anchor;
+    v2i outer_container_size = v2i(swidth, sheight);
+    f32 outer_x = (f32)outer_container_size.x * outer_anchor.x;
+    f32 outer_y = (f32)outer_container_size.y * outer_anchor.y;
 
     auto projection = glm::mat3(1);
     // projection = glm::translate(projection, v2f(0, 1));
@@ -81,21 +81,21 @@ bool UI_Clicked(Game_State& state) {
     {
         auto model = glm::mat3(1);
         model = glm::scale(model, v2f(panel_size));
-        auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
-        auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
-        auto origin = (p1_local + p0_local) / 2.0f;
+        v3f p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
+        v3f p1_local = model * v3f(v2f_one - sprite_anchor, 1);
+        v3f origin = (p1_local + p0_local) / 2.0f;
 
         // Aligning items in a column
         // justify-content: center
         FOR_RANGE(i8, i, placeholders) {
-            auto drawing_point = origin;
-            drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
-            drawing_point.y += i * (placeholders_gap + psize.y);
+            v3f drawing_point = origin;
+            drawing_point.y -= (f32)(placeholders - 1) * (psize.y + placeholders_gap) / 2;
+            drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
-            auto p = projection * drawing_point;
-            auto s = projection * v3f(psize, 0);
-            auto p2 = v2f(p) - v2f(s) * 0.5f;  // anchor
-            auto off = v2f(rstate.mouse_pos) - p2;
+            v3f p = projection * drawing_point;
+            v3f s = projection * v3f(psize, 0);
+            v2f p2 = v2f(p) - v2f(s) * 0.5f;  // anchor
+            v2f off = v2f(rstate.mouse_pos) - p2;
             if (Pos_Is_In_Bounds(off, s)) {
                 clicked_buildable_index = i;
                 break;
