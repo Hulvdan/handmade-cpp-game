@@ -18,8 +18,8 @@
 #include "xaudio2.h"
 #include "xinput.h"
 
-#include "bf_opengl.cpp"
 #include "bf_base.h"
+#include "bf_opengl.cpp"
 #include "bf_game.h"
 
 global OS_Data os_data;
@@ -51,7 +51,7 @@ void push_event(T& event) {
     auto can_push = events.capacity() >= events.size() + sizeof(T) + 1;
     if (!can_push) {
         // TODO(hulvdan): Diagnostic
-        assert(false);
+        INVALID_PATH;
         OutputDebugStringA("win32_platform: push_event(): skipped");
         return;
     }
@@ -118,7 +118,7 @@ void Load_Or_Update_Game_Dll() {
     if (game_lib) {
         if (!FreeLibrary(game_lib)) {
             DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: FreeLibrary failed!");
-            assert(false);
+            INVALID_PATH;
         }
 
         hot_reloaded = true;
@@ -134,7 +134,7 @@ void Load_Or_Update_Game_Dll() {
     HMODULE lib = LoadLibraryA(path);
     if (!lib) {
         DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: LoadLibraryA failed!");
-        assert(false);
+        INVALID_PATH;
     }
 
     auto loaded_Game_Update_And_Render =
@@ -143,7 +143,7 @@ void Load_Or_Update_Game_Dll() {
     bool functions_loaded = loaded_Game_Update_And_Render;
     if (!functions_loaded) {
         DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: Functions couldn't be loaded!");
-        assert(false);
+        INVALID_PATH;
     }
 
 #if BF_INTERNAL
@@ -797,7 +797,7 @@ static int WinMain(
         if (glewInit() != GLEW_OK) {
             // TODO(hulvdan): Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
-            assert(false);
+            INVALID_PATH;
             return -1;
         }
 

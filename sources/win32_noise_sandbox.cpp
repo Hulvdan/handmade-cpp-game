@@ -80,7 +80,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     SwapBuffers(device_context);
     Check_OpenGL_Errors()
 
-    events_count = 0;
+        events_count = 0;
     events.clear();
 }
 
@@ -203,15 +203,15 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
         glBindTexture(GL_TEXTURE_2D, tex.id);
         Check_OpenGL_Errors()
 
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
         Check_OpenGL_Errors()
 
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
-            tex.base);
+            glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT,
+                GL_UNSIGNED_BYTE, tex.base);
     }
 
     ImGui::Image(
@@ -319,7 +319,7 @@ int main(int, char**) {
         if (glewInit() != GLEW_OK) {
             // TODO(hulvdan): Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
-            assert(false);
+            INVALID_PATH;
         }
 
         // NOTE(hulvdan): Enabling VSync
@@ -334,10 +334,10 @@ int main(int, char**) {
         glClearColor(1, 0, 1, 1);
         Check_OpenGL_Errors()
 
-        glShadeModel(GL_SMOOTH);
+            glShadeModel(GL_SMOOTH);
         Check_OpenGL_Errors()
 
-        ReleaseDC(window_handle, hdc);
+            ReleaseDC(window_handle, hdc);
         Win32GLResize();
     }
     // --- Initializing OpenGL End ---

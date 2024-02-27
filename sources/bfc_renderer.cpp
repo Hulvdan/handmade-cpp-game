@@ -38,14 +38,14 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
 
     if (header.signature != *(u16*)"BM") {
         // TODO(hulvdan): Diagnostic. Not a BMP file
-        assert(false);
+        INVALID_PATH;
         return res;
     }
 
     auto dib_size = header.dib_header_size;
     if (dib_size != 125 && dib_size != 56) {
         // TODO(hulvdan): Is not yet implemented algorithm
-        assert(false);
+        INVALID_PATH;
         return res;
     }
 
@@ -728,7 +728,7 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_St
         } break;
 
         default:
-            assert(false);
+            INVALID_PATH;
         }
     }
 
@@ -880,7 +880,7 @@ void Render(Game_State& state, f32 dt) {
                 Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
                 glEnd();
             } else
-                UNREACHABLE;
+                INVALID_PATH;
         }
     }
 
@@ -901,7 +901,7 @@ void Render(Game_State& state, f32 dt) {
                 Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
                 glEnd();
             } else
-                UNREACHABLE;
+                INVALID_PATH;
         }
     }
     // --- Drawing Resoures End ---
@@ -1070,6 +1070,9 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
 
+    if (item.type == Item_To_Build_Type::Building)
+        return;
+
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
     auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
     auto tile_index = pos.y * gsize.x + pos.x;
@@ -1086,7 +1089,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     } break;
 
     default:
-        UNREACHABLE;
+        INVALID_PATH;
     }
     assert(element_tile.building == nullptr);
 
@@ -1112,11 +1115,12 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
             tile_id = global_road_starting_tile_id + tex;
         } break;
 
+        case Element_Tile_Type::Building:
         case Element_Tile_Type::None:
             break;
 
         default:
-            UNREACHABLE;
+            INVALID_PATH;
         }
     }
 }

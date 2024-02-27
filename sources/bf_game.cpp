@@ -121,6 +121,7 @@ void Process_Events(
     float dt  //
 ) {
     auto& rstate = *state.renderer_state;
+    auto& ui_state = *rstate.ui_state;
 
     while (input_events_count > 0) {
         input_events_count--;
@@ -135,10 +136,31 @@ void Process_Events(
 
             if (!UI_Clicked(state)) {
                 if (event.type == Mouse_Button_Type::Left) {
-                    auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
-                    if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
-                        Try_Build(state, tile_pos, Item_To_Build_Flag);
-                        Try_Build(state, tile_pos, Item_To_Build_Road);
+                    if (ui_state.selected_buildable_index >= 0) {
+                        assert(ui_state.selected_buildable_index < ui_state.buildables_count);
+                        auto& selected_buildable =
+                            *(ui_state.buildables + ui_state.selected_buildable_index);
+
+                        auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
+                        if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
+                            switch (selected_buildable.type) {
+                            case Item_To_Build_Type::Road: {
+                                Try_Build(state, tile_pos, Item_To_Build_Flag);
+                                Try_Build(state, tile_pos, Item_To_Build_Road);
+                            } break;
+
+                            case Item_To_Build_Type::Flag: {
+                                Try_Build(state, tile_pos, Item_To_Build_Flag);
+                            } break;
+
+                            case Item_To_Build_Type::Building: {
+                                Try_Build(state, tile_pos, selected_buildable);
+                            } break;
+
+                            default:
+                                INVALID_PATH;
+                            }
+                        }
                     }
                 } else if (event.type == Mouse_Button_Type::Right) {
                     rstate.panning = true;
@@ -178,7 +200,7 @@ void Process_Events(
             } else if (event.value < 0) {
                 rstate.zoom_target /= 2.0f;
             } else
-                assert(false);
+                INVALID_PATH;
 
             rstate.zoom_target = MAX(0.5f, MIN(8.0f, rstate.zoom_target));
         } break;
@@ -211,7 +233,7 @@ void Process_Events(
 
         default:
             // TODO(hulvdan): Diagnostic
-            UNREACHABLE;
+            INVALID_PATH;
         }
     }
 }
@@ -377,12 +399,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 (os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
 
             Place_Building(state, {2, 2}, 1);
-            Place_Building(state, {4, 2}, 2);
-            Place_Building(state, {5, 2}, 2);
-            Place_Building(state, {6, 2}, 2);
-            Place_Building(state, {4, 3}, 2);
-            Place_Building(state, {4, 5}, 2);
-            Place_Building(state, {4, 7}, 2);
+            // Place_Building(state, {4, 2}, 2);
+            // Place_Building(state, {5, 2}, 2);
+            // Place_Building(state, {6, 2}, 2);
+            // Place_Building(state, {4, 3}, 2);
+            // Place_Building(state, {4, 5}, 2);
+            // Place_Building(state, {4, 7}, 2);
         }
 
         On_Item_Built__Function((*callbacks[])) = {
@@ -402,7 +424,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     if (state.renderer_state != nullptr)
         state.renderer_state->bitmap = &bitmap;
     else
-        UNREACHABLE;
+        INVALID_PATH;
 
     assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
