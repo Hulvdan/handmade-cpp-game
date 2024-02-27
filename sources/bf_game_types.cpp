@@ -143,6 +143,10 @@ enum class Item_To_Build_Type {
     Building,
 };
 
+// QUESTION(hulvdan): Non_Copyable на опыте показало, что клёвая вещь.
+// Есть ли способ инициализации кода снизу таким образом, чтобы не пришлось пилить конструктор?
+//
+// struct Item_To_Build : public Non_Copyable {
 struct Item_To_Build {
     Item_To_Build_Type type;
     Scriptable_Building_ID scriptable_building_id;

@@ -16,7 +16,7 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
         return Tile_State_Check::Excluded;
 
     default:
-        UNREACHABLE;
+        INVALID_PATH;
     }
 
     return Tile_State_Check::Skip;
@@ -75,7 +75,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     u32 rules_count = 0;
     while (true) {
         if (sizeof(Tile_Rule) * (rules_count + 1) > output_max_bytes) {
-            assert(false);
+            INVALID_PATH;
             return res;
         }
 

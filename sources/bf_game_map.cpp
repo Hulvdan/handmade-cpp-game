@@ -213,11 +213,11 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     }
 
     if (found_building == nullptr) {
-        assert(state.game_map.building_pages_used < state.game_map.building_pages_total);
-        page = state.game_map.building_pages + state.game_map.building_pages_used;
+        assert(game_map.building_pages_used < game_map.building_pages_total);
+        page = game_map.building_pages + game_map.building_pages_used;
 
         page->base = Book_Single_Page(state);
-        state.game_map.building_pages_used++;
+        game_map.building_pages_used++;
 
         found_building = rcast<Building*>(page->base);
         assert(found_building != nullptr);
@@ -229,6 +229,11 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     b.pos = pos;
     b.active = true;
     b.scriptable_id = id;
+
+    auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
+    assert(tile.type == Element_Tile_Type::None);
+    tile.type = Element_Tile_Type::Building;
+    tile.building = found_building;
 }
 
 bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
@@ -267,7 +272,7 @@ bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
     } break;
 
     default:
-        UNREACHABLE;
+        INVALID_PATH;
     }
 
     INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));

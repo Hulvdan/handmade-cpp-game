@@ -56,6 +56,7 @@ using v3i = glm::ivec3;
 #include "bf_types.h"
 
 #define UNREACHABLE assert(false)
+#define INVALID_PATH assert(false)
 
 #define scast static_cast
 #define rcast reinterpret_cast

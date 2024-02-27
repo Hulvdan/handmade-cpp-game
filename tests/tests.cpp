@@ -1,8 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-#define BF_CLIENT
-
 #include "bf_game.h"
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"

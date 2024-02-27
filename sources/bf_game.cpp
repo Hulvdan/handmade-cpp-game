@@ -53,7 +53,7 @@ bool UI_Clicked(Game_State& state) {
 
     auto texture = ui_state.buildables_panel_background;
     auto placeholder_texture = ui_state.buildables_placeholder_background;
-    auto& psize = placeholder_texture.size;
+    auto psize = v2f(placeholder_texture.size);
 
     auto scale = ui_state.scale;
     v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
@@ -61,14 +61,14 @@ bool UI_Clicked(Game_State& state) {
     v2f padding = ui_state.padding;
     f32 placeholders_gap = ui_state.placeholders_gap;
     auto placeholders = ui_state.placeholders;
-    auto panel_size =
-        v2f(psize.x + 2 * padding.x,
-            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
+    auto panel_size = v2f(
+        psize.x + 2 * padding.x,
+        2 * padding.y + placeholders_gap * (f32)(placeholders - 1) + (f32)placeholders * psize.y);
 
-    auto outer_anchor = ui_state.buildables_panel_container_anchor;
-    auto outer_container_size = v2i(swidth, sheight);
-    auto outer_x = outer_container_size.x * outer_anchor.x;
-    auto outer_y = outer_container_size.y * outer_anchor.y;
+    v2f outer_anchor = ui_state.buildables_panel_container_anchor;
+    v2i outer_container_size = v2i(swidth, sheight);
+    f32 outer_x = (f32)outer_container_size.x * outer_anchor.x;
+    f32 outer_y = (f32)outer_container_size.y * outer_anchor.y;
 
     auto projection = glm::mat3(1);
     // projection = glm::translate(projection, v2f(0, 1));
@@ -81,21 +81,21 @@ bool UI_Clicked(Game_State& state) {
     {
         auto model = glm::mat3(1);
         model = glm::scale(model, v2f(panel_size));
-        auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
-        auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
-        auto origin = (p1_local + p0_local) / 2.0f;
+        v3f p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
+        v3f p1_local = model * v3f(v2f_one - sprite_anchor, 1);
+        v3f origin = (p1_local + p0_local) / 2.0f;
 
         // Aligning items in a column
         // justify-content: center
         FOR_RANGE(i8, i, placeholders) {
-            auto drawing_point = origin;
-            drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
-            drawing_point.y += i * (placeholders_gap + psize.y);
+            v3f drawing_point = origin;
+            drawing_point.y -= (f32)(placeholders - 1) * (psize.y + placeholders_gap) / 2;
+            drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
-            auto p = projection * drawing_point;
-            auto s = projection * v3f(psize, 0);
-            auto p2 = v2f(p) - v2f(s) * 0.5f;  // anchor
-            auto off = v2f(rstate.mouse_pos) - p2;
+            v3f p = projection * drawing_point;
+            v3f s = projection * v3f(psize, 0);
+            v2f p2 = v2f(p) - v2f(s) * 0.5f;  // anchor
+            v2f off = v2f(rstate.mouse_pos) - p2;
             if (Pos_Is_In_Bounds(off, s)) {
                 clicked_buildable_index = i;
                 break;
@@ -121,6 +121,7 @@ void Process_Events(
     float dt  //
 ) {
     auto& rstate = *state.renderer_state;
+    auto& ui_state = *rstate.ui_state;
 
     while (input_events_count > 0) {
         input_events_count--;
@@ -135,10 +136,31 @@ void Process_Events(
 
             if (!UI_Clicked(state)) {
                 if (event.type == Mouse_Button_Type::Left) {
-                    auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
-                    if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
-                        Try_Build(state, tile_pos, Item_To_Build_Flag);
-                        Try_Build(state, tile_pos, Item_To_Build_Road);
+                    if (ui_state.selected_buildable_index >= 0) {
+                        assert(ui_state.selected_buildable_index < ui_state.buildables_count);
+                        auto& selected_buildable =
+                            *(ui_state.buildables + ui_state.selected_buildable_index);
+
+                        auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
+                        if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
+                            switch (selected_buildable.type) {
+                            case Item_To_Build_Type::Road: {
+                                Try_Build(state, tile_pos, Item_To_Build_Flag);
+                                Try_Build(state, tile_pos, Item_To_Build_Road);
+                            } break;
+
+                            case Item_To_Build_Type::Flag: {
+                                Try_Build(state, tile_pos, Item_To_Build_Flag);
+                            } break;
+
+                            case Item_To_Build_Type::Building: {
+                                Try_Build(state, tile_pos, selected_buildable);
+                            } break;
+
+                            default:
+                                INVALID_PATH;
+                            }
+                        }
                     }
                 } else if (event.type == Mouse_Button_Type::Right) {
                     rstate.panning = true;
@@ -178,7 +200,7 @@ void Process_Events(
             } else if (event.value < 0) {
                 rstate.zoom_target /= 2.0f;
             } else
-                assert(false);
+                INVALID_PATH;
 
             rstate.zoom_target = MAX(0.5f, MIN(8.0f, rstate.zoom_target));
         } break;
@@ -211,7 +233,7 @@ void Process_Events(
 
         default:
             // TODO(hulvdan): Diagnostic
-            UNREACHABLE;
+            INVALID_PATH;
         }
     }
 }
@@ -377,12 +399,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 (os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
 
             Place_Building(state, {2, 2}, 1);
-            Place_Building(state, {4, 2}, 2);
-            Place_Building(state, {5, 2}, 2);
-            Place_Building(state, {6, 2}, 2);
-            Place_Building(state, {4, 3}, 2);
-            Place_Building(state, {4, 5}, 2);
-            Place_Building(state, {4, 7}, 2);
         }
 
         On_Item_Built__Function((*callbacks[])) = {
@@ -402,7 +418,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     if (state.renderer_state != nullptr)
         state.renderer_state->bitmap = &bitmap;
     else
-        UNREACHABLE;
+        INVALID_PATH;
 
     assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
