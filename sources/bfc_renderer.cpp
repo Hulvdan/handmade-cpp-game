@@ -110,6 +110,9 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
     v2i adjacent_offsets[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
     Element_Tile& tile = *(element_tiles + pos.y * gsize.x + pos.x);
+    bool tile_is_flag = tile.type == Element_Tile_Type::Flag;
+    bool tile_is_road = tile.type == Element_Tile_Type::Road;
+    bool tile_is_building = tile.type == Element_Tile_Type::Building;
 
     int road_texture_number = 0;
     FOR_RANGE(int, i, 4) {
@@ -118,33 +121,18 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
             continue;
 
         Element_Tile& adjacent_tile = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
+        bool adj_tile_is_flag = adjacent_tile.type == Element_Tile_Type::Flag;
+        bool adj_tile_is_road = adjacent_tile.type == Element_Tile_Type::Road;
+        bool adj_tile_is_building = adjacent_tile.type == Element_Tile_Type::Building;
 
-        auto both_are_flags =
-            adjacent_tile.type == Element_Tile_Type::Flag && tile.type == Element_Tile_Type::Flag;
-        auto should_connect = adjacent_tile.type == Element_Tile_Type::Road ||
-            adjacent_tile.type == Element_Tile_Type::Flag;
+        bool should_connect = true;
+        should_connect &= !(adj_tile_is_flag && tile_is_flag);
+        should_connect &= !(adj_tile_is_building && tile_is_building);
+        should_connect &= !(tile_is_building && adj_tile_is_flag);
+        should_connect &= !(adj_tile_is_building && tile_is_flag);
+        should_connect &= adj_tile_is_flag || adj_tile_is_building || adj_tile_is_road;
 
-        if (adjacent_tile.type == Element_Tile_Type::Flag &&
-            tile.type == Element_Tile_Type::Building)
-            should_connect = false;
-        else if (
-            tile.type == Element_Tile_Type::Flag &&
-            adjacent_tile.type == Element_Tile_Type::Building)
-            should_connect = false;
-        else if (
-            adjacent_tile.type == Element_Tile_Type::Building &&
-            (tile.type == Element_Tile_Type::Road || tile.type == Element_Tile_Type::Flag))
-            should_connect = true;
-        else if (
-            tile.type == Element_Tile_Type::Building &&
-            (adjacent_tile.type == Element_Tile_Type::Road ||
-             adjacent_tile.type == Element_Tile_Type::Flag))
-            should_connect = true;
-
-        if (both_are_flags)
-            continue;
-        if (should_connect)
-            road_texture_number += (1 << i);
+        road_texture_number += should_connect * (1 << i);
     }
 
     return road_texture_number;
