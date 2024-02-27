@@ -291,7 +291,7 @@ Graph_Segment& New_Graph_Segment(Game_State& state) {
     return instance;
 }
 
-bool Try_Build(Game_State& state, v2i pos, Item_To_Build item) {
+bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
     assert(Pos_Is_In_Bounds(pos, gsize));

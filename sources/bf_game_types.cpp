@@ -180,17 +180,16 @@ enum class Item_To_Build_Type {
     Building,
 };
 
-// QUESTION(hulvdan): Non_Copyable на опыте показало, что клёвая вещь.
-// Есть ли способ инициализации кода снизу таким образом, чтобы не пришлось пилить конструктор?
-//
-// struct Item_To_Build : public Non_Copyable {
-struct Item_To_Build {
+struct Item_To_Build : public Non_Copyable {
     Item_To_Build_Type type;
     Scriptable_Building_ID scriptable_building_id;
+
+    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building_ID a_scriptable_building_id)
+        : type(a_type), scriptable_building_id(a_scriptable_building_id) {}
 };
 
-static constexpr Item_To_Build Item_To_Build_Road = {Item_To_Build_Type::Road, 0};
-static constexpr Item_To_Build Item_To_Build_Flag = {Item_To_Build_Type::Flag, 0};
+static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, 0);
+static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, 0);
 
 struct Game_Map : public Non_Copyable {
     v2i size;
@@ -238,7 +237,8 @@ struct Observer : public Non_Copyable {
         memcpy((observer).functions, callbacks, sizeof(callbacks));                  \
     }
 
-#define On_Item_Built__Function(name_) void name_(Game_State& state, v2i pos, Item_To_Build item)
+#define On_Item_Built__Function(name_) \
+    void name_(Game_State& state, v2i pos, const Item_To_Build& item)
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;
