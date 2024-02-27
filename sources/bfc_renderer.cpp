@@ -121,21 +121,29 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 
         auto both_are_flags =
             adjacent_tile.type == Element_Tile_Type::Flag && tile.type == Element_Tile_Type::Flag;
-        auto adjacent_is_either_road_or_flag = adjacent_tile.type == Element_Tile_Type::Road ||
+        auto should_connect = adjacent_tile.type == Element_Tile_Type::Road ||
             adjacent_tile.type == Element_Tile_Type::Flag;
 
-        if (adjacent_tile.type == Element_Tile_Type::Building &&
+        if (adjacent_tile.type == Element_Tile_Type::Flag &&
+            tile.type == Element_Tile_Type::Building)
+            should_connect = false;
+        else if (
+            tile.type == Element_Tile_Type::Flag &&
+            adjacent_tile.type == Element_Tile_Type::Building)
+            should_connect = false;
+        else if (
+            adjacent_tile.type == Element_Tile_Type::Building &&
             (tile.type == Element_Tile_Type::Road || tile.type == Element_Tile_Type::Flag))
-            adjacent_is_either_road_or_flag = true;
+            should_connect = true;
         else if (
             tile.type == Element_Tile_Type::Building &&
             (adjacent_tile.type == Element_Tile_Type::Road ||
              adjacent_tile.type == Element_Tile_Type::Flag))
-            adjacent_is_either_road_or_flag = true;
+            should_connect = true;
 
         if (both_are_flags)
             continue;
-        if (adjacent_is_either_road_or_flag)
+        if (should_connect)
             road_texture_number += (1 << i);
     }
 
