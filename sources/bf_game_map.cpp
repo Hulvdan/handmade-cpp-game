@@ -291,6 +291,153 @@ Graph_Segment& New_Graph_Segment(Game_State& state) {
     return instance;
 }
 
+struct Updated_Tiles {
+    u16 count;
+    v2i* pos;
+    Tile_Updated_Type* type;
+};
+
+// bool Graph_AABB(Graph& graph, v2i pos) {
+//     return Pos_Is_In_Bounds(pos - graph.offset, graph.size);
+// }
+//
+// u8 Graph_Node(Graph& graph, v2i pos) {
+//     assert(Graph_AABB(graph, pos));
+//
+//     auto new_pos = pos - graph.offset;
+//     auto& node = *(graph.nodes + graph.size.x * new_pos.y + new_pos.x);
+//     return node;
+// }
+//
+// u8 Graph_Node_Safe(Graph& graph, v2i pos) {
+//     if (!Pos_Is_In_Bounds(pos - graph.offset, graph.size))
+//         return 0;
+//
+//     auto new_pos = pos - graph.offset;
+//     auto& node = *(graph.nodes + graph.size.x * new_pos.y + new_pos.x);
+//     return node;
+// }
+
+bool Should_Segment_Be_Deleted(
+    Game_State& state,
+    Updated_Tiles& updated_tiles,
+    Graph_Segment& segment  //
+) {
+    auto& game_map = state.game_map;
+    auto& gsize = game_map.size;
+
+    FOR_RANGE(u16, i, updated_tiles.count) {
+        auto& tile_pos = *(updated_tiles.pos + i);
+        auto& updated_type = *(updated_tiles.type + i);
+
+        switch (updated_type) {
+        case Tile_Updated_Type::Road_Placed:
+        case Tile_Updated_Type::Building_Placed: {
+            for (auto& offset : v2i_adjacent_offsets) {
+                auto pos = tile_pos + offset;
+                if (!Pos_Is_In_Bounds(pos, gsize))
+                    continue;
+
+                auto& graph = segment.graph;
+                auto graph_pos = pos;
+                graph_pos.x -= graph.offset.x;
+                graph_pos.y -= graph.offset.y;
+
+                if (!Pos_Is_In_Bounds(graph_pos, graph.size))
+                    continue;
+
+                auto node = *(graph.nodes + graph.size.x * graph_pos.y + graph_pos.x);
+                if (node == 0)
+                    continue;
+
+                auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
+                if (tile.type == Element_Tile_Type::Road)
+                    return true;
+            }
+        } break;
+
+        case Tile_Updated_Type::Flag_Placed:
+        case Tile_Updated_Type::Flag_Removed:
+        case Tile_Updated_Type::Road_Removed:
+        case Tile_Updated_Type::Building_Removed: {
+            auto pos = tile_pos;
+            if (!Pos_Is_In_Bounds(pos, gsize))
+                break;
+
+            auto& graph = segment.graph;
+            auto graph_pos = pos;
+            graph_pos.x -= graph.offset.x;
+            graph_pos.y -= graph.offset.y;
+
+            if (!Pos_Is_In_Bounds(graph_pos, graph.size))
+                break;
+
+            u8 node = *(graph.nodes + graph.size.x * graph_pos.y + graph_pos.x);
+            if (node == 0)
+                break;
+
+            return true;
+        } break;
+
+        default:
+            INVALID_PATH;
+        }
+    }
+
+    return false;
+}
+
+On_Tiles_Updated_Result On_Tiles_Updated(
+    Game_State& state,
+    Arena& non_pesistent_arena,
+    Arena& trash_arena,
+    Updated_Tiles& updated_tiles  //
+) {
+    On_Tiles_Updated_Result res = {};
+
+    auto& game_map = state.game_map;
+    auto& gsize = game_map.size;
+    auto& element_tiles = game_map.element_tiles;
+
+    auto segments_to_be_deleted_count = 0;
+    auto segments_to_be_deleted =
+        Allocate_Zeros_Array(trash_arena, Graph_Segment*, updated_tiles.count * 4);
+
+    FOR_RANGE(auto, segment_page_index_, game_map.segment_pages_used) {
+        auto page_base = (game_map.segment_pages + segment_page_index_)->base;
+        assert(page_base != nullptr);
+        auto base_segment_ptr = rcast<Graph_Segment*>(page_base);
+
+        FOR_RANGE(auto, segment_index, game_map.max_segments_per_page) {
+            auto segment_ptr = base_segment_ptr + segment_index;
+            auto& segment = *segment_ptr;
+            if (!segment.active)
+                continue;
+
+            if (Should_Segment_Be_Deleted(state, updated_tiles, segment)) {
+                // NOTE(hulvdan): Adding it without duplication
+                auto found = false;
+                FOR_RANGE(int, i, segments_to_be_deleted_count) {
+                    auto segment_ptr = *(segments_to_be_deleted + i);
+                    if (segment_ptr == &segment) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    assert(segments_to_be_deleted_count < updated_tiles.count * 4);
+
+                    *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
+                    segments_to_be_deleted_count++;
+                }
+            }
+        }
+    }
+
+    return res;
+}
+
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
@@ -300,11 +447,13 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
 
     switch (item.type) {
     case Item_To_Build_Type::Flag: {
-        if (tile.type == Element_Tile_Type::Flag)
+        if (tile.type == Element_Tile_Type::Flag) {
             tile.type = Element_Tile_Type::Road;
-        else if (tile.type == Element_Tile_Type::Road)
+            // TODO(hulvdan): Flag_Removed
+        } else if (tile.type == Element_Tile_Type::Road) {
             tile.type = Element_Tile_Type::Flag;
-        else
+            // TODO(hulvdan): Flag_Placed
+        } else
             return false;
 
         assert(tile.building == nullptr);
@@ -316,6 +465,8 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
 
         assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
+
+        // TODO(hulvdan): Road_Placed
     } break;
 
     case Item_To_Build_Type::Building: {
@@ -324,6 +475,8 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
 
         assert(item.scriptable_building_id != 0);
         Place_Building(state, pos, item.scriptable_building_id);
+
+        // TODO(hulvdan): Building_Placed
     } break;
 
     default:
@@ -333,18 +486,4 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));
 
     return true;
-}
-
-void On_Tiles_Updated(
-    Game_State& state,
-    Arena& non_pesistent_arena,
-    Arena& trash_arena,
-    u16 tiles_count,
-    Graph_v2u* tiles  //
-) {
-    auto& game_map = state.game_map;
-    auto& gsize = game_map.size;
-    auto& element_tiles = game_map.element_tiles;
-
-    // FOR_RANGE()
 }

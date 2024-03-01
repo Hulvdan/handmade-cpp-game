@@ -40,6 +40,9 @@ void DEBUG_Print(const char* text, ...) {
 
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
+
+const v2i v2i_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+
 constexpr v2f v2f_zero = v2f(0, 0);
 constexpr v2f v2f_one = v2f(1, 1);
 constexpr v2f v2f_right = v2f(1, 0);

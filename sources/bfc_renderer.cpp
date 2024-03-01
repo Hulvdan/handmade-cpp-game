@@ -107,8 +107,6 @@ void DEBUG_Load_Texture(
 }
 
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
-    v2i adjacent_offsets[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
-
     Element_Tile& tile = *(element_tiles + pos.y * gsize.x + pos.x);
     bool tile_is_flag = tile.type == Element_Tile_Type::Flag;
     bool tile_is_road = tile.type == Element_Tile_Type::Road;
@@ -116,7 +114,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 
     int road_texture_number = 0;
     FOR_RANGE(int, i, 4) {
-        auto new_pos = pos + adjacent_offsets[i];
+        auto new_pos = pos + v2i_adjacent_offsets[i];
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
 

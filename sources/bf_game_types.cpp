@@ -34,8 +34,7 @@ struct Pages : public Non_Copyable {
 using Graph_u = u8;
 using Graph_double_u = u16;
 
-// 2 x 8
-struct Graph_v2u {
+struct Graph_v2u : public Non_Copyable {
     Graph_u x;
     Graph_u y;
 };
@@ -45,7 +44,7 @@ struct Graph_Segment_Page_Meta : public Non_Copyable {
     u16 count;
 };
 
-struct Graph {
+struct Graph : public Non_Copyable {
     Graph_double_u nodes_count;
     u8* nodes;  // 0b0000DLUR
 
@@ -56,7 +55,7 @@ struct Graph {
     // Graph_double_u centers_count;
 };
 
-struct Graph_Segment {
+struct Graph_Segment : public Non_Copyable {
     Graph_double_u vertices_count;
     Graph_v2u* vertices;
 
@@ -97,11 +96,11 @@ struct Scriptable_Building : public Non_Copyable {
     Scriptable_Resource_ID harvestable_resource_id;
 };
 
-struct Human {
+struct Human : public Non_Copyable {
     //
 };
 
-struct Resource_To_Book {
+struct Resource_To_Book : public Non_Copyable {
     Scriptable_Resource_ID scriptable_id;
     u8 amount;
 };
@@ -111,7 +110,7 @@ struct Building_Page_Meta : public Non_Copyable {
     u16 count;
 };
 
-struct Building {
+struct Building : public Non_Copyable {
     Human_ID constructor;
     Human_ID employee;
 
@@ -132,7 +131,7 @@ enum class Terrain {
     Grass,
 };
 
-struct Terrain_Tile {
+struct Terrain_Tile : public Non_Copyable {
     Terrain terrain;
     // NOTE(hulvdan): Height starts at 0
     int height;
@@ -147,7 +146,7 @@ enum class Element_Tile_Type {
     Flag = 3,
 };
 
-struct Element_Tile {
+struct Element_Tile : public Non_Copyable {
     Element_Tile_Type type;
     Building* building;
 };
@@ -255,8 +254,8 @@ struct Game_State : public Non_Copyable {
     Scriptable_Building* scriptable_buildings;
 
     Arena arena;
-    Arena non_persistent_arena;  // Flushes on DLL reload
-    Arena trash_arena;  // For transient calculations
+    Arena non_persistent_arena;  // Gets flushed on DLL reloads
+    Arena trash_arena;  // Use for transient calculations
 
     OS_Data* os_data;
     Pages pages;
@@ -272,10 +271,28 @@ struct Game_Memory : public Non_Copyable {
     bool is_initialized;
     Game_State state;
 };
+
+enum class Tile_Updated_Type {
+    Road_Placed,
+    Flag_Placed,
+    Flag_Removed,
+    Road_Removed,
+    Building_Placed,
+    Building_Removed,
+};
+
+// struct On_Tiles_Updated_Result : public Non_Copyable {
+struct On_Tiles_Updated_Result {
+    u16 added_segments_count;
+    u16 deleted_segments_count;
+
+    Graph_Segment* added_segments;
+    Graph_Segment* deleted_segments;
+};
 // --- Game Logic End ---
 
 #ifdef BF_CLIENT
-// --- CLIENT. Rendering ---
+// --- CLIENT. Game Rendering ---
 using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
@@ -283,9 +300,7 @@ struct Loaded_Texture {
     v2i size;
     u8* base;
 };
-// --- CLIENT. Rendering End ---
 
-// --- CLIENT. Game Rendering ---
 using Tile_ID = u32;
 
 enum class Tile_State_Check {
