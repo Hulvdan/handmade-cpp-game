@@ -238,8 +238,8 @@ void Process_Events(
     }
 }
 
-void Map_Arena(Arena& arena_where_to_map, Arena& arena_to_map, size_t size) {
-    arena_to_map.base = Allocate_Array(arena_where_to_map, u8, size);
+void Map_Arena(Arena& root_arena, Arena& arena_to_map, size_t size) {
+    arena_to_map.base = Allocate_Array(root_arena, u8, size);
     arena_to_map.size = size;
 }
 
@@ -413,8 +413,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 state.game_map.segment_pages_used = 0;
                 state.game_map.segment_pages =
                     Allocate_Zeros_Array(arena, Page, state.game_map.segment_pages_total);
-                state.game_map.max_segments_per_page = Assert_Truncate_To_u16(
-                    (os_data.page_size - meta_size) / struct_size);
+                state.game_map.max_segments_per_page =
+                    Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
             }
 
             Place_Building(state, {2, 2}, 1);
