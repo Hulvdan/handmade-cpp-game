@@ -110,7 +110,7 @@ target_link_libraries(win32 PRIVATE glew glm tracy)
 # target_link_libraries(win32 PRIVATE glew glm)
 
 # === Tests ===
-add_executable(tests tests/tests.cpp)
+add_executable(tests sources/tests.cpp)
 target_include_directories(tests PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
