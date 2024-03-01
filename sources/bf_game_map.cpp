@@ -320,8 +320,8 @@ struct Updated_Tiles {
 
 bool Should_Segment_Be_Deleted(
     Game_State& state,
-    Updated_Tiles& updated_tiles,
-    Graph_Segment& segment  //
+    const Updated_Tiles& updated_tiles,
+    const Graph_Segment& segment  //
 ) {
     auto& game_map = state.game_map;
     auto& gsize = game_map.size;
@@ -387,18 +387,19 @@ bool Should_Segment_Be_Deleted(
     return false;
 }
 
-On_Tiles_Updated_Result On_Tiles_Updated(
+void Update_Tiles(
     Game_State& state,
     Arena& non_pesistent_arena,
     Arena& trash_arena,
-    Updated_Tiles& updated_tiles  //
+    const Updated_Tiles& updated_tiles  //
 ) {
-    On_Tiles_Updated_Result res = {};
+    // Update_Tiles_Result res = {};
 
     auto& game_map = state.game_map;
     auto& gsize = game_map.size;
     auto& element_tiles = game_map.element_tiles;
 
+    // TODO(hulvdan): Деаллоцировать!
     auto segments_to_be_deleted_count = 0;
     auto segments_to_be_deleted =
         Allocate_Zeros_Array(trash_arena, Graph_Segment*, updated_tiles.count * 4);
@@ -414,31 +415,311 @@ On_Tiles_Updated_Result On_Tiles_Updated(
             if (!segment.active)
                 continue;
 
-            if (Should_Segment_Be_Deleted(state, updated_tiles, segment)) {
-                // NOTE(hulvdan): Adding it without duplication
-                auto found = false;
-                FOR_RANGE(int, i, segments_to_be_deleted_count) {
-                    auto segment_ptr = *(segments_to_be_deleted + i);
-                    if (segment_ptr == &segment) {
-                        found = true;
-                        break;
-                    }
-                }
+            if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
+                continue;
 
-                if (!found) {
-                    assert(segments_to_be_deleted_count < updated_tiles.count * 4);
-
-                    *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
-                    segments_to_be_deleted_count++;
+            // NOTE(hulvdan): Добавление сегмента без дублирования
+            auto found = false;
+            FOR_RANGE(int, i, segments_to_be_deleted_count) {
+                auto segment_ptr = *(segments_to_be_deleted + i);
+                if (segment_ptr == &segment) {
+                    found = true;
+                    break;
                 }
+            }
+
+            if (!found) {
+                assert(segments_to_be_deleted_count < updated_tiles.count * 4);
+                *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
+                segments_to_be_deleted_count++;
             }
         }
     }
 
-    return res;
+    // Queue < big_fuken_queue
+
+    // FROM C# REPO - OnTilesUpdated
+    // {
+    //     var graphSegments = new List<GraphSegment>();
+    //
+    //     var bigFukenQueue = new Queue<Tuple<Direction, Vector2Int>>();
+    //     foreach (var (updatedType, tilePos) in tiles) {
+    //         switch (updatedType) {
+    //             case TileUpdatedType.RoadPlaced:
+    //             case TileUpdatedType.FlagRemoved:
+    //             case TileUpdatedType.FlagPlaced:
+    //                 bigFukenQueue.Enqueue(new(Direction.Right, tilePos));
+    //                 bigFukenQueue.Enqueue(new(Direction.Up, tilePos));
+    //                 bigFukenQueue.Enqueue(new(Direction.Left, tilePos));
+    //                 bigFukenQueue.Enqueue(new(Direction.Down, tilePos));
+    //                 break;
+    //             case TileUpdatedType.RoadRemoved:
+    //                 foreach (var dir in Utils.DIRECTIONS) {
+    //                     var newPos = tilePos + dir.AsOffset();
+    //                     if (!mapSize.Contains(newPos)) {
+    //                         continue;
+    //                     }
+    //
+    //                     if (elementTiles[newPos.y][newPos.x].type == ElementTileType.None) {
+    //                         continue;
+    //                     }
+    //
+    //                     bigFukenQueue.Enqueue(new(Direction.Up, newPos));
+    //                     bigFukenQueue.Enqueue(new(Direction.Right, newPos));
+    //                     bigFukenQueue.Enqueue(new(Direction.Left, newPos));
+    //                     bigFukenQueue.Enqueue(new(Direction.Down, newPos));
+    //                 }
+    //
+    //                 break;
+    //             case TileUpdatedType.BuildingPlaced:
+    //                 foreach (var dir in Utils.DIRECTIONS) {
+    //                     var newPos = tilePos + dir.AsOffset();
+    //                     if (!mapSize.Contains(newPos)) {
+    //                         continue;
+    //                     }
+    //
+    //                     if (elementTiles[newPos.y][newPos.x].type == ElementTileType.None) {
+    //                         continue;
+    //                     }
+    //
+    //                     if (elementTiles[newPos.y][newPos.x].type ==
+    //                     ElementTileType.Building) {
+    //                         continue;
+    //                     }
+    //
+    //                     if (elementTiles[newPos.y][newPos.x].type == ElementTileType.Flag) {
+    //                         bigFukenQueue.Enqueue(new(dir.Opposite(), newPos));
+    //                     }
+    //                     else {
+    //                         bigFukenQueue.Enqueue(new(Direction.Right, newPos));
+    //                         bigFukenQueue.Enqueue(new(Direction.Up, newPos));
+    //                         bigFukenQueue.Enqueue(new(Direction.Left, newPos));
+    //                         bigFukenQueue.Enqueue(new(Direction.Down, newPos));
+    //                     }
+    //                 }
+    //
+    //                 break;
+    //             case TileUpdatedType.BuildingRemoved:
+    //                 break;
+    //             default:
+    //                 throw new NotImplementedException();
+    //         }
+    //     }
+    //
+    //     var queue = new Queue<Tuple<Direction, Vector2Int>>();
+    //
+    //     var visited = GetVisited(mapSize);
+    //
+    //     while (bigFukenQueue.Count > 0) {
+    //         var p = bigFukenQueue.Dequeue();
+    //         queue.Enqueue(p);
+    //
+    //         var vertices = new List<GraphVertex>();
+    //         var segmentTiles = new List<Vector2Int> { p.Item2 };
+    //         var graph = new Graph();
+    //
+    //         while (queue.Count > 0) {
+    //             var (dir, pos) = queue.Dequeue();
+    //
+    //             var tile = elementTiles[pos.y][pos.x];
+    //             var isFlag = tile.type == ElementTileType.Flag;
+    //             var isBuilding = tile.type == ElementTileType.Building;
+    //             var isCityHall = isBuilding
+    //                              && tile.building.scriptable.type ==
+    //                              BuildingType.SpecialCityHall;
+    //             if (isFlag || isBuilding) {
+    //                 AddWithoutDuplication(vertices, pos);
+    //             }
+    //
+    //             foreach (var dirIndex in Utils.DIRECTIONS) {
+    //                 if ((isCityHall || isFlag) && dirIndex != dir) {
+    //                     continue;
+    //                 }
+    //
+    //                 if (GraphNode.Has(visited[pos.y][pos.x], dirIndex)) {
+    //                     continue;
+    //                 }
+    //
+    //                 var newPos = pos + dirIndex.AsOffset();
+    //                 if (!mapSize.Contains(newPos)) {
+    //                     continue;
+    //                 }
+    //
+    //                 var oppositeDirIndex = dirIndex.Opposite();
+    //                 if (GraphNode.Has(visited[newPos.y][newPos.x], oppositeDirIndex)) {
+    //                     continue;
+    //                 }
+    //
+    //                 var newTile = elementTiles[newPos.y][newPos.x];
+    //                 if (newTile.type == ElementTileType.None) {
+    //                     continue;
+    //                 }
+    //
+    //                 var newIsBuilding = newTile.type == ElementTileType.Building;
+    //                 var newIsFlag = newTile.type == ElementTileType.Flag;
+    //
+    //                 if (isBuilding && newIsBuilding) {
+    //                     continue;
+    //                 }
+    //
+    //                 visited[pos.y][pos.x] = GraphNode.Mark(visited[pos.y][pos.x], dirIndex);
+    //                 visited[newPos.y][newPos.x] = GraphNode.Mark(
+    //                     visited[newPos.y][newPos.x], oppositeDirIndex
+    //                 );
+    //                 graph.Mark(pos, dirIndex);
+    //                 graph.Mark(newPos, oppositeDirIndex);
+    //
+    //                 AddWithoutDuplication(segmentTiles, newPos);
+    //
+    //                 if (newIsBuilding || newIsFlag) {
+    //                     AddWithoutDuplication(vertices, newPos);
+    //                 }
+    //                 else {
+    //                     queue.Enqueue(new(0, newPos));
+    //                 }
+    //             }
+    //         }
+    //
+    //         if (vertices.Count > 1) {
+    //             graph.FinishBuilding();
+    //             graphSegments.Add(new(vertices, segmentTiles, graph));
+    //         }
+    //     }
+    //
+    //     return new() {
+    //         addedSegments = graphSegments,
+    //         deletedSegments = segmentsToDelete.ToList(),
+    //     };
+    // }
+
+    // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res) {
+    //
+    // using var _ = Tracing.Scope();
+    //
+    // if (!_hideEditorLogs) {
+    //     Debug.Log($"{res.addedSegments.Count} segments added, {res.deletedSegments}
+    //     deleted");
+    // }
+    //
+    // var humansMovingToCityHall = 0;
+    // foreach (var human in _humans) {
+    //     var state = MovingInTheWorld.State.MovingToTheCityHall;
+    //     if (human.stateMovingInTheWorld == state) {
+    //         humansMovingToCityHall++;
+    //     }
+    // }
+    //
+    // Stack<Tuple<GraphSegment?, Human>> humansThatNeedNewSegment =
+    //     new(res.deletedSegments.Count + humansMovingToCityHall);
+    // foreach (var human in _humans) {
+    //     var state = MovingInTheWorld.State.MovingToTheCityHall;
+    //     if (human.stateMovingInTheWorld == state) {
+    //         humansThatNeedNewSegment.Push(new(null, human));
+    //     }
+    // }
+    //
+    // foreach (var segment in res.deletedSegments) {
+    //     segments.Remove(segment);
+    //
+    //     var human = segment.assignedHuman;
+    //     if (human != null) {
+    //         human.segment = null;
+    //         segment.assignedHuman = null;
+    //         humansThatNeedNewSegment.Push(new(segment, human));
+    //     }
+    //
+    //     foreach (var linkedSegment in segment.linkedSegments) {
+    //         linkedSegment.Unlink(segment);
+    //     }
+    //
+    //     _resourceTransportation.OnSegmentDeleted(segment);
+    //
+    //     if (segmentsThatNeedHumans.Contains(segment)) {
+    //         segmentsThatNeedHumans.Remove(segment);
+    //         Assert.IsFalse(segmentsThatNeedHumans.Contains(segment));
+    //     }
+    // }
+    //
+    // if (!_hideEditorLogs) {
+    //     Debug.Log($"{humansThatNeedNewSegment.Count} Humans need to find new segments");
+    // }
+    //
+    // foreach (var segment in res.addedSegments) {
+    //     foreach (var segmentToLink in segments) {
+    //         // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
+    //         if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+    //             segment.Link(segmentToLink);
+    //             segmentToLink.Link(segment);
+    //         }
+    //     }
+    //
+    //     segments.Add(segment);
+    // }
+    //
+    // _resourceTransportation.PathfindItemsInQueue();
+    // Tracing.Log("_itemTransportationSystem.PathfindItemsInQueue()");
+    //
+    // while (humansThatNeedNewSegment.Count > 0 && segmentsThatNeedHumans.Count > 0) {
+    //     var segment = segmentsThatNeedHumans.Dequeue();
+    //
+    //     var (oldSegment, human) = humansThatNeedNewSegment.Pop();
+    //     human.segment = segment;
+    //     segment.assignedHuman = human;
+    //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
+    // }
+    //
+    // foreach (var segment in res.addedSegments) {
+    //     if (humansThatNeedNewSegment.Count == 0) {
+    //         segmentsThatNeedHumans.Enqueue(segment, 0);
+    //         continue;
+    //     }
+    //
+    //     var (oldSegment, human) = humansThatNeedNewSegment.Pop();
+    //     human.segment = segment;
+    //     segment.assignedHuman = human;
+    //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
+    // }
+    //
+    // // Assert that segments don't have tiles with identical directions
+    // for (var i = 0; i < segments.Count; i++) {
+    //     for (var j = 0; j < segments.Count; j++) {
+    //         if (i == j) {
+    //             continue;
+    //         }
+    //
+    //         var g1 = segments[i].graph;
+    //         var g2 = segments[j].graph;
+    //         for (var y = 0; y < g1.height; y++) {
+    //             for (var x = 0; x < g1.width; x++) {
+    //                 var g1X = x + g1.offset.x;
+    //                 var g1Y = y + g1.offset.y;
+    //                 if (!g2.Contains(g1X, g1Y)) {
+    //                     continue;
+    //                 }
+    //
+    //                 var g2Y = g1Y - g2.offset.y;
+    //                 var g2X = g1X - g2.offset.x;
+    //                 var node = g2.nodes[g2Y][g2X];
+    //
+    //                 Assert.AreEqual(node & g1.nodes[y][x], 0);
+    //             }
+    //         }
+    //     }
+    // }
 }
 
+#define Declare_Updated_Tiles(variable_name_, pos_, type_) \
+    Updated_Tiles(variable_name_) = {};                    \
+    (variable_name_).count = 1;                            \
+    (variable_name_).pos = &(pos_);                        \
+    auto type__ = (type_);                                 \
+    (variable_name_).type = &type__;
+
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
+    auto& arena = state.arena;
+    auto& non_persistent_arena = state.non_persistent_arena;
+    auto& trash_arena = state.trash_arena;
+
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
     assert(Pos_Is_In_Bounds(pos, gsize));
@@ -449,11 +730,15 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     case Item_To_Build_Type::Flag: {
         if (tile.type == Element_Tile_Type::Flag) {
             tile.type = Element_Tile_Type::Road;
-            // TODO(hulvdan): Flag_Removed
-        } else if (tile.type == Element_Tile_Type::Road) {
+            Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Removed);
+            Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
+        }  //
+        else if (tile.type == Element_Tile_Type::Road) {
             tile.type = Element_Tile_Type::Flag;
-            // TODO(hulvdan): Flag_Placed
-        } else
+            Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Placed);
+            Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
+        }  //
+        else
             return false;
 
         assert(tile.building == nullptr);
@@ -466,7 +751,8 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
         assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
 
-        // TODO(hulvdan): Road_Placed
+        Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Road_Placed);
+        Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
     } break;
 
     case Item_To_Build_Type::Building: {
@@ -476,7 +762,8 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
         assert(item.scriptable_building_id != 0);
         Place_Building(state, pos, item.scriptable_building_id);
 
-        // TODO(hulvdan): Building_Placed
+        Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Building_Placed);
+        Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
     } break;
 
     default:

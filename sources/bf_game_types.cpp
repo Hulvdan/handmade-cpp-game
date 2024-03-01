@@ -30,6 +30,19 @@ struct Pages : public Non_Copyable {
 // --- Memory End ---
 
 // --- Game Logic ---
+enum class Direction {
+    Right = 0,
+    Up = 1,
+    Left = 2,
+    Down = 3,
+};
+
+v2i As_Offset(Direction direction) {
+    assert(direction >= Direction::Right);
+    assert(direction <= Direction::Down);
+    return v2i_adjacent_offsets[(int)direction];
+}
+
 // using Graph_Segment_ID = u32;
 using Graph_u = u8;
 using Graph_double_u = u16;
@@ -282,13 +295,13 @@ enum class Tile_Updated_Type {
 };
 
 // struct On_Tiles_Updated_Result : public Non_Copyable {
-struct On_Tiles_Updated_Result {
-    u16 added_segments_count;
-    u16 deleted_segments_count;
-
-    Graph_Segment* added_segments;
-    Graph_Segment* deleted_segments;
-};
+// struct On_Tiles_Updated_Result {
+//     u16 added_segments_count;
+//     u16 deleted_segments_count;
+//
+//     Graph_Segment* added_segments;
+//     Graph_Segment* deleted_segments;
+// };
 // --- Game Logic End ---
 
 #ifdef BF_CLIENT
