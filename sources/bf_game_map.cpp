@@ -407,6 +407,11 @@ bool Should_Segment_Be_Deleted(
         }                                                           \
     }
 
+v2i* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
+
 void Update_Tiles(
     Game_State& state,
     Arena& non_pesistent_arena,
@@ -462,9 +467,8 @@ void Update_Tiles(
     // NOTE(hulvdan): Создание новых сегментов
     auto added_segments_allocate = updated_tiles.count * 4;
     auto added_segments_count = 0;
-    auto added_segments =
-        Allocate_Zeros_Array(trash_arena, Graph_Segment*, added_segments_allocate);
-    DEFER(Deallocate_Array(trash_arena, Graph_Segment*, added_segments_allocate));
+    auto added_segments = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
+    DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
 
     Fixed_Size_Queue<Dir_v2i> big_fuken_queue = {};
     big_fuken_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
@@ -550,13 +554,15 @@ void Update_Tiles(
         Enqueue(queue, p);
 
         int vertices_count = 0;
-        v2i* vertices = Allocate_Zeros_Array(trash_arena, v2i, tiles_count);
-        DEFER(Deallocate_Array(trash_arena, v2i, tiles_count));
+        Graph_v2u* vertices = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
         int segment_tiles_count = 1;
-        v2i* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i, tiles_count);
-        DEFER(Deallocate_Array(trash_arena, v2i, tiles_count));
-        *(segment_tiles + 0) = std::get<1>(p);
+        Graph_v2u* segment_tiles = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
+
+        auto& tttt = *(segment_tiles + 0);
+        tttt = std::move(To_Graph_v2u(std::get<1>(p)));
 
         Graph temp_graph = {};
         temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
@@ -574,8 +580,11 @@ void Update_Tiles(
             auto is_building = tile.type == Element_Tile_Type::Building;
             auto is_city_hall = is_building && scriptable.type == Building_Type::City_Hall;
 
-            if (is_flag || is_building)
+            if (is_flag || is_building) {
+                // auto converted = To_Graph_v2u(pos);
+                // Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
                 Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
+            }
 
             for (int i = 0; i < 4; i++) {
                 auto dir_index = (Direction)i;
@@ -627,10 +636,22 @@ void Update_Tiles(
             }
         }
 
-        // if (vertices.Count > 1) {
-        //     graph.FinishBuilding();
-        //     added_segments.Add(new(vertices, segment_tiles, graph));
-        // }
+        if (vertices_count > 1) {
+            assert(_nodesCount > 0);
+            assert(height > 0);
+            assert(width > 0);
+
+            auto& segment = *(added_segments + added_segments_count);
+            segment.active = true;
+            segment.vertices_count = vertices_count;
+            segment.vertices = Allocate_Segment_Vertices(state, vertices_count);
+            memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
+            segment.graph = temp_graph;
+
+            // FROM C# REPO:
+            // graph.FinishBuilding();
+            // added_segments.Add(new(vertices, segment_tiles, graph));
+        }
     }
     // return new() {
     //     addedSegments = added_segments,

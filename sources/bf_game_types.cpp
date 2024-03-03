@@ -88,13 +88,45 @@ Direction Opposite(Direction dir) {
 }
 
 // using Graph_Segment_ID = u32;
-using Graph_u = u8;
-using Graph_double_u = u16;
+using Graph_u = i8;
+using Graph_Nodes_Count = u16;
 
 struct Graph_v2u : public Non_Copyable {
     Graph_u x;
     Graph_u y;
+
+    Graph_v2u() : x(0), y(0) {}
+
+    Graph_v2u(Graph_u ax, Graph_u ay) : x(ax), y(ay) {}
+
+    Graph_v2u(const Graph_v2u&& other) {
+        x = other.x;
+        y = other.y;
+    }
+
+    Graph_v2u& operator=(Graph_v2u&& other) {
+        x = other.x;
+        y = other.y;
+        return *this;
+    }
+
+    // bool operator==(Graph_v2u& other) { return x == other.x && y == other.y; }
+
+    // Graph_v2u& operator=(const Graph_v2u& other) {
+    //     //
+    // }
 };
+
+bool operator==(const Graph_v2u& a, const Graph_v2u& b) {
+    return a.x == b.x && a.y == b.y;
+}
+
+Graph_v2u To_Graph_v2u(v2i pos) {
+    // Graph_v2u res;
+    // res.x = (Graph_u)pos.x;
+    // res.y = (Graph_u)pos.y;
+    return Graph_v2u(pos.x, pos.y);
+}
 
 // NOTE(hulvdan): `Graph_Segment_Page_Meta` gets placed at the end of the `Page`
 struct Graph_Segment_Page_Meta : public Non_Copyable {
@@ -102,7 +134,7 @@ struct Graph_Segment_Page_Meta : public Non_Copyable {
 };
 
 struct Graph : public Non_Copyable {
-    Graph_double_u nodes_count;
+    Graph_Nodes_Count nodes_count;
     u8* nodes;  // 0b0000DLUR
 
     Graph_v2u size;
@@ -113,7 +145,7 @@ struct Graph : public Non_Copyable {
 };
 
 struct Graph_Segment : public Non_Copyable {
-    Graph_double_u vertices_count;
+    Graph_Nodes_Count vertices_count;
     Graph_v2u* vertices;
 
     Graph graph;
