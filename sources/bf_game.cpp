@@ -8,6 +8,8 @@
 #include <cassert>
 #include <cstdlib>
 #include <memory>
+#include <tuple>
+#include <type_traits>
 
 #include "glew.h"
 #include "wglew.h"

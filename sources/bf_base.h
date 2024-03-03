@@ -43,6 +43,13 @@ using v2i = glm::ivec2;
 
 const v2i v2i_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
+constexpr v2i v2i_zero = v2i(0, 0);
+constexpr v2i v2i_one = v2i(1, 1);
+constexpr v2i v2i_right = v2i(1, 0);
+constexpr v2i v2i_up = v2i(0, 1);
+constexpr v2i v2i_left = v2i(-1, 0);
+constexpr v2i v2i_bottom = v2i(0, -1);
+
 constexpr v2f v2f_zero = v2f(0, 0);
 constexpr v2f v2f_one = v2f(1, 1);
 constexpr v2f v2f_right = v2f(1, 0);
@@ -58,11 +65,12 @@ using v3i = glm::ivec3;
 
 #include "bf_types.h"
 
-#define UNREACHABLE assert(false)
 #define INVALID_PATH assert(false)
+#define NOT_IMPLEMENTED assert(false)
 
 #define scast static_cast
 #define rcast reinterpret_cast
+#define remref std::remove_reference_t
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

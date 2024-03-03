@@ -117,9 +117,9 @@ void Regenerate_Terrain_Tiles(
     // elementTiles = _initialMapProvider.LoadElementTiles();
     //
     // var cityHalls = buildings.FindAll(i = > i.scriptable.type ==
-    // BuildingType.SpecialCityHall); foreach (var building in cityHalls) {
+    // Building_Type.SpecialCityHall); foreach (var building in cityHalls) {
     //     var pos = building.pos;
-    //     elementTiles[pos.y][pos.x] = new (ElementTileType.Building, building);
+    //     elementTiles[pos.y][pos.x] = new (Element_Tile_Type.Building, building);
     // }
 }
 
@@ -387,22 +387,38 @@ bool Should_Segment_Be_Deleted(
     return false;
 }
 
+template <typename T>
+struct Queue {
+    u32 count;
+    T* base;
+};
+
+template <typename T>
+void Enqueue(Queue<T>& queue, const T&& value) {
+    NOT_IMPLEMENTED;
+}
+
+template <typename T>
+T Dequeue(Queue<T>& queue) {
+    NOT_IMPLEMENTED;
+}
+
 void Update_Tiles(
     Game_State& state,
     Arena& non_pesistent_arena,
     Arena& trash_arena,
     const Updated_Tiles& updated_tiles  //
 ) {
-    // Update_Tiles_Result res = {};
-
     auto& game_map = state.game_map;
     auto& gsize = game_map.size;
     auto& element_tiles = game_map.element_tiles;
 
-    // TODO(hulvdan): Деаллоцировать!
+    // NOTE(hulvdan): Ищем сегменты для удаления
+    auto segments_to_be_deleted_allocate = updated_tiles.count * 4;
     auto segments_to_be_deleted_count = 0;
     auto segments_to_be_deleted =
-        Allocate_Zeros_Array(trash_arena, Graph_Segment*, updated_tiles.count * 4);
+        Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
+    DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
     FOR_RANGE(auto, segment_page_index_, game_map.segment_pages_used) {
         auto page_base = (game_map.segment_pages + segment_page_index_)->base;
@@ -418,180 +434,196 @@ void Update_Tiles(
             if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
                 continue;
 
-            // NOTE(hulvdan): Добавление сегмента без дублирования
-            auto found = false;
-            FOR_RANGE(int, i, segments_to_be_deleted_count) {
-                auto segment_ptr = *(segments_to_be_deleted + i);
-                if (segment_ptr == &segment) {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                assert(segments_to_be_deleted_count < updated_tiles.count * 4);
-                *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
-                segments_to_be_deleted_count++;
-            }
+            // // NOTE(hulvdan): Добавление сегмента без дублирования
+            // auto found = false;
+            // FOR_RANGE(int, i, segments_to_be_deleted_count) {
+            //     auto segment_ptr = *(segments_to_be_deleted + i);
+            //     if (segment_ptr == &segment) {
+            //         found = true;
+            //         break;
+            //     }
+            // }
+            //
+            // if (!found) {
+            assert(segments_to_be_deleted_count < updated_tiles.count * 4);
+            *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
+            segments_to_be_deleted_count++;
+            // }
         }
     }
 
-    // Queue < big_fuken_queue
+    // NOTE(hulvdan): Создание новых сегментов
+    auto added_segments_allocate = updated_tiles.count * 4;
+    auto added_segments_count = 0;
+    auto added_segments =
+        Allocate_Zeros_Array(trash_arena, Graph_Segment*, added_segments_allocate);
+    DEFER(Deallocate_Array(trash_arena, Graph_Segment*, added_segments_allocate));
 
-    // FROM C# REPO - OnTilesUpdated
-    // {
-    //     var graphSegments = new List<GraphSegment>();
-    //
-    //     var bigFukenQueue = new Queue<Tuple<Direction, Vector2Int>>();
-    //     foreach (var (updatedType, tilePos) in tiles) {
-    //         switch (updatedType) {
-    //             case TileUpdatedType.RoadPlaced:
-    //             case TileUpdatedType.FlagRemoved:
-    //             case TileUpdatedType.FlagPlaced:
-    //                 bigFukenQueue.Enqueue(new(Direction.Right, tilePos));
-    //                 bigFukenQueue.Enqueue(new(Direction.Up, tilePos));
-    //                 bigFukenQueue.Enqueue(new(Direction.Left, tilePos));
-    //                 bigFukenQueue.Enqueue(new(Direction.Down, tilePos));
-    //                 break;
-    //             case TileUpdatedType.RoadRemoved:
-    //                 foreach (var dir in Utils.DIRECTIONS) {
-    //                     var newPos = tilePos + dir.AsOffset();
-    //                     if (!mapSize.Contains(newPos)) {
-    //                         continue;
-    //                     }
-    //
-    //                     if (elementTiles[newPos.y][newPos.x].type == ElementTileType.None) {
-    //                         continue;
-    //                     }
-    //
-    //                     bigFukenQueue.Enqueue(new(Direction.Up, newPos));
-    //                     bigFukenQueue.Enqueue(new(Direction.Right, newPos));
-    //                     bigFukenQueue.Enqueue(new(Direction.Left, newPos));
-    //                     bigFukenQueue.Enqueue(new(Direction.Down, newPos));
-    //                 }
-    //
-    //                 break;
-    //             case TileUpdatedType.BuildingPlaced:
-    //                 foreach (var dir in Utils.DIRECTIONS) {
-    //                     var newPos = tilePos + dir.AsOffset();
-    //                     if (!mapSize.Contains(newPos)) {
-    //                         continue;
-    //                     }
-    //
-    //                     if (elementTiles[newPos.y][newPos.x].type == ElementTileType.None) {
-    //                         continue;
-    //                     }
-    //
-    //                     if (elementTiles[newPos.y][newPos.x].type ==
-    //                     ElementTileType.Building) {
-    //                         continue;
-    //                     }
-    //
-    //                     if (elementTiles[newPos.y][newPos.x].type == ElementTileType.Flag) {
-    //                         bigFukenQueue.Enqueue(new(dir.Opposite(), newPos));
-    //                     }
-    //                     else {
-    //                         bigFukenQueue.Enqueue(new(Direction.Right, newPos));
-    //                         bigFukenQueue.Enqueue(new(Direction.Up, newPos));
-    //                         bigFukenQueue.Enqueue(new(Direction.Left, newPos));
-    //                         bigFukenQueue.Enqueue(new(Direction.Down, newPos));
-    //                     }
-    //                 }
-    //
-    //                 break;
-    //             case TileUpdatedType.BuildingRemoved:
-    //                 break;
-    //             default:
-    //                 throw new NotImplementedException();
-    //         }
-    //     }
-    //
-    //     var queue = new Queue<Tuple<Direction, Vector2Int>>();
-    //
-    //     var visited = GetVisited(mapSize);
-    //
-    //     while (bigFukenQueue.Count > 0) {
-    //         var p = bigFukenQueue.Dequeue();
-    //         queue.Enqueue(p);
-    //
-    //         var vertices = new List<GraphVertex>();
-    //         var segmentTiles = new List<Vector2Int> { p.Item2 };
-    //         var graph = new Graph();
-    //
-    //         while (queue.Count > 0) {
-    //             var (dir, pos) = queue.Dequeue();
-    //
-    //             var tile = elementTiles[pos.y][pos.x];
-    //             var isFlag = tile.type == ElementTileType.Flag;
-    //             var isBuilding = tile.type == ElementTileType.Building;
-    //             var isCityHall = isBuilding
-    //                              && tile.building.scriptable.type ==
-    //                              BuildingType.SpecialCityHall;
-    //             if (isFlag || isBuilding) {
-    //                 AddWithoutDuplication(vertices, pos);
-    //             }
-    //
-    //             foreach (var dirIndex in Utils.DIRECTIONS) {
-    //                 if ((isCityHall || isFlag) && dirIndex != dir) {
-    //                     continue;
-    //                 }
-    //
-    //                 if (GraphNode.Has(visited[pos.y][pos.x], dirIndex)) {
-    //                     continue;
-    //                 }
-    //
-    //                 var newPos = pos + dirIndex.AsOffset();
-    //                 if (!mapSize.Contains(newPos)) {
-    //                     continue;
-    //                 }
-    //
-    //                 var oppositeDirIndex = dirIndex.Opposite();
-    //                 if (GraphNode.Has(visited[newPos.y][newPos.x], oppositeDirIndex)) {
-    //                     continue;
-    //                 }
-    //
-    //                 var newTile = elementTiles[newPos.y][newPos.x];
-    //                 if (newTile.type == ElementTileType.None) {
-    //                     continue;
-    //                 }
-    //
-    //                 var newIsBuilding = newTile.type == ElementTileType.Building;
-    //                 var newIsFlag = newTile.type == ElementTileType.Flag;
-    //
-    //                 if (isBuilding && newIsBuilding) {
-    //                     continue;
-    //                 }
-    //
-    //                 visited[pos.y][pos.x] = GraphNode.Mark(visited[pos.y][pos.x], dirIndex);
-    //                 visited[newPos.y][newPos.x] = GraphNode.Mark(
-    //                     visited[newPos.y][newPos.x], oppositeDirIndex
-    //                 );
-    //                 graph.Mark(pos, dirIndex);
-    //                 graph.Mark(newPos, oppositeDirIndex);
-    //
-    //                 AddWithoutDuplication(segmentTiles, newPos);
-    //
-    //                 if (newIsBuilding || newIsFlag) {
-    //                     AddWithoutDuplication(vertices, newPos);
-    //                 }
-    //                 else {
-    //                     queue.Enqueue(new(0, newPos));
-    //                 }
-    //             }
-    //         }
-    //
-    //         if (vertices.Count > 1) {
-    //             graph.FinishBuilding();
-    //             graphSegments.Add(new(vertices, segmentTiles, graph));
-    //         }
-    //     }
-    //
-    //     return new() {
-    //         addedSegments = graphSegments,
-    //         deletedSegments = segmentsToDelete.ToList(),
-    //     };
-    // }
+    Queue<std::tuple<Direction, v2i>> big_fuken_queue = {};
 
+    FOR_RANGE(auto, i, updated_tiles.count) {
+        const auto& updated_type = *(updated_tiles.type + i);
+        const auto& pos = *(updated_tiles.pos + i);
+
+        switch (updated_type) {
+        case Tile_Updated_Type::Road_Placed:
+        case Tile_Updated_Type::Flag_Placed:
+        case Tile_Updated_Type::Flag_Removed: {
+            Enqueue(big_fuken_queue, {Direction::Right, pos});
+            Enqueue(big_fuken_queue, {Direction::Up, pos});
+            Enqueue(big_fuken_queue, {Direction::Left, pos});
+            Enqueue(big_fuken_queue, {Direction::Down, pos});
+        } break;
+
+        case Tile_Updated_Type::Road_Removed: {
+            for (int i = 0; i < 4; i++) {
+                auto new_pos = pos + v2i_adjacent_offsets[i];
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                auto& element_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                if (element_tile.type == Element_Tile_Type::None)
+                    continue;
+
+                Enqueue(big_fuken_queue, {Direction::Right, new_pos});
+                Enqueue(big_fuken_queue, {Direction::Up, new_pos});
+                Enqueue(big_fuken_queue, {Direction::Left, new_pos});
+                Enqueue(big_fuken_queue, {Direction::Down, new_pos});
+            }
+        } break;
+
+        case Tile_Updated_Type::Building_Placed: {
+            for (int i = 0; i < 4; i++) {
+                auto new_pos = pos + v2i_adjacent_offsets[i];
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                auto& element_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                if (element_tile.type == Element_Tile_Type::None)
+                    continue;
+
+                if (element_tile.type == Element_Tile_Type::Building)
+                    continue;
+
+                if (element_tile.type == Element_Tile_Type::Flag)
+                    Enqueue(big_fuken_queue, {Opposite(dir), new_pos});
+                else
+                    Enqueue(big_fuken_queue, {Direction::Right, new_pos});
+
+                Enqueue(big_fuken_queue, {Direction::Up, new_pos});
+                Enqueue(big_fuken_queue, {Direction::Left, new_pos});
+                Enqueue(big_fuken_queue, {Direction::Down, new_pos});
+            }
+        } break;
+
+        case Tile_Updated_Type::Building_Removed: {
+            NOT_IMPLEMENTED;
+        } break;
+
+        default:
+            INVALID_PATH;
+        }
+    }
+
+    auto tiles_count = gsize.x * gsize.y;
+    u8* visited =  // NOTE(hulvdan): Flags of Direction
+        Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+    DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
+
+    Queue<std::tuple<Direction, v2i>> queue = {};
+    auto vertices_count = 0;
+
+    while (big_fuken_queue.count > 0) {
+        auto p = Dequeue(big_fuken_queue);
+        Enqueue(queue, p);
+
+        int vertices_count = 0;
+        v2i* vertices = Allocate_Zeros_Array(trash_arena, v2i, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, v2i, tiles_count));
+
+        int segment_tiles_count = 1;
+        v2i* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, v2i, tiles_count));
+        *(segment_tiles + 0) = std::get<1>(p);
+
+        Graph temp_graph = {};
+        temp_graph.nodes = Allocate_Zeros_Array(trash_arena, v2i, tiles_count);
+        temp_graph.size = gsize;
+        DEFER(Deallocate_Array(trash_arena, v2i, tiles_count));
+
+        while (queue.count > 0) {
+            auto [dir, pos] = Dequeue(queue);
+            auto& tile = *(element_tiles + pos.y * gzise.x + pos.x);
+
+            auto& scriptable = Get_Scriptable_Building(state, tile.building.scriptable_id);
+
+            var is_flag = tile.type == Element_Tile_Type::Flag;
+            var is_building = tile.type == Element_Tile_Type::Building;
+            var is_city_hall = is_building && scriptable.type == Building_Type::City_Hall;
+
+            if (is_flag || is_building)
+                AddWithoutDuplication(vertices, pos);
+
+            for (int i = 0; i < 4; i++) {
+                auto dir_index = (Direction)i;
+
+                if ((is_city_hall || is_flag) && dir_index != dir)
+                    continue;
+
+                u8& visited_value = *(visited + gsize.x * pos.y + pos.x);
+                if (Graph_Node_Has(visited_value, dir_index))
+                    continue;
+
+                v2i new_pos = pos + As_Offset(dir_index);
+                if (!Is_Pos_In_Bounds(new_pos, gsize))
+                    continue;
+
+                Direction opposite_dir_index = Opposite(dir_index);
+                u8& new_visited_value = *(visited + gsize.x * new_pos.y + new_pos.x);
+                if (Graph_Node_Has(new_visited_value, opposite_dir_index))
+                    continue;
+
+                var new_tile = elementTiles[new_pos.y][new_pos.x];
+                if (new_tile.type == Element_Tile_Type.None)
+                    continue;
+
+                var new_is_building = new_tile.type == Element_Tile_Type::Building;
+                var new_is_flag = new_tile.type == Element_Tile_Type::Flag;
+
+                if (is_building && new_is_building)
+                    continue;
+
+                if (newIsFlag) {
+                    Enqueue(big_fuken_queue, {Direction::Right, newPos});
+                    Enqueue(big_fuken_queue, {Direction::Up, newPos});
+                    Enqueue(big_fuken_queue, {Direction::Left, newPos});
+                    Enqueue(big_fuken_queue, {Direction::Down, newPos});
+                }
+
+                visited_value = Graph_Node_Mark(visited_value, dir_index);
+                new_visited_value = Graph_Node_Mark(new_visited_value, dir_index);
+                Graph_Update(temp_graph, pos.x, pos.y, dir_index);
+                Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index);
+
+                AddWithoutDuplication(segment_tiles, new_pos);
+
+                if (new_is_building || new_is_flag)
+                    AddWithoutDuplication(vertices, new_pos);
+                else
+                    Enqueue(queue, {0, new_pos});
+            }
+        }
+
+        // if (vertices.Count > 1) {
+        //     graph.FinishBuilding();
+        //     added_segments.Add(new(vertices, segment_tiles, graph));
+        // }
+    }
+    // return new() {
+    //     addedSegments = added_segments,
+    //     deletedSegments = segmentsToDelete.ToList(),
+
+    // ====================================================================================
     // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res) {
     //
     // using var _ = Tracing.Scope();
