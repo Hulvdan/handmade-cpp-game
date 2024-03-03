@@ -114,12 +114,12 @@ void Regenerate_Terrain_Tiles(
     }
 
     // TODO(hulvdan): Element Tiles
-    // elementTiles = _initialMapProvider.LoadElementTiles();
+    // element_tiles = _initialMapProvider.LoadElementTiles();
     //
-    // var cityHalls = buildings.FindAll(i = > i.scriptable.type ==
-    // Building_Type.SpecialCityHall); foreach (var building in cityHalls) {
-    //     var pos = building.pos;
-    //     elementTiles[pos.y][pos.x] = new (Element_Tile_Type.Building, building);
+    // auto cityHalls = buildings.FindAll(i = > i.scriptable.type ==
+    // Building_Type.SpecialCityHall); foreach (auto building in cityHalls) {
+    //     auto pos = building.pos;
+    //     element_tiles[pos.y][pos.x] = new (Element_Tile_Type::Building, building);
     // }
 }
 
@@ -387,21 +387,25 @@ bool Should_Segment_Be_Deleted(
     return false;
 }
 
-template <typename T>
-struct Queue {
-    u32 count;
-    T* base;
-};
-
-template <typename T>
-void Enqueue(Queue<T>& queue, const T&& value) {
-    NOT_IMPLEMENTED;
-}
-
-template <typename T>
-T Dequeue(Queue<T>& queue) {
-    NOT_IMPLEMENTED;
-}
+#define Add_Without_Duplication(max_count_, count_, array_, value_) \
+    {                                                               \
+        assert((max_count_) >= (count_));                           \
+                                                                    \
+        auto found = false;                                         \
+        FOR_RANGE(int, i, (count_)) {                               \
+            auto existing = *((array_) + i);                        \
+            if (existing == (value_)) {                             \
+                found = true;                                       \
+                break;                                              \
+            }                                                       \
+        }                                                           \
+                                                                    \
+        if (!found) {                                               \
+            assert((count_) < (max_count_));                        \
+            *((array_) + (count_)) = (value_);                      \
+            (count_)++;                                             \
+        }                                                           \
+    }
 
 void Update_Tiles(
     Game_State& state,
@@ -412,6 +416,9 @@ void Update_Tiles(
     auto& game_map = state.game_map;
     auto& gsize = game_map.size;
     auto& element_tiles = game_map.element_tiles;
+
+    typedef std::tuple<Direction, v2i> Dir_v2i;
+    auto tiles_count = gsize.x * gsize.y;
 
     // NOTE(hulvdan): Ищем сегменты для удаления
     auto segments_to_be_deleted_allocate = updated_tiles.count * 4;
@@ -459,7 +466,10 @@ void Update_Tiles(
         Allocate_Zeros_Array(trash_arena, Graph_Segment*, added_segments_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, added_segments_allocate));
 
-    Queue<std::tuple<Direction, v2i>> big_fuken_queue = {};
+    Fixed_Size_Queue<Dir_v2i> big_fuken_queue = {};
+    big_fuken_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
+    big_fuken_queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
 
     FOR_RANGE(auto, i, updated_tiles.count) {
         const auto& updated_type = *(updated_tiles.type + i);
@@ -494,6 +504,7 @@ void Update_Tiles(
 
         case Tile_Updated_Type::Building_Placed: {
             for (int i = 0; i < 4; i++) {
+                auto dir = (Direction)i;
                 auto new_pos = pos + v2i_adjacent_offsets[i];
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
@@ -525,13 +536,14 @@ void Update_Tiles(
         }
     }
 
-    auto tiles_count = gsize.x * gsize.y;
     u8* visited =  // NOTE(hulvdan): Flags of Direction
         Allocate_Zeros_Array(trash_arena, u8, tiles_count);
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
-    Queue<std::tuple<Direction, v2i>> queue = {};
-    auto vertices_count = 0;
+    Fixed_Size_Queue<Dir_v2i> queue = {};
+    queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
+    queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
 
     while (big_fuken_queue.count > 0) {
         auto p = Dequeue(big_fuken_queue);
@@ -547,22 +559,23 @@ void Update_Tiles(
         *(segment_tiles + 0) = std::get<1>(p);
 
         Graph temp_graph = {};
-        temp_graph.nodes = Allocate_Zeros_Array(trash_arena, v2i, tiles_count);
-        temp_graph.size = gsize;
-        DEFER(Deallocate_Array(trash_arena, v2i, tiles_count));
+        temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+        temp_graph.size.x = gsize.x;
+        temp_graph.size.y = gsize.y;
+        DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
         while (queue.count > 0) {
             auto [dir, pos] = Dequeue(queue);
-            auto& tile = *(element_tiles + pos.y * gzise.x + pos.x);
+            auto& tile = *(element_tiles + pos.y * gsize.x + pos.x);
 
-            auto& scriptable = Get_Scriptable_Building(state, tile.building.scriptable_id);
+            auto& scriptable = *Get_Scriptable_Building(state, tile.building->scriptable_id);
 
-            var is_flag = tile.type == Element_Tile_Type::Flag;
-            var is_building = tile.type == Element_Tile_Type::Building;
-            var is_city_hall = is_building && scriptable.type == Building_Type::City_Hall;
+            auto is_flag = tile.type == Element_Tile_Type::Flag;
+            auto is_building = tile.type == Element_Tile_Type::Building;
+            auto is_city_hall = is_building && scriptable.type == Building_Type::City_Hall;
 
             if (is_flag || is_building)
-                AddWithoutDuplication(vertices, pos);
+                Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
 
             for (int i = 0; i < 4; i++) {
                 auto dir_index = (Direction)i;
@@ -575,7 +588,7 @@ void Update_Tiles(
                     continue;
 
                 v2i new_pos = pos + As_Offset(dir_index);
-                if (!Is_Pos_In_Bounds(new_pos, gsize))
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
                 Direction opposite_dir_index = Opposite(dir_index);
@@ -583,34 +596,34 @@ void Update_Tiles(
                 if (Graph_Node_Has(new_visited_value, opposite_dir_index))
                     continue;
 
-                var new_tile = elementTiles[new_pos.y][new_pos.x];
-                if (new_tile.type == Element_Tile_Type.None)
+                auto& new_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                if (new_tile.type == Element_Tile_Type::None)
                     continue;
 
-                var new_is_building = new_tile.type == Element_Tile_Type::Building;
-                var new_is_flag = new_tile.type == Element_Tile_Type::Flag;
+                bool new_is_building = new_tile.type == Element_Tile_Type::Building;
+                bool new_is_flag = new_tile.type == Element_Tile_Type::Flag;
 
                 if (is_building && new_is_building)
                     continue;
 
-                if (newIsFlag) {
-                    Enqueue(big_fuken_queue, {Direction::Right, newPos});
-                    Enqueue(big_fuken_queue, {Direction::Up, newPos});
-                    Enqueue(big_fuken_queue, {Direction::Left, newPos});
-                    Enqueue(big_fuken_queue, {Direction::Down, newPos});
+                if (new_is_flag) {
+                    Enqueue(big_fuken_queue, {Direction::Right, new_pos});
+                    Enqueue(big_fuken_queue, {Direction::Up, new_pos});
+                    Enqueue(big_fuken_queue, {Direction::Left, new_pos});
+                    Enqueue(big_fuken_queue, {Direction::Down, new_pos});
                 }
 
-                visited_value = Graph_Node_Mark(visited_value, dir_index);
-                new_visited_value = Graph_Node_Mark(new_visited_value, dir_index);
-                Graph_Update(temp_graph, pos.x, pos.y, dir_index);
-                Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index);
+                visited_value = Graph_Node_Mark(visited_value, dir_index, true);
+                new_visited_value = Graph_Node_Mark(new_visited_value, dir_index, true);
+                Graph_Update(temp_graph, pos.x, pos.y, dir_index, true);
+                Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index, true);
 
-                AddWithoutDuplication(segment_tiles, new_pos);
+                Add_Without_Duplication(tiles_count, segment_tiles_count, segment_tiles, new_pos);
 
-                if (new_is_building || new_is_flag)
-                    AddWithoutDuplication(vertices, new_pos);
-                else
-                    Enqueue(queue, {0, new_pos});
+                if (new_is_building || new_is_flag) {
+                    Add_Without_Duplication(tiles_count, vertices_count, vertices, new_pos);
+                } else
+                    Enqueue(queue, {(Direction)0, new_pos});
             }
         }
 
@@ -626,16 +639,16 @@ void Update_Tiles(
     // ====================================================================================
     // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res) {
     //
-    // using var _ = Tracing.Scope();
+    // using auto _ = Tracing.Scope();
     //
     // if (!_hideEditorLogs) {
     //     Debug.Log($"{res.addedSegments.Count} segments added, {res.deletedSegments}
     //     deleted");
     // }
     //
-    // var humansMovingToCityHall = 0;
-    // foreach (var human in _humans) {
-    //     var state = MovingInTheWorld.State.MovingToTheCityHall;
+    // auto humansMovingToCityHall = 0;
+    // foreach (auto human in _humans) {
+    //     auto state = MovingInTheWorld.State.MovingToTheCityHall;
     //     if (human.stateMovingInTheWorld == state) {
     //         humansMovingToCityHall++;
     //     }
@@ -643,24 +656,24 @@ void Update_Tiles(
     //
     // Stack<Tuple<GraphSegment?, Human>> humansThatNeedNewSegment =
     //     new(res.deletedSegments.Count + humansMovingToCityHall);
-    // foreach (var human in _humans) {
-    //     var state = MovingInTheWorld.State.MovingToTheCityHall;
+    // foreach (auto human in _humans) {
+    //     auto state = MovingInTheWorld.State.MovingToTheCityHall;
     //     if (human.stateMovingInTheWorld == state) {
     //         humansThatNeedNewSegment.Push(new(null, human));
     //     }
     // }
     //
-    // foreach (var segment in res.deletedSegments) {
+    // foreach (auto segment in res.deletedSegments) {
     //     segments.Remove(segment);
     //
-    //     var human = segment.assignedHuman;
+    //     auto human = segment.assignedHuman;
     //     if (human != null) {
     //         human.segment = null;
     //         segment.assignedHuman = null;
     //         humansThatNeedNewSegment.Push(new(segment, human));
     //     }
     //
-    //     foreach (var linkedSegment in segment.linkedSegments) {
+    //     foreach (auto linkedSegment in segment.linkedSegments) {
     //         linkedSegment.Unlink(segment);
     //     }
     //
@@ -676,8 +689,8 @@ void Update_Tiles(
     //     Debug.Log($"{humansThatNeedNewSegment.Count} Humans need to find new segments");
     // }
     //
-    // foreach (var segment in res.addedSegments) {
-    //     foreach (var segmentToLink in segments) {
+    // foreach (auto segment in res.addedSegments) {
+    //     foreach (auto segmentToLink in segments) {
     //         // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
     //         if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
     //             segment.Link(segmentToLink);
@@ -692,46 +705,46 @@ void Update_Tiles(
     // Tracing.Log("_itemTransportationSystem.PathfindItemsInQueue()");
     //
     // while (humansThatNeedNewSegment.Count > 0 && segmentsThatNeedHumans.Count > 0) {
-    //     var segment = segmentsThatNeedHumans.Dequeue();
+    //     auto segment = segmentsThatNeedHumans.Dequeue();
     //
-    //     var (oldSegment, human) = humansThatNeedNewSegment.Pop();
+    //     auto (oldSegment, human) = humansThatNeedNewSegment.Pop();
     //     human.segment = segment;
     //     segment.assignedHuman = human;
     //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
     // }
     //
-    // foreach (var segment in res.addedSegments) {
+    // foreach (auto segment in res.addedSegments) {
     //     if (humansThatNeedNewSegment.Count == 0) {
     //         segmentsThatNeedHumans.Enqueue(segment, 0);
     //         continue;
     //     }
     //
-    //     var (oldSegment, human) = humansThatNeedNewSegment.Pop();
+    //     auto (oldSegment, human) = humansThatNeedNewSegment.Pop();
     //     human.segment = segment;
     //     segment.assignedHuman = human;
     //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
     // }
     //
     // // Assert that segments don't have tiles with identical directions
-    // for (var i = 0; i < segments.Count; i++) {
-    //     for (var j = 0; j < segments.Count; j++) {
+    // for (auto i = 0; i < segments.Count; i++) {
+    //     for (auto j = 0; j < segments.Count; j++) {
     //         if (i == j) {
     //             continue;
     //         }
     //
-    //         var g1 = segments[i].graph;
-    //         var g2 = segments[j].graph;
-    //         for (var y = 0; y < g1.height; y++) {
-    //             for (var x = 0; x < g1.width; x++) {
-    //                 var g1X = x + g1.offset.x;
-    //                 var g1Y = y + g1.offset.y;
+    //         auto g1 = segments[i].graph;
+    //         auto g2 = segments[j].graph;
+    //         for (auto y = 0; y < g1.height; y++) {
+    //             for (auto x = 0; x < g1.width; x++) {
+    //                 auto g1X = x + g1.offset.x;
+    //                 auto g1Y = y + g1.offset.y;
     //                 if (!g2.Contains(g1X, g1Y)) {
     //                     continue;
     //                 }
     //
-    //                 var g2Y = g1Y - g2.offset.y;
-    //                 var g2X = g1X - g2.offset.x;
-    //                 var node = g2.nodes[g2Y][g2X];
+    //                 auto g2Y = g1Y - g2.offset.y;
+    //                 auto g2X = g1X - g2.offset.x;
+    //                 auto node = g2.nodes[g2Y][g2X];
     //
     //                 Assert.AreEqual(node & g1.nodes[y][x], 0);
     //             }

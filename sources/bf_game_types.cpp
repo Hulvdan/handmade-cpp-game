@@ -1,6 +1,8 @@
 #pragma once
 
-// --- Forward Declarations ---
+// ============================================================= //
+//                     Forward Declarations                      //
+// ============================================================= //
 // SHIT(hulvdan): Oh, god, I hate this shit
 struct Game_State;
 
@@ -8,9 +10,10 @@ struct Game_State;
 struct Game_Renderer_State;
 struct Loaded_Texture;
 #endif
-// --- Forward Declarations End ---
 
-// --- Memory ---
+// ============================================================= //
+//                            Memory                             //
+// ============================================================= //
 struct Arena : public Non_Copyable {
     size_t used;
     size_t size;
@@ -27,9 +30,44 @@ struct Pages : public Non_Copyable {
     Page* base;
     bool* in_use;
 };
-// --- Memory End ---
 
-// --- Game Logic ---
+// ============================================================= //
+//                        Data Structures                        //
+// ============================================================= //
+template <typename T>
+struct Fixed_Size_Queue {
+    size_t memory_size;
+    size_t count;
+    T* base;
+};
+
+template <typename T>
+void Enqueue(Fixed_Size_Queue<T>& queue, const T& value) {
+    // TODO(hulvdan): Test!
+
+    assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
+
+    *(queue.base + queue.count) = value;
+    queue.count++;
+}
+
+template <typename T>
+T Dequeue(Fixed_Size_Queue<T>& queue) {
+    // TODO(hulvdan): Test!
+
+    assert(queue.base != nullptr);
+    assert(queue.count > 0);
+
+    T res = *queue.base;
+    queue.count -= 1;
+    memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+
+    return res;
+}
+
+// ============================================================= //
+//                          Game Logic                           //
+// ============================================================= //
 enum class Direction {
     Right = 0,
     Up = 1,
@@ -347,10 +385,11 @@ enum class Tile_Updated_Type {
 //     Graph_Segment* added_segments;
 //     Graph_Segment* deleted_segments;
 // };
-// --- Game Logic End ---
 
 #ifdef BF_CLIENT
-// --- CLIENT. Game Rendering ---
+// ============================================================= //
+//                    CLIENT. Game Rendering                     //
+// ============================================================= //
 using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
@@ -466,4 +505,3 @@ struct Game_Renderer_State : public Non_Copyable {
     GLint ui_shader_program;
 };
 #endif  // BF_CLIENT
-// --- CLIENT. Game Rendering End ---
