@@ -91,35 +91,10 @@ Direction Opposite(Direction dir) {
 using Graph_u = i8;
 using Graph_Nodes_Count = u16;
 
-struct Graph_v2u : public Non_Copyable {
+struct Graph_v2u {
     Graph_u x;
     Graph_u y;
-
-    Graph_v2u() : x(0), y(0) {}
-
-    Graph_v2u(Graph_u ax, Graph_u ay) : x(ax), y(ay) {}
-
-    Graph_v2u(const Graph_v2u&& other) {
-        x = other.x;
-        y = other.y;
-    }
-
-    Graph_v2u& operator=(Graph_v2u&& other) {
-        x = other.x;
-        y = other.y;
-        return *this;
-    }
-
-    // bool operator==(Graph_v2u& other) { return x == other.x && y == other.y; }
-
-    // Graph_v2u& operator=(const Graph_v2u& other) {
-    //     //
-    // }
 };
-
-bool operator==(const Graph_v2u& a, const Graph_v2u& b) {
-    return a.x == b.x && a.y == b.y;
-}
 
 Graph_v2u To_Graph_v2u(v2i pos) {
     // Graph_v2u res;

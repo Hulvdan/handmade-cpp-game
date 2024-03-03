@@ -387,29 +387,40 @@ bool Should_Segment_Be_Deleted(
     return false;
 }
 
-#define Add_Without_Duplication(max_count_, count_, array_, value_) \
-    {                                                               \
-        assert((max_count_) >= (count_));                           \
-                                                                    \
-        auto found = false;                                         \
-        FOR_RANGE(int, i, (count_)) {                               \
-            auto existing = *((array_) + i);                        \
-            if (existing == (value_)) {                             \
-                found = true;                                       \
-                break;                                              \
-            }                                                       \
-        }                                                           \
-                                                                    \
-        if (!found) {                                               \
-            assert((count_) < (max_count_));                        \
-            *((array_) + (count_)) = (value_);                      \
-            (count_)++;                                             \
-        }                                                           \
+#define Add_Without_Duplication(max_count_, count_, array_, value_)     \
+    {                                                                   \
+        assert((max_count_) >= (count_));                               \
+                                                                        \
+        auto found = false;                                             \
+        FOR_RANGE(int, i, (count_)) {                                   \
+            auto existing = *((array_) + i);                            \
+            if (existing.x == (value_).x && existing.y == (value_).y) { \
+                found = true;                                           \
+                break;                                                  \
+            }                                                           \
+        }                                                               \
+                                                                        \
+        if (!found) {                                                   \
+            assert((count_) < (max_count_));                            \
+            *((array_) + (count_)) = (value_);                          \
+            (count_)++;                                                 \
+        }                                                               \
     }
 
-v2i* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
+Graph_v2u* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
     NOT_IMPLEMENTED;
     return nullptr;
+}
+
+u8* Allocate_Graph_Nodes(Game_State& state, int all_nodes_count) {
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
+
+void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
+    FOR_RANGE(int, i, rows) {
+        memcpy(dest, source + stride * i, bytes_per_line);
+    }
 }
 
 void Update_Tiles(
@@ -581,9 +592,9 @@ void Update_Tiles(
             auto is_city_hall = is_building && scriptable.type == Building_Type::City_Hall;
 
             if (is_flag || is_building) {
-                // auto converted = To_Graph_v2u(pos);
-                // Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
-                Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
+                auto converted = To_Graph_v2u(pos);
+                Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
+                // Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
             }
 
             for (int i = 0; i < 4; i++) {
@@ -627,35 +638,68 @@ void Update_Tiles(
                 Graph_Update(temp_graph, pos.x, pos.y, dir_index, true);
                 Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index, true);
 
-                Add_Without_Duplication(tiles_count, segment_tiles_count, segment_tiles, new_pos);
+                auto converted = To_Graph_v2u(new_pos);
+                Add_Without_Duplication(tiles_count, segment_tiles_count, segment_tiles, converted);
 
                 if (new_is_building || new_is_flag) {
-                    Add_Without_Duplication(tiles_count, vertices_count, vertices, new_pos);
+                    Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
                 } else
                     Enqueue(queue, {(Direction)0, new_pos});
             }
         }
 
-        if (vertices_count > 1) {
-            assert(_nodesCount > 0);
-            assert(height > 0);
-            assert(width > 0);
+        if (vertices_count == 0)
+            continue;
 
-            auto& segment = *(added_segments + added_segments_count);
-            segment.active = true;
-            segment.vertices_count = vertices_count;
-            segment.vertices = Allocate_Segment_Vertices(state, vertices_count);
-            memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
-            segment.graph = temp_graph;
+        assert(temp_graph.nodes_count > 0);
+        // assert(temp_height > 0);
+        // assert(width > 0);
 
-            // FROM C# REPO:
-            // graph.FinishBuilding();
-            // added_segments.Add(new(vertices, segment_tiles, graph));
+        auto& segment = *(added_segments + added_segments_count);
+        segment.active = true;
+        segment.vertices_count = vertices_count;
+        segment.vertices = Allocate_Segment_Vertices(state, vertices_count);
+        memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
+
+        segment.graph.nodes_count = temp_graph.nodes_count;
+
+        // NOTE(hulvdan): Вычисление size и offset графа
+        auto& gr_size = segment.graph.size;
+        auto& offset = segment.graph.offset;
+        offset.x = gsize.x - 1;
+        offset.y = gsize.y - 1;
+
+        FOR_RANGE(int, y, gsize.y) {
+            FOR_RANGE(int, x, gsize.x) {
+                auto& node = *(temp_graph.nodes + y * gsize.x + x);
+                if (node) {
+                    gr_size.x = MAX(gr_size.x, x);
+                    gr_size.y = MAX(gr_size.y, y);
+                } else {
+                    offset.x = MIN(offset.x, x);
+                    offset.y = MIN(offset.y, y);
+                }
+            }
         }
+        gr_size.x -= offset.x;
+        gr_size.y -= offset.y;
+
+        assert(gr_size.x > 0);
+        assert(gr_size.y > 0);
+        assert(offset.x >= 0);
+        assert(offset.y >= 0);
+        assert(offset.x < gsize.x);
+        assert(offset.y < gsize.y);
+
+        // NOTE(hulvdan): Копирование нод из временного графа без больших излишков
+        auto all_nodes_count = gr_size.x * gr_size.y;
+        segment.graph.nodes = Allocate_Graph_Nodes(state, all_nodes_count);
+
+        auto rows = gr_size.y;
+        auto stride = gr_size.x;
+        auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
+        Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
     }
-    // return new() {
-    //     addedSegments = added_segments,
-    //     deletedSegments = segmentsToDelete.ToList(),
 
     // ====================================================================================
     // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res) {
