@@ -105,12 +105,15 @@ struct Test_Node {
     Test_Node(u32 a_id) : id(a_id), next(0), active(false) {}
 };
 
-#define Linked_List_Add_Macro(nodes_, n_, first_node_index_, node_to_add_)                       \
-    {                                                                                            \
-        Linked_List_Add(                                                                         \
-            rcast<u8*>(nodes_), (n_), (first_node_index_), rcast<u8*>(&(node_to_add_)),          \
-            offsetof(node_to_add_, active), offsetof(node_to_add_, next), sizeof(node_to_add_)); \
-    }
+#define Linked_List_Push_Back_Macro(nodes_, n_, first_node_index_, node_to_add_)    \
+    Linked_List_Push_Back(                                                          \
+        rcast<u8*>(nodes_), (n_), (first_node_index_), rcast<u8*>(&(node_to_add_)), \
+        offsetof(node_to_add_, active), offsetof(node_to_add_, next), sizeof(node_to_add_));
+
+#define Linked_List_Remove_At_Macro(nodes_, n_, first_node_index_, index_to_remove_, type_) \
+    Linked_List_Remove_At(                                                                  \
+        rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_),                  \
+        offsetof(type_, active), offsetof(type_, next), sizeof(type_));
 
 TEST_CASE("Linked List") {
     Test_Node* nodes = new Test_Node[10]{};
@@ -120,7 +123,8 @@ TEST_CASE("Linked List") {
 
     {
         auto node_to_add = Test_Node(1);
-        Linked_List_Add_Macro(nodes, count, first_node_index, node_to_add);
+        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        CHECK(index == 0);
     }
 
     CHECK(count == 1);
@@ -134,7 +138,8 @@ TEST_CASE("Linked List") {
 
     {
         auto node_to_add = Test_Node(2);
-        Linked_List_Add_Macro(nodes, count, first_node_index, node_to_add);
+        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        CHECK(index == 1);
     }
 
     CHECK(count == 2);
@@ -151,4 +156,54 @@ TEST_CASE("Linked List") {
         CHECK(node.id == 2);
         CHECK(node.next == size_t_max);
     }
+
+    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 1, Test_Node);
+    CHECK(count == 1);
+    {
+        auto& node = *(nodes + 0);
+        CHECK(node.active);
+        CHECK(node.next == size_t_max);
+        CHECK(node.id == 1);
+    }
+    {
+        auto& node = *(nodes + 1);
+        CHECK(!node.active);
+    }
+
+    {
+        auto node_to_add = Test_Node(3);
+        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        CHECK(index == 1);
+    }
+    CHECK(count == 2);
+    {
+        auto& node = *(nodes + 0);
+        CHECK(node.active);
+        CHECK(node.next == 1);
+        CHECK(node.id == 1);
+    }
+    {
+        auto& node = *(nodes + 1);
+        CHECK(node.active);
+        CHECK(node.next == size_t_max);
+        CHECK(node.id == 3);
+    }
+
+    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 0, Test_Node);
+    CHECK(count == 1);
+    CHECK(first_node_index == 1);
+    {
+        auto& node = *(nodes + 0);
+        CHECK(!node.active);
+    }
+    {
+        auto& node = *(nodes + 1);
+        CHECK(node.active);
+        CHECK(node.next == size_t_max);
+        CHECK(node.id == 3);
+    }
+
+    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 1, Test_Node);
+    CHECK(count == 0);
+    CHECK(first_node_index == 0);
 }

@@ -437,7 +437,7 @@ struct Allocation {
 // [(v4,max,F), (v5,max,F), (v3,max,t)]   first_index = 2  (removed node at index pos 0)
 // [(v4,max,F), (v5,max,F), (v3,max,F)]   first_index = max  (removed node at index pos 2)
 
-void Linked_List_Add(
+size_t Linked_List_Push_Back(
     u8* nodes,
     size_t& n,
     const size_t first_node_index,
@@ -463,16 +463,14 @@ void Linked_List_Add(
     assert(new_free_node_index != size_t_max);
     assert(new_free_node != nullptr);
 
-    // 1,2,3,4
-    // n = 4
     if (n > 0) {
         u8* last_node = nodes + first_node_index * node_size;
         FOR_RANGE(size_t, i, n - 1) {
             assert(*rcast<bool*>(last_node + active_offset) == true);
-
             auto index_offset = *rcast<size_t*>(last_node + next_offset);
             last_node = nodes + index_offset * node_size;
         }
+
         assert(*rcast<bool*>(last_node + active_offset) == true);
         *rcast<size_t*>(last_node + next_offset) = new_free_node_index;
     }
@@ -482,24 +480,52 @@ void Linked_List_Add(
     *rcast<size_t*>(new_free_node + next_offset) = size_t_max;
 
     n++;
+    return new_free_node_index;
 }
 
-void Linked_List_Add(
-    Allocation* nodes,
+void Linked_List_Remove_At(
+    u8* nodes,
     size_t& n,
-    const size_t first_node_index,
-    const Allocation* const node  //
+    size_t& first_node_index,
+    const size_t node_index,
+    const size_t active_offset,
+    const size_t next_offset,
+    const size_t node_size  //
 ) {
-    auto active_offset = offsetof(Allocation, active);
-    auto next_offset = offsetof(Allocation, next);
+    assert(n > 0);
 
-    Linked_List_Add(
-        (u8*)nodes, n, first_node_index, (u8*)node, active_offset, next_offset, sizeof(Allocation));
-}
+    if (node_index == first_node_index) {
+        auto node = nodes + node_size * first_node_index;
+        *(bool*)(node + active_offset) = false;
 
-void Linked_List_Remove(Allocation* nodes, size_t& n, size_t a) {
-    // node.active = false;
-    n--;
+        auto next = *(size_t*)(node + next_offset);
+        first_node_index = next * (next != size_t_max);
+
+        n--;
+        return;
+    }
+
+    FOR_RANGE(size_t, i, n) {
+        auto node = nodes + node_size * i;
+        auto next_index = *(size_t*)(node + next_offset);
+
+        if (next_index == node_index) {
+            u8* node_to_delete = nodes + next_index * node_size;
+            auto node_to_delete_next_index = *(size_t*)(node_to_delete + next_offset);
+
+            auto next_exists = node_to_delete_next_index != size_t_max;
+            if (next_exists)
+                *(size_t*)(node + next_offset) = node_to_delete_next_index;
+            else
+                *(size_t*)(node + next_offset) = size_t_max;
+        }
+
+        if (i == node_index) {
+            *(bool*)(node + active_offset) = false;
+            n--;
+            return;
+        }
+    }
 }
 
 struct Allocator {
