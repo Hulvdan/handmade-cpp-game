@@ -438,7 +438,7 @@ struct Allocation {
 // [(v4,max,F), (v5,max,F), (v3,max,F)]   first_index = max  (removed node at index pos 2)
 
 size_t Linked_List_Push_Back(
-    u8* nodes,
+    u8* const nodes,
     size_t& n,
     const size_t first_node_index,
     const u8* const node,
@@ -484,7 +484,7 @@ size_t Linked_List_Push_Back(
 }
 
 void Linked_List_Remove_At(
-    u8* nodes,
+    u8* const nodes,
     size_t& n,
     size_t& first_node_index,
     const size_t node_index,
@@ -496,9 +496,9 @@ void Linked_List_Remove_At(
 
     if (node_index == first_node_index) {
         auto node = nodes + node_size * first_node_index;
-        *(bool*)(node + active_offset) = false;
+        *rcast<bool*>(node + active_offset) = false;
 
-        auto next = *(size_t*)(node + next_offset);
+        auto next = *rcast<size_t*>(node + next_offset);
         first_node_index = next * (next != size_t_max);
 
         n--;
@@ -507,21 +507,21 @@ void Linked_List_Remove_At(
 
     FOR_RANGE(size_t, i, n) {
         auto node = nodes + node_size * i;
-        auto next_index = *(size_t*)(node + next_offset);
+        auto next_index = *rcast<size_t*>(node + next_offset);
 
         if (next_index == node_index) {
             u8* node_to_delete = nodes + next_index * node_size;
-            auto node_to_delete_next_index = *(size_t*)(node_to_delete + next_offset);
+            auto node_to_delete_next_index = *rcast<size_t*>(node_to_delete + next_offset);
 
             auto next_exists = node_to_delete_next_index != size_t_max;
             if (next_exists)
-                *(size_t*)(node + next_offset) = node_to_delete_next_index;
+                *rcast<size_t*>(node + next_offset) = node_to_delete_next_index;
             else
-                *(size_t*)(node + next_offset) = size_t_max;
+                *rcast<size_t*>(node + next_offset) = size_t_max;
         }
 
         if (i == node_index) {
-            *(bool*)(node + active_offset) = false;
+            *rcast<bool*>(node + active_offset) = false;
             n--;
             return;
         }

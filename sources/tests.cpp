@@ -203,6 +203,29 @@ TEST_CASE("Linked List") {
         CHECK(node.id == 3);
     }
 
+    {
+        auto node_to_add = Test_Node(4);
+        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        CHECK(index == 0);
+    }
+    CHECK(count == 2);
+    {
+        auto& node = *(nodes + 0);
+        CHECK(node.active);
+        CHECK(node.next == size_t_max);
+        CHECK(node.id == 4);
+    }
+    {
+        auto& node = *(nodes + 1);
+        CHECK(node.active);
+        CHECK(node.next == 0);
+        CHECK(node.id == 3);
+    }
+
+    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 0, Test_Node);
+    CHECK(count == 1);
+    CHECK(first_node_index == 1);
+
     Linked_List_Remove_At_Macro(nodes, count, first_node_index, 1, Test_Node);
     CHECK(count == 0);
     CHECK(first_node_index == 0);
