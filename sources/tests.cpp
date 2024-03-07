@@ -82,3 +82,73 @@ TEST_CASE("Move_Towards") {
     CHECK(Move_Towards(1, 1, 0.4f) == 1);
     CHECK(Move_Towards(-1, -1, 0.4f) == -1);
 }
+
+TEST_CASE("Ceil_To_Power_Of_2") {
+    CHECK(Ceil_To_Power_Of_2(1) == 1);
+    CHECK(Ceil_To_Power_Of_2(2) == 2);
+    CHECK(Ceil_To_Power_Of_2(3) == 4);
+    CHECK(Ceil_To_Power_Of_2(4) == 4);
+    CHECK(Ceil_To_Power_Of_2(31) == 32);
+    CHECK(Ceil_To_Power_Of_2(32) == 32);
+    CHECK(Ceil_To_Power_Of_2(65535) == 65536);
+    CHECK(Ceil_To_Power_Of_2(65536) == 65536);
+    CHECK(Ceil_To_Power_Of_2(2147483647) == 2147483648);
+    CHECK(Ceil_To_Power_Of_2(2147483648) == 2147483648);
+}
+
+struct Test_Node {
+    size_t next;
+    u32 id;
+    bool active;
+
+    Test_Node() : id(0), next(0), active(false) {}
+    Test_Node(u32 a_id) : id(a_id), next(0), active(false) {}
+};
+
+#define Linked_List_Add_Macro(nodes_, n_, first_node_index_, node_to_add_)                       \
+    {                                                                                            \
+        Linked_List_Add(                                                                         \
+            rcast<u8*>(nodes_), (n_), (first_node_index_), rcast<u8*>(&(node_to_add_)),          \
+            offsetof(node_to_add_, active), offsetof(node_to_add_, next), sizeof(node_to_add_)); \
+    }
+
+TEST_CASE("Linked List") {
+    Test_Node* nodes = new Test_Node[10]{};
+
+    size_t count = 0;
+    size_t first_node_index = 0;
+
+    {
+        auto node_to_add = Test_Node(1);
+        Linked_List_Add_Macro(nodes, count, first_node_index, node_to_add);
+    }
+
+    CHECK(count == 1);
+
+    {
+        auto& node = *(nodes + 0);
+        CHECK(node.active);
+        CHECK(node.next == size_t_max);
+        CHECK(node.id == 1);
+    }
+
+    {
+        auto node_to_add = Test_Node(2);
+        Linked_List_Add_Macro(nodes, count, first_node_index, node_to_add);
+    }
+
+    CHECK(count == 2);
+
+    {
+        auto& node = *(nodes + 0);
+        CHECK(node.active);
+        CHECK(node.next == 1);
+        CHECK(node.id == 1);
+    }
+    {
+        auto& node = *(nodes + 1);
+        CHECK(node.active);
+        CHECK(node.id == 2);
+        CHECK(node.next == size_t_max);
+    }
+}

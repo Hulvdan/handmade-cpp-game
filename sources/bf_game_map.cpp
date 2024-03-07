@@ -36,7 +36,7 @@ void Regenerate_Terrain_Tiles(
 ) {
     auto gsize = game_map.size;
 
-    auto noise_pitch = Ceil_To_Power_Of_2(MAX(gsize.x, gsize.y));
+    auto noise_pitch = Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
     auto output_size = noise_pitch * noise_pitch;
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
@@ -387,6 +387,7 @@ bool Should_Segment_Be_Deleted(
     return false;
 }
 
+// TODO(hulvdan): Прикруть `Graph_v2u operator==`
 #define Add_Without_Duplication(max_count_, count_, array_, value_)     \
     {                                                                   \
         assert((max_count_) >= (count_));                               \
@@ -408,8 +409,138 @@ bool Should_Segment_Be_Deleted(
     }
 
 Graph_v2u* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
+    auto& game_map = state.game_map;
+    auto size_to_book = sizeof(Graph_v2u) * vertices_count;
+
     NOT_IMPLEMENTED;
+
     return nullptr;
+}
+
+struct Allocation {
+    u8* base;
+    size_t size;
+    bool active;
+    size_t next;
+};
+
+//
+// []                                 first_index = max
+// [(v1,max,t)]                       first_index = 0  (added node to the end)
+// [(v1,1,t), (v2,max,t)]             first_index = 0  (added node to the end)
+// [(v1,1,t), (v2,2,t), (v3,max,t)]   first_index = 0  (added node to the end)
+// [(v1,2,t), (v2,2,F), (v3,max,t)]   first_index = 0  (removed node at index pos 1)
+// [(v1,2,F), (v2,2,F), (v3,max,t)]   first_index = 2  (removed node at index pos 0)
+// [(v4,max,t), (v2,2,F), (v3,0,t)]   first_index = 2  (added node to the end)
+// [(v4,1,t), (v5,max,t), (v3,0,t)]   first_index = 2  (added node to the end)
+// [(v4,max,t), (v5,max,F), (v3,0,t)]   first_index = 2  (removed node at index pos 1)
+// [(v4,max,F), (v5,max,F), (v3,max,t)]   first_index = 2  (removed node at index pos 0)
+// [(v4,max,F), (v5,max,F), (v3,max,F)]   first_index = max  (removed node at index pos 2)
+
+void Linked_List_Add(
+    u8* nodes,
+    size_t& n,
+    const size_t first_node_index,
+    const u8* const node,
+    const size_t active_offset,
+    const size_t next_offset,
+    const size_t node_size  //
+) {
+    size_t new_free_node_index = size_t_max;
+    u8* new_free_node = nullptr;
+    FOR_RANGE(size_t, i, n + 1) {
+        u8* n = nodes + i * node_size;
+        bool active = *rcast<bool*>(n + active_offset);
+        if (active)
+            continue;
+
+        new_free_node = n;
+        new_free_node_index = i;
+
+        break;
+    }
+
+    assert(new_free_node_index != size_t_max);
+    assert(new_free_node != nullptr);
+
+    // 1,2,3,4
+    // n = 4
+    if (n > 0) {
+        u8* last_node = nodes + first_node_index * node_size;
+        FOR_RANGE(size_t, i, n - 1) {
+            assert(*rcast<bool*>(last_node + active_offset) == true);
+
+            auto index_offset = *rcast<size_t*>(last_node + next_offset);
+            last_node = nodes + index_offset * node_size;
+        }
+        assert(*rcast<bool*>(last_node + active_offset) == true);
+        *rcast<size_t*>(last_node + next_offset) = new_free_node_index;
+    }
+
+    memcpy(new_free_node, node, node_size);
+    *rcast<bool*>(new_free_node + active_offset) = true;
+    *rcast<size_t*>(new_free_node + next_offset) = size_t_max;
+
+    n++;
+}
+
+void Linked_List_Add(
+    Allocation* nodes,
+    size_t& n,
+    const size_t first_node_index,
+    const Allocation* const node  //
+) {
+    auto active_offset = offsetof(Allocation, active);
+    auto next_offset = offsetof(Allocation, next);
+
+    Linked_List_Add(
+        (u8*)nodes, n, first_node_index, (u8*)node, active_offset, next_offset, sizeof(Allocation));
+}
+
+void Linked_List_Remove(Allocation* nodes, size_t& n, size_t a) {
+    // node.active = false;
+    n--;
+}
+
+struct Allocator {
+    // int pages_count;
+    // int used_pages_count;
+    Page* allocations;
+    Page* page;
+
+    Allocation* first_allocation;
+
+    u8* Allocate(size_t size) {
+        assert(page != nullptr);
+        assert(allocations != nullptr);
+
+        auto allocations_ptr = allocations->base;
+        if (first_allocation == nullptr) {
+            //
+        } else {
+            //
+        }
+
+        auto current_mem_ptr = page->base;
+        auto p = page->base;
+        // for (;;) {
+        //     //
+        // }
+    }
+
+    void Free(u8* address) {
+        //
+    }
+
+    // auto a = Allocate(64 * sizeof(Graph_v2u));
+    // Free(a);
+    // auto b = Allocate(4 * sizeof(Graph_v2u));
+    // Free(b);
+};
+
+void Free_Segment_Vertices(Game_State& state, u8* ptr) {
+    auto& game_map = state.game_map;
+    NOT_IMPLEMENTED;
 }
 
 u8* Allocate_Graph_Nodes(Game_State& state, int all_nodes_count) {
@@ -457,6 +588,7 @@ void Update_Tiles(
             if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
                 continue;
 
+            // TODO(hulvdan): Протестить, точно ли тут нужно добавление без дублирования
             // // NOTE(hulvdan): Добавление сегмента без дублирования
             // auto found = false;
             // FOR_RANGE(int, i, segments_to_be_deleted_count) {
@@ -482,8 +614,8 @@ void Update_Tiles(
     DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
 
     Fixed_Size_Queue<Dir_v2i> big_fuken_queue = {};
-    big_fuken_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
     big_fuken_queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    big_fuken_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
     DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
 
     FOR_RANGE(auto, i, updated_tiles.count) {
@@ -572,8 +704,7 @@ void Update_Tiles(
         Graph_v2u* segment_tiles = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
-        auto& tttt = *(segment_tiles + 0);
-        tttt = std::move(To_Graph_v2u(std::get<1>(p)));
+        *(segment_tiles + 0) = To_Graph_v2u(std::get<1>(p));
 
         Graph temp_graph = {};
         temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
@@ -691,7 +822,8 @@ void Update_Tiles(
         assert(offset.x < gsize.x);
         assert(offset.y < gsize.y);
 
-        // NOTE(hulvdan): Копирование нод из временного графа без больших излишков
+        // NOTE(hulvdan): Копирование нод из временного графа
+        // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
         segment.graph.nodes = Allocate_Graph_Nodes(state, all_nodes_count);
 

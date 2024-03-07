@@ -47,18 +47,17 @@ bool Is_Multiple_Of_2(int number, u8& power) {
 //     26 -> 32
 //     13 -> 16
 //     8 -> 8
-i32 Ceil_To_Power_Of_2(i32 max_pow2size) {
-    i32 number = i32_max;
-    assert(number >= 1);
+//     0 -> ASSERT
+//     2147483648 and above -> ASSERT
+u32 Ceil_To_Power_Of_2(u32 value) {
+    assert(value <= 2147483648);
+    assert(value != 0);
 
-    while (number > max_pow2size)
-        number >>= 1;
-    number++;
-    if (number < max_pow2size)
-        number <<= 1;
+    u32 power = 1;
+    while (power < value)
+        power *= 2;
 
-    assert(number != 0);
-    return number;
+    return power;
 }
 
 void Fill_Perlin_1D(
