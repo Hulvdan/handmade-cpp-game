@@ -529,6 +529,12 @@ void Linked_List_Remove_At(
     assert(false);
 }
 
+[[nodiscard]] inline u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
+    const auto addr = rcast<size_t>(ptr);
+    const auto aligned_addr = (addr + (alignment - 1)) & -alignment;
+    return rcast<u8*>(aligned_addr);
+}
+
 struct Allocator : Non_Copyable {
     // int pages_count;
     // int used_pages_count;
@@ -541,7 +547,7 @@ struct Allocator : Non_Copyable {
     // Allocator(Page& a_toc_page, Page* a_allocation_pages, size_t a_allocation_pages_count)
     //     : first_allocation_index(0), allocations(a_allocation_pages) {}
 
-    std::tuple<size_t, u8*> Allocate(size_t size) {
+    std::tuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
         assert(toc_page != nullptr);
         assert(allocation_pages != nullptr);
         const auto active_offset = offsetof(Allocation, active);
@@ -567,9 +573,10 @@ struct Allocator : Non_Copyable {
             Allocation* next_node = nullptr;
             if (node->next != size_t_max) {
                 next_node = rcast<Allocation*>(nodes + node->next * node_size);
-                //                         ?\/?
-                if (node->base + node->size >= next_node->base)
+                if (Align_Forward(node->base + node->size, alignment) + size > next_node->base) {
+                    node = next_node;
                     continue;
+                }
             }
 
             // Получение незаюзанной ноды
@@ -594,9 +601,7 @@ struct Allocator : Non_Copyable {
             new_free_node->size = size;
             new_free_node->next = node->next;
             node->next = new_free_node_index;
-
-            // TODO(hulvdan): Align!
-            new_free_node->base = node->base + node->size;
+            new_free_node->base = Align_Forward(node->base + node->size, alignment);
 
             current_allocations_count++;
             return {new_free_node_index, new_free_node->base};

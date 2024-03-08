@@ -237,6 +237,11 @@ TEST_CASE("Linked List") {
 //     bool active;
 //     size_t next;
 // };
+TEST_CASE("Align_Forward") {
+    CHECK(Align_Forward(nullptr, 8) == nullptr);
+    CHECK(Align_Forward((u8*)(4UL), 8) == (u8*)8UL);
+    CHECK(Align_Forward((u8*)(8UL), 8) == (u8*)8UL);
+}
 
 TEST_CASE("Allocator") {
     Allocator allocator = {};
@@ -255,18 +260,18 @@ TEST_CASE("Allocator") {
     // tests
 
     {
-        auto [key, ptr] = allocator.Allocate(12);
-        assert(key == 0);
-        assert(ptr == allocations_buffer);
+        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(key == 0);
+        CHECK(ptr == allocations_buffer);
     }
     {
-        auto [key, ptr] = allocator.Allocate(36);
-        assert(key == 1);
-        assert(ptr == allocations_buffer + 12);
+        auto [key, ptr] = allocator.Allocate(36, 1UL);
+        CHECK(key == 1);
+        CHECK(ptr == allocations_buffer + 12);
     }
     {
-        auto [key, ptr] = allocator.Allocate(12);
-        assert(key == 2);
-        assert(ptr == allocations_buffer + 48);
+        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(key == 2);
+        CHECK(ptr == allocations_buffer + 48);
     }
 }
