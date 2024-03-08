@@ -535,6 +535,7 @@ void Linked_List_Remove_At(
     return bcast<u8*>(aligned_addr);
 }
 
+// NOTE(hulvdan): `toc_page` должно быть занулено!
 struct Allocator : Non_Copyable {
     // int pages_count;
     // int used_pages_count;
@@ -558,27 +559,30 @@ struct Allocator : Non_Copyable {
         const auto node_size = sizeof(Allocation);
 
         Allocation* nodes = rcast<Allocation*>(toc_page->base);
-        auto current_index = first_allocation_index;
 
-        auto previous_index = size_t_max;
+        auto previous_node_index = size_t_max;
+        auto next_node_index = size_t_max;
+        if (current_allocations_count > 0)
+            next_node_index = first_allocation_index;
+
         Allocation* previous_node = nullptr;
-        Allocation* node = nullptr;
+        Allocation* next_node = nullptr;
 
         u8* base_ptr = Align_Forward(allocation_pages->base, alignment);
 
-        FOR_RANGE(int, i, current_allocations_count) {
-            node = nodes + current_index;
-
-            base_ptr = Align_Forward(node->base + node->size, alignment);
-            auto next_node = nodes + node->next;
+        FOR_RANGE(size_t, i, current_allocations_count) {
+            next_node = nodes + next_node_index;
+            assert(next_node->active);
 
             if (base_ptr + size > next_node->base) {
-                current_index = node->next;
-                previous_node = node;
-            } else {
-                // Можем впендюрить сюда
+                base_ptr = Align_Forward(next_node->base + next_node->size, alignment);
+
+                previous_node = next_node;
+                previous_node_index = next_node_index;
+                next_node_index = next_node->next;
+                next_node = nullptr;
+            } else
                 break;
-            }
         }
 
         // Получение незаюзанной ноды
@@ -587,8 +591,8 @@ struct Allocator : Non_Copyable {
         {
             FOR_RANGE(size_t, i, current_allocations_count + 1) {
                 Allocation* n = nodes + i;
-                bool active = *rcast<bool*>(n + active_offset);
-                if (active && (i != current_allocations_count))
+                bool active = *rcast<bool*>((u8*)(n) + active_offset);
+                if (active)
                     continue;
 
                 new_free_node = n;
@@ -601,19 +605,12 @@ struct Allocator : Non_Copyable {
 
         new_free_node->active = true;
         new_free_node->size = size;
-
-        if (node == nullptr)
-            new_free_node->next = size_t_max;
-        else
-            new_free_node->next = current_index;
-
         new_free_node->base = base_ptr;
-
-        if (previous_node == nullptr) {
+        new_free_node->next = next_node_index;
+        if (previous_node == nullptr)
             first_allocation_index = new_free_node_index;
-        } else {
+        else
             previous_node->next = new_free_node_index;
-        }
 
         current_allocations_count++;
         return {new_free_node_index, base_ptr};

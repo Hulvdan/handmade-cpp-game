@@ -243,6 +243,9 @@ TEST_CASE("Allocator") {
     Allocator allocator = {};
     u8* toc_buffer = new u8[1024];
     u8* allocations_buffer = new u8[1024];
+    memset(toc_buffer, 0, 1024);
+    memset(allocations_buffer, 0, 1024);
+
     Page allocation_page = {};
     Page toc_page = {};
     allocation_page.base = allocations_buffer;
@@ -256,7 +259,6 @@ TEST_CASE("Allocator") {
     auto alloc = rcast<Allocation*>(toc_buffer);
 
     // Tests
-
     {
         auto [key, ptr] = allocator.Allocate(12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
@@ -324,13 +326,26 @@ TEST_CASE("Allocator") {
     }
     {
         auto [key, ptr] = allocator.Allocate(12, 1UL);
-        CHECK(allocator.first_allocation_index == 2);
+        CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
         CHECK(key == 0);
         CHECK(ptr == allocations_buffer + 0);
         CHECK((alloc + 0)->active == true);
         CHECK((alloc + 2)->active == true);
-        CHECK((alloc + 0)->next == size_t_max);
-        CHECK((alloc + 2)->next == 0);
+        CHECK((alloc + 0)->next == 2);
+        CHECK((alloc + 2)->next == size_t_max);
+    }
+    {
+        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(allocator.first_allocation_index == 0);
+        CHECK(allocator.current_allocations_count == 3);
+        CHECK(key == 1);
+        CHECK(ptr == allocations_buffer + 12);
+        CHECK((alloc + 0)->active == true);
+        CHECK((alloc + 1)->active == true);
+        CHECK((alloc + 2)->active == true);
+        CHECK((alloc + 0)->next == 1);
+        CHECK((alloc + 1)->next == 2);
+        CHECK((alloc + 2)->next == size_t_max);
     }
 }
