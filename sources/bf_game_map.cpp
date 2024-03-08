@@ -420,8 +420,8 @@ Graph_v2u* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
 struct Allocation {
     u8* base;
     size_t size;
-    bool active;
     size_t next;
+    bool active;
 };
 
 //
@@ -459,7 +459,6 @@ size_t Linked_List_Push_Back(
 
         break;
     }
-
     assert(new_free_node_index != size_t_max);
     assert(new_free_node != nullptr);
 
@@ -526,42 +525,85 @@ void Linked_List_Remove_At(
             return;
         }
     }
+
+    assert(false);
 }
 
-struct Allocator {
+struct Allocator : Non_Copyable {
     // int pages_count;
     // int used_pages_count;
-    Page* allocations;
-    Page* page;
+    Page* allocation_pages;
+    Page* toc_page;
 
-    Allocation* first_allocation;
+    size_t current_allocations_count;
+    size_t first_allocation_index;
 
-    u8* Allocate(size_t size) {
-        assert(page != nullptr);
-        assert(allocations != nullptr);
+    // Allocator(Page& a_toc_page, Page* a_allocation_pages, size_t a_allocation_pages_count)
+    //     : first_allocation_index(0), allocations(a_allocation_pages) {}
 
-        auto allocations_ptr = allocations->base;
-        if (first_allocation == nullptr) {
-            //
-        } else {
-            //
+    std::tuple<size_t, u8*> Allocate(size_t size) {
+        assert(toc_page != nullptr);
+        assert(allocation_pages != nullptr);
+        const auto active_offset = offsetof(Allocation, active);
+        const auto next_offset = offsetof(Allocation, next);
+        const auto node_size = sizeof(Allocation);
+
+        Allocation allocation = {};
+        allocation.size = size;
+
+        // 1, 2, 3, 4
+        u8* nodes = allocation_pages->base;
+        auto node = rcast<Allocation*>(nodes + first_allocation_index * node_size);
+
+        FOR_RANGE(int, i, current_allocations_count - 1) {
+            Allocation* next_node = nullptr;
+            if (node->next != size_t_max) {
+                next_node = rcast<Allocation*>(nodes + node->next * node_size);
+                //                         ?\/?
+                if (node->base + node->size >= next_node->base)
+                    continue;
+            }
+
+            // Получение незаюзанной ноды
+            size_t new_free_node_index = size_t_max;
+            Allocation* new_free_node = nullptr;
+            FOR_RANGE(size_t, i, current_allocations_count + 1) {
+                u8* n = nodes + i * node_size;
+                bool active = *rcast<bool*>(n + active_offset);
+                if (active)
+                    continue;
+
+                new_free_node = rcast<Allocation*>(n);
+                new_free_node_index = i;
+                break;
+            }
+            assert(new_free_node_index != size_t_max);
+            assert(new_free_node != nullptr);
+
+            // Устанавливаем новые данные в незаюзанную ноду
+            // И впендюриваем её между нодами, меж которых можно аллоцировать память
+            new_free_node->active = true;
+            new_free_node->size = size;
+            new_free_node->next = node->next;
+            node->next = new_free_node_index;
+
+            // TODO(hulvdan): Align!
+            new_free_node->base = node->base + node->size;
+            return {new_free_node_index, new_free_node->base};
         }
 
-        auto current_mem_ptr = page->base;
-        auto p = page->base;
-        // for (;;) {
-        //     //
-        // }
+        INVALID_PATH;
+        return {0, nullptr};
     }
 
-    void Free(u8* address) {
+    void Free(size_t key) {
         //
     }
 
-    // auto a = Allocate(64 * sizeof(Graph_v2u));
-    // Free(a);
-    // auto b = Allocate(4 * sizeof(Graph_v2u));
-    // Free(b);
+    // auto [a_key, a_ptr] = Allocate(64 * sizeof(Graph_v2u));
+    // Free(a_key);
+    // auto [b_key, b_ptr] = Allocate(4 * sizeof(Graph_v2u));
+    // Free(b_key);
 };
 
 void Free_Segment_Vertices(Game_State& state, u8* ptr) {
