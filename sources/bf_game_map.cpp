@@ -548,76 +548,84 @@ struct Allocator : Non_Copyable {
     //     : first_allocation_index(0), allocations(a_allocation_pages) {}
 
     std::tuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
+        assert(size > 0);
+        assert(alignment > 0);
         assert(toc_page != nullptr);
         assert(allocation_pages != nullptr);
+
         const auto active_offset = offsetof(Allocation, active);
         const auto next_offset = offsetof(Allocation, next);
         const auto node_size = sizeof(Allocation);
 
-        Allocation allocation = {};
-        allocation.size = size;
+        Allocation* nodes = rcast<Allocation*>(toc_page->base);
+        auto current_index = first_allocation_index;
 
-        // 1, 2, 3, 4
-        u8* nodes = toc_page->base;
-        auto node = rcast<Allocation*>(nodes + first_allocation_index * node_size);
-        if (current_allocations_count == 0) {
-            node->next = size_t_max;
-            node->active = true;
-            node->size = size;
-            node->base = allocation_pages->base;
-            current_allocations_count++;
-            return {0, node->base};
-        }
+        auto previous_index = size_t_max;
+        Allocation* previous_node = nullptr;
+        Allocation* node = nullptr;
+
+        u8* base_ptr = Align_Forward(allocation_pages->base, alignment);
 
         FOR_RANGE(int, i, current_allocations_count) {
-            Allocation* next_node = nullptr;
-            if (node->next != size_t_max) {
-                next_node = rcast<Allocation*>(nodes + node->next * node_size);
-                if (Align_Forward(node->base + node->size, alignment) + size > next_node->base) {
-                    node = next_node;
-                    continue;
-                }
+            node = nodes + current_index;
+
+            base_ptr = Align_Forward(node->base + node->size, alignment);
+            auto next_node = nodes + node->next;
+
+            if (base_ptr + size > next_node->base) {
+                current_index = node->next;
+                previous_node = node;
+            } else {
+                // Можем впендюрить сюда
+                break;
             }
+        }
 
-            // Получение незаюзанной ноды
-            size_t new_free_node_index = size_t_max;
-            Allocation* new_free_node = nullptr;
+        // Получение незаюзанной ноды
+        size_t new_free_node_index = size_t_max;
+        Allocation* new_free_node = nullptr;
+        {
             FOR_RANGE(size_t, i, current_allocations_count + 1) {
-                u8* n = nodes + i * node_size;
+                Allocation* n = nodes + i;
                 bool active = *rcast<bool*>(n + active_offset);
-                if (active && i != current_allocations_count)
+                if (active && (i != current_allocations_count))
                     continue;
 
-                new_free_node = rcast<Allocation*>(n);
+                new_free_node = n;
                 new_free_node_index = i;
                 break;
             }
             assert(new_free_node_index != size_t_max);
             assert(new_free_node != nullptr);
-
-            // Устанавливаем новые данные в незаюзанную ноду
-            // И впендюриваем её между нодами, меж которых можно аллоцировать память
-            new_free_node->active = true;
-            new_free_node->size = size;
-            new_free_node->next = node->next;
-            node->next = new_free_node_index;
-            new_free_node->base = Align_Forward(node->base + node->size, alignment);
-
-            current_allocations_count++;
-            return {new_free_node_index, new_free_node->base};
         }
 
-        INVALID_PATH;
-        return {0, nullptr};
+        new_free_node->active = true;
+        new_free_node->size = size;
+
+        if (node == nullptr)
+            new_free_node->next = size_t_max;
+        else
+            new_free_node->next = current_index;
+
+        new_free_node->base = base_ptr;
+
+        if (previous_node == nullptr) {
+            first_allocation_index = new_free_node_index;
+        } else {
+            previous_node->next = new_free_node_index;
+        }
+
+        current_allocations_count++;
+        return {new_free_node_index, base_ptr};
     }
 
     void Free(size_t key) {
         assert(current_allocations_count > 0);
 
         Allocation* nodes = rcast<Allocation*>(toc_page->base);
-
         Allocation* previous_node = nullptr;
         auto current_index = first_allocation_index;
+
         FOR_RANGE(size_t, i, current_allocations_count) {
             auto node = nodes + current_index;
             if (current_index == key) {
