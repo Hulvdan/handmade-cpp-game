@@ -230,3 +230,43 @@ TEST_CASE("Linked List") {
     CHECK(count == 0);
     CHECK(first_node_index == 0);
 }
+
+// struct Test_Allocation_Node {
+//     u8* base;
+//     size_t size;
+//     bool active;
+//     size_t next;
+// };
+
+TEST_CASE("Allocator") {
+    Allocator allocator = {};
+    u8* toc_buffer = new u8[1024];
+    u8* allocations_buffer = new u8[1024];
+    Page allocation_page = {};
+    Page toc_page = {};
+    allocation_page.base = allocations_buffer;
+    toc_page.base = toc_buffer;
+
+    allocator.allocation_pages = &allocation_page;
+    allocator.toc_page = &toc_page;
+    allocator.current_allocations_count = 0;
+    allocator.first_allocation_index = 0;
+
+    // tests
+
+    {
+        auto [key, ptr] = allocator.Allocate(12);
+        assert(key == 0);
+        assert(ptr == allocations_buffer);
+    }
+    {
+        auto [key, ptr] = allocator.Allocate(36);
+        assert(key == 1);
+        assert(ptr == allocations_buffer + 12);
+    }
+    {
+        auto [key, ptr] = allocator.Allocate(12);
+        assert(key == 2);
+        assert(ptr == allocations_buffer + 48);
+    }
+}

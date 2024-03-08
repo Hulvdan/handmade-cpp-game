@@ -552,10 +552,18 @@ struct Allocator : Non_Copyable {
         allocation.size = size;
 
         // 1, 2, 3, 4
-        u8* nodes = allocation_pages->base;
+        u8* nodes = toc_page->base;
         auto node = rcast<Allocation*>(nodes + first_allocation_index * node_size);
+        if (current_allocations_count == 0) {
+            node->next = size_t_max;
+            node->active = true;
+            node->size = size;
+            node->base = allocation_pages->base;
+            current_allocations_count++;
+            return {0, node->base};
+        }
 
-        FOR_RANGE(int, i, current_allocations_count - 1) {
+        FOR_RANGE(int, i, current_allocations_count) {
             Allocation* next_node = nullptr;
             if (node->next != size_t_max) {
                 next_node = rcast<Allocation*>(nodes + node->next * node_size);
@@ -570,7 +578,7 @@ struct Allocator : Non_Copyable {
             FOR_RANGE(size_t, i, current_allocations_count + 1) {
                 u8* n = nodes + i * node_size;
                 bool active = *rcast<bool*>(n + active_offset);
-                if (active)
+                if (active && i != current_allocations_count)
                     continue;
 
                 new_free_node = rcast<Allocation*>(n);
@@ -589,6 +597,8 @@ struct Allocator : Non_Copyable {
 
             // TODO(hulvdan): Align!
             new_free_node->base = node->base + node->size;
+
+            current_allocations_count++;
             return {new_free_node_index, new_free_node->base};
         }
 
