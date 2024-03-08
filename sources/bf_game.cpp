@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <memory>
 #include <tuple>
-#include <type_traits>
 
 #include "glew.h"
 #include "wglew.h"
@@ -23,9 +22,9 @@
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
 #include "bf_memory.cpp"
+#include "bf_math.cpp"
 #include "bf_rand.cpp"
 #include "bf_file.cpp"
-#include "bf_math.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT

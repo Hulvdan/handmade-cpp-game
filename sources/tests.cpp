@@ -231,14 +231,10 @@ TEST_CASE("Linked List") {
     CHECK(first_node_index == 0);
 }
 
-// struct Test_Allocation_Node {
-//     u8* base;
-//     size_t size;
-//     bool active;
-//     size_t next;
-// };
 TEST_CASE("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);
+    CHECK(Align_Forward((u8*)(2UL), 16) == (u8*)16UL);
+    CHECK(Align_Forward((u8*)(4UL), 16) == (u8*)16UL);
     CHECK(Align_Forward((u8*)(4UL), 8) == (u8*)8UL);
     CHECK(Align_Forward((u8*)(8UL), 8) == (u8*)8UL);
 }
@@ -257,21 +253,84 @@ TEST_CASE("Allocator") {
     allocator.current_allocations_count = 0;
     allocator.first_allocation_index = 0;
 
-    // tests
+    auto alloc = rcast<Allocation*>(toc_buffer);
+
+    // Tests
 
     {
         auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(allocator.first_allocation_index == 0);
+        CHECK(allocator.current_allocations_count == 1);
         CHECK(key == 0);
         CHECK(ptr == allocations_buffer);
+
+        CHECK((alloc + 0)->next == size_t_max);
     }
     {
         auto [key, ptr] = allocator.Allocate(36, 1UL);
+        CHECK(allocator.first_allocation_index == 0);
+        CHECK(allocator.current_allocations_count == 2);
         CHECK(key == 1);
         CHECK(ptr == allocations_buffer + 12);
+
+        CHECK((alloc + 0)->next == 1);
+        CHECK((alloc + 1)->next == size_t_max);
     }
     {
         auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(allocator.first_allocation_index == 0);
+        CHECK(allocator.current_allocations_count == 3);
         CHECK(key == 2);
         CHECK(ptr == allocations_buffer + 48);
+
+        CHECK((alloc + 0)->next == 1);
+        CHECK((alloc + 1)->next == 2);
+        CHECK((alloc + 2)->next == size_t_max);
+    }
+    {
+        allocator.Free(2UL);
+        CHECK(allocator.first_allocation_index == 0);
+        CHECK(allocator.current_allocations_count == 2);
+        CHECK((alloc + 0)->next == 1);
+        CHECK((alloc + 1)->next == size_t_max);
+        CHECK((alloc + 1)->active == true);
+        CHECK((alloc + 2)->active == false);
+    }
+    {
+        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(allocator.first_allocation_index == 0);
+        CHECK(allocator.current_allocations_count == 3);
+        CHECK(key == 2);
+        CHECK(ptr == allocations_buffer + 48);
+    }
+    {
+        allocator.Free(0UL);
+        CHECK(allocator.first_allocation_index == 1);
+        CHECK(allocator.current_allocations_count == 2);
+        CHECK((alloc + 0)->active == false);
+        CHECK((alloc + 1)->next == 2);
+        CHECK((alloc + 1)->active == true);
+        CHECK((alloc + 2)->active == true);
+    }
+    {
+        allocator.Free(1UL);
+        CHECK(allocator.first_allocation_index == 2);
+        CHECK(allocator.current_allocations_count == 1);
+        CHECK((alloc + 0)->active == false);
+        CHECK((alloc + 1)->active == false);
+        CHECK((alloc + 0)->active == false);
+        CHECK((alloc + 1)->active == false);
+        CHECK((alloc + 2)->active == true);
+    }
+    {
+        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        CHECK(allocator.first_allocation_index == 2);
+        CHECK(allocator.current_allocations_count == 2);
+        CHECK(key == 0);
+        CHECK(ptr == allocations_buffer + 0);
+        CHECK((alloc + 0)->active == true);
+        CHECK((alloc + 2)->active == true);
+        CHECK((alloc + 0)->next == size_t_max);
+        CHECK((alloc + 2)->next == 0);
     }
 }

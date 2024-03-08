@@ -70,11 +70,10 @@ using v3i = glm::ivec3;
 
 #define scast static_cast
 #define rcast reinterpret_cast
-#define remref std::remove_reference_t
+#define bcast std::bit_cast
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)

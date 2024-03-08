@@ -530,9 +530,9 @@ void Linked_List_Remove_At(
 }
 
 [[nodiscard]] inline u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
-    const auto addr = rcast<size_t>(ptr);
+    const auto addr = bcast<size_t>(ptr);
     const auto aligned_addr = (addr + (alignment - 1)) & -alignment;
-    return rcast<u8*>(aligned_addr);
+    return bcast<u8*>(aligned_addr);
 }
 
 struct Allocator : Non_Copyable {
@@ -612,13 +612,36 @@ struct Allocator : Non_Copyable {
     }
 
     void Free(size_t key) {
-        //
-    }
+        assert(current_allocations_count > 0);
 
-    // auto [a_key, a_ptr] = Allocate(64 * sizeof(Graph_v2u));
-    // Free(a_key);
-    // auto [b_key, b_ptr] = Allocate(4 * sizeof(Graph_v2u));
-    // Free(b_key);
+        Allocation* nodes = rcast<Allocation*>(toc_page->base);
+
+        Allocation* previous_node = nullptr;
+        auto current_index = first_allocation_index;
+        FOR_RANGE(size_t, i, current_allocations_count) {
+            auto node = nodes + current_index;
+            if (current_index == key) {
+                if (previous_node != nullptr)
+                    previous_node->next = node->next;
+
+                if (first_allocation_index == current_index) {
+                    if (node->next != size_t_max)
+                        first_allocation_index = node->next;
+                    else
+                        first_allocation_index = 0;
+                }
+
+                node->active = false;
+                current_allocations_count--;
+                return;
+            }
+
+            previous_node = node;
+            current_index = node->next;
+        }
+
+        INVALID_PATH;
+    }
 };
 
 void Free_Segment_Vertices(Game_State& state, u8* ptr) {
