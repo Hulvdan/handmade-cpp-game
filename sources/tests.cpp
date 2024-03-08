@@ -115,6 +115,18 @@ struct Test_Node {
         rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_),                  \
         offsetof(type_, active), offsetof(type_, next), sizeof(type_));
 
+#define Allocator_Allocate_Macro(allocator_, size_, alignment_)                              \
+    (allocator_)                                                                             \
+        .Allocate(                                                                           \
+            (size_), (alignment_), offsetof(Allocation, active), offsetof(Allocation, base), \
+            offsetof(Allocation, size), offsetof(Allocation, next), sizeof(Allocation));
+
+#define Allocator_Free_Macro(allocator_, key_)                                \
+    (allocator_)                                                              \
+        .Free(                                                                \
+            (key_), offsetof(Allocation, active), offsetof(Allocation, base), \
+            offsetof(Allocation, size), offsetof(Allocation, next), sizeof(Allocation));
+
 TEST_CASE("Linked List") {
     Test_Node* nodes = new Test_Node[10]{};
 
@@ -260,7 +272,7 @@ TEST_CASE("Allocator") {
 
     // Tests
     {
-        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 1);
         CHECK(key == 0);
@@ -269,7 +281,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 0)->next == size_t_max);
     }
     {
-        auto [key, ptr] = allocator.Allocate(36, 1UL);
+        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 36, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
         CHECK(key == 1);
@@ -279,7 +291,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 1)->next == size_t_max);
     }
     {
-        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 3);
         CHECK(key == 2);
@@ -290,7 +302,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->next == size_t_max);
     }
     {
-        allocator.Free(2UL);
+        Allocator_Free_Macro(allocator, 2UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
         CHECK((alloc + 0)->next == 1);
@@ -299,14 +311,14 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->active == false);
     }
     {
-        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 3);
         CHECK(key == 2);
         CHECK(ptr == allocations_buffer + 48);
     }
     {
-        allocator.Free(0UL);
+        Allocator_Free_Macro(allocator, 0UL);
         CHECK(allocator.first_allocation_index == 1);
         CHECK(allocator.current_allocations_count == 2);
         CHECK((alloc + 0)->active == false);
@@ -315,7 +327,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->active == true);
     }
     {
-        allocator.Free(1UL);
+        Allocator_Free_Macro(allocator, 1UL);
         CHECK(allocator.first_allocation_index == 2);
         CHECK(allocator.current_allocations_count == 1);
         CHECK((alloc + 0)->active == false);
@@ -325,7 +337,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->active == true);
     }
     {
-        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
         CHECK(key == 0);
@@ -336,7 +348,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->next == size_t_max);
     }
     {
-        auto [key, ptr] = allocator.Allocate(12, 1UL);
+        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 3);
         CHECK(key == 1);
