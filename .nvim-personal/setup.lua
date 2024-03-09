@@ -7,8 +7,10 @@ vim.fn.execute(":set colorcolumn=")
 vim.fn.execute(":set nobackup")
 vim.fn.execute(":set nowritebackup")
 
+
 -- Helper Functions --
 -- ================ --
+local todo_plugin = require("todo-comments");
 
 -- Options:
 -- go_down - default: true - Places a cursor at the bottom upon launching the command
@@ -107,8 +109,10 @@ vim.keymap.set("n", "<leader>w", function()
 
     if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
         local view = vim.fn.winsaveview()
+        todo_plugin.disable();
 
         local buf_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
+
         launch_background([[cmd\format.bat "]] .. buf_path .. '"', function()
             reload_file()
 
@@ -123,6 +127,7 @@ vim.keymap.set("n", "<leader>w", function()
             require("lint").try_lint()
 
             vim.fn.winrestview(view)
+            todo_plugin.enable();
         end)
     end
 end, opts)
