@@ -529,7 +529,9 @@ void Free_Segment_Vertices(Game_State& state, u8* ptr) {
 
 u8* Allocate_Graph_Nodes(Game_State& state, int all_nodes_count) {
     NOT_IMPLEMENTED;
-    return nullptr;
+    return  nullptr;
+    // auto result = state.game_map.graph_nodes_allocator.Allocate();
+    // return result;
 }
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {

@@ -115,17 +115,10 @@ struct Test_Node {
         rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_),                  \
         offsetof(type_, active), offsetof(type_, next), sizeof(type_));
 
-#define Allocator_Allocate_Macro(allocator_, size_, alignment_)                              \
-    (allocator_)                                                                             \
-        .Allocate(                                                                           \
-            (size_), (alignment_), offsetof(Allocation, active), offsetof(Allocation, base), \
-            offsetof(Allocation, size), offsetof(Allocation, next), sizeof(Allocation));
+#define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
+    (allocator_).Allocate((size_), (alignment_));
 
-#define Allocator_Free_Macro(allocator_, key_)                                \
-    (allocator_)                                                              \
-        .Free(                                                                \
-            (key_), offsetof(Allocation, active), offsetof(Allocation, base), \
-            offsetof(Allocation, size), offsetof(Allocation, next), sizeof(Allocation));
+#define Allocator_Free_Macro(allocator_, key_) (allocator_).Free((key_));
 
 TEST_CASE("Linked List") {
     Test_Node* nodes = new Test_Node[10]{};

@@ -71,10 +71,10 @@ u8* Book_Single_Page(Game_State& state) {
     return rcast<u8*>(aligned_addr);
 }
 
-#define A_Active(node_) *rcast<bool*>((node_) + active_offset)
-#define A_Next(node_) *rcast<size_t*>((node_) + next_offset)
-#define A_Base(node_) *rcast<u8**>((node_) + base_offset)
-#define A_Size(node_) *rcast<size_t*>((node_) + size_offset)
+#define A_Active(node_) *rcast<bool*>(&(node_)->active)
+#define A_Next(node_) *rcast<size_t*>(&(node_)->next)
+#define A_Base(node_) *rcast<u8**>(&(node_)->base)
+#define A_Size(node_) *rcast<size_t*>(&(node_)->size)
 
 struct Allocation {
     u8* base;
@@ -113,15 +113,7 @@ struct Allocator : Non_Copyable {
         }
     }
 
-    std::tuple<size_t, u8*> Allocate(
-        size_t size,
-        size_t alignment,
-        size_t active_offset,
-        size_t base_offset,
-        size_t size_offset,
-        size_t next_offset,
-        size_t node_size  //
-    ) {
+    std::tuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
         Assert(size > 0);
         Assert(alignment > 0);
         Assert(toc_buffer != nullptr);
@@ -133,19 +125,19 @@ struct Allocator : Non_Copyable {
             return {size_t_max, nullptr};
         }
 
-        u8* nodes = toc_buffer;
+        auto nodes = rcast<Allocation*>(toc_buffer);
 
         auto previous_node_index = size_t_max;
         auto next_node_index = size_t_max;
         if (current_allocations_count > 0)
             next_node_index = first_allocation_index;
 
-        u8* previous_node = nullptr;
-        u8* next_node = nullptr;
+        Allocation* previous_node = nullptr;
+        Allocation* next_node = nullptr;
         u8* base_ptr = Align_Forward(data_buffer, alignment);
 
         FOR_RANGE(size_t, i, current_allocations_count) {
-            next_node = nodes + next_node_index * node_size;
+            next_node = nodes + next_node_index;
             Assert(A_Active(next_node));
 
             if (base_ptr + size > A_Base(next_node)) {
@@ -161,10 +153,10 @@ struct Allocator : Non_Copyable {
 
         // Получение незаюзанной ноды
         size_t new_free_node_index = size_t_max;
-        u8* new_free_node = nullptr;
+        Allocation* new_free_node = nullptr;
         {
             FOR_RANGE(size_t, i, current_allocations_count + 1) {
-                u8* n = nodes + i * node_size;
+                Allocation* n = nodes + i;
                 if (A_Active(n))
                     continue;
 
@@ -190,23 +182,16 @@ struct Allocator : Non_Copyable {
         return {new_free_node_index, base_ptr};
     }
 
-    void Free(
-        size_t key,
-        size_t active_offset,
-        size_t base_offset,
-        size_t size_offset,
-        size_t next_offset,
-        size_t node_size  //
-    ) {
+    void Free(size_t key) {
         Assert(current_allocations_count > 0);
         Assert(key != size_t_max);
 
-        u8* nodes = toc_buffer;
-        u8* previous_node = nullptr;
+        auto nodes = rcast<Allocation*>(toc_buffer);
+        Allocation* previous_node = nullptr;
         auto current_index = first_allocation_index;
 
         FOR_RANGE(size_t, i, current_allocations_count) {
-            auto node = nodes + current_index * node_size;
+            auto node = nodes + current_index;
             if (current_index == key) {
                 if (previous_node != nullptr)
                     A_Next(previous_node) = A_Next(node);
