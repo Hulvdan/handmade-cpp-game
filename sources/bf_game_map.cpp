@@ -680,10 +680,11 @@ void Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::Building)
                     continue;
 
-                if (element_tile.type == Element_Tile_Type::Flag)
+                if (element_tile.type == Element_Tile_Type::Flag) {
                     Enqueue(big_fuken_queue, {Opposite(dir), new_pos});
-                else
+                } else {
                     Enqueue(big_fuken_queue, {Direction::Right, new_pos});
+                }
 
                 Enqueue(big_fuken_queue, {Direction::Up, new_pos});
                 Enqueue(big_fuken_queue, {Direction::Left, new_pos});
@@ -733,11 +734,11 @@ void Update_Tiles(
             auto [dir, pos] = Dequeue(queue);
             auto& tile = *(element_tiles + pos.y * gsize.x + pos.x);
 
-            auto& scriptable = *Get_Scriptable_Building(state, tile.building->scriptable_id);
-
             auto is_flag = tile.type == Element_Tile_Type::Flag;
             auto is_building = tile.type == Element_Tile_Type::Building;
-            auto is_city_hall = is_building && scriptable.type == Building_Type::City_Hall;
+            auto is_city_hall = is_building &&
+                (*Get_Scriptable_Building(state, tile.building->scriptable_id)).type ==
+                    Building_Type::City_Hall;
 
             if (is_flag || is_building) {
                 auto converted = To_Graph_v2u(pos);
@@ -782,7 +783,7 @@ void Update_Tiles(
                 }
 
                 visited_value = Graph_Node_Mark(visited_value, dir_index, true);
-                new_visited_value = Graph_Node_Mark(new_visited_value, dir_index, true);
+                new_visited_value = Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
                 Graph_Update(temp_graph, pos.x, pos.y, dir_index, true);
                 Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index, true);
 
@@ -791,12 +792,13 @@ void Update_Tiles(
 
                 if (new_is_building || new_is_flag) {
                     Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
-                } else
+                } else {
                     Enqueue(queue, {(Direction)0, new_pos});
+                }
             }
         }
 
-        if (vertices_count == 0)
+        if (vertices_count <= 1)
             continue;
 
         // NOTE(hulvdan): Adding a new segment
@@ -828,7 +830,6 @@ void Update_Tiles(
                 if (node) {
                     gr_size.x = MAX(gr_size.x, x);
                     gr_size.y = MAX(gr_size.y, y);
-                } else {
                     offset.x = MIN(offset.x, x);
                     offset.y = MIN(offset.y, y);
                 }
@@ -836,6 +837,8 @@ void Update_Tiles(
         }
         gr_size.x -= offset.x;
         gr_size.y -= offset.y;
+        gr_size.x += 1;
+        gr_size.y += 1;
 
         Assert(gr_size.x > 0);
         Assert(gr_size.y > 0);
@@ -852,7 +855,7 @@ void Update_Tiles(
         segment.graph.nodes_key = nodes_key;
 
         auto rows = gr_size.y;
-        auto stride = gr_size.x;
+        auto stride = gsize.x;
         auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
         Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
     }
@@ -976,7 +979,7 @@ void Update_Tiles(
                 auto& page2 = *(game_map.segment_pages + page_index2);
 
                 FOR_RANGE(int, i2, game_map.max_segments_per_page) {
-                    if (i1 == i2)
+                    if ((i1 == i2) && (page_index1 == page_index2))
                         continue;
 
                     auto& segment2 =
@@ -987,13 +990,13 @@ void Update_Tiles(
 
                     for (auto y = 0; y < g1.size.y; y++) {
                         for (auto x = 0; x < g1.size.x; x++) {
-                            v2i g1p = v2i(x + g1.offset.x, y + g1.offset.y);
-                            v2i g2p = {g1p.x - g2.offset.x, g1p.y - g2.offset.y};
-                            if (!Pos_Is_In_Bounds(g2p, g2.size))
+                            v2i g1p_world = v2i(x + g1.offset.x, y + g1.offset.y);
+                            v2i g2p_local = {g1p_world.x - g2.offset.x, g1p_world.y - g2.offset.y};
+                            if (!Pos_Is_In_Bounds(g2p_local, g2.size))
                                 continue;
 
                             u8 node1 = *(g1.nodes + y * g1.size.x + x);
-                            u8 node2 = *(g2.nodes + g2p.y * g2.size.x + g2p.x);
+                            u8 node2 = *(g2.nodes + g2p_local.y * g2.size.x + g2p_local.x);
                             bool no_intersections = (node1 & node2) == 0;
                             Assert(no_intersections);
                         }
@@ -1035,15 +1038,17 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
             Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Placed);
             Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
         }  //
-        else
+        else {
             return false;
+        }
 
         Assert(tile.building == nullptr);
     } break;
 
     case Item_To_Build_Type::Road: {
-        if (tile.type != Element_Tile_Type::None)
+        if (tile.type != Element_Tile_Type::None) {
             return false;
+        }
 
         Assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
@@ -1053,8 +1058,9 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     } break;
 
     case Item_To_Build_Type::Building: {
-        if (tile.type != Element_Tile_Type::None)
+        if (tile.type != Element_Tile_Type::None) {
             return false;
+        }
 
         Assert(item.scriptable_building_id != 0);
         Place_Building(state, pos, item.scriptable_building_id);

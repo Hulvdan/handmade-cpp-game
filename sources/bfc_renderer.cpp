@@ -1064,6 +1064,67 @@ void Render(Game_State& state, f32 dt) {
     }
 
     ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
+
+    {
+        const BF_Color colors[] = {
+            {1, 0, 0},  //
+            {0, 1, 0},  //
+            {0, 0, 1},  //
+            {1, 1, 0},  //
+            {0, 1, 1},  //
+            {1, 0, 1},  //
+            {1, 1, 1}  //
+        };
+        size_t colors_count = sizeof(colors) / sizeof(colors[0]);
+        local_persist size_t segment_index = 0;
+        segment_index++;
+        if (segment_index >= colors_count)
+            segment_index = 0;
+
+        FOR_RANGE(int, page_index, game_map.segment_pages_used) {
+            auto& page = *(game_map.segment_pages + page_index);
+
+            FOR_RANGE(int, i, game_map.max_segments_per_page) {
+                auto& segment = *rcast<Graph_Segment*>(page.base + sizeof(Graph_Segment) * i);
+                auto& graph = segment.graph;
+                if (!segment.active)
+                    continue;
+
+                // segment_index++;
+                FOR_RANGE(int, y, graph.size.y) {
+                    FOR_RANGE(int, x, graph.size.x) {
+                        auto node = *(graph.nodes + y * graph.size.x + x);
+                        if (!node)
+                            continue;
+
+                        // auto& color = colors[segment_index % colors_count];
+
+                        auto offset = v2f(graph.offset.x, graph.offset.y);
+                        v2f center = v2f(x, y) + offset;
+                        FOR_RANGE(int, ii, 4) {
+                            auto dir = (Direction)ii;
+                            if (!Graph_Node_Has(node, dir))
+                                continue;
+
+                            auto offsetted = (v2f)(As_Offset(dir)) / 2.0f + offset;
+
+                            auto p1 = projection * v3f(center, 1);
+                            auto p2 = projection * v3f(offsetted, 1);
+
+                            glLineWidth(11);
+                            glBegin(GL_LINES);
+                            glColor3fv((GLfloat*)(colors + segment_index));
+                            glVertex2f(p1.x, p1.y);
+                            glVertex2f(p2.x, p2.y);
+                            glEnd();
+                        }
+                    }
+                }
+            }
+        }
+
+        glColor3fv((GLfloat*)(colors + 6));
+    }
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item

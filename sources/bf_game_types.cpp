@@ -113,13 +113,13 @@ struct Graph_Segment_Precalculated_Data {
     // TODO(hulvdan): Reimplement `CalculatedGraphPathData` calculation from the old repo
 };
 
-bool Graph_Node_Has(u8 node, Direction d) {
+[[nodiscard]] bool Graph_Node_Has(u8 node, Direction d) {
     Assert((u8)d >= 0);
     Assert((u8)d < 4);
     return node & (1 << (u8)d);
 }
 
-u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {
+[[nodiscard]] u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {
     Assert((u8)d >= 0);
     Assert((u8)d < 4);
     auto dir = (u8)d;
@@ -133,15 +133,15 @@ u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {
     return node;
 }
 
-void Graph_Update(Graph& graph, int x, int y, Direction dir, b32 value) {
+void Graph_Update(Graph& graph, int x, int y, Direction dir, bool value) {
     Assert((u8)dir >= 0);
     Assert((u8)dir < 4);
     Assert(graph.offset.x == 0);
     Assert(graph.offset.y == 0);
     auto& node = *(graph.nodes + y * graph.size.x + x);
 
-    b32 node_is_zero_but_wont_be_after = (node == 0) && value;
-    b32 node_is_not_zero_but_will_be =
+    bool node_is_zero_but_wont_be_after = (node == 0) && value;
+    bool node_is_not_zero_but_will_be =
         (!value) && (node != 0) && (Graph_Node_Mark(node, dir, false) == 0);
 
     if (node_is_zero_but_wont_be_after)
