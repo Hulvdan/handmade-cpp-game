@@ -117,6 +117,7 @@ target_include_directories(tests PRIVATE
 )
 target_compile_definitions(tests PRIVATE
     GAME_LIBRARY_BUILD
+    TESTS
 
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS

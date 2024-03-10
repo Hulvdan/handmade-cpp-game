@@ -11,9 +11,9 @@
 // NOTE(hulvdan): Refer to Casey's memory allocation functions
 // https://youtu.be/MvDUe2evkHg?list=PLEMXAbCVnmY6Azbmzj3BiC3QRYHE9QoG7&t=2121
 u8* Allocate_(Arena& arena, size_t size) {
-    assert(size > 0);
-    assert(arena.size >= size);
-    assert(arena.used <= arena.size - size);
+    Assert(size > 0);
+    Assert(arena.size >= size);
+    Assert(arena.used <= arena.size - size);
 
     u8* result = arena.base + arena.used;
     arena.used += size;
@@ -27,8 +27,8 @@ u8* Allocate_Zeros_(Arena& arena, size_t size) {
 }
 
 void Deallocate_(Arena& arena, size_t size) {
-    assert(size > 0);
-    assert(arena.used >= size);
+    Assert(size > 0);
+    Assert(arena.used >= size);
     arena.used -= size;
 }
 
@@ -46,7 +46,7 @@ u8* Book_Single_Page(Game_State& state) {
     }
 
     // NOTE(hulvdan): Allocating more pages and mapping them
-    assert(pages.allocated_count < pages.total_count_cap);
+    Assert(pages.allocated_count < pages.total_count_cap);
 
     auto pages_to_allocate = os_data.min_pages_per_allocation;
     auto allocation_address = os_data.Allocate_Pages(pages_to_allocate);
@@ -109,7 +109,7 @@ struct Allocator : Non_Copyable {
           max_toc_entries(a_toc_buffer_size / sizeof(Allocation))  //
     {
         FOR_RANGE(size_t, i, a_toc_buffer_size) {
-            assert(*(a_toc_buffer + i) == 0);
+            Assert(*(a_toc_buffer + i) == 0);
         }
     }
 
@@ -122,14 +122,14 @@ struct Allocator : Non_Copyable {
         size_t next_offset,
         size_t node_size  //
     ) {
-        assert(size > 0);
-        assert(alignment > 0);
-        assert(toc_buffer != nullptr);
-        assert(data_buffer != nullptr);
+        Assert(size > 0);
+        Assert(alignment > 0);
+        Assert(toc_buffer != nullptr);
+        Assert(data_buffer != nullptr);
 
         if (current_allocations_count + 1 > max_toc_entries) {
             // TODO(hulvdan): Diagnostic
-            assert(false);
+            Assert(false);
             return {size_t_max, nullptr};
         }
 
@@ -146,7 +146,7 @@ struct Allocator : Non_Copyable {
 
         FOR_RANGE(size_t, i, current_allocations_count) {
             next_node = nodes + next_node_index * node_size;
-            assert(A_Active(next_node));
+            Assert(A_Active(next_node));
 
             if (base_ptr + size > A_Base(next_node)) {
                 base_ptr = Align_Forward(A_Base(next_node) + A_Size(next_node), alignment);
@@ -172,8 +172,8 @@ struct Allocator : Non_Copyable {
                 new_free_node_index = i;
                 break;
             }
-            assert(new_free_node_index != size_t_max);
-            assert(new_free_node != nullptr);
+            Assert(new_free_node_index != size_t_max);
+            Assert(new_free_node != nullptr);
         }
 
         A_Active(new_free_node) = true;
@@ -198,8 +198,8 @@ struct Allocator : Non_Copyable {
         size_t next_offset,
         size_t node_size  //
     ) {
-        assert(current_allocations_count > 0);
-        assert(key != size_t_max);
+        Assert(current_allocations_count > 0);
+        Assert(key != size_t_max);
 
         u8* nodes = toc_buffer;
         u8* previous_node = nullptr;

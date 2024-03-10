@@ -1,7 +1,7 @@
 #pragma once
 
 Scriptable_Resource* Get_Scriptable_Resource(Game_State& state, Scriptable_Resource_ID id) {
-    assert(id - 1 < state.scriptable_resources_count);
+    Assert(id - 1 < state.scriptable_resources_count);
     auto exists = id != 0;
     auto ptr_offset = (ptrd)(state.scriptable_resources + id - 1);
     auto result = ptr_offset * exists;
@@ -9,7 +9,7 @@ Scriptable_Resource* Get_Scriptable_Resource(Game_State& state, Scriptable_Resou
 }
 
 Scriptable_Building* Get_Scriptable_Building(Game_State& state, Scriptable_Building_ID id) {
-    assert(id - 1 < state.scriptable_buildings_count);
+    Assert(id - 1 < state.scriptable_buildings_count);
     auto exists = id != 0;
     auto ptr_offset = (ptrd)(state.scriptable_buildings + id - 1);
     auto result = ptr_offset * exists;
@@ -17,12 +17,12 @@ Scriptable_Building* Get_Scriptable_Building(Game_State& state, Scriptable_Build
 }
 
 Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos) {
-    assert(Pos_Is_In_Bounds(pos, game_map.size));
+    Assert(Pos_Is_In_Bounds(pos, game_map.size));
     return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
 }
 
 Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
-    assert(Pos_Is_In_Bounds(pos, game_map.size));
+    Assert(Pos_Is_In_Bounds(pos, game_map.size));
     return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
@@ -58,8 +58,8 @@ void Regenerate_Terrain_Tiles(
             auto noise = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
             tile.height = int((data.terrain_max_height + 1) * noise);
 
-            assert(tile.height >= 0);
-            assert(tile.height <= data.terrain_max_height);
+            Assert(tile.height >= 0);
+            Assert(tile.height <= data.terrain_max_height);
         }
     }
 
@@ -168,7 +168,7 @@ void Regenerate_Element_Tiles(
         Element_Tile& tile = *(game_map.element_tiles + o.y * gsize.x + o.x);
 
         tile.type = Element_Tile_Type::Road;
-        assert(tile.building == nullptr);
+        Assert(tile.building == nullptr);
     }
 
     FOR_RANGE(int, y, gsize.y) {
@@ -197,7 +197,7 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     auto& os_data = *state.os_data;
 
     const auto page_size = os_data.page_size;
-    assert(Pos_Is_In_Bounds(pos, gsize));
+    Assert(Pos_Is_In_Bounds(pos, gsize));
 
     Page* page = nullptr;
     Building* found_instance = nullptr;
@@ -221,14 +221,14 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     }
 
     if (found_instance == nullptr) {
-        assert(game_map.building_pages_used < game_map.building_pages_total);
+        Assert(game_map.building_pages_used < game_map.building_pages_total);
         page = game_map.building_pages + game_map.building_pages_used;
 
         page->base = Book_Single_Page(state);
         game_map.building_pages_used++;
 
         found_instance = rcast<Building*>(page->base);
-        assert(found_instance != nullptr);
+        Assert(found_instance != nullptr);
     }
 
     Get_Building_Page_Meta(page_size, *page).count++;
@@ -239,7 +239,7 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     instance.scriptable_id = id;
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
-    assert(tile.type == Element_Tile_Type::None);
+    Assert(tile.type == Element_Tile_Type::None);
     tile.type = Element_Tile_Type::Building;
     tile.building = found_instance;
 }
@@ -273,14 +273,14 @@ Graph_Segment& New_Graph_Segment(Game_State& state) {
     }
 
     if (found_instance == nullptr) {
-        assert(game_map.segment_pages_used < game_map.segment_pages_total);
+        Assert(game_map.segment_pages_used < game_map.segment_pages_total);
         page = game_map.segment_pages + game_map.segment_pages_used;
 
         page->base = Book_Single_Page(state);
         game_map.segment_pages_used++;
 
         found_instance = rcast<Graph_Segment*>(page->base);
-        assert(found_instance != nullptr);
+        Assert(found_instance != nullptr);
     }
 
     Get_Graph_Segment_Page_Meta(page_size, *page).count++;
@@ -302,7 +302,7 @@ struct Updated_Tiles {
 // }
 //
 // u8 Graph_Node(Graph& graph, v2i pos) {
-//     assert(Graph_AABB(graph, pos));
+//     Assert(Graph_AABB(graph, pos));
 //
 //     auto new_pos = pos - graph.offset;
 //     auto& node = *(graph.nodes + graph.size.x * new_pos.y + new_pos.x);
@@ -390,7 +390,7 @@ bool Should_Segment_Be_Deleted(
 // TODO(hulvdan): Прикруть `Graph_v2u operator==`
 #define Add_Without_Duplication(max_count_, count_, array_, value_)     \
     {                                                                   \
-        assert((max_count_) >= (count_));                               \
+        Assert((max_count_) >= (count_));                               \
                                                                         \
         auto found = false;                                             \
         FOR_RANGE(int, i, (count_)) {                                   \
@@ -402,7 +402,7 @@ bool Should_Segment_Be_Deleted(
         }                                                               \
                                                                         \
         if (!found) {                                                   \
-            assert((count_) < (max_count_));                            \
+            Assert((count_) < (max_count_));                            \
             *((array_) + (count_)) = (value_);                          \
             (count_)++;                                                 \
         }                                                               \
@@ -452,18 +452,18 @@ size_t Linked_List_Push_Back(
 
         break;
     }
-    assert(new_free_node_index != size_t_max);
-    assert(new_free_node != nullptr);
+    Assert(new_free_node_index != size_t_max);
+    Assert(new_free_node != nullptr);
 
     if (n > 0) {
         u8* last_node = nodes + first_node_index * node_size;
         FOR_RANGE(size_t, i, n - 1) {
-            assert(*rcast<bool*>(last_node + active_offset) == true);
+            Assert(*rcast<bool*>(last_node + active_offset) == true);
             auto index_offset = *rcast<size_t*>(last_node + next_offset);
             last_node = nodes + index_offset * node_size;
         }
 
-        assert(*rcast<bool*>(last_node + active_offset) == true);
+        Assert(*rcast<bool*>(last_node + active_offset) == true);
         *rcast<size_t*>(last_node + next_offset) = new_free_node_index;
     }
 
@@ -484,7 +484,7 @@ void Linked_List_Remove_At(
     const size_t next_offset,
     const size_t node_size  //
 ) {
-    assert(n > 0);
+    Assert(n > 0);
 
     if (node_index == first_node_index) {
         auto node = nodes + node_size * first_node_index;
@@ -519,7 +519,7 @@ void Linked_List_Remove_At(
         }
     }
 
-    assert(false);
+    Assert(false);
 }
 
 void Free_Segment_Vertices(Game_State& state, u8* ptr) {
@@ -560,7 +560,7 @@ void Update_Tiles(
 
     FOR_RANGE(auto, segment_page_index_, game_map.segment_pages_used) {
         auto page_base = (game_map.segment_pages + segment_page_index_)->base;
-        assert(page_base != nullptr);
+        Assert(page_base != nullptr);
         auto base_segment_ptr = rcast<Graph_Segment*>(page_base);
 
         FOR_RANGE(auto, segment_index, game_map.max_segments_per_page) {
@@ -584,7 +584,7 @@ void Update_Tiles(
             // }
             //
             // if (!found) {
-            assert(segments_to_be_deleted_count < updated_tiles.count * 4);
+            Assert(segments_to_be_deleted_count < updated_tiles.count * 4);
             *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
             segments_to_be_deleted_count++;
             // }
@@ -766,9 +766,9 @@ void Update_Tiles(
         if (vertices_count == 0)
             continue;
 
-        assert(temp_graph.nodes_count > 0);
-        // assert(temp_height > 0);
-        // assert(width > 0);
+        Assert(temp_graph.nodes_count > 0);
+        // Assert(temp_height > 0);
+        // Assert(width > 0);
 
         auto& segment = *(added_segments + added_segments_count);
         segment.active = true;
@@ -799,12 +799,12 @@ void Update_Tiles(
         gr_size.x -= offset.x;
         gr_size.y -= offset.y;
 
-        assert(gr_size.x > 0);
-        assert(gr_size.y > 0);
-        assert(offset.x >= 0);
-        assert(offset.y >= 0);
-        assert(offset.x < gsize.x);
-        assert(offset.y < gsize.y);
+        Assert(gr_size.x > 0);
+        Assert(gr_size.y > 0);
+        Assert(offset.x >= 0);
+        Assert(offset.y >= 0);
+        Assert(offset.x < gsize.x);
+        Assert(offset.y < gsize.y);
 
         // NOTE(hulvdan): Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
@@ -948,7 +948,7 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
 
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
-    assert(Pos_Is_In_Bounds(pos, gsize));
+    Assert(Pos_Is_In_Bounds(pos, gsize));
 
     auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
 
@@ -967,14 +967,14 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
         else
             return false;
 
-        assert(tile.building == nullptr);
+        Assert(tile.building == nullptr);
     } break;
 
     case Item_To_Build_Type::Road: {
         if (tile.type != Element_Tile_Type::None)
             return false;
 
-        assert(tile.building == nullptr);
+        Assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Road_Placed);
@@ -985,7 +985,7 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
         if (tile.type != Element_Tile_Type::None)
             return false;
 
-        assert(item.scriptable_building_id != 0);
+        Assert(item.scriptable_building_id != 0);
         Place_Building(state, pos, item.scriptable_building_id);
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Building_Placed);

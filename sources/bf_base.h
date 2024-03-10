@@ -3,6 +3,7 @@
 #include "glm/gtx/matrix_transform_2d.hpp"
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
+#include <cassert>
 
 #ifdef BF_INTERNAL
 #define BREAKPOINT __debugbreak()
@@ -65,8 +66,14 @@ using v3i = glm::ivec3;
 
 #include "bf_types.h"
 
-#define INVALID_PATH assert(false)
-#define NOT_IMPLEMENTED assert(false)
+#ifdef TESTS
+#define Assert(expr) REQUIRE(expr)
+#else
+#define Assert(expr) assert(expr)
+#endif  // TESTS
+
+#define INVALID_PATH Assert(false)
+#define NOT_IMPLEMENTED Assert(false)
 
 #define scast static_cast
 #define rcast reinterpret_cast

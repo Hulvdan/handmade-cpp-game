@@ -20,7 +20,7 @@ Debug_Load_File_Result Debug_Load_File(const char* filename, u8* output, size_t 
 
     FILE* file = 0;
     auto failed = fopen_s(&file, absolute_file_path, "r");
-    assert(!failed);
+    Assert(!failed);
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);
 
@@ -31,7 +31,7 @@ Debug_Load_File_Result Debug_Load_File(const char* filename, u8* output, size_t 
         res.size = read_bytes;
     }
 
-    assert(fclose(file) == 0);
+    Assert(fclose(file) == 0);
     return res;
 }
 

@@ -45,7 +45,7 @@ template <typename T>
 void Enqueue(Fixed_Size_Queue<T>& queue, const T& value) {
     // TODO(hulvdan): Test!
 
-    assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
+    Assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
 
     *(queue.base + queue.count) = value;
     queue.count++;
@@ -55,8 +55,8 @@ template <typename T>
 T Dequeue(Fixed_Size_Queue<T>& queue) {
     // TODO(hulvdan): Test!
 
-    assert(queue.base != nullptr);
-    assert(queue.count > 0);
+    Assert(queue.base != nullptr);
+    Assert(queue.count > 0);
 
     T res = *queue.base;
     queue.count -= 1;
@@ -76,14 +76,14 @@ enum class Direction {
 };
 
 v2i As_Offset(Direction dir) {
-    assert((u8)dir >= 0);
-    assert((u8)dir < 4);
+    Assert((u8)dir >= 0);
+    Assert((u8)dir < 4);
     return v2i_adjacent_offsets[(int)dir];
 }
 
 Direction Opposite(Direction dir) {
-    assert((u8)dir >= 0);
-    assert((u8)dir < 4);
+    Assert((u8)dir >= 0);
+    Assert((u8)dir < 4);
     return (Direction)(((u8)(dir) + 2) % 4);
 }
 
@@ -132,14 +132,14 @@ struct Graph_Segment_Precalculated_Data {
 };
 
 bool Graph_Node_Has(u8 node, Direction d) {
-    assert((u8)d >= 0);
-    assert((u8)d < 4);
+    Assert((u8)d >= 0);
+    Assert((u8)d < 4);
     return node & (1 << (u8)d);
 }
 
 u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {
-    assert((u8)d >= 0);
-    assert((u8)d < 4);
+    Assert((u8)d >= 0);
+    Assert((u8)d < 4);
     auto dir = (u8)d;
 
     if (value)
@@ -147,15 +147,15 @@ u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {
     else
         node &= (u8)(15 ^ (1 << dir));
 
-    assert(node < 16);
+    Assert(node < 16);
     return node;
 }
 
 void Graph_Update(Graph& graph, int x, int y, Direction dir, b32 value) {
-    assert((u8)dir >= 0);
-    assert((u8)dir < 4);
-    assert(graph.offset.x == 0);
-    assert(graph.offset.y == 0);
+    Assert((u8)dir >= 0);
+    Assert((u8)dir < 4);
+    Assert(graph.offset.x == 0);
+    Assert(graph.offset.y == 0);
     auto& node = *(graph.nodes + y * graph.size.x + x);
 
     b32 node_is_zero_but_wont_be_after = (node == 0) && value;
@@ -255,13 +255,13 @@ struct Element_Tile : public Non_Copyable {
 };
 
 void Validate_Element_Tile(Element_Tile& tile) {
-    assert((int)tile.type >= 0);
-    assert((int)tile.type <= 3);
+    Assert((int)tile.type >= 0);
+    Assert((int)tile.type <= 3);
 
     if (tile.type == Element_Tile_Type::Building)
-        assert(tile.building != nullptr);
+        Assert(tile.building != nullptr);
     else
-        assert(tile.building == nullptr);
+        Assert(tile.building == nullptr);
 }
 
 struct Scriptable_Resource : public Non_Copyable {

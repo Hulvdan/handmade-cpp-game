@@ -255,7 +255,6 @@ TEST_CASE("Allocator") {
     u8* toc_buffer = new u8[1024];
     u8* data_buffer = new u8[1024];
     memset(toc_buffer, 0, 1024);
-    memset(data_buffer, 0, 1024);
 
     auto allocator = Allocator(1024, toc_buffer, 1024, data_buffer);
     auto alloc = rcast<Allocation*>(toc_buffer);

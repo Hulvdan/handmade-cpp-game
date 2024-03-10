@@ -5,7 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-#include <cassert>
+// #include <cassert>
 #include <cstdlib>
 #include <memory>
 #include <tuple>
@@ -41,7 +41,7 @@ bool UI_Clicked(Game_State& state) {
     auto& rstate = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
-    assert(rstate.bitmap != nullptr);
+    Assert(rstate.bitmap != nullptr);
     Game_Bitmap& bitmap = *rstate.bitmap;
 
     auto gsize = game_map.size;
@@ -138,7 +138,7 @@ void Process_Events(
             if (!UI_Clicked(state)) {
                 if (event.type == Mouse_Button_Type::Left) {
                     if (ui_state.selected_buildable_index >= 0) {
-                        assert(ui_state.selected_buildable_index < ui_state.buildables_count);
+                        Assert(ui_state.selected_buildable_index < ui_state.buildables_count);
                         auto& selected_buildable =
                             *(ui_state.buildables + ui_state.selected_buildable_index);
 
@@ -224,8 +224,9 @@ void Process_Events(
 
         case Event_Type::Controller_Axis_Changed: {
             PROCESS_EVENTS_CONSUME(Controller_Axis_Changed, event);
+            Assert(event.axis >= 0);
+            Assert(event.axis <= 1);
 
-            assert(event.axis >= 0 && event.axis <= 1);
             if (event.axis == 0)
                 state.player_pos.x += event.value;
             else
@@ -270,7 +271,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     // --- IMGUI ---
     if (!first_time_initializing) {
-        assert(state.renderer_state != nullptr);
+        Assert(state.renderer_state != nullptr);
         auto& rstate = *state.renderer_state;
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
@@ -354,7 +355,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
             auto r_ = Get_Scriptable_Resource(state, 1);
-            assert(r_ != nullptr);
+            Assert(r_ != nullptr);
             auto& r = *r_;
 
             r.name = "forest";
@@ -365,7 +366,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
             auto b_ = Get_Scriptable_Building(state, global_city_hall_building_id);
-            assert(b_ != nullptr);
+            Assert(b_ != nullptr);
             auto& b = *b_;
 
             b.name = "City Hall";
@@ -373,7 +374,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
         {
             auto b_ = Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
-            assert(b_ != nullptr);
+            Assert(b_ != nullptr);
             auto& b = *b_;
 
             b.name = "Lumberjack's Hut";
@@ -391,8 +392,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 auto struct_size = sizeof(Building);
 
                 auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
-                assert(max_pages_count < 100);
-                assert(max_pages_count > 0);
+                Assert(max_pages_count < 100);
+                Assert(max_pages_count > 0);
 
                 state.game_map.building_pages_total = max_pages_count;
                 state.game_map.building_pages_used = 0;
@@ -407,8 +408,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 auto struct_size = sizeof(Graph_Segment);
 
                 auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
-                assert(max_pages_count < 100);
-                assert(max_pages_count > 0);
+                Assert(max_pages_count < 100);
+                Assert(max_pages_count > 0);
 
                 state.game_map.segment_pages_total = max_pages_count;
                 state.game_map.segment_pages_used = 0;
@@ -440,7 +441,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     else
         INVALID_PATH;
 
-    assert(bitmap.bits_per_pixel == 32);
+    Assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
 
     auto offset_x = (i32)state.offset_x;
