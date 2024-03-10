@@ -417,13 +417,6 @@ Graph_v2u* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
     return nullptr;
 }
 
-struct Allocation {
-    u8* base;
-    size_t size;
-    size_t next;
-    bool active;
-};
-
 //
 // []                                 first_index = max
 // [(v1,max,t)]                       first_index = 0  (added node to the end)
