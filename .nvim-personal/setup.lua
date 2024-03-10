@@ -11,6 +11,7 @@ vim.fn.execute(":set nowritebackup")
 -- Helper Functions --
 -- ================ --
 local todo_plugin = require("todo-comments");
+local overseer = require("overseer")
 
 -- Options:
 -- go_down - default: true - Places a cursor at the bottom upon launching the command
@@ -64,34 +65,91 @@ function reload_file()
     vim.fn.execute(":e")
 end
 
+function build_task()
+    return overseer.new_task({
+        cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal]],
+        components = {
+            { "on_output_quickfix", open = true, close = true },
+            "default"
+        },
+    })
+end
+
+function test_task()
+    return overseer.new_task({
+        strategy = "terminal",
+        -- cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal]],
+        cmd = [[cmd\build.bat && cmd\run_unit_tests.bat]],
+        components = {
+            { "on_output_quickfix", open = true, close = true },
+            "default"
+        },
+    })
+    -- return overseer.new_task({
+    --     name = "tests",
+    --     strategy = {
+    --         "orchestrator",
+    --         tasks = {
+    --             -- build_task(),
+    --             -- [[MSBuild .cmake\vs17\game.sln -v:minimal]],
+    --             [[cmd\run_unit_tests.bat]],
+    --         },
+    --     },
+    -- })
+end
+
+function lint_task()
+    return overseer.new_task({
+        cmd = [[cmd\lint.bat]],
+        components = {
+            { "on_output_quickfix", open = true, close = true },
+            "default"
+        },
+    })
+end
+
 -- Keyboard Shortcuts --
 -- ================== --
 local opts = { remap = false, silent = true }
 
 vim.keymap.set("n", "<leader>l", function()
     save_files()
-    launch_tab([[cmd\lint.bat]], { go_down = false })
+    lint_task():start()
 end, opts)
+
+
+-- local run_task = overseer.new_task({
+--     name = "aboba",
+--     strategy = {
+--         "orchestrator",
+--         tasks = {
+--             [[MSBuild .cmake\vs17\game.sln -v:minimal]],
+--             -- build_task,
+--             [[cmd\run.bat]],
+--         },
+--     },
+-- })
 
 vim.keymap.set("n", "<A-b>", function()
     save_files()
-    launch_side([[cmd\build.bat]])
+    build_task():start()
 end, opts)
+
 
 vim.keymap.set("n", "<f4>", function()
     save_files()
-    launch_side([[cmd\build.bat]])
+    build_task():start()
 end, opts)
 
-vim.keymap.set("n", "<f5>", function()
-    save_files()
-    launch_side([[cmd\build.bat && cmd\run.bat]])
-    -- launch_side([[cmd\build.bat && cmd\run_noise_sandbox.bat]])
-end, opts)
+-- vim.keymap.set("n", "<f5>", function()
+--     save_files()
+--     run_task:start()
+-- end, opts)
 
 vim.keymap.set("n", "<A-t>", function()
     save_files()
-    launch_side([[cmd\build.bat && cmd\run_unit_tests.bat]], { go_down = false })
+    test_task():start()
+    -- launch_side([[cmd\build.bat && cmd\run_unit_tests.bat]], { go_down = false })
 end, opts)
 
 vim.keymap.set("n", "<f6>", function()
@@ -136,3 +194,21 @@ vim.keymap.set("n", "<C-S-b>", function()
     save_files()
     launch_tab([[cmd\remake_cmake.bat]])
 end, opts)
+
+vim.keymap.set("n", "<C-}>", ":cn<CR>", opts)
+vim.keymap.set("n", "<C-{>", ":cp<CR>", opts)
+-- vim.keymap.set("n", "<C-S-]>", ":cn<CR>", opts)
+-- vim.keymap.set("n", "<C-S-[>", ":cp<CR>", opts)
+
+require("overseer").setup({
+    templates = { "builtin", "user.build_bat" },
+})
+
+-- Thanks to https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
+-- error message formats
+-- Microsoft MSBuild
+vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c):\ %m]])
+-- Microsoft compiler: cl.exe
+vim.fn.execute([[set errorformat+=\\\ %#%f(%l)\ :\ %#%t%[A-z]%#\ %m]])
+-- Microsoft HLSL compiler: fxc.exe
+vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]])
