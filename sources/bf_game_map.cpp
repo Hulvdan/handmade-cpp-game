@@ -26,6 +26,35 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
     return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
+void Initialize_Game_Map(Game_State& state, Arena& arena) {
+    auto& game_map = state.game_map;
+
+    {
+        size_t toc_size = 1024;
+        size_t data_size = 4096;
+
+        auto allocator_buffer =
+            rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
+        new (allocator_buffer) Allocator(
+            toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
+            data_size, Allocate_Array(arena, u8, data_size));
+
+        game_map.segment_vertices_allocator = allocator_buffer;
+    }
+    {
+        size_t toc_size = 1024;
+        size_t data_size = 4096;
+
+        auto allocator_buffer =
+            rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
+        new (allocator_buffer) Allocator(
+            toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
+            data_size, Allocate_Array(arena, u8, data_size));
+
+        game_map.graph_nodes_allocator = allocator_buffer;
+    }
+}
+
 void Regenerate_Terrain_Tiles(
     Game_State& state,
     Game_Map& game_map,
@@ -408,15 +437,6 @@ bool Should_Segment_Be_Deleted(
         }                                                               \
     }
 
-Graph_v2u* Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
-    auto& game_map = state.game_map;
-    auto size_to_book = sizeof(Graph_v2u) * vertices_count;
-
-    NOT_IMPLEMENTED;
-
-    return nullptr;
-}
-
 //
 // []                                 first_index = max
 // [(v1,max,t)]                       first_index = 0  (added node to the end)
@@ -522,16 +542,22 @@ void Linked_List_Remove_At(
     Assert(false);
 }
 
-void Free_Segment_Vertices(Game_State& state, u8* ptr) {
-    auto& game_map = state.game_map;
-    NOT_IMPLEMENTED;
+std::tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
+    auto [key, buffer] = state.game_map.segment_vertices_allocator->Allocate(vertices_count, 1);
+    return {key, (Graph_v2u*)buffer};
 }
 
-u8* Allocate_Graph_Nodes(Game_State& state, int all_nodes_count) {
-    NOT_IMPLEMENTED;
-    return  nullptr;
-    // auto result = state.game_map.graph_nodes_allocator.Allocate();
-    // return result;
+void Free_Segment_Vertices(Game_State& state, size_t key) {
+    state.game_map.segment_vertices_allocator->Free(key);
+}
+
+std::tuple<size_t, u8*> Allocate_Graph_Nodes(Game_State& state, int nodes_count) {
+    auto [key, buffer] = state.game_map.graph_nodes_allocator->Allocate(nodes_count, 1);
+    return {key, buffer};
+}
+
+void Free_Graph_Nodes(Game_State& state, size_t key) {
+    state.game_map.graph_nodes_allocator->Free(key);
 }
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
@@ -775,7 +801,10 @@ void Update_Tiles(
         auto& segment = *(added_segments + added_segments_count);
         segment.active = true;
         segment.vertices_count = vertices_count;
-        segment.vertices = Allocate_Segment_Vertices(state, vertices_count);
+
+        auto [vertices_key, verticesss] = Allocate_Segment_Vertices(state, vertices_count);
+        segment.vertices = verticesss;
+        segment.vertices_key = vertices_key;
         memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
 
         segment.graph.nodes_count = temp_graph.nodes_count;
@@ -811,7 +840,9 @@ void Update_Tiles(
         // NOTE(hulvdan): Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
-        segment.graph.nodes = Allocate_Graph_Nodes(state, all_nodes_count);
+        auto [nodes_key, nodesss] = Allocate_Graph_Nodes(state, all_nodes_count);
+        segment.graph.nodes = nodesss;
+        segment.graph.nodes_key = nodes_key;
 
         auto rows = gr_size.y;
         auto stride = gr_size.x;

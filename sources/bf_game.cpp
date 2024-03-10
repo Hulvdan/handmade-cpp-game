@@ -18,10 +18,10 @@
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
+#include "bf_memory.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
-#include "bf_memory.cpp"
 #include "bf_math.cpp"
 #include "bf_rand.cpp"
 #include "bf_file.cpp"
@@ -381,6 +381,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             b.type = Building_Type::Harvest;
         }
 
+        Initialize_Game_Map(state, non_persistent_arena);
         Regenerate_Terrain_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
         Regenerate_Element_Tiles(

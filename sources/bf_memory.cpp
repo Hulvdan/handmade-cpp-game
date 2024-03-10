@@ -1,3 +1,23 @@
+// ============================================================= //
+//                            Memory                             //
+// ============================================================= //
+struct Arena : public Non_Copyable {
+    size_t used;
+    size_t size;
+    u8* base;
+};
+
+struct Page : public Non_Copyable {
+    u8* base;
+};
+
+struct Pages : public Non_Copyable {
+    size_t total_count_cap;
+    size_t allocated_count;
+    Page* base;
+    bool* in_use;
+};
+
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
 #define Allocate_Array(arena, type, count) rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
 
@@ -30,39 +50,6 @@ void Deallocate_(Arena& arena, size_t size) {
     Assert(size > 0);
     Assert(arena.used >= size);
     arena.used -= size;
-}
-
-u8* Book_Single_Page(Game_State& state) {
-    auto& pages = state.pages;
-    auto& os_data = *state.os_data;
-
-    // NOTE(hulvdan): If there exists allocated page that is not in use -> return it
-    FOR_RANGE(u32, i, pages.allocated_count) {
-        bool& in_use = *(pages.in_use + i);
-        if (!in_use) {
-            in_use = true;
-            return (pages.base + i)->base;
-        }
-    }
-
-    // NOTE(hulvdan): Allocating more pages and mapping them
-    Assert(pages.allocated_count < pages.total_count_cap);
-
-    auto pages_to_allocate = os_data.min_pages_per_allocation;
-    auto allocation_address = os_data.Allocate_Pages(pages_to_allocate);
-
-    FOR_RANGE(u32, i, pages_to_allocate) {
-        auto& page = *(pages.base + pages.allocated_count + i);
-        page.base = allocation_address + (ptrd)i * os_data.page_size;
-    }
-
-    // NOTE(hulvdan): Booking the first page that we allocated and returning it
-    Page* result = pages.base + (ptrd)pages.allocated_count;
-
-    *(pages.in_use + pages.allocated_count) = true;
-    pages.allocated_count += pages_to_allocate;
-
-    return result->base;
 }
 
 [[nodiscard]] inline u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
