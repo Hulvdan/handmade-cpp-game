@@ -77,7 +77,6 @@ using v3i = glm::ivec3;
 
 #define scast static_cast
 #define rcast reinterpret_cast
-#define bcast std::bit_cast
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

@@ -97,10 +97,10 @@ struct Graph_v2u {
 };
 
 Graph_v2u To_Graph_v2u(v2i pos) {
-    // Graph_v2u res;
-    // res.x = (Graph_u)pos.x;
-    // res.y = (Graph_u)pos.y;
-    return Graph_v2u(pos.x, pos.y);
+    Graph_v2u res;
+    res.x = pos.x;
+    res.y = pos.y;
+    return res;
 }
 
 // NOTE(hulvdan): `Graph_Segment_Page_Meta` gets placed at the end of the `Page`

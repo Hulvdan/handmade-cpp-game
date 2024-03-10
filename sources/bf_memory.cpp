@@ -66,9 +66,9 @@ u8* Book_Single_Page(Game_State& state) {
 }
 
 [[nodiscard]] inline u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
-    const auto addr = bcast<size_t>(ptr);
+    const auto addr = rcast<size_t>(ptr);
     const auto aligned_addr = (addr + (alignment - 1)) & -alignment;
-    return bcast<u8*>(aligned_addr);
+    return rcast<u8*>(aligned_addr);
 }
 
 #define A_Active(node_) *rcast<bool*>((node_) + active_offset)
