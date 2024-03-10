@@ -11,6 +11,7 @@ set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 add_compile_definitions(
     BF_INTERNAL
     BF_CLIENT
+    ASSERT_SLOW
 
     TRACY_ENABLE
     TRACY_ON_DEMAND

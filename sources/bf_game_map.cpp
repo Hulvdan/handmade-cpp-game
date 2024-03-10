@@ -543,20 +543,24 @@ void Linked_List_Remove_At(
 }
 
 std::tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
+    Assert(state.game_map.segment_vertices_allocator != nullptr);
     auto [key, buffer] = state.game_map.segment_vertices_allocator->Allocate(vertices_count, 1);
     return {key, (Graph_v2u*)buffer};
 }
 
 void Free_Segment_Vertices(Game_State& state, size_t key) {
+    Assert(state.game_map.segment_vertices_allocator != nullptr);
     state.game_map.segment_vertices_allocator->Free(key);
 }
 
 std::tuple<size_t, u8*> Allocate_Graph_Nodes(Game_State& state, int nodes_count) {
+    Assert(state.game_map.graph_nodes_allocator != nullptr);
     auto [key, buffer] = state.game_map.graph_nodes_allocator->Allocate(nodes_count, 1);
     return {key, buffer};
 }
 
 void Free_Graph_Nodes(Game_State& state, size_t key) {
+    Assert(state.game_map.graph_nodes_allocator != nullptr);
     state.game_map.graph_nodes_allocator->Free(key);
 }
 
@@ -582,7 +586,7 @@ void Update_Tiles(
     // NOTE(hulvdan): Ищем сегменты для удаления
     auto segments_to_be_deleted_allocate = updated_tiles.count * 4;
     auto segments_to_be_deleted_count = 0;
-    auto segments_to_be_deleted =
+    Graph_Segment** segments_to_be_deleted =
         Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
@@ -622,7 +626,8 @@ void Update_Tiles(
     // NOTE(hulvdan): Создание новых сегментов
     auto added_segments_allocate = updated_tiles.count * 4;
     auto added_segments_count = 0;
-    auto added_segments = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
+    Graph_Segment* added_segments =
+        Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
 
     Fixed_Size_Queue<Dir_v2i> big_fuken_queue = {};
@@ -794,6 +799,7 @@ void Update_Tiles(
         if (vertices_count == 0)
             continue;
 
+        // NOTE(hulvdan): Adding a new segment
         Assert(temp_graph.nodes_count > 0);
         // Assert(temp_height > 0);
         // Assert(width > 0);
@@ -801,6 +807,7 @@ void Update_Tiles(
         auto& segment = *(added_segments + added_segments_count);
         segment.active = true;
         segment.vertices_count = vertices_count;
+        added_segments_count++;
 
         auto [vertices_key, verticesss] = Allocate_Segment_Vertices(state, vertices_count);
         segment.vertices = verticesss;
@@ -851,15 +858,9 @@ void Update_Tiles(
     }
 
     // ====================================================================================
-    // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res) {
-    //
-    // using auto _ = Tracing.Scope();
-    //
-    // if (!_hideEditorLogs) {
-    //     Debug.Log($"{res.addedSegments.Count} segments added, {res.deletedSegments}
-    //     deleted");
-    // }
-    //
+    // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res)
+
+    // SHIT(hulvdan): Do it later
     // auto humansMovingToCityHall = 0;
     // foreach (auto human in _humans) {
     //     auto state = MovingInTheWorld.State.MovingToTheCityHall;
@@ -876,45 +877,67 @@ void Update_Tiles(
     //         humansThatNeedNewSegment.Push(new(null, human));
     //     }
     // }
-    //
-    // foreach (auto segment in res.deletedSegments) {
-    //     segments.Remove(segment);
-    //
-    //     auto human = segment.assignedHuman;
-    //     if (human != null) {
-    //         human.segment = null;
-    //         segment.assignedHuman = null;
-    //         humansThatNeedNewSegment.Push(new(segment, human));
-    //     }
-    //
-    //     foreach (auto linkedSegment in segment.linkedSegments) {
-    //         linkedSegment.Unlink(segment);
-    //     }
-    //
-    //     _resourceTransportation.OnSegmentDeleted(segment);
-    //
-    //     if (segmentsThatNeedHumans.Contains(segment)) {
-    //         segmentsThatNeedHumans.Remove(segment);
-    //         Assert.IsFalse(segmentsThatNeedHumans.Contains(segment));
-    //     }
-    // }
-    //
-    // if (!_hideEditorLogs) {
-    //     Debug.Log($"{humansThatNeedNewSegment.Count} Humans need to find new segments");
-    // }
-    //
-    // foreach (auto segment in res.addedSegments) {
-    //     foreach (auto segmentToLink in segments) {
-    //         // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
-    //         if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
-    //             segment.Link(segmentToLink);
-    //             segmentToLink.Link(segment);
-    //         }
-    //     }
-    //
-    //     segments.Add(segment);
-    // }
-    //
+
+    {
+        FOR_RANGE(int, i, segments_to_be_deleted_count) {
+            Graph_Segment& segment = **(segments_to_be_deleted + i);
+            Free_Segment_Vertices(state, segment.vertices_key);
+            Free_Graph_Nodes(state, segment.graph.nodes_key);
+            segment.active = false;
+
+            // SHIT(hulvdan): Do it later
+            // FROM C# REPO
+            // auto human = segment.assignedHuman;
+            // if (human != null) {
+            //     human.segment = null;
+            //     segment.assignedHuman = null;
+            //     humansThatNeedNewSegment.Push(new(segment, human));
+            // }
+            //
+            // foreach (auto linkedSegment in segment.linkedSegments) {
+            //     linkedSegment.Unlink(segment);
+            // }
+            //
+            // _resourceTransportation.OnSegmentDeleted(segment);
+            //
+            // if (segmentsThatNeedHumans.Contains(segment)) {
+            //     segmentsThatNeedHumans.Remove(segment);
+            //     Assert.IsFalse(segmentsThatNeedHumans.Contains(segment));
+            // }
+        }
+    }
+
+    {
+        FOR_RANGE(int, i, added_segments_count) {
+            auto& segment = New_Graph_Segment(state);
+            auto& added_segment = *(added_segments + i);
+
+            // TODO(hulvdan): use move semantics
+            segment.vertices_count = added_segment.vertices_count;
+            segment.vertices_key = added_segment.vertices_key;
+            segment.vertices = added_segment.vertices;
+
+            segment.graph.nodes_count = added_segment.graph.nodes_count;
+            segment.graph.nodes_key = added_segment.graph.nodes_key;
+            segment.graph.nodes = added_segment.graph.nodes;
+            segment.graph.size = added_segment.graph.size;
+            segment.graph.offset = added_segment.graph.offset;
+
+            segment.active = true;
+
+            // SHIT(hulvdan): Do it later
+            // FROM C# REPO
+            // foreach (auto segmentToLink in segments) {
+            //     // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
+            //     if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+            //         segment.Link(segmentToLink);
+            //         segmentToLink.Link(segment);
+            //     }
+            // }
+        }
+    }
+
+    // SHIT(hulvdan): Do it later
     // _resourceTransportation.PathfindItemsInQueue();
     // Tracing.Log("_itemTransportationSystem.PathfindItemsInQueue()");
     //
@@ -938,33 +961,48 @@ void Update_Tiles(
     //     segment.assignedHuman = human;
     //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
     // }
-    //
-    // // Assert that segments don't have tiles with identical directions
-    // for (auto i = 0; i < segments.Count; i++) {
-    //     for (auto j = 0; j < segments.Count; j++) {
-    //         if (i == j) {
-    //             continue;
-    //         }
-    //
-    //         auto g1 = segments[i].graph;
-    //         auto g2 = segments[j].graph;
-    //         for (auto y = 0; y < g1.height; y++) {
-    //             for (auto x = 0; x < g1.width; x++) {
-    //                 auto g1X = x + g1.offset.x;
-    //                 auto g1Y = y + g1.offset.y;
-    //                 if (!g2.Contains(g1X, g1Y)) {
-    //                     continue;
-    //                 }
-    //
-    //                 auto g2Y = g1Y - g2.offset.y;
-    //                 auto g2X = g1X - g2.offset.x;
-    //                 auto node = g2.nodes[g2Y][g2X];
-    //
-    //                 Assert.AreEqual(node & g1.nodes[y][x], 0);
-    //             }
-    //         }
-    //     }
-    // }
+
+#ifdef ASSERT_SLOW
+    FOR_RANGE(int, page_index1, game_map.segment_pages_used) {
+        auto& page1 = *(game_map.segment_pages + page_index1);
+
+        FOR_RANGE(int, i1, game_map.max_segments_per_page) {
+            auto& segment1 = *rcast<Graph_Segment*>(page1.base + sizeof(Graph_Segment) * i1);
+            auto& g1 = segment1.graph;
+            if (!segment1.active)
+                continue;
+
+            FOR_RANGE(int, page_index2, game_map.segment_pages_used) {
+                auto& page2 = *(game_map.segment_pages + page_index2);
+
+                FOR_RANGE(int, i2, game_map.max_segments_per_page) {
+                    if (i1 == i2)
+                        continue;
+
+                    auto& segment2 =
+                        *rcast<Graph_Segment*>(page2.base + sizeof(Graph_Segment) * i2);
+                    auto& g2 = segment2.graph;
+                    if (!segment2.active)
+                        continue;
+
+                    for (auto y = 0; y < g1.size.y; y++) {
+                        for (auto x = 0; x < g1.size.x; x++) {
+                            v2i g1p = v2i(x + g1.offset.x, y + g1.offset.y);
+                            v2i g2p = {g1p.x - g2.offset.x, g1p.y - g2.offset.y};
+                            if (!Pos_Is_In_Bounds(g2p, g2.size))
+                                continue;
+
+                            u8 node1 = *(g1.nodes + y * g1.size.x + x);
+                            u8 node2 = *(g2.nodes + g2p.y * g2.size.x + g2p.x);
+                            bool no_intersections = (node1 & node2) == 0;
+                            Assert(no_intersections);
+                        }
+                    }
+                }
+            }
+        }
+    }
+#endif  // ASSERT_SLOW
 }
 
 #define Declare_Updated_Tiles(variable_name_, pos_, type_) \
