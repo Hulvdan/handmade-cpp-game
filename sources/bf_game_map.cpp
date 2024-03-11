@@ -566,7 +566,7 @@ void Free_Graph_Nodes(Game_State& state, size_t key) {
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     FOR_RANGE(int, i, rows) {
-        memcpy(dest, source + stride * i, bytes_per_line);
+        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
     }
 }
 

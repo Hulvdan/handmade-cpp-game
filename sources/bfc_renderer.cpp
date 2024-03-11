@@ -1089,14 +1089,14 @@ void Render(Game_State& state, f32 dt) {
                 if (!segment.active)
                     continue;
 
-                // segment_index++;
                 FOR_RANGE(int, y, graph.size.y) {
                     FOR_RANGE(int, x, graph.size.x) {
                         auto node = *(graph.nodes + y * graph.size.x + x);
                         if (!node)
                             continue;
 
-                        v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y);
+                        v2f center =
+                            v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
                         FOR_RANGE(int, ii, 4) {
                             auto dir = (Direction)ii;
                             if (!Graph_Node_Has(node, dir))
@@ -1104,22 +1104,18 @@ void Render(Game_State& state, f32 dt) {
 
                             auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
 
-                            auto p1 =
-                                projection * v3f((center + v2f_one / 2.0f) * (f32)cell_size, 1);
-                            auto p2 =
-                                projection * v3f((offsetted + v2f_one / 2.0f) * (f32)cell_size, 1);
+                            auto p1 = projection * v3f(center * (f32)cell_size, 1);
+                            auto p2 = projection * v3f(offsetted * (f32)cell_size, 1);
+                            auto p3 = (p1 + p2) / 2.0f;
 
-                            glPointSize(20);
+                            glPointSize(12);
 
                             glBlendFunc(GL_ONE, GL_ZERO);
-                            glBegin(GL_POINTS);
-                            glVertex2f(p1.x, p1.y);
-                            // glVertex2f(p1.x, 2.0f - p1.y);
-                            glEnd();
 
                             glBegin(GL_POINTS);
+                            glVertex2f(p1.x, p1.y);
                             glVertex2f(p2.x, p2.y);
-                            // glVertex2f(p2.x, 2.0f - p2.y);
+                            glVertex2f(p3.x, p3.y);
                             glEnd();
 
                             // glLineWidth(11);
