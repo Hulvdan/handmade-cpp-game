@@ -65,14 +65,62 @@ function reload_file()
     vim.fn.execute(":e")
 end
 
-function build_task()
-    return overseer.new_task({
+function build_task_data(params)
+    local close = false
+    if params.close then
+        close = true
+    end
+
+    local components  = {
+        { "on_output_quickfix", open = true, close = close },
+        "default",
+    }
+
+    if params["additional_components"] ~= nil then
+        components = {
+            unpack(components),
+            unpack(params.additional_components),
+        }
+    end
+
+    return {
         cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal]],
+        components = components,
+    }
+end
+
+function build_task()
+    return overseer.new_task(build_task_data({ close = true }))
+end
+
+function run_task()
+    local launch_vs_data = {
+        cmd = [[.nvim-personal\launch_vs.ahk]],
         components = {
             { "on_output_quickfix", open = true, close = true },
             "default"
         },
+    }
+    local build_data = build_task_data({
+        close = false,
+        additional_components = {
+            {
+                "run_after", task_names = { launch_vs_data },
+                statuses = {"SUCCESS", "FAILURE"},
+            },
+        },
     })
+    local stop_vs_data = {
+        cmd = [[.nvim-personal\stop_vs.ahk]],
+        components = {
+            {
+                "run_after", task_names = { build_data },
+            },
+            { "on_output_quickfix", open = true, },
+            "default"
+        },
+    }
+    return overseer.new_task(stop_vs_data)
 end
 
 function test_task()
@@ -85,17 +133,6 @@ function test_task()
             "default"
         },
     })
-    -- return overseer.new_task({
-    --     name = "tests",
-    --     strategy = {
-    --         "orchestrator",
-    --         tasks = {
-    --             -- build_task(),
-    --             -- [[MSBuild .cmake\vs17\game.sln -v:minimal]],
-    --             [[cmd\run_unit_tests.bat]],
-    --         },
-    --     },
-    -- })
 end
 
 function lint_task()
@@ -117,19 +154,6 @@ vim.keymap.set("n", "<leader>l", function()
     lint_task():start()
 end, opts)
 
-
--- local run_task = overseer.new_task({
---     name = "aboba",
---     strategy = {
---         "orchestrator",
---         tasks = {
---             [[MSBuild .cmake\vs17\game.sln -v:minimal]],
---             -- build_task,
---             [[cmd\run.bat]],
---         },
---     },
--- })
-
 vim.keymap.set("n", "<A-b>", function()
     save_files()
     build_task():start()
@@ -141,10 +165,10 @@ vim.keymap.set("n", "<f4>", function()
     build_task():start()
 end, opts)
 
--- vim.keymap.set("n", "<f5>", function()
---     save_files()
---     run_task:start()
--- end, opts)
+vim.keymap.set("n", "<f5>", function()
+    save_files()
+    run_task():start()
+end, opts)
 
 vim.keymap.set("n", "<A-t>", function()
     save_files()
