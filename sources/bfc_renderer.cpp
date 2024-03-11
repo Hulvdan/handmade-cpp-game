@@ -1063,8 +1063,6 @@ void Render(Game_State& state, f32 dt) {
         }
     }
 
-    ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
-
     {
         const BF_Color colors[] = {
             {1, 0, 0},  //
@@ -1081,6 +1079,7 @@ void Render(Game_State& state, f32 dt) {
         if (segment_index >= colors_count)
             segment_index = 0;
 
+        // glUseProgram(0);
         FOR_RANGE(int, page_index, game_map.segment_pages_used) {
             auto& page = *(game_map.segment_pages + page_index);
 
@@ -1097,26 +1096,42 @@ void Render(Game_State& state, f32 dt) {
                         if (!node)
                             continue;
 
-                        // auto& color = colors[segment_index % colors_count];
-
-                        auto offset = v2f(graph.offset.x, graph.offset.y);
-                        v2f center = v2f(x, y) + offset;
+                        v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y);
                         FOR_RANGE(int, ii, 4) {
                             auto dir = (Direction)ii;
                             if (!Graph_Node_Has(node, dir))
                                 continue;
 
-                            auto offsetted = (v2f)(As_Offset(dir)) / 2.0f + offset;
+                            auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
 
-                            auto p1 = projection * v3f(center, 1);
-                            auto p2 = projection * v3f(offsetted, 1);
+                            auto p1 =
+                                projection * v3f((center + v2f_one / 2.0f) * (f32)cell_size, 1);
+                            auto p2 =
+                                projection * v3f((offsetted + v2f_one / 2.0f) * (f32)cell_size, 1);
 
-                            glLineWidth(11);
-                            glBegin(GL_LINES);
-                            glColor3fv((GLfloat*)(colors + segment_index));
+                            glPointSize(20);
+
+                            glBlendFunc(GL_ONE, GL_ZERO);
+                            glBegin(GL_POINTS);
                             glVertex2f(p1.x, p1.y);
-                            glVertex2f(p2.x, p2.y);
+                            // glVertex2f(p1.x, 2.0f - p1.y);
                             glEnd();
+
+                            glBegin(GL_POINTS);
+                            glVertex2f(p2.x, p2.y);
+                            // glVertex2f(p2.x, 2.0f - p2.y);
+                            glEnd();
+
+                            // glLineWidth(11);
+                            // glBlendFunc(GL_ONE, GL_ZERO);
+                            // glBegin(GL_LINES);
+                            // auto color = *(colors + segment_index);
+                            // glColor3f(color.r, color.g, color.b);
+                            // glVertex2f(p1.x, 2.0f - p1.y);
+                            // glVertex2f(p2.x, 2.0f - p2.y);
+                            // // glVertex2f(p1.x, p1.y - 1.0f);
+                            // // glVertex2f(p2.x, p2.y - 1.0f);
+                            // glEnd();
                         }
                     }
                 }
@@ -1125,6 +1140,8 @@ void Render(Game_State& state, f32 dt) {
 
         glColor3fv((GLfloat*)(colors + 6));
     }
+
+    ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item
