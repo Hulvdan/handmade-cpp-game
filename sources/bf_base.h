@@ -40,6 +40,16 @@ void DEBUG_Print(const char* text, ...) {
 
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
+
+const v2i v2i_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+
+constexpr v2i v2i_zero = v2i(0, 0);
+constexpr v2i v2i_one = v2i(1, 1);
+constexpr v2i v2i_right = v2i(1, 0);
+constexpr v2i v2i_up = v2i(0, 1);
+constexpr v2i v2i_left = v2i(-1, 0);
+constexpr v2i v2i_bottom = v2i(0, -1);
+
 constexpr v2f v2f_zero = v2f(0, 0);
 constexpr v2f v2f_one = v2f(1, 1);
 constexpr v2f v2f_right = v2f(1, 0);
@@ -55,15 +65,21 @@ using v3i = glm::ivec3;
 
 #include "bf_types.h"
 
-#define UNREACHABLE assert(false)
-#define INVALID_PATH assert(false)
+#ifdef TESTS
+#define Assert(expr) REQUIRE(expr)
+#else
+#include <cassert>
+#define Assert(expr) assert(expr)
+#endif  // TESTS
+
+#define INVALID_PATH Assert(false)
+#define NOT_IMPLEMENTED Assert(false)
 
 #define scast static_cast
 #define rcast reinterpret_cast
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)

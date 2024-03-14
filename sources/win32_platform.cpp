@@ -6,7 +6,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-#include <cassert>
+// #include <cassert>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -83,7 +83,7 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
     if (handle != INVALID_HANDLE_VALUE) {
         res.success = true;
         res.filetime = find_data.ftLastWriteTime;
-        assert(FindClose(handle));
+        Assert(FindClose(handle));
     }
 
     return res;
@@ -225,11 +225,11 @@ f32 FillSamples(
     i8 channels,
     f32 frequency,
     f32 last_angle) {
-    assert(samples_count_per_second > 0);
-    assert(samples_count_per_channel > 0);
-    assert(channels > 0);
-    assert(frequency > 0);
-    assert(last_angle >= 0);
+    Assert(samples_count_per_second > 0);
+    Assert(samples_count_per_channel > 0);
+    Assert(channels > 0);
+    Assert(frequency > 0);
+    Assert(last_angle >= 0);
 
 #if 0
     const i16 volume = 6400;
@@ -262,8 +262,8 @@ struct CreateBufferRes {
 };
 
 CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
-    assert(channels > 0);
-    assert(bytes_per_sample > 0);
+    Assert(channels > 0);
+    Assert(bytes_per_sample > 0);
 
     auto b = new XAUDIO2_BUFFER();
     auto& buffer = *b;
@@ -294,8 +294,8 @@ global int client_width = -1;
 global int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context) {
-    assert(client_width >= 0);
-    assert(client_height >= 0);
+    Assert(client_width >= 0);
+    Assert(client_height >= 0);
 
     auto& game_bitmap = screen_bitmap.bitmap;
     game_bitmap.width = client_width;
@@ -547,15 +547,15 @@ public:
     void OnVoiceProcessingPassStart(UINT32 BytesRequired) noexcept override {}
 
     void Validate() {
-        assert(samples_count_per_channel > 0);
-        assert(channels > 0);
-        assert(last_angle >= 0);
+        Assert(samples_count_per_channel > 0);
+        Assert(channels > 0);
+        Assert(last_angle >= 0);
 
-        assert(b1 != nullptr);
-        assert(b2 != nullptr);
-        assert(s1 != nullptr);
-        assert(s2 != nullptr);
-        assert(voice != nullptr);
+        Assert(b1 != nullptr);
+        Assert(b2 != nullptr);
+        Assert(s1 != nullptr);
+        Assert(s2 != nullptr);
+        Assert(voice != nullptr);
     }
 
 private:
@@ -575,7 +575,7 @@ u64 Win32Frequency() {
 }
 
 Allocate_Pages__Function(Win32_Allocate_Pages) {
-    assert(count % os_data.min_pages_per_allocation == 0);
+    Assert(count % os_data.min_pages_per_allocation == 0);
 
     return (u8*)VirtualAlloc(
         nullptr, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
@@ -658,10 +658,10 @@ static int WinMain(
                     XAUDIO2_DEFAULT_FREQ_RATIO, &voice_callback, nullptr, nullptr);
 
                 if (SUCCEEDED(res)) {
-                    assert((SAMPLES_HZ * duration_msec) % 1000 == 0);
+                    Assert((SAMPLES_HZ * duration_msec) % 1000 == 0);
 
                     i32 samples_count_per_channel = SAMPLES_HZ * duration_msec / 1000;
-                    assert(samples_count_per_channel > 0);
+                    Assert(samples_count_per_channel > 0);
 
                     auto r1 = CreateBuffer(samples_count_per_channel, channels, bytes_per_sample);
                     auto r2 = CreateBuffer(samples_count_per_channel, channels, bytes_per_sample);
@@ -706,15 +706,15 @@ static int WinMain(
                     //
                 } else {
                     // TODO(hulvdan): Diagnostic
-                    assert(!source_voice);
+                    Assert(!source_voice);
                 }
             } else {
                 // TODO(hulvdan): Diagnostic
-                assert(!master_voice);
+                Assert(!master_voice);
             }
         } else {
             // TODO(hulvdan): Diagnostic
-            assert(!xaudio);
+            Assert(!xaudio);
         }
     }
     // --- XAudio stuff end ---
@@ -739,7 +739,7 @@ static int WinMain(
     if (source_voice != nullptr) {
         auto res = source_voice->Start(0);
         // TODO(hulvdan): Diagnostic
-        assert(SUCCEEDED(res));
+        Assert(SUCCEEDED(res));
     }
 
     auto window_handle = CreateWindowExA(
@@ -760,8 +760,8 @@ static int WinMain(
     ShowWindow(window_handle, show_command);
     UpdateWindow(window_handle);
 
-    assert(client_width >= 0);
-    assert(client_height >= 0);
+    Assert(client_width >= 0);
+    Assert(client_height >= 0);
     // --- Initializing OpenGL Start ---
     {
         auto hdc = GetDC(window_handle);
@@ -912,14 +912,14 @@ static int WinMain(
         u64 perf_counter_new = Win32Clock();
         last_frame_dt =
             (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
-        assert(last_frame_dt >= 0);
+        Assert(last_frame_dt >= 0);
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
             while (perf_counter_new < next_frame_expected_perf_counter) {
                 i32 msec_to_sleep =
                     (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) * 1000.0f /
                           (f32)perf_counter_frequency);
-                assert(msec_to_sleep >= 0);
+                Assert(msec_to_sleep >= 0);
 
                 if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
                     Sleep(msec_to_sleep - SLEEP_MSEC_GRANULARITY);

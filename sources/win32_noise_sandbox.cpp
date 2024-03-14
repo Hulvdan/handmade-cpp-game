@@ -10,7 +10,7 @@
 #include "wglew.h"
 #include "timeapi.h"
 
-#include <cassert>
+// #include <cassert>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -43,8 +43,8 @@ global int client_width = -1;
 global int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context) {
-    assert(client_width >= 0);
-    assert(client_height >= 0);
+    Assert(client_width >= 0);
+    Assert(client_height >= 0);
 
     auto& game_bitmap = screen_bitmap.bitmap;
     game_bitmap.width = client_width;
@@ -280,8 +280,8 @@ int main(int, char**) {
     tex.size = {512, 512};
     tex.base = (u8*)Allocate_Array(arena, u32, tex.size.x * tex.size.y);
 
-    assert(client_width >= 0);
-    assert(client_height >= 0);
+    Assert(client_width >= 0);
+    Assert(client_height >= 0);
     // --- Initializing OpenGL Start ---
     {
         auto hdc = GetDC(window_handle);
@@ -415,14 +415,14 @@ int main(int, char**) {
         u64 perf_counter_new = Win32Clock();
         last_frame_dt =
             (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
-        assert(last_frame_dt >= 0);
+        Assert(last_frame_dt >= 0);
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
             while (perf_counter_new < next_frame_expected_perf_counter) {
                 i32 msec_to_sleep =
                     (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) * 1000.0f /
                           (f32)perf_counter_frequency);
-                assert(msec_to_sleep >= 0);
+                Assert(msec_to_sleep >= 0);
 
                 if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY)
                     Sleep(msec_to_sleep - SLEEP_MSEC_GRANULARITY);

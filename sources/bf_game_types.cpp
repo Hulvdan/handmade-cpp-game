@@ -1,6 +1,8 @@
 #pragma once
 
-// --- Forward Declarations ---
+// ============================================================= //
+//                     Forward Declarations                      //
+// ============================================================= //
 // SHIT(hulvdan): Oh, god, I hate this shit
 struct Game_State;
 
@@ -8,17 +10,147 @@ struct Game_State;
 struct Game_Renderer_State;
 struct Loaded_Texture;
 #endif
-// --- Forward Declarations End ---
 
-// --- Memory ---
-struct Arena : public Non_Copyable {
-    size_t used;
-    size_t size;
-    u8* base;
+// ============================================================= //
+//                        Data Structures                        //
+// ============================================================= //
+template <typename T>
+struct Fixed_Size_Queue {
+    size_t memory_size;
+    size_t count;
+    T* base;
 };
-// --- Memory End ---
 
-// --- Game Logic ---
+template <typename T>
+void Enqueue(Fixed_Size_Queue<T>& queue, const T& value) {
+    // TODO(hulvdan): Test!
+
+    Assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
+
+    *(queue.base + queue.count) = value;
+    queue.count++;
+}
+
+template <typename T>
+T Dequeue(Fixed_Size_Queue<T>& queue) {
+    // TODO(hulvdan): Test!
+
+    Assert(queue.base != nullptr);
+    Assert(queue.count > 0);
+
+    T res = *queue.base;
+    queue.count -= 1;
+    memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+
+    return res;
+}
+
+// ============================================================= //
+//                          Game Logic                           //
+// ============================================================= //
+enum class Direction {
+    Right = 0,
+    Up = 1,
+    Left = 2,
+    Down = 3,
+};
+
+v2i As_Offset(Direction dir) {
+    Assert((u8)dir >= 0);
+    Assert((u8)dir < 4);
+    return v2i_adjacent_offsets[(int)dir];
+}
+
+Direction Opposite(Direction dir) {
+    Assert((u8)dir >= 0);
+    Assert((u8)dir < 4);
+    return (Direction)(((u8)(dir) + 2) % 4);
+}
+
+// using Graph_Segment_ID = u32;
+using Graph_u = i8;
+using Graph_Nodes_Count = u16;
+
+struct Graph_v2u {
+    Graph_u x;
+    Graph_u y;
+};
+
+Graph_v2u To_Graph_v2u(v2i pos) {
+    Graph_v2u res;
+    res.x = pos.x;
+    res.y = pos.y;
+    return res;
+}
+
+// NOTE(hulvdan): `Graph_Segment_Page_Meta` gets placed at the end of the `Page`
+struct Graph_Segment_Page_Meta : public Non_Copyable {
+    u16 count;
+};
+
+struct Graph : public Non_Copyable {
+    Graph_Nodes_Count nodes_count;
+    size_t nodes_key;
+    u8* nodes;  // 0b0000DLUR
+
+    Graph_v2u size;
+    Graph_v2u offset;
+
+    // Graph_v2u* centers;
+    // Graph_double_u centers_count;
+};
+
+struct Graph_Segment : public Non_Copyable {
+    Graph_Nodes_Count vertices_count;
+    size_t vertices_key;
+    Graph_v2u* vertices;
+
+    Graph graph;
+    bool active;
+};
+
+struct Graph_Segment_Precalculated_Data {
+    // TODO(hulvdan): Reimplement `CalculatedGraphPathData` calculation from the old repo
+};
+
+[[nodiscard]] bool Graph_Node_Has(u8 node, Direction d) {
+    Assert((u8)d >= 0);
+    Assert((u8)d < 4);
+    return node & (1 << (u8)d);
+}
+
+[[nodiscard]] u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {
+    Assert((u8)d >= 0);
+    Assert((u8)d < 4);
+    auto dir = (u8)d;
+
+    if (value)
+        node |= (u8)(1 << dir);
+    else
+        node &= (u8)(15 ^ (1 << dir));
+
+    Assert(node < 16);
+    return node;
+}
+
+void Graph_Update(Graph& graph, int x, int y, Direction dir, bool value) {
+    Assert((u8)dir >= 0);
+    Assert((u8)dir < 4);
+    Assert(graph.offset.x == 0);
+    Assert(graph.offset.y == 0);
+    auto& node = *(graph.nodes + y * graph.size.x + x);
+
+    bool node_is_zero_but_wont_be_after = (node == 0) && value;
+    bool node_is_not_zero_but_will_be =
+        (!value) && (node != 0) && (Graph_Node_Mark(node, dir, false) == 0);
+
+    if (node_is_zero_but_wont_be_after)
+        graph.nodes_count += 1;
+    else if (node_is_not_zero_but_will_be)
+        graph.nodes_count -= 1;
+
+    node = Graph_Node_Mark(node, dir, value);
+}
 
 using Scriptable_Building_ID = u16;
 global Scriptable_Building_ID global_city_hall_building_id = 1;
@@ -49,24 +181,13 @@ struct Scriptable_Building : public Non_Copyable {
     Scriptable_Resource_ID harvestable_resource_id;
 };
 
-struct Human {
+struct Human : public Non_Copyable {
     //
 };
 
-struct Resource_To_Book {
+struct Resource_To_Book : public Non_Copyable {
     Scriptable_Resource_ID scriptable_id;
     u8 amount;
-};
-
-struct Page {
-    u8* base;
-};
-
-struct Pages : public Non_Copyable {
-    size_t total_count_cap;
-    size_t allocated_count;
-    Page* base;
-    bool* in_use;
 };
 
 // NOTE(hulvdan): `Building_Page_Meta` gets placed at the end of the `Page`
@@ -74,7 +195,7 @@ struct Building_Page_Meta : public Non_Copyable {
     u16 count;
 };
 
-struct Building {
+struct Building : public Non_Copyable {
     Human_ID constructor;
     Human_ID employee;
 
@@ -95,7 +216,7 @@ enum class Terrain {
     Grass,
 };
 
-struct Terrain_Tile {
+struct Terrain_Tile : public Non_Copyable {
     Terrain terrain;
     // NOTE(hulvdan): Height starts at 0
     int height;
@@ -110,19 +231,19 @@ enum class Element_Tile_Type {
     Flag = 3,
 };
 
-struct Element_Tile {
+struct Element_Tile : public Non_Copyable {
     Element_Tile_Type type;
     Building* building;
 };
 
 void Validate_Element_Tile(Element_Tile& tile) {
-    assert((int)tile.type >= 0);
-    assert((int)tile.type <= 3);
+    Assert((int)tile.type >= 0);
+    Assert((int)tile.type <= 3);
 
     if (tile.type == Element_Tile_Type::Building)
-        assert(tile.building != nullptr);
+        Assert(tile.building != nullptr);
     else
-        assert(tile.building == nullptr);
+        Assert(tile.building == nullptr);
 }
 
 struct Scriptable_Resource : public Non_Copyable {
@@ -143,17 +264,16 @@ enum class Item_To_Build_Type {
     Building,
 };
 
-// QUESTION(hulvdan): Non_Copyable на опыте показало, что клёвая вещь.
-// Есть ли способ инициализации кода снизу таким образом, чтобы не пришлось пилить конструктор?
-//
-// struct Item_To_Build : public Non_Copyable {
-struct Item_To_Build {
+struct Item_To_Build : public Non_Copyable {
     Item_To_Build_Type type;
     Scriptable_Building_ID scriptable_building_id;
+
+    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building_ID a_scriptable_building_id)
+        : type(a_type), scriptable_building_id(a_scriptable_building_id) {}
 };
 
-static constexpr Item_To_Build Item_To_Build_Road = {Item_To_Build_Type::Road, 0};
-static constexpr Item_To_Build Item_To_Build_Flag = {Item_To_Build_Type::Flag, 0};
+static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, 0);
+static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, 0);
 
 struct Game_Map : public Non_Copyable {
     v2i size;
@@ -165,6 +285,14 @@ struct Game_Map : public Non_Copyable {
     u16 building_pages_used;
     u16 building_pages_total;
     u16 max_buildings_per_page;
+
+    Page* segment_pages;
+    u16 segment_pages_used;
+    u16 segment_pages_total;
+    u16 max_segments_per_page;
+
+    Allocator* segment_vertices_allocator;
+    Allocator* graph_nodes_allocator;
 };
 
 template <typename T>
@@ -196,7 +324,8 @@ struct Observer : public Non_Copyable {
         memcpy((observer).functions, callbacks, sizeof(callbacks));                  \
     }
 
-#define On_Item_Built__Function(name_) void name_(Game_State& state, v2i pos, Item_To_Build item)
+#define On_Item_Built__Function(name_) \
+    void name_(Game_State& state, v2i pos, const Item_To_Build& item)
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;
@@ -213,8 +342,8 @@ struct Game_State : public Non_Copyable {
     Scriptable_Building* scriptable_buildings;
 
     Arena arena;
-    Arena non_persistent_arena;  // Flushes on DLL reload
-    Arena trash_arena;  // For transient calculations
+    Arena non_persistent_arena;  // Gets flushed on DLL reloads
+    Arena trash_arena;  // Use for transient calculations
 
     OS_Data* os_data;
     Pages pages;
@@ -230,10 +359,29 @@ struct Game_Memory : public Non_Copyable {
     bool is_initialized;
     Game_State state;
 };
-// --- Game Logic End ---
+
+enum class Tile_Updated_Type {
+    Road_Placed,
+    Flag_Placed,
+    Flag_Removed,
+    Road_Removed,
+    Building_Placed,
+    Building_Removed,
+};
+
+// struct On_Tiles_Updated_Result : public Non_Copyable {
+// struct On_Tiles_Updated_Result {
+//     u16 added_segments_count;
+//     u16 deleted_segments_count;
+//
+//     Graph_Segment* added_segments;
+//     Graph_Segment* deleted_segments;
+// };
 
 #ifdef BF_CLIENT
-// --- CLIENT. Rendering ---
+// ============================================================= //
+//                    CLIENT. Game Rendering                     //
+// ============================================================= //
 using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
@@ -241,9 +389,7 @@ struct Loaded_Texture {
     v2i size;
     u8* base;
 };
-// --- CLIENT. Rendering End ---
 
-// --- CLIENT. Game Rendering ---
 using Tile_ID = u32;
 
 enum class Tile_State_Check {
@@ -350,5 +496,37 @@ struct Game_Renderer_State : public Non_Copyable {
     bool shaders_compilation_failed;
     GLint ui_shader_program;
 };
-// --- CLIENT. Game Rendering End ---
 #endif  // BF_CLIENT
+
+u8* Book_Single_Page(Game_State& state) {
+    auto& pages = state.pages;
+    auto& os_data = *state.os_data;
+
+    // NOTE(hulvdan): If there exists allocated page that is not in use -> return it
+    FOR_RANGE(u32, i, pages.allocated_count) {
+        bool& in_use = *(pages.in_use + i);
+        if (!in_use) {
+            in_use = true;
+            return (pages.base + i)->base;
+        }
+    }
+
+    // NOTE(hulvdan): Allocating more pages and mapping them
+    Assert(pages.allocated_count < pages.total_count_cap);
+
+    auto pages_to_allocate = os_data.min_pages_per_allocation;
+    auto allocation_address = os_data.Allocate_Pages(pages_to_allocate);
+
+    FOR_RANGE(u32, i, pages_to_allocate) {
+        auto& page = *(pages.base + pages.allocated_count + i);
+        page.base = allocation_address + (ptrd)i * os_data.page_size;
+    }
+
+    // NOTE(hulvdan): Booking the first page that we allocated and returning it
+    Page* result = pages.base + (ptrd)pages.allocated_count;
+
+    *(pages.in_use + pages.allocated_count) = true;
+    pages.allocated_count += pages_to_allocate;
+
+    return result->base;
+}

@@ -11,6 +11,7 @@ set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 add_compile_definitions(
     BF_INTERNAL
     BF_CLIENT
+    ASSERT_SLOW
 
     TRACY_ENABLE
     TRACY_ON_DEMAND
@@ -110,13 +111,14 @@ target_link_libraries(win32 PRIVATE glew glm tracy)
 # target_link_libraries(win32 PRIVATE glew glm)
 
 # === Tests ===
-add_executable(tests tests/tests.cpp)
+add_executable(tests sources/tests.cpp)
 target_include_directories(tests PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
 )
 target_compile_definitions(tests PRIVATE
     GAME_LIBRARY_BUILD
+    TESTS
 
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS

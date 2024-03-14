@@ -28,7 +28,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     auto c = filedata;
     auto f = filesize;
     while (f--)
-        assert(*c != '\0');
+        Assert(*c != '\0');
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE END
 
     auto rules_output = arena.base + arena.used;
@@ -52,7 +52,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     // 1. Parsing fallback_texture_name
     {
         auto offset = Find_Newline(filedata, filesize);
-        assert(offset > 0);
+        Assert(offset > 0);
 
         tile.fallback_texture_id = scast<BF_Texture_ID>(Hash32(filedata, offset));
 
@@ -62,7 +62,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
 
     {
         auto offset = Find_Not_Newline(filedata, filesize);
-        assert(offset > 0);
+        Assert(offset > 0);
         filedata += offset;
         filesize -= offset;
     }
@@ -93,15 +93,15 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
 
         {
             auto offset = Find_Not_Newline(filedata, filesize);
-            assert(offset > 0);
+            Assert(offset > 0);
             filedata += offset;
             filesize -= offset;
         }
 
-        assert(*filedata == '|');
+        Assert(*filedata == '|');
         {
             auto offset = Find_Newline(filedata, filesize);
-            assert(offset == 5);
+            Assert(offset == 5);
 
             rule.states[0] = Parse_Tile_State_Check(*(filedata + 1));
             rule.states[1] = Parse_Tile_State_Check(*(filedata + 2));
@@ -113,14 +113,14 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
 
         {
             auto offset = Find_Not_Newline(filedata, filesize);
-            assert(offset > 0);
+            Assert(offset > 0);
             filedata += offset;
             filesize -= offset;
         }
 
         {
             auto offset = Find_Newline(filedata, filesize);
-            assert(offset == 5);
+            Assert(offset == 5);
 
             rule.states[3] = Parse_Tile_State_Check(*(filedata + 1));
             rule.states[4] = Parse_Tile_State_Check(*(filedata + 3));
@@ -131,13 +131,13 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
 
         {
             auto offset = Find_Not_Newline(filedata, filesize);
-            assert(offset > 0);
+            Assert(offset > 0);
             filedata += offset;
             filesize -= offset;
         }
         {
             auto offset = Find_Newline_Or_EOF(filedata, filesize);
-            assert(offset == 5);
+            Assert(offset == 5);
 
             rule.states[5] = Parse_Tile_State_Check(*(filedata + 1));
             rule.states[6] = Parse_Tile_State_Check(*(filedata + 2));
@@ -156,7 +156,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
             if (offset < 0)
                 break;
 
-            assert(offset > 0);
+            Assert(offset > 0);
             filedata += offset;
             filesize -= offset;
         }

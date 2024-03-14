@@ -56,9 +56,9 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
     res.width = header.width;
     res.height = header.height;
 
-    assert(header.planes == 1);
-    assert(header.bits_per_pixel == 32);
-    assert(header.file_size - header.data_offset == total_bytes);
+    Assert(header.planes == 1);
+    Assert(header.bits_per_pixel == 32);
+    Assert(header.file_size - header.data_offset == total_bytes);
 
     memcpy(res.output, filedata + header.data_offset, total_bytes);
 
@@ -93,11 +93,11 @@ void DEBUG_Load_Texture(
     Load_BMP_RGBA_Result bmp_result = {};
     {
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
-        assert(load_result.success);
+        Assert(load_result.success);
         DEFER(Deallocate_Array(trash_arena, u8, load_result.size));
 
         bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
-        assert(bmp_result.success);
+        Assert(bmp_result.success);
     }
 
     out_texture.id = scast<BF_Texture_ID>(Hash32_String(texture_name));
@@ -107,8 +107,6 @@ void DEBUG_Load_Texture(
 }
 
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
-    v2i adjacent_offsets[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
-
     Element_Tile& tile = *(element_tiles + pos.y * gsize.x + pos.x);
     bool tile_is_flag = tile.type == Element_Tile_Type::Flag;
     bool tile_is_road = tile.type == Element_Tile_Type::Road;
@@ -116,7 +114,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 
     int road_texture_number = 0;
     FOR_RANGE(int, i, 4) {
-        auto new_pos = pos + adjacent_offsets[i];
+        auto new_pos = pos + v2i_adjacent_offsets[i];
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
 
@@ -140,7 +138,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 
 #define Debug_Load_File_And_Defer_Deallocate(variable_name_, filepath_, arena_) \
     auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_));     \
-    assert((variable_name_).success);                                           \
+    Assert((variable_name_).success);                                           \
     DEFER(Deallocate_Array((arena_), u8, (variable_name_).size));
 
 void Debug_Print_Shader_Info_Log(GLuint shader_id, Arena& trash_arena, const char* aboba) {
@@ -184,14 +182,14 @@ void Initialize_Renderer(
     local_persist bool glew_was_initialized = false;
     if (!glew_was_initialized) {
         // glewExperimental = GL_TRUE;
-        assert(glewInit() == GLEW_OK);
+        Assert(glewInit() == GLEW_OK);
         glew_was_initialized = true;
     }
 
     if (first_time_initializing)
         state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
 
-    assert(state.renderer_state != nullptr);
+    Assert(state.renderer_state != nullptr);
 
     auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
@@ -329,7 +327,7 @@ void main() {
             auto rule_loading_result = Load_Smart_Tile_Rules(
                 rstate.grass_smart_tile, non_persistent_arena, load_result.output,
                 load_result.size);
-            assert(rule_loading_result.success);
+            Assert(rule_loading_result.success);
         }
 
         {
@@ -339,7 +337,7 @@ void main() {
             auto rule_loading_result = Load_Smart_Tile_Rules(
                 rstate.forest_smart_tile, non_persistent_arena, load_result.output,
                 load_result.size);
-            assert(rule_loading_result.success);
+            Assert(rule_loading_result.success);
         }
     }
 
@@ -499,8 +497,8 @@ void Draw_Sprite(
     float rotation,
     const glm::mat3& projection  //
 ) {
-    assert(x0 < x1);
-    assert(y0 < y1);
+    Assert(x0 < x1);
+    Assert(y0 < y1);
 
     auto model = glm::mat3(1);
     model = glm::translate(model, pos);
@@ -537,8 +535,8 @@ void Draw_UI_Sprite(
     BF_Color color,
     Game_Renderer_State& rstate  //
 ) {
-    assert(x0 < x1);
-    assert(y0 < y1);
+    Assert(x0 < x1);
+    Assert(y0 < y1);
 
     f32 xx0 = pos.x + size.x * (0 - anchor.x);
     f32 xx1 = pos.x + size.x * (1 - anchor.x);
@@ -582,9 +580,9 @@ void Draw_UI_Sprite(
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
-    assert(state.renderer_state != nullptr);
+    Assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
-    assert(rstate.bitmap != nullptr);
+    Assert(rstate.bitmap != nullptr);
     Game_Bitmap& bitmap = *rstate.bitmap;
 
     auto swidth = (f32)bitmap.width;
@@ -604,9 +602,9 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
 }
 
 v2f Screen_To_World(Game_State& state, v2f pos) {
-    assert(state.renderer_state != nullptr);
+    Assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
-    assert(rstate.bitmap != nullptr);
+    Assert(rstate.bitmap != nullptr);
     Game_Bitmap& bitmap = *rstate.bitmap;
 
     auto swidth = (f32)bitmap.width;
@@ -653,8 +651,8 @@ void Draw_Stretchable_Sprite(
     f32 x2 = (f32)pad_h.y / texture.size.x;
     f32 y1 = (f32)pad_v.x / texture.size.y;
     f32 y2 = (f32)pad_v.y / texture.size.y;
-    assert(y1 * in_scale + y2 * in_scale <= 1);
-    assert(x1 * in_scale + x2 * in_scale <= 1);
+    Assert(y1 * in_scale + y2 * in_scale <= 1);
+    Assert(x1 * in_scale + x2 * in_scale <= 1);
 
     auto p0 = v3f(x0, y0, 1);
     auto p3 = v3f(x3, y3, 1);
@@ -686,7 +684,7 @@ void Draw_Stretchable_Sprite(
             auto tex_x1 = texture_vertices_x[x + 1];
             auto sprite_x0 = points[x].x;
             auto sx = points[x + 1].x - sprite_x0;
-            assert(sx >= 0);
+            Assert(sx >= 0);
 
             Draw_UI_Sprite(
                 tex_x0, tex_y0,  //
@@ -708,9 +706,9 @@ struct Get_Buildable_Textures_Result {
 
 Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     auto& rstate = *state.renderer_state;
-    assert(state.renderer_state != nullptr);
+    Assert(state.renderer_state != nullptr);
     auto& ui_state = *rstate.ui_state;
-    assert(rstate.ui_state != nullptr);
+    Assert(rstate.ui_state != nullptr);
 
     Get_Buildable_Textures_Result res = {};
     auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
@@ -718,7 +716,7 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_St
     res.deallocation_size = allocation_size;
     res.textures = Allocate_Array(trash_arena, GLuint, ui_state.buildables_count);
 
-    assert(state.scriptable_buildings_count == 2);
+    Assert(state.scriptable_buildings_count == 2);
 
     FOR_RANGE(int, i, ui_state.buildables_count) {
         auto& buildable = *(ui_state.buildables + i);
@@ -745,11 +743,11 @@ void Render(Game_State& state, f32 dt) {
 
     Arena& trash_arena = state.trash_arena;
 
-    assert(state.renderer_state != nullptr);
+    Assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
 
-    assert(rstate.bitmap != nullptr);
+    Assert(rstate.bitmap != nullptr);
     Game_Bitmap& bitmap = *rstate.bitmap;
 
     auto gsize = game_map.size;
@@ -921,7 +919,7 @@ void Render(Game_State& state, f32 dt) {
                 continue;
 
             auto road_texture_offset = tile - global_road_starting_tile_id;
-            assert(road_texture_offset >= 0);
+            Assert(road_texture_offset >= 0);
 
             auto tex_id = rstate.road_textures[road_texture_offset].id;
             glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -964,7 +962,7 @@ void Render(Game_State& state, f32 dt) {
                 continue;
 
             auto scriptable_building_ = Get_Scriptable_Building(state, building.scriptable_id);
-            assert(scriptable_building_ != nullptr);
+            Assert(scriptable_building_ != nullptr);
             auto& scriptable_building = *scriptable_building_;
 
             auto tex_id = scriptable_building.texture->id;
@@ -1065,12 +1063,86 @@ void Render(Game_State& state, f32 dt) {
         }
     }
 
+    {
+        const BF_Color colors[] = {
+            {1, 0, 0},  //
+            {0, 1, 0},  //
+            {0, 0, 1},  //
+            {1, 1, 0},  //
+            {0, 1, 1},  //
+            {1, 0, 1},  //
+            {1, 1, 1}  //
+        };
+        size_t colors_count = sizeof(colors) / sizeof(colors[0]);
+        local_persist size_t segment_index = 0;
+        segment_index++;
+        if (segment_index >= colors_count)
+            segment_index = 0;
+
+        // glUseProgram(0);
+        FOR_RANGE(int, page_index, game_map.segment_pages_used) {
+            auto& page = *(game_map.segment_pages + page_index);
+
+            FOR_RANGE(int, i, game_map.max_segments_per_page) {
+                auto& segment = *rcast<Graph_Segment*>(page.base + sizeof(Graph_Segment) * i);
+                auto& graph = segment.graph;
+                if (!segment.active)
+                    continue;
+
+                FOR_RANGE(int, y, graph.size.y) {
+                    FOR_RANGE(int, x, graph.size.x) {
+                        auto node = *(graph.nodes + y * graph.size.x + x);
+                        if (!node)
+                            continue;
+
+                        v2f center =
+                            v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
+                        FOR_RANGE(int, ii, 4) {
+                            auto dir = (Direction)ii;
+                            if (!Graph_Node_Has(node, dir))
+                                continue;
+
+                            auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
+
+                            auto p1 = projection * v3f(center * (f32)cell_size, 1);
+                            auto p2 = projection * v3f(offsetted * (f32)cell_size, 1);
+                            auto p3 = (p1 + p2) / 2.0f;
+
+                            glPointSize(12);
+
+                            glBlendFunc(GL_ONE, GL_ZERO);
+
+                            glBegin(GL_POINTS);
+                            glVertex2f(p1.x, p1.y);
+                            glVertex2f(p2.x, p2.y);
+                            glVertex2f(p3.x, p3.y);
+                            glEnd();
+
+                            // glLineWidth(11);
+                            // glBlendFunc(GL_ONE, GL_ZERO);
+                            // glBegin(GL_LINES);
+                            // auto color = *(colors + segment_index);
+                            // glColor3f(color.r, color.g, color.b);
+                            // glVertex2f(p1.x, 2.0f - p1.y);
+                            // glVertex2f(p2.x, 2.0f - p2.y);
+                            // // glVertex2f(p1.x, p1.y - 1.0f);
+                            // // glVertex2f(p2.x, p2.y - 1.0f);
+                            // glEnd();
+                        }
+                    }
+                }
+            }
+        }
+
+        glColor3fv((GLfloat*)(colors + 6));
+    }
+
     ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item
 On_Item_Built__Function(Renderer__On_Item_Built) {
-    assert(state.renderer_state != nullptr);
+    Assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
@@ -1096,7 +1168,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     }
 
     if (element_tile.type != Element_Tile_Type::Building)
-        assert(element_tile.building == nullptr);
+        Assert(element_tile.building == nullptr);
 
     v2i offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
     for (auto offset : offsets) {

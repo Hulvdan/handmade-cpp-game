@@ -5,9 +5,10 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-#include <cassert>
+// #include <cassert>
 #include <cstdlib>
 #include <memory>
+#include <tuple>
 
 #include "glew.h"
 #include "wglew.h"
@@ -17,13 +18,13 @@
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
+#include "bf_memory.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
-#include "bf_memory.cpp"
+#include "bf_math.cpp"
 #include "bf_rand.cpp"
 #include "bf_file.cpp"
-#include "bf_math.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -40,7 +41,7 @@ bool UI_Clicked(Game_State& state) {
     auto& rstate = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
-    assert(rstate.bitmap != nullptr);
+    Assert(rstate.bitmap != nullptr);
     Game_Bitmap& bitmap = *rstate.bitmap;
 
     auto gsize = game_map.size;
@@ -137,7 +138,7 @@ void Process_Events(
             if (!UI_Clicked(state)) {
                 if (event.type == Mouse_Button_Type::Left) {
                     if (ui_state.selected_buildable_index >= 0) {
-                        assert(ui_state.selected_buildable_index < ui_state.buildables_count);
+                        Assert(ui_state.selected_buildable_index < ui_state.buildables_count);
                         auto& selected_buildable =
                             *(ui_state.buildables + ui_state.selected_buildable_index);
 
@@ -223,8 +224,9 @@ void Process_Events(
 
         case Event_Type::Controller_Axis_Changed: {
             PROCESS_EVENTS_CONSUME(Controller_Axis_Changed, event);
+            Assert(event.axis >= 0);
+            Assert(event.axis <= 1);
 
-            assert(event.axis >= 0 && event.axis <= 1);
             if (event.axis == 0)
                 state.player_pos.x += event.value;
             else
@@ -238,8 +240,8 @@ void Process_Events(
     }
 }
 
-void Map_Arena(Arena& arena_where_to_map, Arena& arena_to_map, size_t size) {
-    arena_to_map.base = Allocate_Array(arena_where_to_map, u8, size);
+void Map_Arena(Arena& root_arena, Arena& arena_to_map, size_t size) {
+    arena_to_map.base = Allocate_Array(root_arena, u8, size);
     arena_to_map.size = size;
 }
 
@@ -269,7 +271,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     // --- IMGUI ---
     if (!first_time_initializing) {
-        assert(state.renderer_state != nullptr);
+        Assert(state.renderer_state != nullptr);
         auto& rstate = *state.renderer_state;
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
@@ -353,7 +355,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
             auto r_ = Get_Scriptable_Resource(state, 1);
-            assert(r_ != nullptr);
+            Assert(r_ != nullptr);
             auto& r = *r_;
 
             r.name = "forest";
@@ -364,7 +366,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
             auto b_ = Get_Scriptable_Building(state, global_city_hall_building_id);
-            assert(b_ != nullptr);
+            Assert(b_ != nullptr);
             auto& b = *b_;
 
             b.name = "City Hall";
@@ -372,31 +374,51 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
         {
             auto b_ = Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
-            assert(b_ != nullptr);
+            Assert(b_ != nullptr);
             auto& b = *b_;
 
             b.name = "Lumberjack's Hut";
             b.type = Building_Type::Harvest;
         }
 
+        Initialize_Game_Map(state, non_persistent_arena);
         Regenerate_Terrain_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
         Regenerate_Element_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
 
         if (first_time_initializing) {
-            auto max_hypothetical_count_of_building_pages =
-                Ceil_Division(tiles_count * sizeof(Building), os_data.page_size);
+            {
+                auto meta_size = sizeof(Building_Page_Meta);
+                auto struct_size = sizeof(Building);
 
-            assert(max_hypothetical_count_of_building_pages < 100);
-            assert(max_hypothetical_count_of_building_pages > 0);
+                auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                Assert(max_pages_count < 100);
+                Assert(max_pages_count > 0);
 
-            state.game_map.building_pages_total = max_hypothetical_count_of_building_pages;
-            state.game_map.building_pages_used = 0;
-            state.game_map.building_pages =
-                Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
-            state.game_map.max_buildings_per_page = Assert_Truncate_To_u16(
-                (os_data.page_size - sizeof(Building_Page_Meta)) / sizeof(Building));
+                state.game_map.building_pages_total = max_pages_count;
+                state.game_map.building_pages_used = 0;
+                state.game_map.building_pages =
+                    Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
+                state.game_map.max_buildings_per_page =
+                    Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+            }
+
+            {
+                auto meta_size = sizeof(Graph_Segment_Page_Meta);
+                auto struct_size = sizeof(Graph_Segment);
+
+                auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                Assert(max_pages_count < 100);
+                Assert(max_pages_count > 0);
+
+                state.game_map.segment_pages_total = max_pages_count;
+                state.game_map.segment_pages_used = 0;
+                state.game_map.segment_pages =
+                    Allocate_Zeros_Array(arena, Page, state.game_map.segment_pages_total);
+                state.game_map.max_segments_per_page =
+                    Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+            }
 
             Place_Building(state, {2, 2}, 1);
         }
@@ -420,7 +442,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     else
         INVALID_PATH;
 
-    assert(bitmap.bits_per_pixel == 32);
+    Assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
 
     auto offset_x = (i32)state.offset_x;

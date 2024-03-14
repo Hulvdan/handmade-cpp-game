@@ -47,18 +47,17 @@ bool Is_Multiple_Of_2(int number, u8& power) {
 //     26 -> 32
 //     13 -> 16
 //     8 -> 8
-i32 Ceil_To_Power_Of_2(i32 max_pow2size) {
-    i32 number = i32_max;
-    assert(number >= 1);
+//     0 -> ASSERT
+//     2147483648 and above -> ASSERT
+u32 Ceil_To_Power_Of_2(u32 value) {
+    Assert(value <= 2147483648);
+    Assert(value != 0);
 
-    while (number > max_pow2size)
-        number >>= 1;
-    number++;
-    if (number < max_pow2size)
-        number <<= 1;
+    u32 power = 1;
+    while (power < value)
+        power *= 2;
 
-    assert(number != 0);
-    return number;
+    return power;
 }
 
 void Fill_Perlin_1D(
@@ -70,13 +69,13 @@ void Fill_Perlin_1D(
     uint seed,
     u16 sx  //
 ) {
-    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
+    Assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
 
     u8 sx_power;
     u8 sy_power;
-    assert(sx > 0);
-    assert(sx <= u16_max);
-    assert(Is_Multiple_Of_2(sx, sx_power));
+    Assert(sx > 0);
+    Assert(sx <= u16_max);
+    Assert(Is_Multiple_Of_2(sx, sx_power));
 
     f32* cover = (f32*)temp_storage;
     f32* accumulator = cover + sx;
@@ -121,8 +120,8 @@ void Fill_Perlin_1D(
 
     FOR_RANGE(u16, x, sx) {
         auto t = (*(accumulator + x)) / sum_of_division;
-        assert(t <= 1.0f);
-        assert(t >= 0);
+        Assert(t <= 1.0f);
+        Assert(t >= 0);
 
         u16 value = u16_max * t;
         *(output + x) = value;
@@ -140,17 +139,17 @@ void Perlin_1D(
 ) {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
-    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
+    Assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
 
     u8 sx_power;
     u8 sy_power;
-    assert(sx > 0);
-    assert(sx <= u16_max);
-    assert(sy > 0);
-    assert(sy <= u16_max);
-    assert(sx == sy);
-    assert(Is_Multiple_Of_2(sx, sx_power));
-    assert(Is_Multiple_Of_2(sy, sy_power));
+    Assert(sx > 0);
+    Assert(sx <= u16_max);
+    Assert(sy > 0);
+    Assert(sy <= u16_max);
+    Assert(sx == sy);
+    Assert(Is_Multiple_Of_2(sx, sx_power));
+    Assert(Is_Multiple_Of_2(sy, sy_power));
 
     f32* cover = (f32*)temp_storage;
     f32* accumulator = cover + sx;
@@ -197,8 +196,8 @@ void Perlin_1D(
     FOR_RANGE(int, y, sy) {
         FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + x)) / sum_of_division;
-            assert(t <= 1.0f);
-            assert(t >= 0);
+            Assert(t <= 1.0f);
+            Assert(t >= 0);
             u8 value = u8_max * t;
 
             u32 r, g, b;
@@ -223,13 +222,13 @@ void Fill_Perlin_2D(
 
     u8 sx_power;
     u8 sy_power;
-    assert(sx > 0);
-    assert(sx <= u16_max);
-    assert(sy > 0);
-    assert(sy <= u16_max);
-    assert(sx == sy);
-    assert(Is_Multiple_Of_2(sx, sx_power));
-    assert(Is_Multiple_Of_2(sy, sy_power));
+    Assert(sx > 0);
+    Assert(sx <= u16_max);
+    Assert(sy > 0);
+    Assert(sy <= u16_max);
+    Assert(sx == sy);
+    Assert(Is_Multiple_Of_2(sx, sx_power));
+    Assert(Is_Multiple_Of_2(sy, sy_power));
 
     auto total_pixels = (size_t)sx * sy;
     f32* cover = Allocate_Array(trash_arena, f32, total_pixels);
@@ -299,8 +298,8 @@ void Fill_Perlin_2D(
     FOR_RANGE(int, y, sy) {
         FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;
-            assert(t <= 1.0f);
-            assert(t >= 0);
+            Assert(t <= 1.0f);
+            Assert(t >= 0);
 
             u16 value = u16_max * t;
             *(output + y * sx + x) = value;
@@ -319,17 +318,17 @@ void Perlin_2D(
 ) {
     auto sx = texture.size.x;
     auto sy = texture.size.y;
-    assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
+    Assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
 
     u8 sx_power;
     u8 sy_power;
-    assert(sx > 0);
-    assert(sx <= u16_max);
-    assert(sy > 0);
-    assert(sy <= u16_max);
-    assert(sx == sy);
-    assert(Is_Multiple_Of_2(sx, sx_power));
-    assert(Is_Multiple_Of_2(sy, sy_power));
+    Assert(sx > 0);
+    Assert(sx <= u16_max);
+    Assert(sy > 0);
+    Assert(sy <= u16_max);
+    Assert(sx == sy);
+    Assert(Is_Multiple_Of_2(sx, sx_power));
+    Assert(Is_Multiple_Of_2(sy, sy_power));
 
     f32* cover = (f32*)temp_storage;
     f32* accumulator = cover + sx * sy;
@@ -399,8 +398,8 @@ void Perlin_2D(
     FOR_RANGE(int, y, sy) {
         FOR_RANGE(int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;
-            assert(t <= 1.0f);
-            assert(t >= 0);
+            Assert(t <= 1.0f);
+            Assert(t >= 0);
             u8 value = u8_max * t;
 
             u32 r, g, b;
