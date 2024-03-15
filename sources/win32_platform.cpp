@@ -153,6 +153,7 @@ void Load_Or_Update_Game_Dll() {
     editor_data.game_context_set = false;
     editor_data.changed = true;
     last_game_dll_write_time = filetime.filetime;
+    editor_data.dll_reloads_count++;
 #endif  // BF_INTERNAL
 
     game_lib = lib;

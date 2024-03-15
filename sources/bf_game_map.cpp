@@ -29,15 +29,18 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
+    char allocator_name[512];
+
     {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
+        sprintf(allocator_name, "segment_vertices_allocator_%d", state.dll_reloads_count);
         auto allocator_buffer =
             rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
         new (allocator_buffer) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
-            data_size, Allocate_Array(arena, u8, data_size));
+            data_size, Allocate_Array(arena, u8, data_size), allocator_name);
 
         game_map.segment_vertices_allocator = allocator_buffer;
     }
@@ -45,11 +48,12 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
+        sprintf(allocator_name, "graph_nodes_allocator_%d", state.dll_reloads_count);
         auto allocator_buffer =
             rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
         new (allocator_buffer) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
-            data_size, Allocate_Array(arena, u8, data_size));
+            data_size, Allocate_Array(arena, u8, data_size), allocator_name);
 
         game_map.graph_nodes_allocator = allocator_buffer;
     }
@@ -290,9 +294,9 @@ Graph_Segment& New_Graph_Segment(Game_State& state) {
             continue;
 
         FOR_RANGE(size_t, segment_index, game_map.max_segments_per_page) {
-            auto& instance = *(rcast<Graph_Segment*>(page->base) + segment_index);
-            if (!instance.active) {
-                found_instance = &instance;
+            auto instance = rcast<Graph_Segment*>(page->base) + segment_index;
+            if (!instance->active) {
+                found_instance = instance;
                 break;
             }
         }
@@ -701,7 +705,7 @@ void Update_Tiles(
         }
     }
 
-    u8* visited =  // NOTE(hulvdan): Flags of Direction
+    u8* visited =  // NOTE(hulvdan): Each byte here contains bit shifted `Direction`
         Allocate_Zeros_Array(trash_arena, u8, tiles_count);
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
@@ -886,6 +890,7 @@ void Update_Tiles(
             Graph_Segment& segment = **(segments_to_be_deleted + i);
             Free_Segment_Vertices(state, segment.vertices_key);
             Free_Graph_Nodes(state, segment.graph.nodes_key);
+            memset(segment.graph.nodes, 0, segment.graph.nodes_count);
             segment.active = false;
 
             // SHIT(hulvdan): Do it later
@@ -975,6 +980,8 @@ void Update_Tiles(
             if (!segment1.active)
                 continue;
 
+            v2i g1_offset = {g1.offset.x, g1.offset.y};
+
             FOR_RANGE(int, page_index2, game_map.segment_pages_used) {
                 auto& page2 = *(game_map.segment_pages + page_index2);
 
@@ -985,13 +992,14 @@ void Update_Tiles(
                     auto& segment2 =
                         *rcast<Graph_Segment*>(page2.base + sizeof(Graph_Segment) * i2);
                     auto& g2 = segment2.graph;
+                    v2i g2_offset = {g2.offset.x, g2.offset.y};
                     if (!segment2.active)
                         continue;
 
                     for (auto y = 0; y < g1.size.y; y++) {
                         for (auto x = 0; x < g1.size.x; x++) {
-                            v2i g1p_world = v2i(x + g1.offset.x, y + g1.offset.y);
-                            v2i g2p_local = {g1p_world.x - g2.offset.x, g1p_world.y - g2.offset.y};
+                            v2i g1p_world = v2i(x, y) + g1_offset;
+                            v2i g2p_local = g1p_world - g2_offset;
                             if (!Pos_Is_In_Bounds(g2p_local, g2.size))
                                 continue;
 

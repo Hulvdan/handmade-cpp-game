@@ -74,6 +74,10 @@ struct GAME_LIBRARY_EXPORT Editor_Data {
     Perlin_Params forest_perlin;
     f32 forest_threshold;
     int forest_max_amount;
+
+    int arena_numbers[2];
+
+    int dll_reloads_count;
 };
 
 Editor_Data Default_Editor_Data() {

@@ -1,10 +1,11 @@
 // ============================================================= //
-//                            Memory                             //
+//                            memory                             //
 // ============================================================= //
 struct Arena : public Non_Copyable {
     size_t used;
     size_t size;
     u8* base;
+    const char* name;
 };
 
 struct Page : public Non_Copyable {
@@ -37,6 +38,13 @@ u8* Allocate_(Arena& arena, size_t size) {
 
     u8* result = arena.base + arena.used;
     arena.used += size;
+#ifdef PROFILING
+    // TODO(hulvdan): Изучить способы того, как можно прикрутить профилирование памяти с поддержкой
+    // arena аллокаций таким образом, чтобы не приходилось запускать Free в профилировщике для
+    // старых аллокаций, когда делаем Reset арен
+    //
+    // TracyAllocN(result, size, arena.name);
+#endif
     return result;
 }
 
@@ -50,6 +58,10 @@ void Deallocate_(Arena& arena, size_t size) {
     Assert(size > 0);
     Assert(arena.used >= size);
     arena.used -= size;
+#ifdef PROFILING
+    // TODO(hulvdan): См. выше
+    // TracyFreeN(arena.base + arena.used, arena.name);
+#endif
 }
 
 [[nodiscard]] inline u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
@@ -58,10 +70,10 @@ void Deallocate_(Arena& arena, size_t size) {
     return rcast<u8*>(aligned_addr);
 }
 
-#define A_Active(node_) *rcast<bool*>(&(node_)->active)
-#define A_Next(node_) *rcast<size_t*>(&(node_)->next)
-#define A_Base(node_) *rcast<u8**>(&(node_)->base)
-#define A_Size(node_) *rcast<size_t*>(&(node_)->size)
+#define A_Active(node_) node_->active
+#define A_Next(node_) node_->next
+#define A_Base(node_) node_->base
+#define A_Size(node_) node_->size
 
 struct Allocation {
     u8* base;
@@ -82,18 +94,28 @@ struct Allocator : Non_Copyable {
 
     size_t max_toc_entries;
 
+#ifdef PROFILING
+    const char* name;
+#endif  // PROFILING
+
     Allocator(
         size_t a_toc_buffer_size,
         u8* a_toc_buffer,
         size_t a_data_buffer_size,
-        u8* a_data_buffer)
+        u8* a_data_buffer,
+        const char* a_name  //
+        )
         : toc_buffer(a_toc_buffer),
           data_buffer(a_data_buffer),
           toc_buffer_size(a_toc_buffer_size),
           data_buffer_size(a_data_buffer_size),
           current_allocations_count(0),
           first_allocation_index(0),
-          max_toc_entries(a_toc_buffer_size / sizeof(Allocation))  //
+          max_toc_entries(a_toc_buffer_size / sizeof(Allocation))
+#ifdef PROFILING
+          ,
+          name(a_name)
+#endif  // PROFILING
     {
         FOR_RANGE(size_t, i, a_toc_buffer_size) {
             Assert(*(a_toc_buffer + i) == 0);

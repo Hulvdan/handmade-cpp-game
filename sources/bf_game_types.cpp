@@ -22,7 +22,7 @@ struct Fixed_Size_Queue {
 };
 
 template <typename T>
-void Enqueue(Fixed_Size_Queue<T>& queue, const T& value) {
+void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
     // TODO(hulvdan): Test!
 
     Assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
@@ -40,7 +40,8 @@ T Dequeue(Fixed_Size_Queue<T>& queue) {
 
     T res = *queue.base;
     queue.count -= 1;
-    memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+    if (queue.count > 0)
+        memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
 
     return res;
 }
@@ -329,6 +330,7 @@ struct Observer : public Non_Copyable {
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;
+    u16 dll_reloads_count;
 
     f32 offset_x;
     f32 offset_y;

@@ -250,10 +250,22 @@ void Reset_Arena(Arena& arena) {
     arena.used = 0;
 }
 
+#ifdef PROFILING
+#define Set_Arena_Name(arena_, name_)                   \
+    {                                                   \
+        char buf[512];                                  \
+        sprintf(buf, (name_), state.dll_reloads_count); \
+        (arena_).name = buf;                            \
+    }
+#else  // PROFILING
+#define Set_Arena_Name(arena_, name_)
+#endif  // PROFILING
+
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
 
     Arena root_arena = {};
+    root_arena.name = "root_arena";
     root_arena.base = (u8*)memory_ptr;
     root_arena.size = memory_size;
     root_arena.used = 0;
@@ -323,6 +335,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         auto& arena = state.arena;
         auto& non_persistent_arena = state.non_persistent_arena;
         auto& trash_arena = state.trash_arena;
+
+        Set_Arena_Name(arena, "arena");
+        Set_Arena_Name(non_persistent_arena, "non_persistent_arena_%d");
+        Set_Arena_Name(trash_arena, "trash_arena_%d");
 
         Map_Arena(root_arena, arena, arena_size);
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
