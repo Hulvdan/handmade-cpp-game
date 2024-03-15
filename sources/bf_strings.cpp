@@ -62,3 +62,20 @@ i32 Find_Not_Newline(const u8* buffer, const i32 size) {
 
     return STRINGS_EOF;
 }
+
+char* Allocate_Formatted_String(Arena& arena, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    const auto MAX_N = 512;
+    char buf[MAX_N];
+
+    auto n = vsnprintf(buf, MAX_N, format, args);
+    Assert(n >= 0);
+    auto n_wo_zero = MIN(n, MAX_N - 1);
+
+    auto allocated_string = Allocate_Array(arena, char, n_wo_zero + 1);
+    memcpy(allocated_string, buf, n_wo_zero);
+    *(allocated_string + n_wo_zero) = '\0';
+    return allocated_string;
+}

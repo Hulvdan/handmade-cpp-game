@@ -7,7 +7,6 @@ vim.fn.execute(":set colorcolumn=")
 vim.fn.execute(":set nobackup")
 vim.fn.execute(":set nowritebackup")
 
-
 -- Helper Functions --
 -- ================ --
 local todo_plugin = require("todo-comments");

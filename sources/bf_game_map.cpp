@@ -26,18 +26,26 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
     return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
+#ifdef PROFILING
+#define Allocator_Name(ptr_, format_) \
+    (ptr_) = Allocate_Formatted_String(arena, (format_), state.dll_reloads_count)
+#else  // PROFILING
+#define Allocator_Name(ptr_, format_) (ptr_) = nullptr
+#endif  // PROFILING
+
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
-
-    char allocator_name[512];
 
     {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        sprintf(allocator_name, "segment_vertices_allocator_%d", state.dll_reloads_count);
         auto allocator_buffer =
             rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
+
+        char* allocator_name;
+        Allocator_Name(allocator_name, "segment_vertices_allocator_%d");
+
         new (allocator_buffer) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
             data_size, Allocate_Array(arena, u8, data_size), allocator_name);
@@ -48,9 +56,12 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        sprintf(allocator_name, "graph_nodes_allocator_%d", state.dll_reloads_count);
         auto allocator_buffer =
             rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
+
+        char* allocator_name;
+        Allocator_Name(allocator_name, "segment_vertices_allocator_%d");
+
         new (allocator_buffer) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
             data_size, Allocate_Array(arena, u8, data_size), allocator_name);
@@ -329,27 +340,6 @@ struct Updated_Tiles {
     v2i* pos;
     Tile_Updated_Type* type;
 };
-
-// bool Graph_AABB(Graph& graph, v2i pos) {
-//     return Pos_Is_In_Bounds(pos - graph.offset, graph.size);
-// }
-//
-// u8 Graph_Node(Graph& graph, v2i pos) {
-//     Assert(Graph_AABB(graph, pos));
-//
-//     auto new_pos = pos - graph.offset;
-//     auto& node = *(graph.nodes + graph.size.x * new_pos.y + new_pos.x);
-//     return node;
-// }
-//
-// u8 Graph_Node_Safe(Graph& graph, v2i pos) {
-//     if (!Pos_Is_In_Bounds(pos - graph.offset, graph.size))
-//         return 0;
-//
-//     auto new_pos = pos - graph.offset;
-//     auto& node = *(graph.nodes + graph.size.x * new_pos.y + new_pos.x);
-//     return node;
-// }
 
 bool Should_Segment_Be_Deleted(
     Game_State& state,
@@ -920,7 +910,7 @@ void Update_Tiles(
             auto& segment = New_Graph_Segment(state);
             auto& added_segment = *(added_segments + i);
 
-            // TODO(hulvdan): use move semantics
+            // TODO(hulvdan): use move semantics?
             segment.vertices_count = added_segment.vertices_count;
             segment.vertices_key = added_segment.vertices_key;
             segment.vertices = added_segment.vertices;
@@ -1046,17 +1036,15 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
             Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Placed);
             Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
         }  //
-        else {
+        else
             return false;
-        }
 
         Assert(tile.building == nullptr);
     } break;
 
     case Item_To_Build_Type::Road: {
-        if (tile.type != Element_Tile_Type::None) {
+        if (tile.type != Element_Tile_Type::None)
             return false;
-        }
 
         Assert(tile.building == nullptr);
         tile.type = Element_Tile_Type::Road;
@@ -1066,9 +1054,8 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     } break;
 
     case Item_To_Build_Type::Building: {
-        if (tile.type != Element_Tile_Type::None) {
+        if (tile.type != Element_Tile_Type::None)
             return false;
-        }
 
         Assert(item.scriptable_building_id != 0);
         Place_Building(state, pos, item.scriptable_building_id);

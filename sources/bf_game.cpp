@@ -250,17 +250,6 @@ void Reset_Arena(Arena& arena) {
     arena.used = 0;
 }
 
-#ifdef PROFILING
-#define Set_Arena_Name(arena_, name_)                   \
-    {                                                   \
-        char buf[512];                                  \
-        sprintf(buf, (name_), state.dll_reloads_count); \
-        (arena_).name = buf;                            \
-    }
-#else  // PROFILING
-#define Set_Arena_Name(arena_, name_)
-#endif  // PROFILING
-
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
 
@@ -336,16 +325,18 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         auto& non_persistent_arena = state.non_persistent_arena;
         auto& trash_arena = state.trash_arena;
 
-        Set_Arena_Name(arena, "arena");
-        Set_Arena_Name(non_persistent_arena, "non_persistent_arena_%d");
-        Set_Arena_Name(trash_arena, "trash_arena_%d");
-
         Map_Arena(root_arena, arena, arena_size);
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
 
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
+
+        state.arena.name = "arena";
+        non_persistent_arena.name = Allocate_Formatted_String(
+            non_persistent_arena, "non_persistent_arena_%d", state.dll_reloads_count);
+        trash_arena.name = Allocate_Formatted_String(
+            non_persistent_arena, "trash_arena_%d", state.dll_reloads_count);
 
         if (first_time_initializing) {
             auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;

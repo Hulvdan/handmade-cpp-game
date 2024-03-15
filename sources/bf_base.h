@@ -6,9 +6,9 @@
 
 #ifdef BF_INTERNAL
 #define BREAKPOINT __debugbreak()
-#else
+#else  // BF_INTERNAL
 #define BREAKPOINT
-#endif
+#endif  // BF_INTERNAL
 
 #ifdef BF_INTERNAL
 static constexpr auto DEBUG_MAX_LEN = 512;
@@ -33,10 +33,10 @@ void DEBUG_Print(const char* text, ...) {
     va_end(args);
 }
 
-#else
+#else  // BF_INTERNAL
 #define DEBUG_Error(text_, ...)
 #define DEBUG_Print(text_, ...)
-#endif
+#endif  // BF_INTERNAL
 
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
@@ -67,7 +67,7 @@ using v3i = glm::ivec3;
 
 #ifdef TESTS
 #define Assert(expr) REQUIRE(expr)
-#else
+#else  // TESTS
 #include <cassert>
 #define Assert(expr) assert(expr)
 #endif  // TESTS
