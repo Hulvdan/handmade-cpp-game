@@ -33,8 +33,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        auto buf = rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
-
+        auto buf = Allocate_Zeros_For(arena, Allocator);
         new (buf) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
             data_size, Allocate_Array(arena, u8, data_size));
@@ -47,8 +46,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        auto buf = rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
-
+        auto buf = Allocate_Zeros_For(arena, Allocator);
         new (buf) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
             data_size, Allocate_Array(arena, u8, data_size));
@@ -553,6 +551,23 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
+#define continuel return
+
+#define FOR_SEGMENT(variable_name_, ptr_variable_name_, game_map_, code_)                 \
+    {                                                                                     \
+        FOR_RANGE(auto, segment_page_index___, game_map.segment_pages_used) {             \
+            auto page_base___ = (game_map.segment_pages + segment_page_index___) -> base; \
+            Assert(page_base___ != nullptr);                                              \
+            auto base_segment_ptr___ = rcast<Graph_Segment*>(page_base___);               \
+                                                                                          \
+            FOR_RANGE(auto, segment_index___, game_map.max_segments_per_page) {           \
+                auto(ptr_variable_name_) = base_segment_ptr___ + segment_index___;        \
+                auto&(variable_name_) = *(ptr_variable_name_);                            \
+                [&]() { code_; }();                                                       \
+            }                                                                             \
+        }                                                                                 \
+    }
+
 void Update_Tiles(
     Game_State& state,
     Arena& non_pesistent_arena,
@@ -563,7 +578,6 @@ void Update_Tiles(
     auto& gsize = game_map.size;
     auto& element_tiles = game_map.element_tiles;
 
-    typedef tuple<Direction, v2i> Dir_v2i;
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE(hulvdan): Ищем сегменты для удаления
@@ -573,38 +587,30 @@ void Update_Tiles(
         Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
-    FOR_RANGE(auto, segment_page_index_, game_map.segment_pages_used) {
-        auto page_base = (game_map.segment_pages + segment_page_index_)->base;
-        Assert(page_base != nullptr);
-        auto base_segment_ptr = rcast<Graph_Segment*>(page_base);
+    FOR_SEGMENT(segment, segment_ptr, game_map, {
+        if (!segment.active)
+            continuel;
+        if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
+            continuel;
 
-        FOR_RANGE(auto, segment_index, game_map.max_segments_per_page) {
-            auto segment_ptr = base_segment_ptr + segment_index;
-            auto& segment = *segment_ptr;
-            if (!segment.active)
-                continue;
+        // TODO(hulvdan): Протестить, точно ли тут нужно добавление без дублирования
+        // NOTE(hulvdan): Добавление сегмента без дублирования
+        auto found = false;
+        FOR_RANGE(int, i, segments_to_be_deleted_count) {
+            auto segment_ptr = *(segments_to_be_deleted + i);
+            if (segment_ptr == &segment) {
+                found = true;
+                break;
+            }
+        }
 
-            if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
-                continue;
-
-            // TODO(hulvdan): Протестить, точно ли тут нужно добавление без дублирования
-            // // NOTE(hulvdan): Добавление сегмента без дублирования
-            // auto found = false;
-            // FOR_RANGE(int, i, segments_to_be_deleted_count) {
-            //     auto segment_ptr = *(segments_to_be_deleted + i);
-            //     if (segment_ptr == &segment) {
-            //         found = true;
-            //         break;
-            //     }
-            // }
-            //
-            // if (!found) {
+        Assert(!found);
+        if (!found) {
             Assert(segments_to_be_deleted_count < updated_tiles.count * 4);
             *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
             segments_to_be_deleted_count++;
-            // }
         }
-    }
+    });
 
     // NOTE(hulvdan): Создание новых сегментов
     auto added_segments_allocate = updated_tiles.count * 4;
@@ -612,6 +618,8 @@ void Update_Tiles(
     Graph_Segment* added_segments =
         Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
+
+    typedef tuple<Direction, v2i> Dir_v2i;
 
     Fixed_Size_Queue<Dir_v2i> big_fuken_queue = {};
     big_fuken_queue.memory_size = sizeof(Dir_v2i) * tiles_count;
@@ -951,48 +959,15 @@ void Update_Tiles(
     // }
 
 #ifdef ASSERT_SLOW
-    FOR_RANGE(int, page_index1, game_map.segment_pages_used) {
-        auto& page1 = *(game_map.segment_pages + page_index1);
-
-        FOR_RANGE(int, i1, game_map.max_segments_per_page) {
-            auto& segment1 = *rcast<Graph_Segment*>(page1.base + sizeof(Graph_Segment) * i1);
-            auto& g1 = segment1.graph;
-            if (!segment1.active)
-                continue;
-
-            v2i g1_offset = {g1.offset.x, g1.offset.y};
-
-            FOR_RANGE(int, page_index2, game_map.segment_pages_used) {
-                auto& page2 = *(game_map.segment_pages + page_index2);
-
-                FOR_RANGE(int, i2, game_map.max_segments_per_page) {
-                    if ((i1 == i2) && (page_index1 == page_index2))
-                        continue;
-
-                    auto& segment2 =
-                        *rcast<Graph_Segment*>(page2.base + sizeof(Graph_Segment) * i2);
-                    auto& g2 = segment2.graph;
-                    v2i g2_offset = {g2.offset.x, g2.offset.y};
-                    if (!segment2.active)
-                        continue;
-
-                    for (auto y = 0; y < g1.size.y; y++) {
-                        for (auto x = 0; x < g1.size.x; x++) {
-                            v2i g1p_world = v2i(x, y) + g1_offset;
-                            v2i g2p_local = g1p_world - g2_offset;
-                            if (!Pos_Is_In_Bounds(g2p_local, g2.size))
-                                continue;
-
-                            u8 node1 = *(g1.nodes + y * g1.size.x + x);
-                            u8 node2 = *(g2.nodes + g2p_local.y * g2.size.x + g2p_local.x);
-                            bool no_intersections = (node1 & node2) == 0;
-                            Assert(no_intersections);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // FOR_SEGMENT(segment1, segment1_ptr, game_map, {
+    //     if (!segment1.active)
+    //         continuel;
+    //
+    //     auto& g1 = segment1.graph;
+    //     v2i g1_offset = {g1.offset.x, g1.offset.y};
+    //
+    //     FOR_SEGMENT(segment2, segment2_ptr, game_map, {});
+    // });
 #endif  // ASSERT_SLOW
 }
 
