@@ -5,16 +5,17 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-// #include <cassert>
 #include <cstdlib>
 #include <memory>
-#include <tuple>
 
 #include "glew.h"
 #include "wglew.h"
 
 #include "bf_base.h"
 #include "bf_game.h"
+
+#include <tuple>
+using std::tuple;
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"

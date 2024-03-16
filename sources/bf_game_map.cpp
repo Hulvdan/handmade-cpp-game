@@ -525,7 +525,7 @@ void Linked_List_Remove_At(
     Assert(false);
 }
 
-std::tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
+tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
     Assert(state.game_map.segment_vertices_allocator != nullptr);
     auto [key, buffer] = state.game_map.segment_vertices_allocator->Allocate(vertices_count, 1);
     return {key, (Graph_v2u*)buffer};
@@ -536,7 +536,7 @@ void Free_Segment_Vertices(Game_State& state, size_t key) {
     state.game_map.segment_vertices_allocator->Free(key);
 }
 
-std::tuple<size_t, u8*> Allocate_Graph_Nodes(Game_State& state, int nodes_count) {
+tuple<size_t, u8*> Allocate_Graph_Nodes(Game_State& state, int nodes_count) {
     Assert(state.game_map.graph_nodes_allocator != nullptr);
     auto [key, buffer] = state.game_map.graph_nodes_allocator->Allocate(nodes_count, 1);
     return {key, buffer};
@@ -563,7 +563,7 @@ void Update_Tiles(
     auto& gsize = game_map.size;
     auto& element_tiles = game_map.element_tiles;
 
-    typedef std::tuple<Direction, v2i> Dir_v2i;
+    typedef tuple<Direction, v2i> Dir_v2i;
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE(hulvdan): Ищем сегменты для удаления
@@ -705,7 +705,8 @@ void Update_Tiles(
         Graph_v2u* segment_tiles = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
-        *(segment_tiles + 0) = To_Graph_v2u(std::get<1>(p));
+        auto [_, p_pos] = p;
+        *(segment_tiles + 0) = To_Graph_v2u(p_pos);
 
         Graph temp_graph = {};
         temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
