@@ -218,10 +218,8 @@ vim.keymap.set("n", "<C-S-b>", function()
     launch_tab([[cmd\remake_cmake.bat]])
 end, opts)
 
-vim.keymap.set("n", "<C-}>", ":cn<CR>", opts)
-vim.keymap.set("n", "<C-{>", ":cp<CR>", opts)
--- vim.keymap.set("n", "<C-S-]>", ":cn<CR>", opts)
--- vim.keymap.set("n", "<C-S-[>", ":cp<CR>", opts)
+vim.keymap.set("n", "<C-}>", ":cc<CR>:cn<CR>", opts)
+vim.keymap.set("n", "<C-{>", ":cc<CR>:cp<CR>", opts)
 
 require("overseer").setup({
     templates = { "builtin", "user.build_bat" },
@@ -235,3 +233,16 @@ vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c):\ %m]])
 vim.fn.execute([[set errorformat+=\\\ %#%f(%l)\ :\ %#%t%[A-z]%#\ %m]])
 -- Microsoft HLSL compiler: fxc.exe
 vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]])
+
+vim.keymap.set(
+    "v",
+    "<C-S-U>",
+    function()
+        vim.api.nvim_input("<C-S-f>")
+
+        vim.defer_fn(function()
+            vim.api.nvim_input("<C-S-q><C-W>h<C-W>k")
+        end, 200)
+    end,
+    { silent = true, remap = true }
+)
