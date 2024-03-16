@@ -551,22 +551,40 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
-#define continuel return
+class Graph_Segment_Iterator : public Iterator_Facade<Graph_Segment_Iterator> {
+public:
+    Graph_Segment_Iterator() = delete;
+    Graph_Segment_Iterator(Game_Map* game_map)
+        : _current(0), _current_page(0), _game_map(game_map) {}
+    Graph_Segment_Iterator(Game_Map* game_map, u32 current, u32 current_page)
+        : _current(current), _current_page(current_page), _game_map(game_map) {}
 
-#define FOR_SEGMENT(variable_name_, ptr_variable_name_, game_map_, code_)                 \
-    {                                                                                     \
-        FOR_RANGE(auto, segment_page_index___, game_map.segment_pages_used) {             \
-            auto page_base___ = (game_map.segment_pages + segment_page_index___) -> base; \
-            Assert(page_base___ != nullptr);                                              \
-            auto base_segment_ptr___ = rcast<Graph_Segment*>(page_base___);               \
-                                                                                          \
-            FOR_RANGE(auto, segment_index___, game_map.max_segments_per_page) {           \
-                auto(ptr_variable_name_) = base_segment_ptr___ + segment_index___;        \
-                auto&(variable_name_) = *(ptr_variable_name_);                            \
-                [&]() { code_; }();                                                       \
-            }                                                                             \
-        }                                                                                 \
+    Graph_Segment* dereference() const {
+        auto page_base = (_game_map->segment_pages + _current_page)->base;
+        auto result = rcast<Graph_Segment*>(page_base) + _current;
+        return result;
     }
+
+    self_type begin() const { return {_game_map, _current, _current_page}; }
+    self_type end() const { return {_game_map, 0, _game_map->segment_pages_used}; }
+
+    void increment() {
+        _current++;
+        if (_current >= _game_map->max_segments_per_page) {
+            _current = 0;
+            _current_page++;
+        }
+    }
+
+    bool equal_to(const Graph_Segment_Iterator& o) const {
+        return _current == o._current && _current_page == o._current_page;
+    }
+
+private:
+    Game_Map* _game_map;
+    u16 _current;
+    u16 _current_page;
+};
 
 void Update_Tiles(
     Game_State& state,
@@ -587,18 +605,20 @@ void Update_Tiles(
         Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
-    FOR_SEGMENT(segment, segment_ptr, game_map, {
+    for (auto segment_ptr : Graph_Segment_Iterator(&game_map)) {
+        auto& segment = *segment_ptr;
         if (!segment.active)
-            continuel;
+            continue;
+
         if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
-            continuel;
+            continue;
 
         // TODO(hulvdan): Протестить, точно ли тут нужно добавление без дублирования
         // NOTE(hulvdan): Добавление сегмента без дублирования
         auto found = false;
         FOR_RANGE(int, i, segments_to_be_deleted_count) {
-            auto segment_ptr = *(segments_to_be_deleted + i);
-            if (segment_ptr == &segment) {
+            auto existing_segment_ptr = *(segments_to_be_deleted + i);
+            if (existing_segment_ptr == segment_ptr) {
                 found = true;
                 break;
             }
@@ -610,7 +630,7 @@ void Update_Tiles(
             *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
             segments_to_be_deleted_count++;
         }
-    });
+    };
 
     // NOTE(hulvdan): Создание новых сегментов
     auto added_segments_allocate = updated_tiles.count * 4;
@@ -959,15 +979,39 @@ void Update_Tiles(
     // }
 
 #ifdef ASSERT_SLOW
-    // FOR_SEGMENT(segment1, segment1_ptr, game_map, {
-    //     if (!segment1.active)
-    //         continuel;
-    //
-    //     auto& g1 = segment1.graph;
-    //     v2i g1_offset = {g1.offset.x, g1.offset.y};
-    //
-    //     FOR_SEGMENT(segment2, segment2_ptr, game_map, {});
-    // });
+    for (auto segment1_ptr : Graph_Segment_Iterator(&game_map)) {
+        auto& segment1 = *segment1_ptr;
+        if (!segment1.active)
+            continue;
+
+        auto& g1 = segment1.graph;
+        v2i g1_offset = {g1.offset.x, g1.offset.y};
+
+        for (auto segment2_ptr : Graph_Segment_Iterator(&game_map)) {
+            auto& segment2 = *segment2_ptr;
+            if (segment1_ptr == segment2_ptr)
+                continue;
+
+            auto& g2 = segment2.graph;
+            v2i g2_offset = {g2.offset.x, g2.offset.y};
+            if (!segment2.active)
+                continue;
+
+            for (auto y = 0; y < g1.size.y; y++) {
+                for (auto x = 0; x < g1.size.x; x++) {
+                    v2i g1p_world = v2i(x, y) + g1_offset;
+                    v2i g2p_local = g1p_world - g2_offset;
+                    if (!Pos_Is_In_Bounds(g2p_local, g2.size))
+                        continue;
+
+                    u8 node1 = *(g1.nodes + y * g1.size.x + x);
+                    u8 node2 = *(g2.nodes + g2p_local.y * g2.size.x + g2p_local.x);
+                    bool no_intersections = (node1 & node2) == 0;
+                    Assert(no_intersections);
+                }
+            }
+        }
+    }
 #endif  // ASSERT_SLOW
 }
 

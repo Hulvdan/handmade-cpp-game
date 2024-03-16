@@ -78,19 +78,21 @@ using v3i = glm::ivec3;
 #define scast static_cast
 #define rcast reinterpret_cast
 
+static constexpr f32 BF_PI = 3.14159265359f;
+static constexpr f32 BF_2PI = 6.28318530718f;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-
-#define FOR_RANGE(type, variable_name, max_value_exclusive) \
-    for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
 
 // NOTE(hulvdan): bounds are EXCLUSIVE
 #define Pos_Is_In_Bounds(pos, bounds) \
     (!((pos).x < 0 || (pos).x >= (bounds).x || (pos).y < 0 || (pos).y >= (bounds).y))
 
-static constexpr f32 BF_PI = 3.14159265359f;
-static constexpr f32 BF_2PI = 6.28318530718f;
+#define FOR_RANGE(type, variable_name, max_value_exclusive) \
+    for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
 
+// ============================================================= //
+//                             Defer                             //
+// ============================================================= //
 template <typename F>
 struct _privDefer {
     F f;
@@ -106,6 +108,9 @@ _privDefer<F> _defer_func(F f) {
 #define _DEFER_3(x) _DEFER_2(x, __COUNTER__)
 #define DEFER(code) auto _DEFER_3(_defer_) = _defer_func([&]() { code; })
 
+// ============================================================= //
+//                             Other                             //
+// ============================================================= //
 struct Non_Copyable {
     Non_Copyable() = default;
     Non_Copyable(const Non_Copyable&) = delete;
@@ -116,3 +121,51 @@ template <typename T>
 void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
+
+// ============================================================= //
+//                           Iterators                           //
+// ============================================================= //
+//
+// NOTE(hulvdan): Proudly taken from
+// https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
+template <class Reference>
+struct Arrow_Proxy {
+    Reference r;
+    Reference* operator->() { return &r; }
+};
+
+template <typename Derived>
+struct Iterator_Facade : public Non_Copyable {
+protected:
+    using self_type = Derived;
+
+private:
+    self_type& _self() { return scast<self_type&>(*this); }
+    const self_type& _self() const { return scast<const self_type&>(*this); }
+
+public:
+    decltype(auto) operator*() const { return _self().dereference(); }
+
+    auto operator->() const {
+        decltype(auto) ref = **this;
+        if constexpr (std::is_reference_v<decltype(ref)>)
+            return std::addressof(ref);
+        else
+            return Arrow_Proxy(std::move(ref));
+    }
+
+    friend bool operator==(const self_type& left, const self_type& right) {
+        return left.equal_to(right);
+    }
+
+    self_type& operator++() {
+        _self().increment();
+        return _self();
+    }
+
+    self_type operator++(int) {
+        auto copy = _self();
+        ++*this;
+        return copy;
+    }
+};
