@@ -26,13 +26,6 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i pos) {
     return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
-#ifdef PROFILING
-#define Allocator_Name(ptr_, format_) \
-    (ptr_) = Allocate_Formatted_String(arena, (format_), state.dll_reloads_count)
-#else  // PROFILING
-#define Allocator_Name(ptr_, format_) (ptr_) = nullptr
-#endif  // PROFILING
-
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
@@ -40,33 +33,29 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        auto allocator_buffer =
-            rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
+        auto buf = rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
 
-        char* allocator_name;
-        Allocator_Name(allocator_name, "segment_vertices_allocator_%d");
-
-        new (allocator_buffer) Allocator(
+        new (buf) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
-            data_size, Allocate_Array(arena, u8, data_size), allocator_name);
+            data_size, Allocate_Array(arena, u8, data_size));
 
-        game_map.segment_vertices_allocator = allocator_buffer;
+        game_map.segment_vertices_allocator = buf;
+        Set_Allocator_Name_If_Profiling(
+            arena, *buf, "segment_vertices_allocator_%d", state.dll_reloads_count);
     }
     {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        auto allocator_buffer =
-            rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
+        auto buf = rcast<Allocator*>(Allocate_Zeros_Array(arena, u8, sizeof(Allocator)));
 
-        char* allocator_name;
-        Allocator_Name(allocator_name, "segment_vertices_allocator_%d");
-
-        new (allocator_buffer) Allocator(
+        new (buf) Allocator(
             toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
-            data_size, Allocate_Array(arena, u8, data_size), allocator_name);
+            data_size, Allocate_Array(arena, u8, data_size));
 
-        game_map.graph_nodes_allocator = allocator_buffer;
+        game_map.graph_nodes_allocator = buf;
+        Set_Allocator_Name_If_Profiling(
+            arena, *buf, "graph_nodes_allocator_%d", state.dll_reloads_count);
     }
 }
 

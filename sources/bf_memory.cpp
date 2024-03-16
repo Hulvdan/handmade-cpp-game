@@ -1,6 +1,3 @@
-// ============================================================= //
-//                            memory                             //
-// ============================================================= //
 struct Arena : public Non_Copyable {
     size_t used;
     size_t size;
@@ -43,6 +40,7 @@ u8* Allocate_(Arena& arena, size_t size) {
     // arena аллокаций таким образом, чтобы не приходилось запускать Free в профилировщике для
     // старых аллокаций, когда делаем Reset арен
     //
+    // Assert(arena.name != nullptr);
     // TracyAllocN(result, size, arena.name);
 #endif
     return result;
@@ -60,6 +58,8 @@ void Deallocate_(Arena& arena, size_t size) {
     arena.used -= size;
 #ifdef PROFILING
     // TODO(hulvdan): См. выше
+    //
+    // Assert(arena.name != nullptr);
     // TracyFreeN(arena.base + arena.used, arena.name);
 #endif
 }
@@ -70,10 +70,10 @@ void Deallocate_(Arena& arena, size_t size) {
     return rcast<u8*>(aligned_addr);
 }
 
-#define A_Active(node_) node_->active
-#define A_Next(node_) node_->next
-#define A_Base(node_) node_->base
-#define A_Size(node_) node_->size
+#define A_Active(node_) (node_)->active
+#define A_Next(node_) (node_)->next
+#define A_Base(node_) (node_)->base
+#define A_Size(node_) (node_)->size
 
 struct Allocation {
     u8* base;
@@ -102,8 +102,7 @@ struct Allocator : Non_Copyable {
         size_t a_toc_buffer_size,
         u8* a_toc_buffer,
         size_t a_data_buffer_size,
-        u8* a_data_buffer,
-        const char* a_name  //
+        u8* a_data_buffer  //
         )
         : toc_buffer(a_toc_buffer),
           data_buffer(a_data_buffer),
@@ -111,15 +110,15 @@ struct Allocator : Non_Copyable {
           data_buffer_size(a_data_buffer_size),
           current_allocations_count(0),
           first_allocation_index(0),
-          max_toc_entries(a_toc_buffer_size / sizeof(Allocation))
-#ifdef PROFILING
-          ,
-          name(a_name)
-#endif  // PROFILING
+          max_toc_entries(a_toc_buffer_size / sizeof(Allocation))  //
     {
         FOR_RANGE(size_t, i, a_toc_buffer_size) {
             Assert(*(a_toc_buffer + i) == 0);
         }
+
+#ifdef PROFILING
+        name = nullptr;
+#endif
     }
 
     std::tuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
@@ -224,3 +223,10 @@ struct Allocator : Non_Copyable {
         INVALID_PATH;
     }
 };
+
+#ifdef PROFILING
+#define Set_Allocator_Name_If_Profiling(arena_, allocator_, format_, ...) \
+    (allocator_).name = Allocate_Formatted_String((arena_), (format_), __VA_ARGS__)
+#else  // PROFILING
+#define Set_Allocator_Name_If_Profiling(arena_, allocator_, format_, ...)
+#endif  // PROFILING

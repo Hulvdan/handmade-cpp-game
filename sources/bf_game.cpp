@@ -320,7 +320,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         auto arena_size =
             root_arena.size - root_arena.used - non_persistent_arena_size - trash_arena_size;
 
-        // NOTE(hulvdan): `arena` remains the same after hot reloading unlike others
+        // NOTE(hulvdan): `arena` remains the same after hot reloading. Others get reset
         auto& arena = state.arena;
         auto& non_persistent_arena = state.non_persistent_arena;
         auto& trash_arena = state.trash_arena;
@@ -339,7 +339,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count);
 
         if (first_time_initializing) {
-            auto pages_count_that_fit_2GB = (size_t)2 * 1024 * 1024 * 1024 / os_data.page_size;
+            auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / os_data.page_size;
             state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
             state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
             state.pages.total_count_cap = pages_count_that_fit_2GB;
