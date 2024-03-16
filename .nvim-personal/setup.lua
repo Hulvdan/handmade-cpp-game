@@ -218,9 +218,6 @@ vim.keymap.set("n", "<C-S-b>", function()
     launch_tab([[cmd\remake_cmake.bat]])
 end, opts)
 
-vim.keymap.set("n", "<C-}>", ":cc<CR>:cn<CR>", opts)
-vim.keymap.set("n", "<C-{>", ":cc<CR>:cp<CR>", opts)
-
 require("overseer").setup({
     templates = { "builtin", "user.build_bat" },
 })

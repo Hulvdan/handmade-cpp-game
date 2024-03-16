@@ -135,7 +135,7 @@ struct Arrow_Proxy {
 };
 
 template <typename Derived>
-struct Iterator_Facade : public Non_Copyable {
+struct Iterator_Facade {
 protected:
     using self_type = Derived;
 
@@ -151,11 +151,15 @@ public:
         if constexpr (std::is_reference_v<decltype(ref)>)
             return std::addressof(ref);
         else
-            return Arrow_Proxy(std::move(ref));
+            return Arrow_Proxy<Derived>(std::move(ref));
     }
 
     friend bool operator==(const self_type& left, const self_type& right) {
         return left.equal_to(right);
+    }
+    // SHIT(hulvdan): Fuken `clang-tidy` requires this function to be specified
+    friend bool operator!=(const self_type& left, const self_type& right) {
+        return !left.equal_to(right);
     }
 
     self_type& operator++() {

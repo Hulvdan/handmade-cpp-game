@@ -559,14 +559,14 @@ public:
     Graph_Segment_Iterator(Game_Map* game_map, u32 current, u32 current_page)
         : _current(current), _current_page(current_page), _game_map(game_map) {}
 
+    Graph_Segment_Iterator begin() const { return {_game_map, _current, _current_page}; }
+    Graph_Segment_Iterator end() const { return {_game_map, 0, _game_map->segment_pages_used}; }
+
     Graph_Segment* dereference() const {
         auto page_base = (_game_map->segment_pages + _current_page)->base;
         auto result = rcast<Graph_Segment*>(page_base) + _current;
         return result;
     }
-
-    self_type begin() const { return {_game_map, _current, _current_page}; }
-    self_type end() const { return {_game_map, 0, _game_map->segment_pages_used}; }
 
     void increment() {
         _current++;
@@ -576,6 +576,9 @@ public:
         }
     }
 
+    // bool equal_to(const Graph_Segment_Iterator&& o) const {
+    //     return _current == o._current && _current_page == o._current_page;
+    // }
     bool equal_to(const Graph_Segment_Iterator& o) const {
         return _current == o._current && _current_page == o._current_page;
     }
@@ -613,23 +616,9 @@ void Update_Tiles(
         if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
             continue;
 
-        // TODO(hulvdan): Протестить, точно ли тут нужно добавление без дублирования
-        // NOTE(hulvdan): Добавление сегмента без дублирования
-        auto found = false;
-        FOR_RANGE(int, i, segments_to_be_deleted_count) {
-            auto existing_segment_ptr = *(segments_to_be_deleted + i);
-            if (existing_segment_ptr == segment_ptr) {
-                found = true;
-                break;
-            }
-        }
-
-        Assert(!found);
-        if (!found) {
-            Assert(segments_to_be_deleted_count < updated_tiles.count * 4);
-            *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
-            segments_to_be_deleted_count++;
-        }
+        Assert(segments_to_be_deleted_count < updated_tiles.count * 4);
+        *(segments_to_be_deleted + segments_to_be_deleted_count) = segment_ptr;
+        segments_to_be_deleted_count++;
     };
 
     // NOTE(hulvdan): Создание новых сегментов
@@ -712,8 +701,8 @@ void Update_Tiles(
         }
     }
 
-    u8* visited =  // NOTE(hulvdan): Each byte here contains bit shifted `Direction`
-        Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+    // NOTE(hulvdan): Each byte here contains differently bit-shifted values of `Direction`
+    u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
     Fixed_Size_Queue<Dir_v2i> queue = {};

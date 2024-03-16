@@ -343,3 +343,24 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->next == size_t_max);
     }
 }
+
+TEST_CASE("Opposite") {
+    CHECK(Opposite(Direction::Right) == Direction::Left);
+    CHECK(Opposite(Direction::Up) == Direction::Down);
+    CHECK(Opposite(Direction::Left) == Direction::Right);
+    CHECK(Opposite(Direction::Down) == Direction::Up);
+}
+
+TEST_CASE("Opposite") {
+    CHECK(Opposite(Direction::Right) == Direction::Left);
+    CHECK(Opposite(Direction::Up) == Direction::Down);
+    CHECK(Opposite(Direction::Left) == Direction::Right);
+    CHECK(Opposite(Direction::Down) == Direction::Up);
+}
+
+TEST_CASE("As_Offset") {
+    CHECK(As_Offset(Direction::Right) == v2i(1, 0));
+    CHECK(As_Offset(Direction::Up) == v2i(0, 1));
+    CHECK(As_Offset(Direction::Left) == v2i(-1, 0));
+    CHECK(As_Offset(Direction::Down) == v2i(0, -1));
+}
