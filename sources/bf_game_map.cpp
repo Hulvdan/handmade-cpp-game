@@ -556,6 +556,7 @@ class Graph_Segment_Iterator : public Iterator_Facade<Graph_Segment_Iterator> {
 public:
     Graph_Segment_Iterator() = delete;
 
+    Graph_Segment_Iterator(Game_Map* game_map) : Graph_Segment_Iterator(game_map, 0, 0) {}
     Graph_Segment_Iterator(Game_Map* game_map, u32 current, u32 current_page)
         : _current(current),
           _current_page(current_page),
@@ -563,8 +564,6 @@ public:
     {
         Assert(game_map->max_segments_per_page > 0);
     }
-
-    Graph_Segment_Iterator(Game_Map* game_map) : Graph_Segment_Iterator(game_map, 0, 0) {}
 
     Graph_Segment_Iterator begin() const { return {_game_map, _current, _current_page}; }
     Graph_Segment_Iterator end() const { return {_game_map, 0, _game_map->segment_pages_used}; }
@@ -576,7 +575,7 @@ public:
     }
 
     void increment() {
-        guarded_while(256) {
+        FOR_RANGE(int, _GUARD_, 256) {
             _current++;
             if (_current >= _game_map->max_segments_per_page) {
                 _current = 0;
@@ -589,6 +588,7 @@ public:
             if (dereference()->active)
                 return;
         }
+        Assert(false);
     }
 
     bool equal_to(const Graph_Segment_Iterator& o) const {
