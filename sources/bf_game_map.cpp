@@ -317,6 +317,7 @@ Graph_Segment& New_Graph_Segment(Game_State& state) {
     Get_Graph_Segment_Page_Meta(page_size, *page).count++;
     auto& instance = *found_instance;
 
+    Assert(!instance.active);
     instance.active = true;
 
     return instance;
@@ -554,10 +555,16 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
 class Graph_Segment_Iterator : public Iterator_Facade<Graph_Segment_Iterator> {
 public:
     Graph_Segment_Iterator() = delete;
-    Graph_Segment_Iterator(Game_Map* game_map)
-        : _current(0), _current_page(0), _game_map(game_map) {}
+
     Graph_Segment_Iterator(Game_Map* game_map, u32 current, u32 current_page)
-        : _current(current), _current_page(current_page), _game_map(game_map) {}
+        : _current(current),
+          _current_page(current_page),
+          _game_map(game_map)  //
+    {
+        Assert(game_map->max_segments_per_page > 0);
+    }
+
+    Graph_Segment_Iterator(Game_Map* game_map) : Graph_Segment_Iterator(game_map, 0, 0) {}
 
     Graph_Segment_Iterator begin() const { return {_game_map, _current, _current_page}; }
     Graph_Segment_Iterator end() const { return {_game_map, 0, _game_map->segment_pages_used}; }
@@ -569,24 +576,29 @@ public:
     }
 
     void increment() {
-        _current++;
-        if (_current >= _game_map->max_segments_per_page) {
-            _current = 0;
-            _current_page++;
+        guarded_while(256) {
+            _current++;
+            if (_current >= _game_map->max_segments_per_page) {
+                _current = 0;
+                _current_page++;
+
+                if (_current_page == _game_map->segment_pages_used)
+                    return;
+            }
+
+            if (dereference()->active)
+                return;
         }
     }
 
-    // bool equal_to(const Graph_Segment_Iterator&& o) const {
-    //     return _current == o._current && _current_page == o._current_page;
-    // }
     bool equal_to(const Graph_Segment_Iterator& o) const {
         return _current == o._current && _current_page == o._current_page;
     }
 
 private:
     Game_Map* _game_map;
-    u16 _current;
-    u16 _current_page;
+    u16 _current = 0;
+    u16 _current_page = 0;
 };
 
 void Update_Tiles(
@@ -610,8 +622,7 @@ void Update_Tiles(
 
     for (auto segment_ptr : Graph_Segment_Iterator(&game_map)) {
         auto& segment = *segment_ptr;
-        if (!segment.active)
-            continue;
+        Assert(segment.active);
 
         if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
             continue;
@@ -808,6 +819,7 @@ void Update_Tiles(
         // Assert(width > 0);
 
         auto& segment = *(added_segments + added_segments_count);
+        Assert(!segment.active);
         segment.active = true;
         segment.vertices_count = vertices_count;
         added_segments_count++;
@@ -887,7 +899,6 @@ void Update_Tiles(
             Graph_Segment& segment = **(segments_to_be_deleted + i);
             Free_Segment_Vertices(state, segment.vertices_key);
             Free_Graph_Nodes(state, segment.graph.nodes_key);
-            memset(segment.graph.nodes, 0, segment.graph.nodes_count);
             segment.active = false;
 
             // SHIT(hulvdan): Do it later
@@ -921,14 +932,11 @@ void Update_Tiles(
             segment.vertices_count = added_segment.vertices_count;
             segment.vertices_key = added_segment.vertices_key;
             segment.vertices = added_segment.vertices;
-
             segment.graph.nodes_count = added_segment.graph.nodes_count;
             segment.graph.nodes_key = added_segment.graph.nodes_key;
             segment.graph.nodes = added_segment.graph.nodes;
             segment.graph.size = added_segment.graph.size;
             segment.graph.offset = added_segment.graph.offset;
-
-            segment.active = true;
 
             // SHIT(hulvdan): Do it later
             // FROM C# REPO
@@ -970,21 +978,20 @@ void Update_Tiles(
 #ifdef ASSERT_SLOW
     for (auto segment1_ptr : Graph_Segment_Iterator(&game_map)) {
         auto& segment1 = *segment1_ptr;
-        if (!segment1.active)
-            continue;
+        Assert(segment1.active);
 
         auto& g1 = segment1.graph;
         v2i g1_offset = {g1.offset.x, g1.offset.y};
 
         for (auto segment2_ptr : Graph_Segment_Iterator(&game_map)) {
             auto& segment2 = *segment2_ptr;
+            Assert(segment2.active);
+
             if (segment1_ptr == segment2_ptr)
                 continue;
 
             auto& g2 = segment2.graph;
             v2i g2_offset = {g2.offset.x, g2.offset.y};
-            if (!segment2.active)
-                continue;
 
             for (auto y = 0; y < g1.size.y; y++) {
                 for (auto x = 0; x < g1.size.x; x++) {

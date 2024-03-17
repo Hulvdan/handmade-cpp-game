@@ -66,10 +66,13 @@ using v3i = glm::ivec3;
 #include "bf_types.h"
 
 #ifdef TESTS
+#include <cassert>
+#define Shit_Assert(expr) assert(expr)
 #define Assert(expr) REQUIRE(expr)
 #else  // TESTS
 #include <cassert>
 #define Assert(expr) assert(expr)
+#define Shit_Assert(expr) Assert(expr)
 #endif  // TESTS
 
 #define INVALID_PATH Assert(false)
@@ -121,6 +124,37 @@ template <typename T>
 void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
+
+// ============================================================= //
+//                         Guarded While                         //
+// ============================================================= //
+#define BF_CAT_(a, b) a##b
+#define BF_CAT(a, b) BF_CAT_(a, b)
+#define BF_VARNAME(Var) BF_CAT(Var, __LINE__)
+
+// NOTE(hulvdan): Сие есть мой способ написания цикла while,
+// который грохается при разработке, если есть подозрение на бесконечный цикл.
+//
+// Тело цикла исполняется максимум `MIN(count_, 65534)` раз.
+//
+// Usage:
+//
+// 1) Assertion error
+// guarded_while(16) {
+//     ... infinite loop
+// }
+//
+// 2) No assertion error
+// guarded_while(16) {
+//     break;
+// }
+//
+// TODO(hulvdan): Shit_Assert вызывает assert из <cassert>.
+// Придумать способ вызова Doctest-ового assert-а вместо этого. А этот удалить
+#define guarded_while(count_)                                                         \
+    for (u16 BF_VARNAME(guard_) = 0; BF_VARNAME(guard_) < u16_max;                    \
+         Shit_Assert((count_) < u16_max), Shit_Assert(BF_VARNAME(guard_) < (count_)), \
+             BF_VARNAME(guard_)++)
 
 // ============================================================= //
 //                           Iterators                           //
