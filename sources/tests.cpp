@@ -1,5 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+#include <vector>
+#include <memory>
 
 #include "bf_game.h"
 // NOLINTBEGIN(bugprone-suspicious-include)
@@ -373,8 +375,87 @@ TEST_CASE("As_Offset") {
     CHECK(As_Offset(Direction::Down) == v2i(0, -1));
 }
 
+global OS_Data os_data;
+global std::vector<u8*> virtual_allocations;
+
+Allocate_Pages__Function(Win32_Allocate_Pages) {
+    Assert(count % os_data.min_pages_per_allocation == 0);
+    auto size = os_data.page_size * count;
+    auto result = (u8*)VirtualAlloc(
+        nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+    virtual_allocations.push_back(result);
+    return result;
+}
+
+void Free_Allocations() {
+    for (auto ptr : virtual_allocations)
+        VirtualFree((void*)ptr, 0, MEM_RELEASE);
+
+    virtual_allocations.clear();
+}
+
 TEST_CASE("Update_Tiles") {
-    SUBCASE("") {
-        //
-    }
+    // void Update_Tiles(
+    //     v2i gsize,
+    //     Element_Tile* element_tiles,
+    //     Segment_Manager& segment_manager,
+    //     Arena& trash_arena,
+    //     Allocator& segment_vertices_allocator,
+    //     Allocator& graph_nodes_allocator,
+    //     Pages& pages,
+    //     OS_Data& os_data,
+    //     const Updated_Tiles& updated_tiles  //
+    // )
+
+    SYSTEM_INFO system_info;
+    GetSystemInfo(&system_info);
+    os_data.page_size = system_info.dwPageSize;
+    os_data.min_pages_per_allocation =
+        system_info.dwAllocationGranularity / os_data.page_size;
+    os_data.Allocate_Pages = Win32_Allocate_Pages;
+
+    Arena trash_arena = {};
+    auto trash_size = Megabytes((size_t)2);
+    trash_arena.size = trash_size;
+    trash_arena.base = new u8[trash_size];
+    trash_arena.name = "trash";
+
+    u8 segment_vertices_toc[1024] = {};
+    u8 segment_vertices_data[1024] = {};
+    auto segment_vertices_allocator = std::make_unique<Allocator>(
+        1024, segment_vertices_toc, 1024, segment_vertices_data);
+
+    u8 graph_nodes_toc[1024] = {};
+    u8 graph_nodes_data[1024] = {};
+    auto graph_nodes_allocator =
+        std::make_unique<Allocator>(1024, graph_nodes_toc, 1024, graph_nodes_data);
+
+    Segment_Manager manager = {};
+    manager.segment_pages = nullptr;  // TODO:
+    manager.segment_pages_used = 0;
+    manager.segment_pages_total = 0;  // TODO:
+    manager.max_segments_per_page = os_data.page_size / sizeof(Graph_Segment);
+
+    // SUBCASE("1") {
+    //     // TODO:
+    //     //          auto element_tiles = Parse_As_Element_Tiles(R"map(
+    //     //  BrB
+    //     //          )map");
+    //
+    //     // Update_Tiles();
+    //
+    //     // int segments_count = 0;
+    //     // for (auto _ : Iter(manager))
+    //     //     segments_count++;
+    //     //
+    //     // CHECK(segments_count == 2);
+    // }
+    //
+    // SUBCASE("2") {
+    //     CHECK(false);
+    // }
+
+    delete[] trash_arena.base;
+    Free_Allocations();
 }

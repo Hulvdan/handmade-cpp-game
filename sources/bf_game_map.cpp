@@ -610,6 +610,222 @@ auto Iter(Segment_Manager& manager) {
 //     //
 // }
 
+void Build_Graph_Segments(
+    v2i gsize,
+    Element_Tile* element_tiles,
+    Segment_Manager& segment_manager,
+    Arena& trash_arena,
+    Allocator& segment_vertices_allocator,
+    Allocator& graph_nodes_allocator,
+    Pages& pages,
+    OS_Data& os_data  //
+) {
+    Assert(segment_manager.segment_pages_used == 0);
+
+    auto tiles_count = gsize.x * gsize.y;
+
+    // NOTE(hulvdan): Создание новых сегментов
+    auto added_segments_allocate = tiles_count * 4;
+    auto added_segments_count = 0;
+    Graph_Segment* added_segments =
+        Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
+    DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
+
+    v2i pos = -v2i_one;
+    bool found = false;
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            auto& tile = *(element_tiles + y * gsize.x + x);
+
+            if (tile.type == Element_Tile_Type::Flag ||
+                tile.type == Element_Tile_Type::Building) {
+                pos = {x, y};
+                found = true;
+                break;
+            }
+        }
+
+        if (found)
+            break;
+    }
+
+    if (!found)
+        return;
+
+    typedef tuple<Direction, v2i> Dir_v2i;
+
+    Fixed_Size_Queue<Dir_v2i> big_fuken_queue = {};
+    big_fuken_queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    big_fuken_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
+    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
+
+    Enqueue(big_fuken_queue, {Direction::Right, pos});
+    Enqueue(big_fuken_queue, {Direction::Up, pos});
+    Enqueue(big_fuken_queue, {Direction::Left, pos});
+    Enqueue(big_fuken_queue, {Direction::Down, pos});
+
+    Fixed_Size_Queue<Dir_v2i> queue = {};
+    queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
+    queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
+
+    u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+    DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
+
+    while (big_fuken_queue.count > 0) {
+        auto p = Dequeue(big_fuken_queue);
+        Enqueue(queue, p);
+
+        int vertices_count = 0;
+        Graph_v2u* vertices = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
+
+        int segment_tiles_count = 1;
+        Graph_v2u* segment_tiles =
+            Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
+
+        Graph temp_graph = {};
+        temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+        temp_graph.size.x = gsize.x;
+        temp_graph.size.y = gsize.y;
+        DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
+
+        while (queue.count > 0) {
+            auto [dir, pos] = Dequeue(queue);
+            auto& tile = *(element_tiles + pos.y * gsize.x + pos.x);
+
+            auto is_flag = tile.type == Element_Tile_Type::Flag;
+            auto is_building = tile.type == Element_Tile_Type::Building;
+            auto is_city_hall = is_building &&
+                tile.building->scriptable->type == Building_Type::City_Hall;
+
+            if (is_flag || is_building) {
+                auto converted = To_Graph_v2u(pos);
+                Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
+            }
+
+            for (int i = 0; i < 4; i++) {
+                auto dir_index = (Direction)i;
+
+                if ((is_city_hall || is_flag) && dir_index != dir)
+                    continue;
+
+                u8& visited_value = *(visited + gsize.x * pos.y + pos.x);
+                if (Graph_Node_Has(visited_value, dir_index))
+                    continue;
+
+                v2i new_pos = pos + As_Offset(dir_index);
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                Direction opposite_dir_index = Opposite(dir_index);
+                u8& new_visited_value = *(visited + gsize.x * new_pos.y + new_pos.x);
+                if (Graph_Node_Has(new_visited_value, opposite_dir_index))
+                    continue;
+
+                auto& new_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                if (new_tile.type == Element_Tile_Type::None)
+                    continue;
+
+                bool new_is_building = new_tile.type == Element_Tile_Type::Building;
+                bool new_is_flag = new_tile.type == Element_Tile_Type::Flag;
+
+                if (is_building && new_is_building)
+                    continue;
+
+                if (new_is_flag) {
+                    Enqueue(big_fuken_queue, {Direction::Right, new_pos});
+                    Enqueue(big_fuken_queue, {Direction::Up, new_pos});
+                    Enqueue(big_fuken_queue, {Direction::Left, new_pos});
+                    Enqueue(big_fuken_queue, {Direction::Down, new_pos});
+                }
+
+                visited_value = Graph_Node_Mark(visited_value, dir_index, true);
+                new_visited_value =
+                    Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
+                Graph_Update(temp_graph, pos.x, pos.y, dir_index, true);
+                Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index, true);
+
+                auto converted = To_Graph_v2u(new_pos);
+                Add_Without_Duplication(
+                    tiles_count, segment_tiles_count, segment_tiles, converted);
+
+                if (new_is_building || new_is_flag) {
+                    Add_Without_Duplication(
+                        tiles_count, vertices_count, vertices, converted);
+                } else {
+                    Enqueue(queue, {(Direction)0, new_pos});
+                }
+            }
+        }
+
+        if (vertices_count <= 1)
+            continue;
+
+        // NOTE(hulvdan): Adding a new segment
+        Assert(temp_graph.nodes_count > 0);
+        // Assert(temp_height > 0);
+        // Assert(width > 0);
+
+        auto& segment = *(added_segments + added_segments_count);
+        Assert(!segment.active);
+        segment.active = true;
+        segment.vertices_count = vertices_count;
+        added_segments_count++;
+
+        auto [vertices_key, verticesss] =
+            Allocate_Segment_Vertices(segment_vertices_allocator, vertices_count);
+        segment.vertices = verticesss;
+        segment.vertices_key = vertices_key;
+        memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
+
+        segment.graph.nodes_count = temp_graph.nodes_count;
+
+        // NOTE(hulvdan): Вычисление size и offset графа
+        auto& gr_size = segment.graph.size;
+        auto& offset = segment.graph.offset;
+        offset.x = gsize.x - 1;
+        offset.y = gsize.y - 1;
+
+        FOR_RANGE(int, y, gsize.y) {
+            FOR_RANGE(int, x, gsize.x) {
+                auto& node = *(temp_graph.nodes + y * gsize.x + x);
+                if (node) {
+                    gr_size.x = MAX(gr_size.x, x);
+                    gr_size.y = MAX(gr_size.y, y);
+                    offset.x = MIN(offset.x, x);
+                    offset.y = MIN(offset.y, y);
+                }
+            }
+        }
+        gr_size.x -= offset.x;
+        gr_size.y -= offset.y;
+        gr_size.x += 1;
+        gr_size.y += 1;
+
+        Assert(gr_size.x > 0);
+        Assert(gr_size.y > 0);
+        Assert(offset.x >= 0);
+        Assert(offset.y >= 0);
+        Assert(offset.x < gsize.x);
+        Assert(offset.y < gsize.y);
+
+        // NOTE(hulvdan): Копирование нод из временного графа
+        // с небольшой оптимизацией по требуемой памяти
+        auto all_nodes_count = gr_size.x * gr_size.y;
+        auto [nodes_key, nodesss] =
+            Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
+        segment.graph.nodes = nodesss;
+        segment.graph.nodes_key = nodes_key;
+
+        auto rows = gr_size.y;
+        auto stride = gsize.x;
+        auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
+        Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
+    }
+}
+
 void Update_Tiles(
     v2i gsize,
     Element_Tile* element_tiles,
@@ -766,7 +982,6 @@ void Update_Tiles(
             if (is_flag || is_building) {
                 auto converted = To_Graph_v2u(pos);
                 Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
-                // Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
             }
 
             for (int i = 0; i < 4; i++) {
@@ -798,12 +1013,15 @@ void Update_Tiles(
                 if (is_building && new_is_building)
                     continue;
 
-                if (new_is_flag) {
-                    Enqueue(big_fuken_queue, {Direction::Right, new_pos});
-                    Enqueue(big_fuken_queue, {Direction::Up, new_pos});
-                    Enqueue(big_fuken_queue, {Direction::Left, new_pos});
-                    Enqueue(big_fuken_queue, {Direction::Down, new_pos});
-                }
+                // TODO(hulvdan): Убрать дублирование кода.
+                // Блок ниже - единственное отличие от Build_Graph_Segments
+                //
+                // if (new_is_flag) {
+                //     Enqueue(big_fuken_queue, {Direction::Right, new_pos});
+                //     Enqueue(big_fuken_queue, {Direction::Up, new_pos});
+                //     Enqueue(big_fuken_queue, {Direction::Left, new_pos});
+                //     Enqueue(big_fuken_queue, {Direction::Down, new_pos});
+                // }
 
                 visited_value = Graph_Node_Mark(visited_value, dir_index, true);
                 new_visited_value =

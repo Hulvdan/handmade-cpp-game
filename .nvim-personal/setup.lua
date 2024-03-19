@@ -185,6 +185,10 @@ vim.keymap.set("n", "<S-f6>", function()
     launch_tab([[cmd\debug.bat]])
 end, opts)
 
+vim.keymap.set("n", "<leader>q", function()
+    vim.api.nvim_input("<M-m>:bd! #<cr>")
+end)
+
 vim.keymap.set("n", "<leader>w", function()
     save_files()
 
@@ -209,6 +213,8 @@ vim.keymap.set("n", "<leader>w", function()
 
             vim.fn.winrestview(view)
             todo_plugin.enable();
+
+            vim.api.nvim_input("mzhllhjkkj`z")  -- NOTE: for nvim-treesitter-context
         end)
     end
 end, opts)
