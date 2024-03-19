@@ -364,3 +364,9 @@ TEST_CASE("As_Offset") {
     CHECK(As_Offset(Direction::Left) == v2i(-1, 0));
     CHECK(As_Offset(Direction::Down) == v2i(0, -1));
 }
+
+TEST_CASE("Update_Tiles") {
+    SUBCASE("") {
+        //
+    }
+}

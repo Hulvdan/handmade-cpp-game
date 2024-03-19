@@ -42,8 +42,7 @@ bool UI_Clicked(Game_State& state) {
     auto& rstate = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
-    Assert(rstate.bitmap != nullptr);
-    Game_Bitmap& bitmap = *rstate.bitmap;
+    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
 
     auto gsize = game_map.size;
     auto swidth = (f32)bitmap.width;
@@ -273,8 +272,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     // --- IMGUI ---
     if (!first_time_initializing) {
-        Assert(state.renderer_state != nullptr);
-        auto& rstate = *state.renderer_state;
+        auto& rstate = Safe_Deref(state.renderer_state);
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
         if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9)) {
@@ -362,10 +360,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.scriptable_resources =
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
-            auto r_ = Get_Scriptable_Resource(state, 1);
-            Assert(r_ != nullptr);
-            auto& r = *r_;
-
+            auto& r = Safe_Deref(Get_Scriptable_Resource(state, 1));
             r.name = "forest";
         }
 
@@ -373,17 +368,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.scriptable_buildings =
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
-            auto b_ = Get_Scriptable_Building(state, global_city_hall_building_id);
-            Assert(b_ != nullptr);
-            auto& b = *b_;
+            auto& b = Safe_Deref(state.scriptable_building_city_hall);
 
             b.name = "City Hall";
             b.type = Building_Type::City_Hall;
         }
         {
-            auto b_ = Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
-            Assert(b_ != nullptr);
-            auto& b = *b_;
+            auto& b = Safe_Deref(state.scriptable_building_lumberjacks_hut);
 
             b.name = "Lumberjack's Hut";
             b.type = Building_Type::Harvest;
@@ -420,15 +411,16 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 Assert(max_pages_count < 100);
                 Assert(max_pages_count > 0);
 
-                state.game_map.segment_pages_total = max_pages_count;
-                state.game_map.segment_pages_used = 0;
-                state.game_map.segment_pages =
-                    Allocate_Zeros_Array(arena, Page, state.game_map.segment_pages_total);
-                state.game_map.max_segments_per_page =
+                auto& manager = state.game_map.segment_manager;
+                manager.segment_pages_total = max_pages_count;
+                manager.segment_pages_used = 0;
+                manager.segment_pages =
+                    Allocate_Zeros_Array(arena, Page, manager.segment_pages_total);
+                manager.max_segments_per_page =
                     Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
             }
 
-            Place_Building(state, {2, 2}, 1);
+            Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
         }
 
         On_Item_Built__Function((*callbacks[])) = {

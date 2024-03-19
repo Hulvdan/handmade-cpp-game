@@ -189,9 +189,7 @@ void Initialize_Renderer(
     if (first_time_initializing)
         state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
 
-    Assert(state.renderer_state != nullptr);
-
-    auto& rstate = *state.renderer_state;
+    auto& rstate = Safe_Deref(state.renderer_state);
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
 
@@ -439,12 +437,12 @@ void main() {
     rstate.cell_size = 32;
 
     {
-        auto& b = *Get_Scriptable_Building(state, global_city_hall_building_id);
+        auto& b = *state.scriptable_building_city_hall;
         b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
         DEBUG_Load_Texture(non_persistent_arena, trash_arena, "tiles/building_house", *b.texture);
     }
     {
-        auto& b = *Get_Scriptable_Building(state, global_lumberjacks_hut_building_id);
+        auto& b = *state.scriptable_building_lumberjacks_hut;
         b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
         DEBUG_Load_Texture(
             non_persistent_arena, trash_arena, "tiles/building_lumberjack", *b.texture);
@@ -466,9 +464,9 @@ void main() {
     ui_state.buildables = Allocate_Array(arena, Item_To_Build, buildables_count);
     ui_state.buildables_count = buildables_count;
     (ui_state.buildables + 0)->type = Item_To_Build_Type::Road;
-    (ui_state.buildables + 0)->scriptable_building_id = 0;
+    (ui_state.buildables + 0)->scriptable_building = state.scriptable_building_city_hall;
     (ui_state.buildables + 1)->type = Item_To_Build_Type::Building;
-    (ui_state.buildables + 1)->scriptable_building_id = global_lumberjacks_hut_building_id;
+    (ui_state.buildables + 1)->scriptable_building = state.scriptable_building_lumberjacks_hut;
 
     ui_state.padding = {6, 6};
     ui_state.placeholders = 2;
@@ -580,10 +578,8 @@ void Draw_UI_Sprite(
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
-    Assert(state.renderer_state != nullptr);
-    auto& rstate = *state.renderer_state;
-    Assert(rstate.bitmap != nullptr);
-    Game_Bitmap& bitmap = *rstate.bitmap;
+    auto& rstate = Safe_Deref(state.renderer_state);
+    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
 
     auto swidth = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
@@ -602,10 +598,8 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
 }
 
 v2f Screen_To_World(Game_State& state, v2f pos) {
-    Assert(state.renderer_state != nullptr);
-    auto& rstate = *state.renderer_state;
-    Assert(rstate.bitmap != nullptr);
-    Game_Bitmap& bitmap = *rstate.bitmap;
+    auto& rstate = Safe_Deref(state.renderer_state);
+    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
 
     auto swidth = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
@@ -705,10 +699,8 @@ struct Get_Buildable_Textures_Result {
 };
 
 Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
-    auto& rstate = *state.renderer_state;
-    Assert(state.renderer_state != nullptr);
-    auto& ui_state = *rstate.ui_state;
-    Assert(rstate.ui_state != nullptr);
+    auto& rstate = Safe_Deref(state.renderer_state);
+    auto& ui_state = Safe_Deref(rstate.ui_state);
 
     Get_Buildable_Textures_Result res = {};
     auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
@@ -726,8 +718,7 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_St
         } break;
 
         case Item_To_Build_Type::Building: {
-            *(res.textures + i) =
-                Get_Scriptable_Building(state, buildable.scriptable_building_id)->texture->id;
+            *(res.textures + i) = buildable.scriptable_building->texture->id;
         } break;
 
         default:
@@ -743,12 +734,9 @@ void Render(Game_State& state, f32 dt) {
 
     Arena& trash_arena = state.trash_arena;
 
-    Assert(state.renderer_state != nullptr);
-    auto& rstate = *state.renderer_state;
+    auto& rstate = Safe_Deref(state.renderer_state);
     auto& game_map = state.game_map;
-
-    Assert(rstate.bitmap != nullptr);
-    Game_Bitmap& bitmap = *rstate.bitmap;
+    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
 
     auto gsize = game_map.size;
     auto swidth = (f32)bitmap.width;
@@ -961,9 +949,7 @@ void Render(Game_State& state, f32 dt) {
             if (!building.active)
                 continue;
 
-            auto scriptable_building_ = Get_Scriptable_Building(state, building.scriptable_id);
-            Assert(scriptable_building_ != nullptr);
-            auto& scriptable_building = *scriptable_building_;
+            auto& scriptable_building = Safe_Deref(building.scriptable);
 
             auto tex_id = scriptable_building.texture->id;
             glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -1080,55 +1066,51 @@ void Render(Game_State& state, f32 dt) {
             segment_index = 0;
 
         // glUseProgram(0);
-        FOR_RANGE(int, page_index, game_map.segment_pages_used) {
-            auto& page = *(game_map.segment_pages + page_index);
+        //
+        for (auto segment_ptr : Iter(game_map.segment_manager)) {
+            auto& segment = *segment_ptr;
+            Assert(segment.active);
 
-            FOR_RANGE(int, i, game_map.max_segments_per_page) {
-                auto& segment = *rcast<Graph_Segment*>(page.base + sizeof(Graph_Segment) * i);
-                auto& graph = segment.graph;
-                if (!segment.active)
-                    continue;
+            auto& graph = segment.graph;
 
-                FOR_RANGE(int, y, graph.size.y) {
-                    FOR_RANGE(int, x, graph.size.x) {
-                        auto node = *(graph.nodes + y * graph.size.x + x);
-                        if (!node)
+            FOR_RANGE(int, y, graph.size.y) {
+                FOR_RANGE(int, x, graph.size.x) {
+                    auto node = *(graph.nodes + y * graph.size.x + x);
+                    if (!node)
+                        continue;
+
+                    v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
+                    FOR_RANGE(int, ii, 4) {
+                        auto dir = (Direction)ii;
+                        if (!Graph_Node_Has(node, dir))
                             continue;
 
-                        v2f center =
-                            v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
-                        FOR_RANGE(int, ii, 4) {
-                            auto dir = (Direction)ii;
-                            if (!Graph_Node_Has(node, dir))
-                                continue;
+                        auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
 
-                            auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
+                        auto p1 = projection * v3f(center * (f32)cell_size, 1);
+                        auto p2 = projection * v3f(offsetted * (f32)cell_size, 1);
+                        auto p3 = (p1 + p2) / 2.0f;
 
-                            auto p1 = projection * v3f(center * (f32)cell_size, 1);
-                            auto p2 = projection * v3f(offsetted * (f32)cell_size, 1);
-                            auto p3 = (p1 + p2) / 2.0f;
+                        glPointSize(12);
 
-                            glPointSize(12);
+                        glBlendFunc(GL_ONE, GL_ZERO);
 
-                            glBlendFunc(GL_ONE, GL_ZERO);
+                        glBegin(GL_POINTS);
+                        glVertex2f(p1.x, p1.y);
+                        glVertex2f(p2.x, p2.y);
+                        glVertex2f(p3.x, p3.y);
+                        glEnd();
 
-                            glBegin(GL_POINTS);
-                            glVertex2f(p1.x, p1.y);
-                            glVertex2f(p2.x, p2.y);
-                            glVertex2f(p3.x, p3.y);
-                            glEnd();
-
-                            // glLineWidth(11);
-                            // glBlendFunc(GL_ONE, GL_ZERO);
-                            // glBegin(GL_LINES);
-                            // auto color = *(colors + segment_index);
-                            // glColor3f(color.r, color.g, color.b);
-                            // glVertex2f(p1.x, 2.0f - p1.y);
-                            // glVertex2f(p2.x, 2.0f - p2.y);
-                            // // glVertex2f(p1.x, p1.y - 1.0f);
-                            // // glVertex2f(p2.x, p2.y - 1.0f);
-                            // glEnd();
-                        }
+                        // glLineWidth(11);
+                        // glBlendFunc(GL_ONE, GL_ZERO);
+                        // glBegin(GL_LINES);
+                        // auto color = *(colors + segment_index);
+                        // glColor3f(color.r, color.g, color.b);
+                        // glVertex2f(p1.x, 2.0f - p1.y);
+                        // glVertex2f(p2.x, 2.0f - p2.y);
+                        // // glVertex2f(p1.x, p1.y - 1.0f);
+                        // // glVertex2f(p2.x, p2.y - 1.0f);
+                        // glEnd();
                     }
                 }
             }

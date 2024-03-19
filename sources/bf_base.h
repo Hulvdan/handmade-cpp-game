@@ -72,6 +72,12 @@ using v3i = glm::ivec3;
 #define Assert(expr) assert(expr)
 #endif  // TESTS
 
+template <typename T>
+T& Safe_Deref(T* value) {
+    Assert(value != nullptr);
+    return *value;
+}
+
 #define INVALID_PATH Assert(false)
 #define NOT_IMPLEMENTED Assert(false)
 

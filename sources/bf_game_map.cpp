@@ -8,14 +8,6 @@ Scriptable_Resource* Get_Scriptable_Resource(Game_State& state, Scriptable_Resou
     return rcast<Scriptable_Resource*>(result);
 }
 
-Scriptable_Building* Get_Scriptable_Building(Game_State& state, Scriptable_Building_ID id) {
-    Assert(id - 1 < state.scriptable_buildings_count);
-    auto exists = id != 0;
-    auto ptr_offset = (ptrd)(state.scriptable_buildings + id - 1);
-    auto result = ptr_offset * exists;
-    return rcast<Scriptable_Building*>(result);
-}
-
 Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i pos) {
     Assert(Pos_Is_In_Bounds(pos, game_map.size));
     return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
@@ -222,7 +214,7 @@ Graph_Segment_Page_Meta& Get_Graph_Segment_Page_Meta(
         page.base + page_size - sizeof(Graph_Segment_Page_Meta));
 }
 
-void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
+void Place_Building(Game_State& state, v2i pos, Scriptable_Building* scriptable) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
     auto& os_data = *state.os_data;
@@ -255,7 +247,7 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
         Assert(game_map.building_pages_used < game_map.building_pages_total);
         page = game_map.building_pages + game_map.building_pages_used;
 
-        page->base = Book_Single_Page(state);
+        page->base = Book_Single_Page(state.pages, *state.os_data);
         game_map.building_pages_used++;
 
         found_instance = rcast<Building*>(page->base);
@@ -267,7 +259,7 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
 
     instance.pos = pos;
     instance.active = true;
-    instance.scriptable_id = id;
+    instance.scriptable = scriptable;
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
@@ -275,23 +267,19 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building_ID id) {
     tile.building = found_instance;
 }
 
-Graph_Segment& New_Graph_Segment(Game_State& state) {
-    auto& game_map = state.game_map;
-    auto gsize = game_map.size;
-    auto& os_data = *state.os_data;
-
+Graph_Segment& New_Graph_Segment(Segment_Manager& manager, OS_Data& os_data, Pages& pages) {
     const auto page_size = os_data.page_size;
 
     Page* page = nullptr;
     Graph_Segment* found_instance = nullptr;
-    FOR_RANGE(size_t, page_index, game_map.segment_pages_used) {
-        page = game_map.segment_pages + page_index;
+    FOR_RANGE(size_t, page_index, manager.segment_pages_used) {
+        page = manager.segment_pages + page_index;
         auto& meta = Get_Graph_Segment_Page_Meta(page_size, *page);
 
-        if (meta.count >= game_map.max_segments_per_page)
+        if (meta.count >= manager.max_segments_per_page)
             continue;
 
-        FOR_RANGE(size_t, segment_index, game_map.max_segments_per_page) {
+        FOR_RANGE(size_t, segment_index, manager.max_segments_per_page) {
             auto instance = rcast<Graph_Segment*>(page->base) + segment_index;
             if (!instance->active) {
                 found_instance = instance;
@@ -304,11 +292,11 @@ Graph_Segment& New_Graph_Segment(Game_State& state) {
     }
 
     if (found_instance == nullptr) {
-        Assert(game_map.segment_pages_used < game_map.segment_pages_total);
-        page = game_map.segment_pages + game_map.segment_pages_used;
+        Assert(manager.segment_pages_used < manager.segment_pages_total);
+        page = manager.segment_pages + manager.segment_pages_used;
 
-        page->base = Book_Single_Page(state);
-        game_map.segment_pages_used++;
+        page->base = Book_Single_Page(pages, os_data);
+        manager.segment_pages_used++;
 
         found_instance = rcast<Graph_Segment*>(page->base);
         Assert(found_instance != nullptr);
@@ -330,13 +318,11 @@ struct Updated_Tiles {
 };
 
 bool Should_Segment_Be_Deleted(
-    Game_State& state,
+    v2i gsize,
+    Element_Tile* element_tiles,
     const Updated_Tiles& updated_tiles,
     const Graph_Segment& segment  //
 ) {
-    auto& game_map = state.game_map;
-    auto& gsize = game_map.size;
-
     FOR_RANGE(u16, i, updated_tiles.count) {
         auto& tile_pos = *(updated_tiles.pos + i);
         auto& updated_type = *(updated_tiles.type + i);
@@ -361,7 +347,7 @@ bool Should_Segment_Be_Deleted(
                 if (node == 0)
                     continue;
 
-                auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
+                auto& tile = *(element_tiles + gsize.x * pos.y + pos.x);
                 if (tile.type == Element_Tile_Type::Road)
                     return true;
             }
@@ -524,26 +510,14 @@ void Linked_List_Remove_At(
     Assert(false);
 }
 
-tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Game_State& state, int vertices_count) {
-    Assert(state.game_map.segment_vertices_allocator != nullptr);
-    auto [key, buffer] = state.game_map.segment_vertices_allocator->Allocate(vertices_count, 1);
+tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
+    auto [key, buffer] = allocator.Allocate(vertices_count, 1);
     return {key, (Graph_v2u*)buffer};
 }
 
-void Free_Segment_Vertices(Game_State& state, size_t key) {
-    Assert(state.game_map.segment_vertices_allocator != nullptr);
-    state.game_map.segment_vertices_allocator->Free(key);
-}
-
-tuple<size_t, u8*> Allocate_Graph_Nodes(Game_State& state, int nodes_count) {
-    Assert(state.game_map.graph_nodes_allocator != nullptr);
-    auto [key, buffer] = state.game_map.graph_nodes_allocator->Allocate(nodes_count, 1);
+tuple<size_t, u8*> Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
+    auto [key, buffer] = allocator.Allocate(nodes_count, 1);
     return {key, buffer};
-}
-
-void Free_Graph_Nodes(Game_State& state, size_t key) {
-    Assert(state.game_map.graph_nodes_allocator != nullptr);
-    state.game_map.graph_nodes_allocator->Free(key);
 }
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
@@ -556,20 +530,20 @@ class Graph_Segment_Iterator : public Iterator_Facade<Graph_Segment_Iterator> {
 public:
     Graph_Segment_Iterator() = delete;
 
-    Graph_Segment_Iterator(Game_Map* game_map) : Graph_Segment_Iterator(game_map, 0, 0) {}
-    Graph_Segment_Iterator(Game_Map* game_map, u32 current, u32 current_page)
+    Graph_Segment_Iterator(Segment_Manager* manager) : Graph_Segment_Iterator(manager, 0, 0) {}
+    Graph_Segment_Iterator(Segment_Manager* manager, u32 current, u32 current_page)
         : _current(current),
           _current_page(current_page),
-          _game_map(game_map)  //
+          _manager(manager)  //
     {
-        Assert(game_map->max_segments_per_page > 0);
+        Assert(manager->max_segments_per_page > 0);
     }
 
-    Graph_Segment_Iterator begin() const { return {_game_map, _current, _current_page}; }
-    Graph_Segment_Iterator end() const { return {_game_map, 0, _game_map->segment_pages_used}; }
+    Graph_Segment_Iterator begin() const { return {_manager, _current, _current_page}; }
+    Graph_Segment_Iterator end() const { return {_manager, 0, _manager->segment_pages_used}; }
 
     Graph_Segment* dereference() const {
-        auto page_base = (_game_map->segment_pages + _current_page)->base;
+        auto page_base = (_manager->segment_pages + _current_page)->base;
         auto result = rcast<Graph_Segment*>(page_base) + _current;
         return result;
     }
@@ -577,11 +551,11 @@ public:
     void increment() {
         FOR_RANGE(int, _GUARD_, 256) {
             _current++;
-            if (_current >= _game_map->max_segments_per_page) {
+            if (_current >= _manager->max_segments_per_page) {
                 _current = 0;
                 _current_page++;
 
-                if (_current_page == _game_map->segment_pages_used)
+                if (_current_page == _manager->segment_pages_used)
                     return;
             }
 
@@ -596,35 +570,59 @@ public:
     }
 
 private:
-    Game_Map* _game_map;
+    Segment_Manager* _manager;
     u16 _current = 0;
     u16 _current_page = 0;
 };
 
+auto Iter(Segment_Manager& manager) {
+    return Graph_Segment_Iterator(&manager);
+}
+
+// struct Update_Tiles_Operations_To_Apply {
+//     size_t trash_arena_allocation;
+//
+//     u32 segments_to_be_deleted_count;
+//     Graph_Segment** segments_to_be_deleted;
+//
+//     u32 added_segments_count;
+//     Graph_Segment* added_segments;
+// };
+//
+// Update_Tiles_Operations_To_Apply Update_Tiles_Gather_Operations(
+//     Game_State& state,
+//     Arena& non_pesistent_arena,
+//     Arena& trash_arena,
+//     const Updated_Tiles& updated_tiles  //
+// ) {
+//     //
+// }
+
 void Update_Tiles(
-    Game_State& state,
-    Arena& non_pesistent_arena,
+    v2i gsize,
+    Element_Tile* element_tiles,
+    Segment_Manager& segment_manager,
     Arena& trash_arena,
+    Allocator& segment_vertices_allocator,
+    Allocator& graph_nodes_allocator,
+    Pages& pages,
+    OS_Data& os_data,
     const Updated_Tiles& updated_tiles  //
 ) {
-    auto& game_map = state.game_map;
-    auto& gsize = game_map.size;
-    auto& element_tiles = game_map.element_tiles;
-
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE(hulvdan): Ищем сегменты для удаления
     auto segments_to_be_deleted_allocate = updated_tiles.count * 4;
-    auto segments_to_be_deleted_count = 0;
+    u32 segments_to_be_deleted_count = 0;
     Graph_Segment** segments_to_be_deleted =
         Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
-    for (auto segment_ptr : Graph_Segment_Iterator(&game_map)) {
+    for (auto segment_ptr : Iter(segment_manager)) {
         auto& segment = *segment_ptr;
         Assert(segment.active);
 
-        if (!Should_Segment_Be_Deleted(state, updated_tiles, segment))
+        if (!Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, segment))
             continue;
 
         Assert(segments_to_be_deleted_count < updated_tiles.count * 4);
@@ -748,9 +746,8 @@ void Update_Tiles(
 
             auto is_flag = tile.type == Element_Tile_Type::Flag;
             auto is_building = tile.type == Element_Tile_Type::Building;
-            auto is_city_hall = is_building &&
-                (*Get_Scriptable_Building(state, tile.building->scriptable_id)).type ==
-                    Building_Type::City_Hall;
+            auto is_city_hall =
+                is_building && tile.building->scriptable->type == Building_Type::City_Hall;
 
             if (is_flag || is_building) {
                 auto converted = To_Graph_v2u(pos);
@@ -824,7 +821,8 @@ void Update_Tiles(
         segment.vertices_count = vertices_count;
         added_segments_count++;
 
-        auto [vertices_key, verticesss] = Allocate_Segment_Vertices(state, vertices_count);
+        auto [vertices_key, verticesss] =
+            Allocate_Segment_Vertices(segment_vertices_allocator, vertices_count);
         segment.vertices = verticesss;
         segment.vertices_key = vertices_key;
         memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
@@ -863,7 +861,7 @@ void Update_Tiles(
         // NOTE(hulvdan): Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
-        auto [nodes_key, nodesss] = Allocate_Graph_Nodes(state, all_nodes_count);
+        auto [nodes_key, nodesss] = Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
         segment.graph.nodes = nodesss;
         segment.graph.nodes_key = nodes_key;
 
@@ -895,10 +893,10 @@ void Update_Tiles(
     // }
 
     {
-        FOR_RANGE(int, i, segments_to_be_deleted_count) {
+        FOR_RANGE(u32, i, segments_to_be_deleted_count) {
             Graph_Segment& segment = **(segments_to_be_deleted + i);
-            Free_Segment_Vertices(state, segment.vertices_key);
-            Free_Graph_Nodes(state, segment.graph.nodes_key);
+            segment_vertices_allocator.Free(segment.vertices_key);
+            graph_nodes_allocator.Free(segment.graph.nodes_key);
             segment.active = false;
 
             // SHIT(hulvdan): Do it later
@@ -925,7 +923,7 @@ void Update_Tiles(
 
     {
         FOR_RANGE(int, i, added_segments_count) {
-            auto& segment = New_Graph_Segment(state);
+            auto& segment = New_Graph_Segment(segment_manager, os_data, pages);
             auto& added_segment = *(added_segments + i);
 
             // TODO(hulvdan): use move semantics?
@@ -976,14 +974,14 @@ void Update_Tiles(
     // }
 
 #ifdef ASSERT_SLOW
-    for (auto segment1_ptr : Graph_Segment_Iterator(&game_map)) {
+    for (auto segment1_ptr : Iter(segment_manager)) {
         auto& segment1 = *segment1_ptr;
         Assert(segment1.active);
 
         auto& g1 = segment1.graph;
         v2i g1_offset = {g1.offset.x, g1.offset.y};
 
-        for (auto segment2_ptr : Graph_Segment_Iterator(&game_map)) {
+        for (auto segment2_ptr : Iter(segment_manager)) {
             auto& segment2 = *segment2_ptr;
             Assert(segment2.active);
 
@@ -1018,6 +1016,13 @@ void Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
+#define INVOKE_UPDATE_TILES                                                                \
+    Update_Tiles(                                                                          \
+        state.game_map.size, state.game_map.element_tiles, state.game_map.segment_manager, \
+        trash_arena, Safe_Deref(state.game_map.segment_vertices_allocator),                \
+        Safe_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data,     \
+        updated_tiles);
+
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     auto& arena = state.arena;
     auto& non_persistent_arena = state.non_persistent_arena;
@@ -1031,15 +1036,17 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
 
     switch (item.type) {
     case Item_To_Build_Type::Flag: {
+        Assert(item.scriptable_building == nullptr);
+
         if (tile.type == Element_Tile_Type::Flag) {
             tile.type = Element_Tile_Type::Road;
             Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Removed);
-            Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
+            INVOKE_UPDATE_TILES;
         }  //
         else if (tile.type == Element_Tile_Type::Road) {
             tile.type = Element_Tile_Type::Flag;
             Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Placed);
-            Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
+            INVOKE_UPDATE_TILES;
         }  //
         else
             return false;
@@ -1048,6 +1055,8 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     } break;
 
     case Item_To_Build_Type::Road: {
+        Assert(item.scriptable_building == nullptr);
+
         if (tile.type != Element_Tile_Type::None)
             return false;
 
@@ -1055,18 +1064,19 @@ bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
         tile.type = Element_Tile_Type::Road;
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Road_Placed);
-        Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
+        INVOKE_UPDATE_TILES;
     } break;
 
     case Item_To_Build_Type::Building: {
+        Assert(item.scriptable_building != nullptr);
+
         if (tile.type != Element_Tile_Type::None)
             return false;
 
-        Assert(item.scriptable_building_id != 0);
-        Place_Building(state, pos, item.scriptable_building_id);
+        Place_Building(state, pos, item.scriptable_building);
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Building_Placed);
-        Update_Tiles(state, non_persistent_arena, trash_arena, updated_tiles);
+        INVOKE_UPDATE_TILES;
     } break;
 
     default:

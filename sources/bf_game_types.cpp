@@ -191,10 +191,6 @@ void Graph_Update(Graph& graph, int x, int y, Direction dir, bool value) {
     node = Graph_Node_Mark(node, dir, value);
 }
 
-using Scriptable_Building_ID = u16;
-global Scriptable_Building_ID global_city_hall_building_id = 1;
-global Scriptable_Building_ID global_lumberjacks_hut_building_id = 2;
-
 using Scriptable_Resource_ID = u16;
 global Scriptable_Resource_ID global_forest_resource_id = 1;
 
@@ -238,7 +234,7 @@ struct Building : public Non_Copyable {
     Human_ID constructor;
     Human_ID employee;
 
-    Scriptable_Building_ID scriptable_id;
+    Scriptable_Building* scriptable;
 
     size_t resources_to_book_count;
     Resource_To_Book* resources_to_book;
@@ -305,14 +301,21 @@ enum class Item_To_Build_Type {
 
 struct Item_To_Build : public Non_Copyable {
     Item_To_Build_Type type;
-    Scriptable_Building_ID scriptable_building_id;
+    Scriptable_Building* scriptable_building;
 
-    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building_ID a_scriptable_building_id)
-        : type(a_type), scriptable_building_id(a_scriptable_building_id) {}
+    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building* a_scriptable_building)
+        : type(a_type), scriptable_building(a_scriptable_building) {}
 };
 
-static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, 0);
-static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, 0);
+static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
+static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
+
+struct Segment_Manager {
+    Page* segment_pages;
+    u16 segment_pages_used;
+    u16 segment_pages_total;
+    u16 max_segments_per_page;
+};
 
 struct Game_Map : public Non_Copyable {
     v2i size;
@@ -325,10 +328,7 @@ struct Game_Map : public Non_Copyable {
     u16 building_pages_total;
     u16 max_buildings_per_page;
 
-    Page* segment_pages;
-    u16 segment_pages_used;
-    u16 segment_pages_total;
-    u16 max_segments_per_page;
+    Segment_Manager segment_manager;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;
@@ -380,6 +380,9 @@ struct Game_State : public Non_Copyable {
     Scriptable_Resource* scriptable_resources;
     size_t scriptable_buildings_count;
     Scriptable_Building* scriptable_buildings;
+
+    Scriptable_Building* scriptable_building_city_hall;
+    Scriptable_Building* scriptable_building_lumberjacks_hut;
 
     Arena arena;
     Arena non_persistent_arena;  // Gets flushed on DLL reloads
@@ -538,10 +541,7 @@ struct Game_Renderer_State : public Non_Copyable {
 };
 #endif  // BF_CLIENT
 
-u8* Book_Single_Page(Game_State& state) {
-    auto& pages = state.pages;
-    auto& os_data = *state.os_data;
-
+u8* Book_Single_Page(Pages& pages, OS_Data& os_data) {
     // NOTE(hulvdan): If there exists allocated page that is not in use -> return it
     FOR_RANGE(u32, i, pages.allocated_count) {
         bool& in_use = *(pages.in_use + i);
