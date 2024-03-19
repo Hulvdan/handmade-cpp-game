@@ -380,16 +380,16 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.scriptable_buildings =
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
-            auto& b = Safe_Deref(state.scriptable_building_city_hall);
-
+            auto& b = Safe_Deref(state.scriptable_buildings + 0);
             b.name = "City Hall";
             b.type = Building_Type::City_Hall;
+            state.scriptable_building_city_hall = &b;
         }
         {
-            auto& b = Safe_Deref(state.scriptable_building_lumberjacks_hut);
-
+            auto& b = Safe_Deref(state.scriptable_buildings + 1);
             b.name = "Lumberjack's Hut";
             b.type = Building_Type::Harvest;
+            state.scriptable_building_lumberjacks_hut = &b;
         }
 
         Initialize_Game_Map(state, non_persistent_arena);
