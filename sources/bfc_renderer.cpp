@@ -141,7 +141,10 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
     Assert((variable_name_).success);                                           \
     DEFER(Deallocate_Array((arena_), u8, (variable_name_).size));
 
-void Debug_Print_Shader_Info_Log(GLuint shader_id, Arena& trash_arena, const char* aboba) {
+void Debug_Print_Shader_Info_Log(
+    GLuint shader_id,
+    Arena& trash_arena,
+    const char* aboba) {
     GLint succeeded;
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
 
@@ -291,19 +294,22 @@ void main() {
 
     // if (first_time_initializing) {
     {
-        DEBUG_Load_Texture(non_persistent_arena, trash_arena, "human", rstate.human_texture);
+        DEBUG_Load_Texture(
+            non_persistent_arena, trash_arena, "human", rstate.human_texture);
 
         char texture_name[512] = {};
         FOR_RANGE(int, i, 17) {
             sprintf(texture_name, "tiles/grass_%d", i);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.grass_textures[i]);
+                non_persistent_arena, trash_arena, texture_name,
+                rstate.grass_textures[i]);
         }
 
         FOR_RANGE(int, i, 3) {
             sprintf(texture_name, "tiles/forest_%d", i);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.forest_textures[i]);
+                non_persistent_arena, trash_arena, texture_name,
+                rstate.forest_textures[i]);
         }
 
         FOR_RANGE(int, i, 16) {
@@ -366,7 +372,8 @@ void main() {
     rstate.element_tilemap_index = rstate.tilemaps_count;
     rstate.tilemaps_count += 2;
 
-    rstate.tilemaps = Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
+    rstate.tilemaps =
+        Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
     FOR_RANGE(i32, h, rstate.tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
@@ -439,7 +446,8 @@ void main() {
     {
         auto& b = *state.scriptable_building_city_hall;
         b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
-        DEBUG_Load_Texture(non_persistent_arena, trash_arena, "tiles/building_house", *b.texture);
+        DEBUG_Load_Texture(
+            non_persistent_arena, trash_arena, "tiles/building_house", *b.texture);
     }
     {
         auto& b = *state.scriptable_building_lumberjacks_hut;
@@ -455,7 +463,8 @@ void main() {
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
     DEBUG_Load_Texture(
-        arena, non_persistent_arena, "ui/buildables_panel", ui_state.buildables_panel_background);
+        arena, non_persistent_arena, "ui/buildables_panel",
+        ui_state.buildables_panel_background);
     DEBUG_Load_Texture(
         arena, non_persistent_arena, "ui/buildables_placeholder",
         ui_state.buildables_placeholder_background);
@@ -466,7 +475,8 @@ void main() {
     (ui_state.buildables + 0)->type = Item_To_Build_Type::Road;
     (ui_state.buildables + 0)->scriptable_building = state.scriptable_building_city_hall;
     (ui_state.buildables + 1)->type = Item_To_Build_Type::Building;
-    (ui_state.buildables + 1)->scriptable_building = state.scriptable_building_lumberjacks_hut;
+    (ui_state.buildables + 1)->scriptable_building =
+        state.scriptable_building_lumberjacks_hut;
 
     ui_state.padding = {6, 6};
     ui_state.placeholders = 2;
@@ -561,8 +571,10 @@ void Draw_UI_Sprite(
 
     // 3. then set our vertex attributes pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32)));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32)));
+    glVertexAttribPointer(
+        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32)));
+    glVertexAttribPointer(
+        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -653,9 +665,11 @@ void Draw_Stretchable_Sprite(
     auto dx = x3 - x0;
     auto dy = y3 - y0;
     auto dp1 =
-        v3f(pad_h.x * in_scale * dx / panel_size.x, pad_v.x * in_scale * dy / panel_size.y, 0);
+        v3f(pad_h.x * in_scale * dx / panel_size.x,
+            pad_v.x * in_scale * dy / panel_size.y, 0);
     auto dp2 =
-        v3f(pad_h.y * in_scale * dx / panel_size.x, pad_v.y * in_scale * dy / panel_size.y, 0);
+        v3f(pad_h.y * in_scale * dx / panel_size.x,
+            pad_v.y * in_scale * dy / panel_size.y, 0);
     v3f p1 = p0 + dp1;
     v3f p2 = p3 - dp2;
 
@@ -698,7 +712,9 @@ struct Get_Buildable_Textures_Result {
     GLuint* textures;
 };
 
-Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
+Get_Buildable_Textures_Result Get_Buildable_Textures(
+    Arena& trash_arena,
+    Game_State& state) {
     auto& rstate = Safe_Deref(state.renderer_state);
     auto& ui_state = Safe_Deref(rstate.ui_state);
 
@@ -748,9 +764,11 @@ void Render(Game_State& state, f32 dt) {
 
     {
         auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
-        ImGui::Text("Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y);
+        ImGui::Text(
+            "Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y);
 
-        auto new_zoom = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
+        auto new_zoom =
+            Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
         rstate.zoom = new_zoom;
 
         auto cursor_on_tilemap_pos2 = Screen_To_World(state, rstate.mouse_pos);
@@ -788,8 +806,8 @@ void Render(Game_State& state, f32 dt) {
     Check_OpenGL_Errors();
 
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, bitmap.width, bitmap.height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
-        bitmap.memory);
+        GL_TEXTURE_2D, 0, GL_RGBA8, bitmap.width, bitmap.height, 0, GL_BGRA_EXT,
+        GL_UNSIGNED_BYTE, bitmap.memory);
     Check_OpenGL_Errors();
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -835,8 +853,8 @@ void Render(Game_State& state, f32 dt) {
 
                 // TODO(hulvdan): Spritesheets! Vertices array,
                 // texture vertices array, indices array
-                auto texture_id =
-                    Test_Smart_Tile(tilemap, game_map.size, {x, y}, rstate.grass_smart_tile);
+                auto texture_id = Test_Smart_Tile(
+                    tilemap, game_map.size, {x, y}, rstate.grass_smart_tile);
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
@@ -986,7 +1004,8 @@ void Render(Game_State& state, f32 dt) {
         auto placeholders = ui_state.placeholders;
         auto panel_size =
             v2f(psize.x + 2 * padding.x,
-                2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y);
+                2 * padding.y + placeholders_gap * (placeholders - 1) +
+                    placeholders * psize.y);
 
         auto outer_anchor = ui_state.buildables_panel_container_anchor;
         auto outer_container_size = v2i(swidth, sheight);
@@ -1008,7 +1027,8 @@ void Render(Game_State& state, f32 dt) {
             auto p0 = projection * p0_local;
             auto p1 = projection * p1_local;
             Draw_Stretchable_Sprite(
-                p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale, rstate);
+                p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale,
+                rstate);
 
             auto origin = (p1_local + p0_local) / 2.0f;
 
@@ -1029,7 +1049,8 @@ void Render(Game_State& state, f32 dt) {
             }
 
             auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
-            DEFER(Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size));
+            DEFER(
+                Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size));
 
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE(int, i, placeholders) {
@@ -1079,7 +1100,8 @@ void Render(Game_State& state, f32 dt) {
                     if (!node)
                         continue;
 
-                    v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
+                    v2f center =
+                        v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
                     FOR_RANGE(int, ii, 4) {
                         auto dir = (Direction)ii;
                         if (!Graph_Node_Has(node, dir))
@@ -1119,7 +1141,8 @@ void Render(Game_State& state, f32 dt) {
         glColor3fv((GLfloat*)(colors + 6));
     }
 
-    ImGui::Text("ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
+    ImGui::Text(
+        "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item
@@ -1142,7 +1165,8 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     } break;
 
     case Element_Tile_Type::Flag: {
-        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = global_flag_starting_tile_id;
+        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) =
+            global_flag_starting_tile_id;
     } break;
 
     default:

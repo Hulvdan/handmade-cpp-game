@@ -22,7 +22,8 @@ TEST_CASE("Load_Smart_Tile_Rules, ItWorks") {
     arena.size = size;
     arena.base = output;
 
-    auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
+    auto rules_data =
+        "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
     i32 rules_data_size = 0;
     auto p = rules_data;
     while (*p++)
@@ -44,7 +45,8 @@ TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
     arena.size = size;
     arena.base = output;
 
-    auto rules_data = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
+    auto rules_data =
+        "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
     i32 rules_data_size = 0;
     auto p = rules_data;
     while (*p++)
@@ -108,11 +110,13 @@ struct Test_Node {
 #define Linked_List_Push_Back_Macro(nodes_, n_, first_node_index_, node_to_add_)    \
     Linked_List_Push_Back(                                                          \
         rcast<u8*>(nodes_), (n_), (first_node_index_), rcast<u8*>(&(node_to_add_)), \
-        offsetof(node_to_add_, active), offsetof(node_to_add_, next), sizeof(node_to_add_));
+        offsetof(node_to_add_, active), offsetof(node_to_add_, next),               \
+        sizeof(node_to_add_));
 
-#define Linked_List_Remove_At_Macro(nodes_, n_, first_node_index_, index_to_remove_, type_) \
-    Linked_List_Remove_At(                                                                  \
-        rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_),                  \
+#define Linked_List_Remove_At_Macro(                                       \
+    nodes_, n_, first_node_index_, index_to_remove_, type_)                \
+    Linked_List_Remove_At(                                                 \
+        rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_), \
         offsetof(type_, active), offsetof(type_, next), sizeof(type_));
 
 #define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
@@ -128,7 +132,8 @@ TEST_CASE("Linked List") {
 
     {
         auto node_to_add = Test_Node(1);
-        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        auto index =
+            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
         CHECK(index == 0);
     }
 
@@ -143,7 +148,8 @@ TEST_CASE("Linked List") {
 
     {
         auto node_to_add = Test_Node(2);
-        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        auto index =
+            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
         CHECK(index == 1);
     }
 
@@ -177,7 +183,8 @@ TEST_CASE("Linked List") {
 
     {
         auto node_to_add = Test_Node(3);
-        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        auto index =
+            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
         CHECK(index == 1);
     }
     CHECK(count == 2);
@@ -210,7 +217,8 @@ TEST_CASE("Linked List") {
 
     {
         auto node_to_add = Test_Node(4);
-        auto index = Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
+        auto index =
+            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
         CHECK(index == 0);
     }
     CHECK(count == 2);

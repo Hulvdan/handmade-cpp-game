@@ -109,9 +109,9 @@ void Load_Or_Update_Game_Dll() {
 
     char systemtime_fmt[4096];
     sprintf(
-        systemtime_fmt, "%04d%02d%02d-%02d%02d%02d", (int)systemtime.wYear, (int)systemtime.wMonth,
-        (int)systemtime.wDay, (int)systemtime.wHour, (int)systemtime.wMinute,
-        (int)systemtime.wSecond);
+        systemtime_fmt, "%04d%02d%02d-%02d%02d%02d", (int)systemtime.wYear,
+        (int)systemtime.wMonth, (int)systemtime.wDay, (int)systemtime.wHour,
+        (int)systemtime.wMinute, (int)systemtime.wSecond);
 
     char temp_path[4096];
     sprintf(temp_path, "game_%s.dll", systemtime_fmt);
@@ -145,7 +145,8 @@ void Load_Or_Update_Game_Dll() {
 
     bool functions_loaded = loaded_Game_Update_And_Render;
     if (!functions_loaded) {
-        DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: Functions couldn't be loaded!");
+        DEBUG_Error(
+            "ERROR: Win32: Load_Or_Update_Game_Dll: Functions couldn't be loaded!");
         INVALID_PATH;
     }
 
@@ -197,7 +198,10 @@ bool audio_support_loaded = false;
 
 using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
 
-HRESULT XAudio2CreateStub(IXAudio2** ppXAudio2, UINT32 Flags, XAUDIO2_PROCESSOR XAudio2Processor) {
+HRESULT XAudio2CreateStub(
+    IXAudio2** ppXAudio2,
+    UINT32 Flags,
+    XAUDIO2_PROCESSOR XAudio2Processor) {
     // TODO(hulvdan): Diagnostic
     return XAUDIO2_E_INVALID_CALL;
 }
@@ -262,7 +266,8 @@ struct CreateBufferRes {
     u8* samples;
 };
 
-CreateBufferRes CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
+CreateBufferRes
+CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
     Assert(channels > 0);
     Assert(bytes_per_sample > 0);
 
@@ -314,15 +319,16 @@ void Win32UpdateBitmap(HDC device_context) {
         VirtualFree(game_bitmap.memory, 0, MEM_RELEASE);
 
     game_bitmap.memory = VirtualAlloc(
-        nullptr, game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
+        nullptr,
+        game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
         MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
     if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
 
     screen_bitmap.handle = CreateDIBitmap(
-        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory, &screen_bitmap.info,
-        DIB_RGB_COLORS);
+        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory,
+        &screen_bitmap.info, DIB_RGB_COLORS);
 }
 
 void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
@@ -373,7 +379,8 @@ ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
         event.position.y = client_height - p.y; \
     }
 
-LRESULT WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
+LRESULT
+WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
         return 1;
 
@@ -527,7 +534,8 @@ public:
         auto& buffer = b1;
 
         last_angle = FillSamples(
-            (i16*)samples, SAMPLES_HZ, samples_count_per_channel, channels, frequency, last_angle);
+            (i16*)samples, SAMPLES_HZ, samples_count_per_channel, channels, frequency,
+            last_angle);
 
         auto res = voice->SubmitSourceBuffer(buffer);
         if (FAILED(res)) {
@@ -579,7 +587,8 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
     Assert(count % os_data.min_pages_per_allocation == 0);
 
     return (u8*)VirtualAlloc(
-        nullptr, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        nullptr, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT,
+        PAGE_EXECUTE_READWRITE);
 }
 
 // Deallocate_Pages__Function(Win32_Deallocate_Pages) {
@@ -597,7 +606,8 @@ static int WinMain(
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     os_data.page_size = system_info.dwPageSize;
-    os_data.min_pages_per_allocation = system_info.dwAllocationGranularity / os_data.page_size;
+    os_data.min_pages_per_allocation =
+        system_info.dwAllocationGranularity / os_data.page_size;
     os_data.Allocate_Pages = Win32_Allocate_Pages;
 
     Load_Or_Update_Game_Dll();
@@ -608,7 +618,8 @@ static int WinMain(
 
     initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
     initial_game_memory = VirtualAlloc(
-        nullptr, initial_game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        nullptr, initial_game_memory_size, MEM_RESERVE | MEM_COMMIT,
+        PAGE_EXECUTE_READWRITE);
     if (!initial_game_memory) {
         // TODO(hulvdan): Diagnostic
         return -1;
@@ -664,8 +675,10 @@ static int WinMain(
                     i32 samples_count_per_channel = SAMPLES_HZ * duration_msec / 1000;
                     Assert(samples_count_per_channel > 0);
 
-                    auto r1 = CreateBuffer(samples_count_per_channel, channels, bytes_per_sample);
-                    auto r2 = CreateBuffer(samples_count_per_channel, channels, bytes_per_sample);
+                    auto r1 = CreateBuffer(
+                        samples_count_per_channel, channels, bytes_per_sample);
+                    auto r2 = CreateBuffer(
+                        samples_count_per_channel, channels, bytes_per_sample);
 
                     buffer1 = r1.buffer;
                     samples1 = r1.samples;
@@ -852,7 +865,8 @@ static int WinMain(
 
     f32 last_frame_dt = 0;
     const f32 MAX_FRAME_DT = 1.0f / 10.0f;
-    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole mess
+    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole
+    // mess
     f32 REFRESH_RATE = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
 
@@ -895,7 +909,8 @@ static int WinMain(
                 event.value = stick_y_normalized;
                 push_event(event);
 
-                voice_callback.frequency = starting_frequency * powf(2, stick_y_normalized);
+                voice_callback.frequency =
+                    starting_frequency * powf(2, stick_y_normalized);
             } else {
                 // TODO(hulvdan): Handling disconnects
             }
@@ -918,8 +933,8 @@ static int WinMain(
         if (perf_counter_new < next_frame_expected_perf_counter) {
             while (perf_counter_new < next_frame_expected_perf_counter) {
                 i32 msec_to_sleep =
-                    (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) * 1000.0f /
-                          (f32)perf_counter_frequency);
+                    (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) *
+                          1000.0f / (f32)perf_counter_frequency);
                 Assert(msec_to_sleep >= 0);
 
                 if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY) {
@@ -952,7 +967,8 @@ static int WinMain(
     // if (master_voice != nullptr) {
     //     // TODO(hulvdan): How am I supposed to release it?
     //     //
-    //     // https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--initialize-xaudio2
+    //     //
+    //     https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--initialize-xaudio2
     //     // > Ensure that all XAUDIO2 child objects are fully released
     //     // > before you release the IXAudio2 object.
     //

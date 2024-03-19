@@ -1,6 +1,8 @@
 #pragma once
 
-Scriptable_Resource* Get_Scriptable_Resource(Game_State& state, Scriptable_Resource_ID id) {
+Scriptable_Resource* Get_Scriptable_Resource(
+    Game_State& state,
+    Scriptable_Resource_ID id) {
     Assert(id - 1 < state.scriptable_resources_count);
     auto exists = id != 0;
     auto ptr_offset = (ptrd)(state.scriptable_resources + id - 1);
@@ -65,14 +67,14 @@ void Regenerate_Terrain_Tiles(
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
     DEFER(Deallocate_Array(trash_arena, u16, output_size));
     Fill_Perlin_2D(
-        terrain_perlin, sizeof(u16) * output_size, trash_arena, data.terrain_perlin, noise_pitch,
-        noise_pitch);
+        terrain_perlin, sizeof(u16) * output_size, trash_arena, data.terrain_perlin,
+        noise_pitch, noise_pitch);
 
     auto forest_perlin = Allocate_Array(trash_arena, u16, output_size);
     DEFER(Deallocate_Array(trash_arena, u16, output_size));
     Fill_Perlin_2D(
-        forest_perlin, sizeof(u16) * output_size, trash_arena, data.forest_perlin, noise_pitch,
-        noise_pitch);
+        forest_perlin, sizeof(u16) * output_size, trash_arena, data.forest_perlin,
+        noise_pitch, noise_pitch);
 
     FOR_RANGE(int, y, gsize.y) {
         FOR_RANGE(int, x, gsize.x) {
@@ -101,7 +103,8 @@ void Regenerate_Terrain_Tiles(
                 if (y > 0)
                     height_below = Get_Terrain_Tile(game_map, {x, y - 1}).height;
 
-                auto should_change = tile.height > height_below && tile.height > height_above;
+                auto should_change =
+                    tile.height > height_below && tile.height > height_above;
                 if (should_change)
                     tile.height = MAX(height_below, height_above);
 
@@ -119,7 +122,8 @@ void Regenerate_Terrain_Tiles(
             if (tile.is_cliff)
                 continue;
 
-            tile.is_cliff = y == 0 || tile.height > Get_Terrain_Tile(game_map, {x, y - 1}).height;
+            tile.is_cliff =
+                y == 0 || tile.height > Get_Terrain_Tile(game_map, {x, y - 1}).height;
         }
     }
 
@@ -203,7 +207,8 @@ void Regenerate_Element_Tiles(
 }
 
 Building_Page_Meta& Get_Building_Page_Meta(size_t page_size, Page& page) {
-    return *rcast<Building_Page_Meta*>(page.base + page_size - sizeof(Building_Page_Meta));
+    return *rcast<Building_Page_Meta*>(
+        page.base + page_size - sizeof(Building_Page_Meta));
 }
 
 Graph_Segment_Page_Meta& Get_Graph_Segment_Page_Meta(
@@ -267,7 +272,8 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building* scriptable)
     tile.building = found_instance;
 }
 
-Graph_Segment& New_Graph_Segment(Segment_Manager& manager, OS_Data& os_data, Pages& pages) {
+Graph_Segment&
+New_Graph_Segment(Segment_Manager& manager, OS_Data& os_data, Pages& pages) {
     const auto page_size = os_data.page_size;
 
     Page* page = nullptr;
@@ -491,7 +497,8 @@ void Linked_List_Remove_At(
 
         if (next_index == node_index) {
             u8* node_to_delete = nodes + next_index * node_size;
-            auto node_to_delete_next_index = *rcast<size_t*>(node_to_delete + next_offset);
+            auto node_to_delete_next_index =
+                *rcast<size_t*>(node_to_delete + next_offset);
 
             auto next_exists = node_to_delete_next_index != size_t_max;
             if (next_exists)
@@ -510,7 +517,9 @@ void Linked_List_Remove_At(
     Assert(false);
 }
 
-tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
+tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(
+    Allocator& allocator,
+    int vertices_count) {
     auto [key, buffer] = allocator.Allocate(vertices_count, 1);
     return {key, (Graph_v2u*)buffer};
 }
@@ -530,7 +539,8 @@ class Graph_Segment_Iterator : public Iterator_Facade<Graph_Segment_Iterator> {
 public:
     Graph_Segment_Iterator() = delete;
 
-    Graph_Segment_Iterator(Segment_Manager* manager) : Graph_Segment_Iterator(manager, 0, 0) {}
+    Graph_Segment_Iterator(Segment_Manager* manager)
+        : Graph_Segment_Iterator(manager, 0, 0) {}
     Graph_Segment_Iterator(Segment_Manager* manager, u32 current, u32 current_page)
         : _current(current),
           _current_page(current_page),
@@ -540,7 +550,9 @@ public:
     }
 
     Graph_Segment_Iterator begin() const { return {_manager, _current, _current_page}; }
-    Graph_Segment_Iterator end() const { return {_manager, 0, _manager->segment_pages_used}; }
+    Graph_Segment_Iterator end() const {
+        return {_manager, 0, _manager->segment_pages_used};
+    }
 
     Graph_Segment* dereference() const {
         auto page_base = (_manager->segment_pages + _current_page)->base;
@@ -614,8 +626,8 @@ void Update_Tiles(
     // NOTE(hulvdan): Ищем сегменты для удаления
     auto segments_to_be_deleted_allocate = updated_tiles.count * 4;
     u32 segments_to_be_deleted_count = 0;
-    Graph_Segment** segments_to_be_deleted =
-        Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
+    Graph_Segment** segments_to_be_deleted = Allocate_Zeros_Array(
+        trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
     for (auto segment_ptr : Iter(segment_manager)) {
@@ -710,7 +722,8 @@ void Update_Tiles(
         }
     }
 
-    // NOTE(hulvdan): Each byte here contains differently bit-shifted values of `Direction`
+    // NOTE(hulvdan): Each byte here contains differently bit-shifted values of
+    // `Direction`
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
@@ -728,7 +741,8 @@ void Update_Tiles(
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
         int segment_tiles_count = 1;
-        Graph_v2u* segment_tiles = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
+        Graph_v2u* segment_tiles =
+            Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
         auto [_, p_pos] = p;
@@ -746,8 +760,8 @@ void Update_Tiles(
 
             auto is_flag = tile.type == Element_Tile_Type::Flag;
             auto is_building = tile.type == Element_Tile_Type::Building;
-            auto is_city_hall =
-                is_building && tile.building->scriptable->type == Building_Type::City_Hall;
+            auto is_city_hall = is_building &&
+                tile.building->scriptable->type == Building_Type::City_Hall;
 
             if (is_flag || is_building) {
                 auto converted = To_Graph_v2u(pos);
@@ -792,15 +806,18 @@ void Update_Tiles(
                 }
 
                 visited_value = Graph_Node_Mark(visited_value, dir_index, true);
-                new_visited_value = Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
+                new_visited_value =
+                    Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
                 Graph_Update(temp_graph, pos.x, pos.y, dir_index, true);
                 Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index, true);
 
                 auto converted = To_Graph_v2u(new_pos);
-                Add_Without_Duplication(tiles_count, segment_tiles_count, segment_tiles, converted);
+                Add_Without_Duplication(
+                    tiles_count, segment_tiles_count, segment_tiles, converted);
 
                 if (new_is_building || new_is_flag) {
-                    Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
+                    Add_Without_Duplication(
+                        tiles_count, vertices_count, vertices, converted);
                 } else {
                     Enqueue(queue, {(Direction)0, new_pos});
                 }
@@ -861,7 +878,8 @@ void Update_Tiles(
         // NOTE(hulvdan): Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
-        auto [nodes_key, nodesss] = Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
+        auto [nodes_key, nodesss] =
+            Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
         segment.graph.nodes = nodesss;
         segment.graph.nodes_key = nodes_key;
 
@@ -1016,11 +1034,12 @@ void Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                                                \
-    Update_Tiles(                                                                          \
-        state.game_map.size, state.game_map.element_tiles, state.game_map.segment_manager, \
-        trash_arena, Safe_Deref(state.game_map.segment_vertices_allocator),                \
-        Safe_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data,     \
+#define INVOKE_UPDATE_TILES                                                            \
+    Update_Tiles(                                                                      \
+        state.game_map.size, state.game_map.element_tiles,                             \
+        state.game_map.segment_manager, trash_arena,                                   \
+        Safe_Deref(state.game_map.segment_vertices_allocator),                         \
+        Safe_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data, \
         updated_tiles);
 
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {

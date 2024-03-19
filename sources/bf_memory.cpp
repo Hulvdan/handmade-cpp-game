@@ -17,7 +17,8 @@ struct Pages : public Non_Copyable {
 };
 
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
-#define Allocate_Array(arena, type, count) rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
+#define Allocate_Array(arena, type, count) \
+    rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
 
 #define Allocate_Zeros_For(arena, type) rcast<type*>(Allocate_Zeros_(arena, sizeof(type)))
 #define Allocate_Zeros_Array(arena, type, count) \
@@ -36,9 +37,9 @@ u8* Allocate_(Arena& arena, size_t size) {
     u8* result = arena.base + arena.used;
     arena.used += size;
 #ifdef PROFILING
-    // TODO(hulvdan): Изучить способы того, как можно прикрутить профилирование памяти с поддержкой
-    // arena аллокаций таким образом, чтобы не приходилось запускать Free в профилировщике для
-    // старых аллокаций, когда делаем Reset арен
+    // TODO(hulvdan): Изучить способы того, как можно прикрутить профилирование памяти с
+    // поддержкой arena аллокаций таким образом, чтобы не приходилось запускать Free в
+    // профилировщике для старых аллокаций, когда делаем Reset арен
     //
     // Assert(arena.name != nullptr);
     // TracyAllocN(result, size, arena.name);
@@ -149,7 +150,8 @@ struct Allocator : Non_Copyable {
             Assert(A_Active(next_node));
 
             if (base_ptr + size > A_Base(next_node)) {
-                base_ptr = Align_Forward(A_Base(next_node) + A_Size(next_node), alignment);
+                base_ptr =
+                    Align_Forward(A_Base(next_node) + A_Size(next_node), alignment);
 
                 previous_node = next_node;
                 previous_node_index = next_node_index;

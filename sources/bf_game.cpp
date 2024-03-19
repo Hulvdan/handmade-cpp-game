@@ -62,9 +62,10 @@ bool UI_Clicked(Game_State& state) {
     v2f padding = ui_state.padding;
     f32 placeholders_gap = ui_state.placeholders_gap;
     auto placeholders = ui_state.placeholders;
-    auto panel_size = v2f(
-        psize.x + 2 * padding.x,
-        2 * padding.y + placeholders_gap * (f32)(placeholders - 1) + (f32)placeholders * psize.y);
+    auto panel_size =
+        v2f(psize.x + 2 * padding.x,
+            2 * padding.y + placeholders_gap * (f32)(placeholders - 1) +
+                (f32)placeholders * psize.y);
 
     v2f outer_anchor = ui_state.buildables_panel_container_anchor;
     v2i outer_container_size = v2i(swidth, sheight);
@@ -138,11 +139,14 @@ void Process_Events(
             if (!UI_Clicked(state)) {
                 if (event.type == Mouse_Button_Type::Left) {
                     if (ui_state.selected_buildable_index >= 0) {
-                        Assert(ui_state.selected_buildable_index < ui_state.buildables_count);
+                        Assert(
+                            ui_state.selected_buildable_index <
+                            ui_state.buildables_count);
                         auto& selected_buildable =
                             *(ui_state.buildables + ui_state.selected_buildable_index);
 
-                        auto tile_pos = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
+                        auto tile_pos =
+                            World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
                         if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
                             switch (selected_buildable.type) {
                             case Item_To_Build_Type::Road: {
@@ -275,33 +279,39 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         auto& rstate = Safe_Deref(state.renderer_state);
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
-        if (ImGui::SliderInt("Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9)) {
+        if (ImGui::SliderInt(
+                "Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9)) {
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
-                "Terrain Scaling Bias", &editor_data.terrain_perlin.scaling_bias, 0.001f, 2.0f)) {
+                "Terrain Scaling Bias", &editor_data.terrain_perlin.scaling_bias, 0.001f,
+                2.0f)) {
             editor_data.changed = true;
         }
         if (ImGui::Button("New Terrain Seed")) {
             editor_data.changed = true;
             editor_data.terrain_perlin.seed++;
         }
-        if (ImGui::SliderInt("Terrain Max Height", &editor_data.terrain_max_height, 1, 35)) {
+        if (ImGui::SliderInt(
+                "Terrain Max Height", &editor_data.terrain_max_height, 1, 35)) {
             editor_data.changed = true;
         }
 
-        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9)) {
+        if (ImGui::SliderInt(
+                "Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9)) {
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
-                "Forest Scaling Bias", &editor_data.forest_perlin.scaling_bias, 0.001f, 2.0f)) {
+                "Forest Scaling Bias", &editor_data.forest_perlin.scaling_bias, 0.001f,
+                2.0f)) {
             editor_data.changed = true;
         }
         if (ImGui::Button("New Forest Seed")) {
             editor_data.changed = true;
             editor_data.forest_perlin.seed++;
         }
-        if (ImGui::SliderFloat("Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f)) {
+        if (ImGui::SliderFloat(
+                "Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f)) {
             editor_data.changed = true;
         }
         if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35)) {
@@ -316,8 +326,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         auto trash_arena_size = Megabytes((size_t)1);
         auto non_persistent_arena_size = Megabytes((size_t)1);
-        auto arena_size =
-            root_arena.size - root_arena.used - non_persistent_arena_size - trash_arena_size;
+        auto arena_size = root_arena.size - root_arena.used - non_persistent_arena_size -
+            trash_arena_size;
 
         // NOTE(hulvdan): `arena` remains the same after hot reloading. Others get reset
         auto& arena = state.arena;
@@ -339,8 +349,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         if (first_time_initializing) {
             auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / os_data.page_size;
-            state.pages.base = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
-            state.pages.in_use = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
+            state.pages.base =
+                Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
+            state.pages.in_use =
+                Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
             state.pages.total_count_cap = pages_count_that_fit_2GB;
         }
 
@@ -391,14 +403,15 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 auto meta_size = sizeof(Building_Page_Meta);
                 auto struct_size = sizeof(Building);
 
-                auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                auto max_pages_count =
+                    Ceil_Division(tiles_count * struct_size, os_data.page_size);
                 Assert(max_pages_count < 100);
                 Assert(max_pages_count > 0);
 
                 state.game_map.building_pages_total = max_pages_count;
                 state.game_map.building_pages_used = 0;
-                state.game_map.building_pages =
-                    Allocate_Zeros_Array(arena, Page, state.game_map.building_pages_total);
+                state.game_map.building_pages = Allocate_Zeros_Array(
+                    arena, Page, state.game_map.building_pages_total);
                 state.game_map.max_buildings_per_page =
                     Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
             }
@@ -407,7 +420,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 auto meta_size = sizeof(Graph_Segment_Page_Meta);
                 auto struct_size = sizeof(Graph_Segment);
 
-                auto max_pages_count = Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                auto max_pages_count =
+                    Ceil_Division(tiles_count * struct_size, os_data.page_size);
                 Assert(max_pages_count < 100);
                 Assert(max_pages_count > 0);
 
@@ -426,14 +440,16 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         On_Item_Built__Function((*callbacks[])) = {
             Renderer__On_Item_Built,
         };
-        INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, non_persistent_arena);
+        INITIALIZE_OBSERVER_WITH_CALLBACKS(
+            state.On_Item_Built, callbacks, non_persistent_arena);
 
         Initialize_Renderer(state, arena, non_persistent_arena, trash_arena);
 
         memory.is_initialized = true;
     }
 
-    if (state.renderer_state != nullptr && state.renderer_state->shaders_compilation_failed)
+    if (state.renderer_state != nullptr &&
+        state.renderer_state->shaders_compilation_failed)
         ImGui::Text("ERROR: Shaders compilation failed!");
 
     // TODO(hulvdan): Оно ругается на null-pointer dereference. Если так написать, норм?
