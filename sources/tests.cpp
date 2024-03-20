@@ -395,8 +395,124 @@ void Free_Allocations() {
     virtual_allocations.clear();
 }
 
+int Process_Segments(
+    // &buildings, //
+    Element_Tile*& element_tiles,
+    // Segment_Manager& manager,
+    Allocator& segment_vertices_allocator,
+    Allocator& graph_nodes_allocator,
+    Pages& pages,
+    Arena& trash_arena,
+    Building*& building_sawmill,
+    v2i& gsize,
+    std::vector<const char*> strings  //
+) {
+    // NOTE(hulvdan): Creating `element_tiles`
+    gsize.y = strings.size();
+    gsize.x = strlen(strings[0]);
+
+    for (auto string_ptr : strings)
+        REQUIRE(strlen(string_ptr) == gsize.x);
+
+    auto tiles_count = gsize.x * gsize.y;
+    element_tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
+
+    Segment_Manager manager = {};
+    {
+        auto meta_size = sizeof(Graph_Segment_Page_Meta);
+        auto struct_size = sizeof(Graph_Segment);
+
+        auto max_pages_count =
+            Ceil_Division(tiles_count * struct_size, os_data.page_size);
+        Assert(max_pages_count < 100);
+        Assert(max_pages_count > 0);
+
+        manager.segment_pages_total = max_pages_count;
+        manager.segment_pages_used = 0;
+        manager.segment_pages =
+            Allocate_Zeros_Array(trash_arena, Page, manager.segment_pages_total);
+        manager.max_segments_per_page =
+            Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+    }
+
+    auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
+    auto Make_Building = [
+                             // &buildings, //
+                             &element_tiles,  //
+                             &trash_arena  //
+    ](Building_Type type, v2i pos) {
+        auto sb = Allocate_Zeros_For(trash_arena, Scriptable_Building);
+        sb->type = type;
+        auto building = Allocate_Zeros_For(trash_arena, Building);
+        building->scriptable = sb;
+        // buildings.push_back(building_sawmill);
+        return building;
+    };
+
+    FOR_RANGE(int, y, gsize.y) {
+        FOR_RANGE(int, x, gsize.x) {
+            auto& tile = *(element_tiles + y * gsize.x + x);
+            v2i pos = {x, y};
+
+            const char symbol = *(strings[gsize.y - y - 1] + x);
+            switch (symbol) {
+            case 'C': {
+                auto building = Make_Building(Building_Type::City_Hall, pos);
+                // new (tile) Element_Tile(Element_Tile_Type::Building, building);
+                tile.type = Element_Tile_Type::Building;
+                tile.building = building;
+            } break;
+
+            case 'B': {
+                auto building = Make_Building(Building_Type::Produce, pos);
+                tile.type = Element_Tile_Type::Building;
+                tile.building = building;
+            } break;
+
+            case 'S': {
+                if (building_sawmill == nullptr)
+                    building_sawmill = Make_Building(Building_Type::Produce, pos);
+
+                tile.type = Element_Tile_Type::Building;
+                tile.building = building_sawmill;
+            } break;
+
+            case 'r': {
+                tile.type = Element_Tile_Type::Road;
+                tile.building = nullptr;
+            } break;
+
+            case 'F': {
+                tile.type = Element_Tile_Type::Flag;
+                tile.building = nullptr;
+            } break;
+
+            case '.': {
+                tile.type = Element_Tile_Type::None;
+                tile.building = nullptr;
+            } break;
+
+            default:
+                INVALID_PATH;
+            }
+        }
+    }
+
+    // NOTE(hulvdan): Counting segments
+    Build_Graph_Segments(
+        gsize, element_tiles, manager, trash_arena, segment_vertices_allocator,
+        graph_nodes_allocator, pages, os_data  //
+    );
+
+    int segments_count = 0;
+    for (auto _ : Iter(manager))
+        segments_count++;
+
+    return segments_count;
+};
+
 TEST_CASE("Update_Tiles") {
-    // void Update_Tiles(
+    // Build_Graph_Segments / Update_Tiles (
     //     v2i gsize,
     //     Element_Tile* element_tiles,
     //     Segment_Manager& segment_manager,
@@ -419,39 +535,58 @@ TEST_CASE("Update_Tiles") {
     auto trash_size = Megabytes((size_t)2);
     trash_arena.size = trash_size;
     trash_arena.base = new u8[trash_size];
-    trash_arena.name = "trash";
 
-    u8 segment_vertices_toc[1024] = {};
-    u8 segment_vertices_data[1024] = {};
-    auto segment_vertices_allocator = std::make_unique<Allocator>(
-        1024, segment_vertices_toc, 1024, segment_vertices_data);
+    auto segment_vertices_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
+    new (segment_vertices_allocator_buf) Allocator(
+        1024, Allocate_Zeros_Array(trash_arena, u8, 1024),  //
+        4096, Allocate_Zeros_Array(trash_arena, u8, 4096));
+    auto& segment_vertices_allocator = *segment_vertices_allocator_buf;
 
-    u8 graph_nodes_toc[1024] = {};
-    u8 graph_nodes_data[1024] = {};
-    auto graph_nodes_allocator =
-        std::make_unique<Allocator>(1024, graph_nodes_toc, 1024, graph_nodes_data);
+    auto graph_nodes_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
+    new (graph_nodes_allocator_buf) Allocator(
+        1024, Allocate_Zeros_Array(trash_arena, u8, 1024),  //
+        4096, Allocate_Zeros_Array(trash_arena, u8, 4096));
+    auto& graph_nodes_allocator = *graph_nodes_allocator_buf;
 
-    Segment_Manager manager = {};
-    manager.segment_pages = nullptr;  // TODO:
-    manager.segment_pages_used = 0;
-    manager.segment_pages_total = 0;  // TODO:
-    manager.max_segments_per_page = os_data.page_size / sizeof(Graph_Segment);
+    Pages pages = {};
+    {
+        auto pages_count = Megabytes((size_t)1) / os_data.page_size;
+        pages.base = Allocate_Zeros_Array(trash_arena, Page, pages_count);
+        pages.in_use = Allocate_Zeros_Array(trash_arena, bool, pages_count);
+        pages.total_count_cap = pages_count;
+    }
 
-    // SUBCASE("1") {
-    //     // TODO:
-    //     //          auto element_tiles = Parse_As_Element_Tiles(R"map(
-    //     //  BrB
-    //     //          )map");
-    //
-    //     // Update_Tiles();
-    //
-    //     // int segments_count = 0;
-    //     // for (auto _ : Iter(manager))
-    //     //     segments_count++;
-    //     //
-    //     // CHECK(segments_count == 2);
-    // }
-    //
+    // std::vector<Building*> buildings = {};
+    Building* building_sawmill = nullptr;
+    v2i gsize = -v2i_one;
+    Element_Tile* element_tiles = nullptr;
+
+    SUBCASE("1") {
+        std::vector<const char*> strings = {
+            ".B",
+            "Cr",
+        };
+        auto segments_count = Process_Segments(
+            element_tiles,
+            // manager,
+            segment_vertices_allocator, graph_nodes_allocator, pages, trash_arena,
+            building_sawmill, gsize, strings);
+        CHECK(segments_count == 1);
+
+        // TODO:
+        //          auto element_tiles = Parse_As_Element_Tiles(R"map(
+        //  BrB
+        //          )map");
+
+        // Update_Tiles();
+
+        // int segments_count = 0;
+        // for (auto _ : Iter(manager))
+        //     segments_count++;
+        //
+        // CHECK(segments_count == 2);
+    }
+
     // SUBCASE("2") {
     //     CHECK(false);
     // }

@@ -189,6 +189,10 @@ vim.keymap.set("n", "<leader>q", function()
     vim.api.nvim_input("<M-m>:bd! #<cr>")
 end)
 
+vim.keymap.set("n", "<leader>Q", function()
+    vim.api.nvim_input(":q<cr>")
+end)
+
 vim.keymap.set("n", "<leader>w", function()
     save_files()
 
