@@ -511,6 +511,12 @@ int Process_Segments(
     return segments_count;
 };
 
+#define Process_Segments_Macro(segments_count_var_name, ...)                     \
+    std::vector<const char*> _strings = {__VA_ARGS__};                           \
+    auto(segments_count_var_name) = Process_Segments(                            \
+        element_tiles, segment_vertices_allocator, graph_nodes_allocator, pages, \
+        trash_arena, building_sawmill, gsize, _strings);
+
 TEST_CASE("Update_Tiles") {
     // Build_Graph_Segments / Update_Tiles (
     //     v2i gsize,
@@ -562,15 +568,11 @@ TEST_CASE("Update_Tiles") {
     Element_Tile* element_tiles = nullptr;
 
     SUBCASE("1") {
-        std::vector<const char*> strings = {
-            ".B",
-            "Cr",
-        };
-        auto segments_count = Process_Segments(
-            element_tiles,
-            // manager,
-            segment_vertices_allocator, graph_nodes_allocator, pages, trash_arena,
-            building_sawmill, gsize, strings);
+        Process_Segments_Macro(
+            segments_count,
+            ".B",  //
+            "Cr"  //
+        );
         CHECK(segments_count == 1);
 
         // TODO:

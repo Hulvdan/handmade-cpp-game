@@ -849,6 +849,33 @@ void Build_Graph_Segments(
         gsize, element_tiles, added_segments, added_segments_count, big_queue, queue,
         trash_arena, visited, segment_vertices_allocator, graph_nodes_allocator,
         full_graph_build);
+
+    {
+        FOR_RANGE(int, i, added_segments_count) {
+            auto& segment = New_Graph_Segment(segment_manager, os_data, pages);
+            auto& added_segment = *(added_segments + i);
+
+            // TODO(hulvdan): use move semantics?
+            segment.vertices_count = added_segment.vertices_count;
+            segment.vertices_key = added_segment.vertices_key;
+            segment.vertices = added_segment.vertices;
+            segment.graph.nodes_count = added_segment.graph.nodes_count;
+            segment.graph.nodes_key = added_segment.graph.nodes_key;
+            segment.graph.nodes = added_segment.graph.nodes;
+            segment.graph.size = added_segment.graph.size;
+            segment.graph.offset = added_segment.graph.offset;
+
+            // SHIT(hulvdan): Do it later
+            // FROM C# REPO
+            // foreach (auto segmentToLink in segments) {
+            //     // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
+            //     if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+            //         segment.Link(segmentToLink);
+            //         segmentToLink.Link(segment);
+            //     }
+            // }
+        }
+    }
 }
 
 void Update_Tiles(
