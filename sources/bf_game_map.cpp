@@ -733,7 +733,8 @@ void Update_Graphs(
                         new_visited_value =
                             Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
                         FOR_DIRECTION(new_dir_index) {
-                            Enqueue(big_queue, {new_dir_index, new_pos});
+                            if (!Graph_Node_Has(new_visited_value, new_dir_index))
+                                Enqueue(big_queue, {new_dir_index, new_pos});
                         }
                     }
                     continue;
