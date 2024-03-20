@@ -612,7 +612,7 @@ auto Iter(Segment_Manager& manager) {
 
 typedef tuple<Direction, v2i> Dir_v2i;
 
-#define GRID_PTR_VALUE(arr_ptr, pos) *(arr_ptr + gsize.x * pos.y + pos.x)
+#define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
 void Update_Graphs(
     const v2i gsize,
@@ -901,6 +901,10 @@ tuple<int, int> Update_Tiles(
     OS_Data& os_data,
     const Updated_Tiles& updated_tiles  //
 ) {
+    Assert(updated_tiles.count > 0);
+    if (!updated_tiles.count)
+        return {0, 0};
+
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE(hulvdan): Ищем сегменты для удаления

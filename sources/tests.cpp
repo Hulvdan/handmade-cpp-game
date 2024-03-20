@@ -396,13 +396,14 @@ void Free_Allocations() {
 }
 
 int Process_Segments(
+    v2i& gsize,
     Element_Tile*& element_tiles,
+    Segment_Manager*& manager,
+    Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
     Pages& pages,
-    Arena& trash_arena,
     Building*& building_sawmill,
-    v2i& gsize,
     std::vector<const char*> strings  //
 ) {
     // NOTE(hulvdan): Creating `element_tiles`
@@ -415,7 +416,6 @@ int Process_Segments(
     auto tiles_count = gsize.x * gsize.y;
     element_tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
 
-    Segment_Manager manager = {};
     {
         auto meta_size = sizeof(Graph_Segment_Page_Meta);
         auto struct_size = sizeof(Graph_Segment);
@@ -425,11 +425,12 @@ int Process_Segments(
         Assert(max_pages_count < 100);
         Assert(max_pages_count > 0);
 
-        manager.segment_pages_total = max_pages_count;
-        manager.segment_pages_used = 0;
-        manager.segment_pages =
-            Allocate_Zeros_Array(trash_arena, Page, manager.segment_pages_total);
-        manager.max_segments_per_page =
+        manager = Allocate_For(trash_arena, Segment_Manager);
+        manager->segment_pages_total = max_pages_count;
+        manager->segment_pages_used = 0;
+        manager->segment_pages =
+            Allocate_Zeros_Array(trash_arena, Page, manager->segment_pages_total);
+        manager->max_segments_per_page =
             Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
     }
 
@@ -493,22 +494,43 @@ int Process_Segments(
 
     // NOTE(hulvdan): Counting segments
     Build_Graph_Segments(
-        gsize, element_tiles, manager, trash_arena, segment_vertices_allocator,
+        gsize, element_tiles, *manager, trash_arena, segment_vertices_allocator,
         graph_nodes_allocator, pages, os_data  //
     );
 
     int segments_count = 0;
-    for (auto _ : Iter(manager))
+    for (auto _ : Iter(*manager))
         segments_count++;
 
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                                              \
-    std::vector<const char*> _strings = {__VA_ARGS__};                           \
-    auto(segments_count) = Process_Segments(                                     \
-        element_tiles, segment_vertices_allocator, graph_nodes_allocator, pages, \
-        trash_arena, building_sawmill, gsize, _strings);
+#define Process_Segments_Macro(...)                                             \
+    std::vector<const char*> _strings = {__VA_ARGS__};                          \
+    auto(segments_count) = Process_Segments(                                    \
+        gsize, element_tiles, manager, trash_arena, segment_vertices_allocator, \
+        graph_nodes_allocator, pages, building_sawmill, _strings);
+
+#define Update_Tiles_Macro(updated_tiles)                                        \
+    Assert(manager != nullptr);                                                  \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(          \
+        gsize, element_tiles, *manager, trash_arena, segment_vertices_allocator, \
+        graph_nodes_allocator, pages, os_data, (updated_tiles));
+
+#define Test_Declare_Updated_Tiles(...)                                          \
+    Updated_Tiles updated_tiles = {};                                            \
+    {                                                                            \
+        std::vector<tuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};         \
+        updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i, data.size()); \
+        updated_tiles.type =                                                     \
+            Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
+        FOR_RANGE(int, i, data.size()) {                                         \
+            auto& [pos, type] = data[i];                                         \
+            *(updated_tiles.pos + i) = pos;                                      \
+            *(updated_tiles.type + i) = type;                                    \
+        }                                                                        \
+        updated_tiles.count = data.size();                                       \
+    }
 
 TEST_CASE("Update_Tiles") {
     SYSTEM_INFO system_info;
@@ -546,7 +568,15 @@ TEST_CASE("Update_Tiles") {
     Building* building_sawmill = nullptr;
     v2i gsize = -v2i_one;
     Element_Tile* element_tiles = nullptr;
+    Segment_Manager* manager = nullptr;
 
+    // Agenda:
+    // - B  - building
+    // - C  - City Hall
+    // - F  - Flag
+    // - r  - Road
+    // - .  - Empty (Element_Tile::None)
+    // - SS - Sawmill (one building that spans several tiles)
     SUBCASE("Test_2Buildings_1Road_1Segment") {
         Process_Segments_Macro(
             ".B",  //
@@ -815,6 +845,208 @@ TEST_CASE("Update_Tiles") {
         Process_Segments_Macro("BrCrB");
         CHECK(segments_count == 2);
     }
+
+    SUBCASE("Test_Line_BrCrB") {
+        Process_Segments_Macro("BrCrB");
+        CHECK(segments_count == 2);
+    }
+
+    // OTHER TEST CASES
+
+    SUBCASE("Test_RoadPlaced_1") {
+        Process_Segments_Macro(
+            ".B",  //
+            ".F",  //
+            "Cr");
+
+        auto pos = v2i(0, 1);
+        CHECK(GRID_PTR_VALUE(element_tiles, pos).type == Element_Tile_Type::None);
+        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+
+        Test_Declare_Updated_Tiles(  //
+            {pos, Tile_Updated_Type::Road_Placed}  //
+        );
+        Update_Tiles_Macro(updated_tiles);
+
+        Assert(added_segments_count == 1);
+        Assert(removed_segments_count == 0);
+    }
+
+    // SUBCASE("Test_RoadPlaced_2") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         "Cr");
+    //
+    //     Assert.IsTrue(element_tiles.element_tiles[1][0].type ==
+    //     Element_Tile_Type::None); element_tiles.element_tiles[1][0] = ElementTile.ROAD;
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings, new (){new (TileUpdatedType.RoadPlaced, new (0,
+    //         1))}, segments);
+    //     Assert.AreEqual(0, result.deletedSegments.Count);
+    //     Assert.AreEqual(1, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_RoadPlaced_3") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         "CF");
+    //
+    //     Assert.IsTrue(element_tiles.element_tiles[1][0].type ==
+    //     Element_Tile_Type::None); element_tiles.element_tiles[1][0] = ElementTile.ROAD;
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings, new (){new (TileUpdatedType.RoadPlaced, new (0,
+    //         1))}, segments);
+    //     Assert.AreEqual(0, result.deletedSegments.Count);
+    //     Assert.AreEqual(1, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_RoadPlaced_4") {
+    //     Process_Segments_Macro(
+    //         ".rr",  //
+    //         "Crr");
+    //
+    //     var mapSizeMock = MockMapSize_FromElementTiles(element_tiles.element_tiles);
+    //     {
+    //         element_tiles.element_tiles[0][1] = ElementTile.FLAG;
+    //         var result = ItemTransportationGraph.OnTilesUpdated(
+    //             element_tiles.element_tiles, mapSizeMock, element_tiles.buildings,
+    //             new (){new (TileUpdatedType.FlagPlaced, new (1, 0))}, segments);
+    //         Assert.AreEqual(0, result.deletedSegments.Count);
+    //         Assert.AreEqual(1, result.addedSegments.Count);
+    //         UpdateSegments(result, segments);
+    //     }
+    //
+    //     {
+    //         element_tiles.element_tiles[1][2] = ElementTile.FLAG;
+    //         var result = ItemTransportationGraph.OnTilesUpdated(
+    //             element_tiles.element_tiles, mapSizeMock, element_tiles.buildings,
+    //             new (){new (TileUpdatedType.FlagPlaced, new (2, 1))}, segments);
+    //         Assert.AreEqual(0, result.deletedSegments.Count);
+    //         Assert.AreEqual(2, result.addedSegments.Count);
+    //         UpdateSegments(result, segments);
+    //     }
+    //
+    //     {
+    //         element_tiles.element_tiles[1][0] = ElementTile.ROAD;
+    //         var result = ItemTransportationGraph.OnTilesUpdated(
+    //             element_tiles.element_tiles, mapSizeMock, element_tiles.buildings,
+    //             new (){new (TileUpdatedType.RoadPlaced, new (0, 1))}, segments);
+    //         Assert.AreEqual(1, result.deletedSegments.Count);
+    //         Assert.AreEqual(1, result.addedSegments.Count);
+    //         UpdateSegments(result, segments);
+    //     }
+    // }
+    //
+    // SUBCASE("Test_FlagPlaced_1") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         ".r",  //
+    //         "Cr");
+    //
+    //     element_tiles.element_tiles[1][1] = ElementTile.FLAG;
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings, new (){new (TileUpdatedType.FlagPlaced, new (1,
+    //         1))}, segments);
+    //     Assert.AreEqual(1, result.deletedSegments.Count);
+    //     Assert.AreEqual(2, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_FlagPlaced_2") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         ".r",  //
+    //         "CF");
+    //
+    //     element_tiles.element_tiles[1][1] = ElementTile.FLAG;
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings, new (){new (TileUpdatedType.FlagPlaced, new (1,
+    //         1))}, segments);
+    //     Assert.AreEqual(1, result.deletedSegments.Count);
+    //     Assert.AreEqual(2, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_FlagPlaced_3") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         "CF");
+    //
+    //     element_tiles.element_tiles[1][0] = ElementTile.FLAG;
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings, new (){new (TileUpdatedType.FlagPlaced, new (0,
+    //         1))}, segments);
+    //     Assert.AreEqual(0, result.deletedSegments.Count);
+    //     Assert.AreEqual(2, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_BuildingPlaced_1") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         "CF");
+    //
+    //     var building = Make_Building(Building_Type::Produce, new (0, 1));
+    //     element_tiles.buildings.Add(building);
+    //     element_tiles.element_tiles[1][0] = new (Element_Tile_Type::Building,
+    //     building);
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings,
+    //         new (){new (TileUpdatedType.BuildingPlaced, new (0, 1))}, segments);
+    //     Assert.AreEqual(0, result.deletedSegments.Count);
+    //     Assert.AreEqual(0, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_BuildingPlaced_2") {
+    //     Process_Segments_Macro(
+    //         "..",  //
+    //         "CF");
+    //
+    //     var building = Make_Building(Building_Type::Produce, new (1, 1));
+    //     element_tiles.buildings.Add(building);
+    //     element_tiles.element_tiles[1][1] = new (Element_Tile_Type::Building,
+    //     building);
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings,
+    //         new (){new (TileUpdatedType.BuildingPlaced, new (1, 1))}, segments);
+    //     Assert.AreEqual(0, result.deletedSegments.Count);
+    //     Assert.AreEqual(1, result.addedSegments.Count);
+    // }
+    //
+    // SUBCASE("Test_BuildingRemoved_1") {
+    //     Process_Segments_Macro(
+    //         ".B",  //
+    //         "CF");
+    //
+    //     element_tiles.buildings.RemoveAt(1);
+    //     element_tiles.element_tiles[1][1] = ElementTile.NONE;
+    //
+    //     var result = ItemTransportationGraph.OnTilesUpdated(
+    //         element_tiles.element_tiles,
+    //         MockMapSize_FromElementTiles(element_tiles.element_tiles),
+    //         element_tiles.buildings,
+    //         new (){new (TileUpdatedType.BuildingRemoved, new (1, 1))}, segments);
+    //     Assert.AreEqual(1, result.deletedSegments.Count);
+    //     Assert.AreEqual(0, result.addedSegments.Count);
+    // }
 
     delete[] trash_arena.base;
     Free_Allocations();
