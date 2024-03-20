@@ -612,6 +612,8 @@ auto Iter(Segment_Manager& manager) {
 
 typedef tuple<Direction, v2i> Dir_v2i;
 
+#define GRID_PTR_VALUE(arr_ptr, pos) *(arr_ptr + gsize.x * pos.y + pos.x)
+
 void Update_Graphs(
     const v2i gsize,
     const Element_Tile* const element_tiles,
@@ -627,20 +629,22 @@ void Update_Graphs(
 ) {
     auto tiles_count = gsize.x * gsize.y;
 
-    while (big_queue.count > 0) {
+    while (big_queue.count) {
         auto p = Dequeue(big_queue);
         Enqueue(queue, p);
 
-        int vertices_count = 0;
+        auto [_, p_pos] = p;
+
         Graph_v2u* vertices = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
-        int segment_tiles_count = 1;
         Graph_v2u* segment_tiles =
             Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
-        auto [_, p_pos] = p;
+        int vertices_count = 1;
+        int segment_tiles_count = 1;
+        *(vertices + 0) = To_Graph_v2u(p_pos);
         *(segment_tiles + 0) = To_Graph_v2u(p_pos);
 
         Graph temp_graph = {};
@@ -649,27 +653,24 @@ void Update_Graphs(
         temp_graph.size.y = gsize.y;
         DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
-        while (queue.count > 0) {
+        while (queue.count) {
             auto [dir, pos] = Dequeue(queue);
-            auto& tile = *(element_tiles + pos.y * gsize.x + pos.x);
+            auto& tile = GRID_PTR_VALUE(element_tiles, pos);
 
-            auto is_flag = tile.type == Element_Tile_Type::Flag;
-            auto is_building = tile.type == Element_Tile_Type::Building;
-            auto is_city_hall = is_building &&
-                tile.building->scriptable->type == Building_Type::City_Hall;
+            bool is_flag = tile.type == Element_Tile_Type::Flag;
+            bool is_building = tile.type == Element_Tile_Type::Building;
+            bool is_vertex = is_building || is_flag;
 
-            if (is_flag || is_building) {
+            if (is_vertex) {
                 auto converted = To_Graph_v2u(pos);
                 Add_Without_Duplication(tiles_count, vertices_count, vertices, converted);
             }
 
-            for (int i = 0; i < 4; i++) {
-                auto dir_index = (Direction)i;
-
-                if ((is_city_hall || is_flag) && dir_index != dir)
+            FOR_DIRECTION(dir_index) {
+                if (is_vertex && dir_index != dir)
                     continue;
 
-                u8& visited_value = *(visited + gsize.x * pos.y + pos.x);
+                u8& visited_value = GRID_PTR_VALUE(visited, pos);
                 if (Graph_Node_Has(visited_value, dir_index))
                     continue;
 
@@ -678,38 +679,50 @@ void Update_Graphs(
                     continue;
 
                 Direction opposite_dir_index = Opposite(dir_index);
-                u8& new_visited_value = *(visited + gsize.x * new_pos.y + new_pos.x);
+                u8& new_visited_value = GRID_PTR_VALUE(visited, new_pos);
                 if (Graph_Node_Has(new_visited_value, opposite_dir_index))
                     continue;
 
-                auto& new_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                auto& new_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (new_tile.type == Element_Tile_Type::None)
                     continue;
 
                 bool new_is_building = new_tile.type == Element_Tile_Type::Building;
                 bool new_is_flag = new_tile.type == Element_Tile_Type::Flag;
+                bool new_is_vertex = new_is_building || new_is_flag;
 
-                if (is_building && new_is_building)
+                if (is_vertex && new_is_vertex) {
+                    if (tile.building != new_tile.building)
+                        continue;
+
+                    if (!Graph_Node_Has(new_visited_value, opposite_dir_index)) {
+                        new_visited_value =
+                            Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
+                        FOR_DIRECTION(new_dir_index) {
+                            Enqueue(big_queue, {new_dir_index, new_pos});
+                        }
+                    }
                     continue;
-
-                if (full_graph_build && new_is_flag) {
-                    Enqueue(big_queue, {Direction::Right, new_pos});
-                    Enqueue(big_queue, {Direction::Up, new_pos});
-                    Enqueue(big_queue, {Direction::Left, new_pos});
-                    Enqueue(big_queue, {Direction::Down, new_pos});
                 }
 
                 visited_value = Graph_Node_Mark(visited_value, dir_index, true);
                 new_visited_value =
                     Graph_Node_Mark(new_visited_value, opposite_dir_index, true);
-                Graph_Update(temp_graph, pos.x, pos.y, dir_index, true);
-                Graph_Update(temp_graph, new_pos.x, new_pos.y, opposite_dir_index, true);
+                Graph_Update(temp_graph, pos, dir_index, true);
+                Graph_Update(temp_graph, new_pos, opposite_dir_index, true);
+
+                if (full_graph_build && new_is_vertex) {
+                    FOR_DIRECTION(new_dir_index) {
+                        if (!Graph_Node_Has(new_visited_value, new_dir_index))
+                            Enqueue(big_queue, {new_dir_index, new_pos});
+                    }
+                }
 
                 auto converted = To_Graph_v2u(new_pos);
                 Add_Without_Duplication(
                     tiles_count, segment_tiles_count, segment_tiles, converted);
 
-                if (new_is_building || new_is_flag) {
+                if (new_is_vertex) {
                     Add_Without_Duplication(
                         tiles_count, vertices_count, vertices, converted);
                 } else {
@@ -827,18 +840,17 @@ void Build_Graph_Segments(
         return;
 
     Fixed_Size_Queue<Dir_v2i> big_queue = {};
-    big_queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    big_queue.memory_size = sizeof(Dir_v2i) * tiles_count * 160;
     big_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
     DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
 
-    Enqueue(big_queue, {Direction::Right, pos});
-    Enqueue(big_queue, {Direction::Up, pos});
-    Enqueue(big_queue, {Direction::Left, pos});
-    Enqueue(big_queue, {Direction::Down, pos});
+    FOR_DIRECTION(dir) {
+        Enqueue(big_queue, {dir, pos});
+    }
 
     Fixed_Size_Queue<Dir_v2i> queue = {};
     queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
-    queue.memory_size = sizeof(Dir_v2i) * tiles_count;
+    queue.memory_size = sizeof(Dir_v2i) * tiles_count * 160;
     DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
 
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
@@ -930,15 +942,14 @@ tuple<int, int> Update_Tiles(
         case Tile_Updated_Type::Road_Placed:
         case Tile_Updated_Type::Flag_Placed:
         case Tile_Updated_Type::Flag_Removed: {
-            Enqueue(big_queue, {Direction::Right, pos});
-            Enqueue(big_queue, {Direction::Up, pos});
-            Enqueue(big_queue, {Direction::Left, pos});
-            Enqueue(big_queue, {Direction::Down, pos});
+            FOR_DIRECTION(dir) {
+                Enqueue(big_queue, {dir, pos});
+            }
         } break;
 
         case Tile_Updated_Type::Road_Removed: {
-            for (int i = 0; i < 4; i++) {
-                auto new_pos = pos + v2i_adjacent_offsets[i];
+            FOR_DIRECTION(i) {
+                auto new_pos = pos + As_Offset(i);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
@@ -946,10 +957,9 @@ tuple<int, int> Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
-                Enqueue(big_queue, {Direction::Right, new_pos});
-                Enqueue(big_queue, {Direction::Up, new_pos});
-                Enqueue(big_queue, {Direction::Left, new_pos});
-                Enqueue(big_queue, {Direction::Down, new_pos});
+                FOR_DIRECTION(dir) {
+                    Enqueue(big_queue, {dir, new_pos});
+                }
             }
         } break;
 
@@ -969,11 +979,11 @@ tuple<int, int> Update_Tiles(
 
                 if (element_tile.type == Element_Tile_Type::Flag) {
                     Enqueue(big_queue, {Opposite(dir), new_pos});
-                } else {
-                    Enqueue(big_queue, {Direction::Right, new_pos});
-                    Enqueue(big_queue, {Direction::Up, new_pos});
-                    Enqueue(big_queue, {Direction::Left, new_pos});
-                    Enqueue(big_queue, {Direction::Down, new_pos});
+                    continue;
+                }
+
+                FOR_DIRECTION(dir) {
+                    Enqueue(big_queue, {dir, new_pos});
                 }
             }
         } break;

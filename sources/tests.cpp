@@ -396,9 +396,7 @@ void Free_Allocations() {
 }
 
 int Process_Segments(
-    // &buildings, //
     Element_Tile*& element_tiles,
-    // Segment_Manager& manager,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
     Pages& pages,
@@ -436,16 +434,11 @@ int Process_Segments(
     }
 
     auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
-    auto Make_Building = [
-                             // &buildings, //
-                             &element_tiles,  //
-                             &trash_arena  //
-    ](Building_Type type, v2i pos) {
+    auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         auto sb = Allocate_Zeros_For(trash_arena, Scriptable_Building);
         sb->type = type;
         auto building = Allocate_Zeros_For(trash_arena, Building);
         building->scriptable = sb;
-        // buildings.push_back(building_sawmill);
         return building;
     };
 
@@ -518,18 +511,6 @@ int Process_Segments(
         trash_arena, building_sawmill, gsize, _strings);
 
 TEST_CASE("Update_Tiles") {
-    // Build_Graph_Segments / Update_Tiles (
-    //     v2i gsize,
-    //     Element_Tile* element_tiles,
-    //     Segment_Manager& segment_manager,
-    //     Arena& trash_arena,
-    //     Allocator& segment_vertices_allocator,
-    //     Allocator& graph_nodes_allocator,
-    //     Pages& pages,
-    //     OS_Data& os_data,
-    //     const Updated_Tiles& updated_tiles  //
-    // )
-
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     os_data.page_size = system_info.dwPageSize;
@@ -562,7 +543,6 @@ TEST_CASE("Update_Tiles") {
         pages.total_count_cap = pages_count;
     }
 
-    // std::vector<Building*> buildings = {};
     Building* building_sawmill = nullptr;
     v2i gsize = -v2i_one;
     Element_Tile* element_tiles = nullptr;
@@ -570,57 +550,65 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_2Buildings_1Road_1Segment") {
         Process_Segments_Macro(
             ".B",  //
-            "Cr");
+            "Cr"  //
+        );
         CHECK(segments_count == 1);
     }
 
     SUBCASE("Test_1Building_1Road_0Segments") {
         Process_Segments_Macro(
             "..",  //
-            "Cr");
+            "Cr"  //
+        );
         CHECK(segments_count == 0);
     }
 
     SUBCASE("Test_2AdjacentBuildings_0Segments") {
         Process_Segments_Macro(
             "..",  //
-            "CB");
+            "CB"  //
+        );
         CHECK(segments_count == 0);
     }
 
     SUBCASE("Test_4AdjacentBuildings_0Segments") {
         Process_Segments_Macro(
             "BB",  //
-            "CB");
+            "CB"  //
+        );
         CHECK(segments_count == 0);
     }
 
-    SUBCASE("Test_2Buildings_1Flag_2Segments") {
+    SUBCASE("Test_2Buildings_1Flag_0Segments") {
         Process_Segments_Macro(
             ".B",  //
-            "CF");
-        CHECK(segments_count == 2);
+            "CF"  //
+        );
+        CHECK(segments_count == 0);
     }
 
-    SUBCASE("Test_2Buildings_1Flag_1Road_3Segments") {
+    SUBCASE("Test_2Buildings_1Flag_1Road_1Segment") {
         Process_Segments_Macro(
             "FB",  //
-            "Cr");
-        CHECK(segments_count == 3);
+            "Cr"  //
+        );
+        CHECK(segments_count == 1);
     }
 
-    SUBCASE("Test_2Buildings_2Flags_3Segments") {
+    SUBCASE("Test_2Buildings_2Flags_0Segments") {
         Process_Segments_Macro(
             "FF",  //
-            "CB");
-        CHECK(segments_count == 3);
+            "CB"  //
+        );
+        CHECK(segments_count == 0);
     }
 
-    SUBCASE("Test_2Buildings_2Flags_4Segments") {
+    SUBCASE("Test_2Buildings_2Flags_0Segments") {
         Process_Segments_Macro(
             "FB",  //
-            "CF");
-        CHECK(segments_count == 4);
+            "CF"  //
+        );
+        CHECK(segments_count == 0);
     }
 
     SUBCASE("Test_Line_CrrFrB") {
@@ -636,7 +624,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_Complex3") {
         Process_Segments_Macro(
             "rrrrrr",  //
-            "CrrrrB");
+            "CrrrrB"  //
+        );
         CHECK(segments_count == 1);
     }
 
@@ -646,7 +635,8 @@ TEST_CASE("Update_Tiles") {
             "..rrr.",  //
             "BrrCrB",  //
             "...r..",  //
-            "...B..");
+            "...B.."  //
+        );
         CHECK(segments_count == 2);
     }
 
@@ -656,15 +646,17 @@ TEST_CASE("Update_Tiles") {
             "..rFr.",  //
             "BrrCrB",  //
             "...r..",  //
-            "...B..");
-        CHECK(segments_count == 5);
+            "...B.."  //
+        );
+        CHECK(segments_count == 3);
     }
 
     SUBCASE("Test_Complex6") {
         Process_Segments_Macro(
             "...B..",  //
             "..rrr.",  //
-            "CrrFrB");
+            "CrrFrB"  //
+        );
         CHECK(segments_count == 1);
     }
 
@@ -674,7 +666,8 @@ TEST_CASE("Update_Tiles") {
             "..rrr.",  //
             "CrrFrB",  //
             "...r..",  //
-            "...B..");
+            "...B.."  //
+        );
         CHECK(segments_count == 2);
     }
 
@@ -684,7 +677,8 @@ TEST_CASE("Update_Tiles") {
             "...r..",  //
             "BrrCrB",  //
             "...r..",  //
-            "...B..");
+            "...B.."  //
+        );
         CHECK(segments_count == 4);
     }
 
@@ -694,7 +688,8 @@ TEST_CASE("Update_Tiles") {
             "..rrr.",  //
             "BrrCrB",  //
             "..rrr.",  //
-            "...B..");
+            "...B.."  //
+        );
         CHECK(segments_count == 1);
     }
 
@@ -704,7 +699,8 @@ TEST_CASE("Update_Tiles") {
             "..rrr.",  //
             "BrrCrB",  //
             "..rr..",  //
-            "...B..");
+            "...B.."  //
+        );
         CHECK(segments_count == 1);
     }
 
@@ -713,7 +709,8 @@ TEST_CASE("Update_Tiles") {
             "...B...",  //
             "..rrrr.",  //
             "CrrSSrB",  //
-            "....rr.");
+            "....rr."  //
+        );
         CHECK(segments_count == 1);
     }
 
@@ -722,8 +719,9 @@ TEST_CASE("Update_Tiles") {
             "...B...",  //
             "..rFrr.",  //
             "CrrSSrB",  //
-            "....rr.");
-        CHECK(segments_count == 4);
+            "....rr."  //
+        );
+        CHECK(segments_count == 2);
     }
 
     SUBCASE("Test_Complex13") {
@@ -731,8 +729,9 @@ TEST_CASE("Update_Tiles") {
             "...B...",  //
             "..rFFr.",  //
             "CrrSSrB",  //
-            "....rr.");
-        CHECK(segments_count == 6);
+            "....rr."  //
+        );
+        CHECK(segments_count == 2);
     }
 
     SUBCASE("Test_Complex14") {
@@ -740,28 +739,32 @@ TEST_CASE("Update_Tiles") {
             "...B...",  //
             "..rrFr.",  //
             "CrrSSrB",  //
-            "....rr.");
-        CHECK(segments_count == 3);
+            "....rr."  //
+        );
+        CHECK(segments_count == 2);
     }
 
     SUBCASE("Test_Complex15") {
         Process_Segments_Macro(
             "CrF",  //
-            ".rB");
-        CHECK(segments_count == 2);
+            ".rB"  //
+        );
+        CHECK(segments_count == 1);
     }
 
     SUBCASE("Test_Complex16") {
         Process_Segments_Macro(
             "CrFr",  //
-            ".rSS");
-        CHECK(segments_count == 3);
+            ".rSS"  //
+        );
+        CHECK(segments_count == 2);
     }
 
     SUBCASE("Test_Complex17") {
         Process_Segments_Macro(
             "Crrr",  //
-            ".rSS");
+            ".rSS"  //
+        );
         CHECK(segments_count == 1);
     }
 
@@ -769,17 +772,28 @@ TEST_CASE("Update_Tiles") {
         Process_Segments_Macro(
             ".B.",  //
             "CFB",  //
-            ".B.");
-        CHECK(segments_count == 4);
+            ".B."  //
+        );
+        CHECK(segments_count == 0);
     }
 
     SUBCASE("Test_Complex19") {
+        Process_Segments_Macro(
+            ".B.",  //
+            "CrB",  //
+            ".B."  //
+        );
+        CHECK(segments_count == 1);
+    }
+
+    SUBCASE("Test_Complex20") {
         Process_Segments_Macro(
             "..B..",  //
             "..r..",  //
             "CrFrB",  //
             "..r..",  //
-            "..B..");
+            "..B.."  //
+        );
         CHECK(segments_count == 4);
     }
 
@@ -790,6 +804,15 @@ TEST_CASE("Update_Tiles") {
 
     SUBCASE("Test_Line_CFB") {
         Process_Segments_Macro("CFB");
+        CHECK(segments_count == 0);
+    }
+    SUBCASE("Test_Line_BFCFB") {
+        Process_Segments_Macro("BFCFB");
+        CHECK(segments_count == 0);
+    }
+
+    SUBCASE("Test_Line_BrCrB") {
+        Process_Segments_Macro("BrCrB");
         CHECK(segments_count == 2);
     }
 

@@ -56,6 +56,10 @@ enum class Direction {
     Down = 3,
 };
 
+#define FOR_DIRECTION(var_name)                             \
+    for (auto var_name = (Direction)0; (int)(var_name) < 4; \
+         var_name = (Direction)((int)(var_name) + 1))
+
 v2i As_Offset(Direction dir) {
     Assert((u8)dir >= 0);
     Assert((u8)dir < 4);
@@ -172,12 +176,12 @@ struct Graph_Segment_Precalculated_Data {
     return node;
 }
 
-void Graph_Update(Graph& graph, int x, int y, Direction dir, bool value) {
+void Graph_Update(Graph& graph, v2i pos, Direction dir, bool value) {
     Assert((u8)dir >= 0);
     Assert((u8)dir < 4);
     Assert(graph.offset.x == 0);
     Assert(graph.offset.y == 0);
-    auto& node = *(graph.nodes + y * graph.size.x + x);
+    auto& node = *(graph.nodes + pos.y * graph.size.x + pos.x);
 
     bool node_is_zero_but_wont_be_after = (node == 0) && value;
     bool node_is_not_zero_but_will_be =
