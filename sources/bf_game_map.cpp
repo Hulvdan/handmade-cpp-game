@@ -878,7 +878,7 @@ void Build_Graph_Segments(
     }
 }
 
-void Update_Tiles(
+tuple<int, int> Update_Tiles(
     v2i gsize,
     Element_Tile* element_tiles,
     Segment_Manager& segment_manager,
@@ -1139,6 +1139,8 @@ void Update_Tiles(
         }
     }
 #endif  // ASSERT_SLOW
+
+    return {added_segments_count, segments_to_be_deleted_count};
 }
 
 #define Declare_Updated_Tiles(variable_name_, pos_, type_) \
