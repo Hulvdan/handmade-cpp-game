@@ -417,15 +417,6 @@ enum class Tile_Updated_Type {
     Building_Removed,
 };
 
-// struct On_Tiles_Updated_Result : public Non_Copyable {
-// struct On_Tiles_Updated_Result {
-//     u16 added_segments_count;
-//     u16 deleted_segments_count;
-//
-//     Graph_Segment* added_segments;
-//     Graph_Segment* deleted_segments;
-// };
-
 #ifdef BF_CLIENT
 // ============================================================= //
 //                    CLIENT. Game Rendering                     //

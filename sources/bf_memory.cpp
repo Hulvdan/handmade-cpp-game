@@ -122,7 +122,7 @@ struct Allocator : Non_Copyable {
 #endif
     }
 
-    tuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
+    ttuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
         Assert(size > 0);
         Assert(alignment > 0);
         Assert(toc_buffer != nullptr);

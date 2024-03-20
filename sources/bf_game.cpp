@@ -15,7 +15,8 @@
 #include "bf_game.h"
 
 #include <tuple>
-using std::tuple;
+template <typename... Args>
+using ttuple = std::tuple<Args...>;
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"

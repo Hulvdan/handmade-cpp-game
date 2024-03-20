@@ -1,7 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include <vector>
-#include <memory>
+template <typename... Args>
+using tvector = std::vector<Args...>;
 
 #include "bf_game.h"
 // NOLINTBEGIN(bugprone-suspicious-include)
@@ -376,7 +377,7 @@ TEST_CASE("As_Offset") {
 }
 
 global OS_Data os_data;
-global std::vector<u8*> virtual_allocations;
+global tvector<u8*> virtual_allocations;
 
 Allocate_Pages__Function(Win32_Allocate_Pages) {
     Assert(count % os_data.min_pages_per_allocation == 0);
@@ -417,7 +418,7 @@ int Process_Segments(
     Allocator& graph_nodes_allocator,
     Pages& pages,
     Building*& building_sawmill,
-    std::vector<const char*> strings  //
+    tvector<const char*> strings  //
 ) {
     // NOTE(hulvdan): Creating `element_tiles`
     gsize.y = strings.size();
@@ -516,7 +517,7 @@ int Process_Segments(
 };
 
 #define Process_Segments_Macro(...)                                             \
-    std::vector<const char*> _strings = {__VA_ARGS__};                          \
+    tvector<const char*> _strings = {__VA_ARGS__};                              \
     auto(segments_count) = Process_Segments(                                    \
         gsize, element_tiles, manager, trash_arena, segment_vertices_allocator, \
         graph_nodes_allocator, pages, building_sawmill, _strings);
@@ -530,7 +531,7 @@ int Process_Segments(
 #define Test_Declare_Updated_Tiles(...)                                          \
     Updated_Tiles updated_tiles = {};                                            \
     {                                                                            \
-        std::vector<tuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};         \
+        tvector<ttuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};            \
         updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i, data.size()); \
         updated_tiles.type =                                                     \
             Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
@@ -896,9 +897,7 @@ TEST_CASE("Update_Tiles") {
         CHECK(GRID_PTR_VALUE(element_tiles, pos).type == Element_Tile_Type::None);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Road_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 1);
@@ -915,9 +914,7 @@ TEST_CASE("Update_Tiles") {
         CHECK(GRID_PTR_VALUE(element_tiles, pos).type == Element_Tile_Type::None);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Road_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 1);
@@ -933,9 +930,7 @@ TEST_CASE("Update_Tiles") {
         CHECK(GRID_PTR_VALUE(element_tiles, pos).type == Element_Tile_Type::None);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Road_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 1);
@@ -951,9 +946,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -964,9 +957,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(2, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 2);
@@ -977,9 +968,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(0, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Road_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 1);
@@ -996,9 +985,7 @@ TEST_CASE("Update_Tiles") {
         auto pos = v2i(1, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Flag_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 1);
@@ -1015,9 +1002,7 @@ TEST_CASE("Update_Tiles") {
         auto pos = v2i(1, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Flag_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 0);
@@ -1032,9 +1017,7 @@ TEST_CASE("Update_Tiles") {
         auto pos = v2i(0, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Flag_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 0);
@@ -1048,9 +1031,7 @@ TEST_CASE("Update_Tiles") {
         auto pos = v2i(2, 0);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Flag_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 2);
@@ -1067,9 +1048,7 @@ TEST_CASE("Update_Tiles") {
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
         GRID_PTR_VALUE(element_tiles, pos).building = building;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Building_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 0);
@@ -1087,9 +1066,7 @@ TEST_CASE("Update_Tiles") {
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
         GRID_PTR_VALUE(element_tiles, pos).building = building;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Building_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 0);
@@ -1107,9 +1084,7 @@ TEST_CASE("Update_Tiles") {
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
         GRID_PTR_VALUE(element_tiles, pos).building = building;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Building_Placed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 1);
@@ -1127,9 +1102,7 @@ TEST_CASE("Update_Tiles") {
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::None;
         GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Building_Removed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Removed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 0);
@@ -1147,9 +1120,7 @@ TEST_CASE("Update_Tiles") {
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::None;
         GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
 
-        Test_Declare_Updated_Tiles(
-            {pos, Tile_Updated_Type::Building_Removed},  //
-        );
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Removed});
         Update_Tiles_Macro(updated_tiles);
 
         CHECK(added_segments_count == 1);
@@ -1166,9 +1137,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(0, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Road_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1179,9 +1148,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Road_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1192,9 +1159,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(2, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Road_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1205,9 +1170,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(0, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Road_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1218,9 +1181,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Road_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1231,9 +1192,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(0, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1244,9 +1203,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 2);
@@ -1257,9 +1214,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(2, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 1);
@@ -1270,9 +1225,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1291,9 +1244,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Placed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 0);
@@ -1312,9 +1263,7 @@ TEST_CASE("Update_Tiles") {
             auto pos = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-            Test_Declare_Updated_Tiles(
-                {pos, Tile_Updated_Type::Flag_Removed},  //
-            );
+            Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Removed});
             Update_Tiles_Macro(updated_tiles);
 
             CHECK(added_segments_count == 1);

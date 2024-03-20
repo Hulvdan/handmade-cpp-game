@@ -517,14 +517,14 @@ void Linked_List_Remove_At(
     Assert(false);
 }
 
-tuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(
+ttuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(
     Allocator& allocator,
     int vertices_count) {
     auto [key, buffer] = allocator.Allocate(vertices_count, 1);
     return {key, (Graph_v2u*)buffer};
 }
 
-tuple<size_t, u8*> Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
+ttuple<size_t, u8*> Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
     auto [key, buffer] = allocator.Allocate(nodes_count, 1);
     return {key, buffer};
 }
@@ -611,7 +611,7 @@ auto Iter(Segment_Manager& manager) {
     return Graph_Segment_Iterator(&manager);
 }
 
-typedef tuple<Direction, v2i> Dir_v2i;
+typedef ttuple<Direction, v2i> Dir_v2i;
 
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
@@ -931,7 +931,7 @@ void Build_Graph_Segments(
     }
 }
 
-tuple<int, int> Update_Tiles(
+ttuple<int, int> Update_Tiles(
     v2i gsize,
     Element_Tile* element_tiles,
     Segment_Manager& segment_manager,
