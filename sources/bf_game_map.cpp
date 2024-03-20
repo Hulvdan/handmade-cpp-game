@@ -1002,21 +1002,51 @@ tuple<int, int> Update_Tiles(
         const auto& pos = *(updated_tiles.pos + i);
 
         switch (updated_type) {
-        case Tile_Updated_Type::Road_Placed:
-        case Tile_Updated_Type::Flag_Placed:
-        case Tile_Updated_Type::Flag_Removed: {
+        case Tile_Updated_Type::Road_Placed: {
             FOR_DIRECTION(dir) {
+                auto new_pos = pos + As_Offset(dir);
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                if (element_tile.type == Element_Tile_Type::None)
+                    continue;
+
                 Enqueue(big_queue, {dir, pos});
             }
         } break;
 
-        case Tile_Updated_Type::Road_Removed: {
-            FOR_DIRECTION(i) {
-                auto new_pos = pos + As_Offset(i);
+        case Tile_Updated_Type::Flag_Placed: {
+            FOR_DIRECTION(dir) {
+                auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                if (element_tile.type == Element_Tile_Type::Road)
+                    Enqueue(big_queue, {dir, pos});
+            }
+        } break;
+
+        case Tile_Updated_Type::Flag_Removed: {
+            FOR_DIRECTION(dir) {
+                auto new_pos = pos + As_Offset(dir);
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                if (element_tile.type != Element_Tile_Type::None)
+                    Enqueue(big_queue, {dir, pos});
+            }
+        } break;
+
+        case Tile_Updated_Type::Road_Removed: {
+            FOR_DIRECTION(dir) {
+                auto new_pos = pos + As_Offset(dir);
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
@@ -1027,23 +1057,20 @@ tuple<int, int> Update_Tiles(
         } break;
 
         case Tile_Updated_Type::Building_Placed: {
-            for (int i = 0; i < 4; i++) {
-                auto dir = (Direction)i;
-                auto new_pos = pos + v2i_adjacent_offsets[i];
+            FOR_DIRECTION(dir) {
+                auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = *(element_tiles + gsize.x * new_pos.y + new_pos.x);
+                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
                 if (element_tile.type == Element_Tile_Type::Building)
                     continue;
 
-                if (element_tile.type == Element_Tile_Type::Flag) {
-                    Enqueue(big_queue, {Opposite(dir), new_pos});
+                if (element_tile.type == Element_Tile_Type::Flag)
                     continue;
-                }
 
                 FOR_DIRECTION(dir) {
                     Enqueue(big_queue, {dir, new_pos});
@@ -1225,10 +1252,10 @@ tuple<int, int> Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                                            \
-    Update_Tiles(                                                                      \
-        state.game_map.size, state.game_map.element_tiles,                             \
-        state.game_map.segment_manager, trash_arena,                                   \
+#define INVOKE_UPDATE_TILES                                                              \
+    Update_Tiles(                                                                        \
+        state.game_map.size, state.game_map.element_tiles,                               \
+        state.game_map.segment_manager, trash_arena,                                     \
         Assert_Deref(state.game_map.segment_vertices_allocator),                         \
         Assert_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data, \
         updated_tiles);
