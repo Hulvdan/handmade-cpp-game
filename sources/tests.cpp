@@ -1116,43 +1116,45 @@ TEST_CASE("Update_Tiles") {
         CHECK(removed_segments_count == 0);
     }
 
-    // SUBCASE("Test_BuildingRemoved_1") {
-    //     Process_Segments_Macro(
-    //         ".B",  //
-    //         "CF");
-    //     CHECK(segments_count == 0);
-    //
-    //     auto pos = v2i(1, 1);
-    //     GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
-    //     GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
-    //
-    //     Test_Declare_Updated_Tiles(
-    //         {pos, Tile_Updated_Type::Building_Removed},  //
-    //     );
-    //     Update_Tiles_Macro(updated_tiles);
-    //
-    //     CHECK(added_segments_count == 0);
-    //     CHECK(removed_segments_count == 0);
-    // }
+    SUBCASE("Test_BuildingRemoved_1") {
+        Process_Segments_Macro(
+            ".B",  //
+            "Cr"  //
+        );
+        CHECK(segments_count == 1);
 
-    // SUBCASE("Test_BuildingRemoved_2") {
-    //     Process_Segments_Macro(
-    //         ".B",  //
-    //         "Cr");
-    //     CHECK(segments_count == 1);
-    //
-    //     auto pos = v2i(1, 1);
-    //     GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
-    //     GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
-    //
-    //     Test_Declare_Updated_Tiles(
-    //         {pos, Tile_Updated_Type::Building_Removed},  //
-    //     );
-    //     Update_Tiles_Macro(updated_tiles);
-    //
-    //     CHECK(added_segments_count == 0);
-    //     CHECK(removed_segments_count == 1);
-    // }
+        auto pos = v2i(1, 1);
+        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::None;
+        GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
+
+        Test_Declare_Updated_Tiles(
+            {pos, Tile_Updated_Type::Building_Removed},  //
+        );
+        Update_Tiles_Macro(updated_tiles);
+
+        CHECK(added_segments_count == 0);
+        CHECK(removed_segments_count == 1);
+    }
+
+    SUBCASE("Test_BuildingRemoved_2") {
+        Process_Segments_Macro(
+            ".B.",  //
+            "CrB"  //
+        );
+        CHECK(segments_count == 1);
+
+        auto pos = v2i(1, 1);
+        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::None;
+        GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
+
+        Test_Declare_Updated_Tiles(
+            {pos, Tile_Updated_Type::Building_Removed},  //
+        );
+        Update_Tiles_Macro(updated_tiles);
+
+        CHECK(added_segments_count == 1);
+        CHECK(removed_segments_count == 1);
+    }
 
     SUBCASE("Shit_Test") {
         Process_Segments_Macro(

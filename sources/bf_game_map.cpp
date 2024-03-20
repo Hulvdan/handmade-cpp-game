@@ -674,9 +674,8 @@ void Update_Graphs(
             Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
 
-        int vertices_count = 1;
+        int vertices_count = 0;
         int segment_tiles_count = 1;
-        *(vertices + 0) = To_Graph_v2u(p_pos);
         *(segment_tiles + 0) = To_Graph_v2u(p_pos);
 
         Graph temp_graph = {};
@@ -1079,7 +1078,18 @@ tuple<int, int> Update_Tiles(
         } break;
 
         case Tile_Updated_Type::Building_Removed: {
-            NOT_IMPLEMENTED;
+            FOR_DIRECTION(dir) {
+                auto new_pos = pos + As_Offset(dir);
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                if (element_tile.type == Element_Tile_Type::Road) {
+                    FOR_DIRECTION(new_dir) {
+                        Enqueue(big_queue, {new_dir, new_pos});
+                    }
+                }
+            }
         } break;
 
         default:
