@@ -192,7 +192,7 @@ void Initialize_Renderer(
     if (first_time_initializing)
         state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
 
-    auto& rstate = Safe_Deref(state.renderer_state);
+    auto& rstate = Assert_Deref(state.renderer_state);
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
 
@@ -590,8 +590,8 @@ void Draw_UI_Sprite(
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
-    auto& rstate = Safe_Deref(state.renderer_state);
-    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
+    auto& rstate = Assert_Deref(state.renderer_state);
+    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     auto swidth = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
@@ -610,8 +610,8 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
 }
 
 v2f Screen_To_World(Game_State& state, v2f pos) {
-    auto& rstate = Safe_Deref(state.renderer_state);
-    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
+    auto& rstate = Assert_Deref(state.renderer_state);
+    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     auto swidth = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
@@ -715,8 +715,8 @@ struct Get_Buildable_Textures_Result {
 Get_Buildable_Textures_Result Get_Buildable_Textures(
     Arena& trash_arena,
     Game_State& state) {
-    auto& rstate = Safe_Deref(state.renderer_state);
-    auto& ui_state = Safe_Deref(rstate.ui_state);
+    auto& rstate = Assert_Deref(state.renderer_state);
+    auto& ui_state = Assert_Deref(rstate.ui_state);
 
     Get_Buildable_Textures_Result res = {};
     auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
@@ -750,9 +750,9 @@ void Render(Game_State& state, f32 dt) {
 
     Arena& trash_arena = state.trash_arena;
 
-    auto& rstate = Safe_Deref(state.renderer_state);
+    auto& rstate = Assert_Deref(state.renderer_state);
     auto& game_map = state.game_map;
-    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
+    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     auto gsize = game_map.size;
     auto swidth = (f32)bitmap.width;
@@ -967,7 +967,7 @@ void Render(Game_State& state, f32 dt) {
             if (!building.active)
                 continue;
 
-            auto& scriptable_building = Safe_Deref(building.scriptable);
+            auto& scriptable_building = Assert_Deref(building.scriptable);
 
             auto tex_id = scriptable_building.texture->id;
             glBindTexture(GL_TEXTURE_2D, tex_id);

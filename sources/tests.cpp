@@ -1154,6 +1154,150 @@ TEST_CASE("Update_Tiles") {
     //     CHECK(removed_segments_count == 1);
     // }
 
+    // SUBCASE("Shit_Test") {
+    //     Process_Segments_Macro(
+    //         "...",  //
+    //         "...");
+    //     CHECK(segments_count == 0);
+    //
+    //     {
+    //         auto pos = v2i(0, 0);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Road_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(1, 0);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Road_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(2, 0);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Road_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(0, 1);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Road_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(1, 1);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Road_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(0, 0);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Flag_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(1, 1);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Flag_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 2);
+    //         CHECK(removed_segments_count == 0);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(2, 0);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Flag_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 1);
+    //         CHECK(removed_segments_count == 1);
+    //     }
+    //
+    //     {
+    //         auto pos = v2i(1, 0);
+    //         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+    //
+    //         Test_Declare_Updated_Tiles(
+    //             {pos, Tile_Updated_Type::Flag_Placed},  //
+    //         );
+    //         Update_Tiles_Macro(updated_tiles);
+    //
+    //         CHECK(added_segments_count == 0);
+    //         CHECK(removed_segments_count == 1);
+    //     }
+    // }
+
+    SUBCASE("Shit_Test2") {
+        Process_Segments_Macro(
+            "rF.",  //
+            "FrF");
+        CHECK(segments_count == 2);
+
+        {
+            auto pos = v2i(1, 0);
+            GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+
+            Test_Declare_Updated_Tiles(
+                {pos, Tile_Updated_Type::Flag_Placed},  //
+            );
+            Update_Tiles_Macro(updated_tiles);
+
+            CHECK(added_segments_count == 0);
+            CHECK(removed_segments_count == 1);
+        }
+    }
+
     delete[] trash_arena.base;
     Free_Allocations();
 }

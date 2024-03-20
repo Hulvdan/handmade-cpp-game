@@ -73,7 +73,7 @@ using v3i = glm::ivec3;
 #endif  // TESTS
 
 template <typename T>
-T& Safe_Deref(T* value) {
+T& Assert_Deref(T* value) {
     Assert(value != nullptr);
     return *value;
 }

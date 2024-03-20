@@ -42,7 +42,7 @@ bool UI_Clicked(Game_State& state) {
     auto& rstate = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
-    Game_Bitmap& bitmap = Safe_Deref(rstate.bitmap);
+    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     auto gsize = game_map.size;
     auto swidth = (f32)bitmap.width;
@@ -276,7 +276,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     // --- IMGUI ---
     if (!first_time_initializing) {
-        auto& rstate = Safe_Deref(state.renderer_state);
+        auto& rstate = Assert_Deref(state.renderer_state);
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
         if (ImGui::SliderInt(
@@ -372,7 +372,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.scriptable_resources =
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
-            auto& r = Safe_Deref(Get_Scriptable_Resource(state, 1));
+            auto& r = Assert_Deref(Get_Scriptable_Resource(state, 1));
             r.name = "forest";
         }
 
@@ -380,13 +380,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.scriptable_buildings =
             Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
-            auto& b = Safe_Deref(state.scriptable_buildings + 0);
+            auto& b = Assert_Deref(state.scriptable_buildings + 0);
             b.name = "City Hall";
             b.type = Building_Type::City_Hall;
             state.scriptable_building_city_hall = &b;
         }
         {
-            auto& b = Safe_Deref(state.scriptable_buildings + 1);
+            auto& b = Assert_Deref(state.scriptable_buildings + 1);
             b.name = "Lumberjack's Hut";
             b.type = Building_Type::Harvest;
             state.scriptable_building_lumberjacks_hut = &b;

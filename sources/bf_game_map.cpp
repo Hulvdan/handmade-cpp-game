@@ -634,6 +634,8 @@ typedef tuple<Direction, v2i> Dir_v2i;
 
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
+#define QUEUES_SCALE 4
+
 void Update_Graphs(
     const v2i gsize,
     const Element_Tile* const element_tiles,
@@ -649,11 +651,13 @@ void Update_Graphs(
 ) {
     auto tiles_count = gsize.x * gsize.y;
 
-    bool* vis = nullptr;
-    if (full_graph_build)
-        vis = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
+    size_t deallocation_size = 0;
 
-    DEFER(Deallocate_Array(trash_arena, bool, tiles_count));
+    bool* vis = nullptr;
+    if (full_graph_build) {
+        vis = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
+        deallocation_size += sizeof(bool) * tiles_count;
+    }
 
     while (big_queue.count) {
         auto p = Dequeue(big_queue);
@@ -677,9 +681,9 @@ void Update_Graphs(
 
         Graph temp_graph = {};
         temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+        DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
         temp_graph.size.x = gsize.x;
         temp_graph.size.y = gsize.y;
-        DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
         while (queue.count) {
             auto [dir, pos] = Dequeue(queue);
@@ -847,6 +851,9 @@ void Update_Graphs(
         auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
         Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
     }
+
+    if (full_graph_build && deallocation_size)
+        Deallocate_Array(trash_arena, u8, deallocation_size);
 }
 
 void Build_Graph_Segments(
@@ -892,18 +899,18 @@ void Build_Graph_Segments(
         return;
 
     Fixed_Size_Queue<Dir_v2i> big_queue = {};
-    big_queue.memory_size = sizeof(Dir_v2i) * tiles_count * 160;
-    big_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
-    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
+    big_queue.memory_size = sizeof(Dir_v2i) * tiles_count * QUEUES_SCALE;
+    big_queue.base = (Dir_v2i*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
+    DEFER(Deallocate_Array(trash_arena, u8, big_queue.memory_size));
 
     FOR_DIRECTION(dir) {
         Enqueue(big_queue, {dir, pos});
     }
 
     Fixed_Size_Queue<Dir_v2i> queue = {};
-    queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
-    queue.memory_size = sizeof(Dir_v2i) * tiles_count * 160;
-    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
+    queue.memory_size = sizeof(Dir_v2i) * tiles_count * QUEUES_SCALE;
+    queue.base = (Dir_v2i*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    DEFER(Deallocate_Array(trash_arena, u8, queue.memory_size));
 
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
@@ -986,9 +993,9 @@ tuple<int, int> Update_Tiles(
     DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
 
     Fixed_Size_Queue<Dir_v2i> big_queue = {};
-    big_queue.memory_size = sizeof(Dir_v2i) * tiles_count;
-    big_queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
-    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
+    big_queue.memory_size = sizeof(Dir_v2i) * tiles_count * QUEUES_SCALE;
+    big_queue.base = (Dir_v2i*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
+    DEFER(Deallocate_Array(trash_arena, u8, big_queue.memory_size));
 
     FOR_RANGE(auto, i, updated_tiles.count) {
         const auto& updated_type = *(updated_tiles.type + i);
@@ -1059,9 +1066,9 @@ tuple<int, int> Update_Tiles(
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
 
     Fixed_Size_Queue<Dir_v2i> queue = {};
-    queue.base = Allocate_Array(trash_arena, Dir_v2i, tiles_count);
-    queue.memory_size = sizeof(Dir_v2i) * tiles_count;
-    DEFER(Deallocate_Array(trash_arena, Dir_v2i, tiles_count));
+    queue.memory_size = sizeof(Dir_v2i) * tiles_count * QUEUES_SCALE;
+    queue.base = (Dir_v2i*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    DEFER(Deallocate_Array(trash_arena, u8, queue.memory_size));
 
     bool full_graph_build = false;
     Update_Graphs(
@@ -1222,8 +1229,8 @@ tuple<int, int> Update_Tiles(
     Update_Tiles(                                                                      \
         state.game_map.size, state.game_map.element_tiles,                             \
         state.game_map.segment_manager, trash_arena,                                   \
-        Safe_Deref(state.game_map.segment_vertices_allocator),                         \
-        Safe_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data, \
+        Assert_Deref(state.game_map.segment_vertices_allocator),                         \
+        Assert_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data, \
         updated_tiles);
 
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
