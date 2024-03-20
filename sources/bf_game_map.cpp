@@ -611,25 +611,6 @@ auto Iter(Segment_Manager& manager) {
     return Graph_Segment_Iterator(&manager);
 }
 
-// struct Update_Tiles_Operations_To_Apply {
-//     size_t trash_arena_allocation;
-//
-//     u32 segments_to_be_deleted_count;
-//     Graph_Segment** segments_to_be_deleted;
-//
-//     u32 added_segments_count;
-//     Graph_Segment* added_segments;
-// };
-//
-// Update_Tiles_Operations_To_Apply Update_Tiles_Gather_Operations(
-//     Game_State& state,
-//     Arena& non_pesistent_arena,
-//     Arena& trash_arena,
-//     const Updated_Tiles& updated_tiles  //
-// ) {
-//     //
-// }
-
 typedef tuple<Direction, v2i> Dir_v2i;
 
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
