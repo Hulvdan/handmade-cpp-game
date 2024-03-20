@@ -541,7 +541,7 @@ public:
 
     Graph_Segment_Iterator(Segment_Manager* manager)
         : Graph_Segment_Iterator(manager, 0, 0) {}
-    Graph_Segment_Iterator(Segment_Manager* manager, u32 current, u32 current_page)
+    Graph_Segment_Iterator(Segment_Manager* manager, i32 current, u32 current_page)
         : _current(current),
           _current_page(current_page),
           _manager(manager)  //
@@ -549,7 +549,17 @@ public:
         Assert(manager->max_segments_per_page > 0);
     }
 
-    Graph_Segment_Iterator begin() const { return {_manager, _current, _current_page}; }
+    Graph_Segment_Iterator begin() const {
+        Graph_Segment_Iterator iter = {_manager, _current, _current_page};
+
+        if (_manager->segment_pages_used) {
+            iter._current -= 1;
+            iter._current_page_segments_count = iter._get_current_page_segments_count();
+            iter.increment();
+        }
+
+        return iter;
+    }
     Graph_Segment_Iterator end() const {
         return {_manager, 0, _manager->segment_pages_used};
     }
@@ -563,12 +573,14 @@ public:
     void increment() {
         FOR_RANGE(int, _GUARD_, 256) {
             _current++;
-            if (_current >= _manager->max_segments_per_page) {
+            if (_current >= _current_page_segments_count) {
                 _current = 0;
                 _current_page++;
 
                 if (_current_page == _manager->segment_pages_used)
                     return;
+
+                _current_page_segments_count = _get_current_page_segments_count();
             }
 
             if (dereference()->active)
@@ -582,9 +594,17 @@ public:
     }
 
 private:
+    int _get_current_page_segments_count() {
+        auto page_ptr = rcast<Page*>(_manager->segment_pages + _current_page)->base;
+        auto& meta =
+            *rcast<Graph_Segment_Page_Meta*>(page_ptr + _manager->page_meta_offset);
+        return meta.count;
+    }
+
     Segment_Manager* _manager;
-    u16 _current = 0;
+    i32 _current = 0;
     u16 _current_page = 0;
+    u16 _current_page_segments_count = 0;
 };
 
 auto Iter(Segment_Manager& manager) {
@@ -629,11 +649,19 @@ void Update_Graphs(
 ) {
     auto tiles_count = gsize.x * gsize.y;
 
+    bool* vis = nullptr;
+    if (full_graph_build)
+        vis = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
+
+    DEFER(Deallocate_Array(trash_arena, bool, tiles_count));
+
     while (big_queue.count) {
         auto p = Dequeue(big_queue);
         Enqueue(queue, p);
 
         auto [_, p_pos] = p;
+        if (full_graph_build)
+            GRID_PTR_VALUE(vis, p_pos) = true;
 
         Graph_v2u* vertices = Allocate_Zeros_Array(trash_arena, Graph_v2u, tiles_count);
         DEFER(Deallocate_Array(trash_arena, Graph_v2u, tiles_count));
@@ -655,6 +683,9 @@ void Update_Graphs(
 
         while (queue.count) {
             auto [dir, pos] = Dequeue(queue);
+            if (full_graph_build)
+                GRID_PTR_VALUE(vis, pos) = true;
+
             auto& tile = GRID_PTR_VALUE(element_tiles, pos);
 
             bool is_flag = tile.type == Element_Tile_Type::Flag;
@@ -727,6 +758,27 @@ void Update_Graphs(
                         tiles_count, vertices_count, vertices, converted);
                 } else {
                     Enqueue(queue, {(Direction)0, new_pos});
+                }
+            }
+        }
+
+        if (full_graph_build && !big_queue.count) {
+            FOR_RANGE(int, y, gsize.y) {
+                FOR_RANGE(int, x, gsize.x) {
+                    auto pos = v2i(x, y);
+                    auto& tile = GRID_PTR_VALUE(element_tiles, pos);
+                    u8& v1 = GRID_PTR_VALUE(visited, pos);
+                    bool& v2 = GRID_PTR_VALUE(vis, pos);
+
+                    bool is_building = tile.type == Element_Tile_Type::Building;
+                    bool is_flag = tile.type == Element_Tile_Type::Flag;
+                    bool is_vertex = is_building || is_flag;
+
+                    if (is_vertex && !v1 && !v2) {
+                        FOR_DIRECTION(dir_index) {
+                            Enqueue(big_queue, {dir_index, pos});
+                        }
+                    }
                 }
             }
         }
@@ -880,8 +932,8 @@ void Build_Graph_Segments(
             // SHIT(hulvdan): Do it later
             // FROM C# REPO
             // foreach (auto segmentToLink in segments) {
-            //     // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
-            //     if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+            //     // Mb there Graph.CollidesWith(other.Graph) is needed for
+            //     optimization if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
             //         segment.Link(segmentToLink);
             //         segmentToLink.Link(segment);
             //     }
@@ -1018,7 +1070,8 @@ tuple<int, int> Update_Tiles(
         full_graph_build);
 
     // ====================================================================================
-    // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult res)
+    // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult
+    // res)
 
     // SHIT(hulvdan): Do it later
     // auto humansMovingToCityHall = 0;
@@ -1085,8 +1138,8 @@ tuple<int, int> Update_Tiles(
             // SHIT(hulvdan): Do it later
             // FROM C# REPO
             // foreach (auto segmentToLink in segments) {
-            //     // Mb there Graph.CollidesWith(other.Graph) is needed for optimization
-            //     if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+            //     // Mb there Graph.CollidesWith(other.Graph) is needed for
+            //     optimization if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
             //         segment.Link(segmentToLink);
             //         segmentToLink.Link(segment);
             //     }
@@ -1098,7 +1151,8 @@ tuple<int, int> Update_Tiles(
     // _resourceTransportation.PathfindItemsInQueue();
     // Tracing.Log("_itemTransportationSystem.PathfindItemsInQueue()");
     //
-    // while (humansThatNeedNewSegment.Count > 0 && segmentsThatNeedHumans.Count > 0) {
+    // while (humansThatNeedNewSegment.Count > 0 && segmentsThatNeedHumans.Count > 0)
+    // {
     //     auto segment = segmentsThatNeedHumans.Dequeue();
     //
     //     auto (oldSegment, human) = humansThatNeedNewSegment.Pop();

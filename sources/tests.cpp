@@ -445,6 +445,7 @@ int Process_Segments(
             Allocate_Zeros_Array(trash_arena, Page, manager->segment_pages_total);
         manager->max_segments_per_page =
             Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+        manager->page_meta_offset = os_data.page_size - meta_size;
     }
 
     auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -843,6 +844,24 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_Line_CrB") {
         Process_Segments_Macro("CrB");
         CHECK(segments_count == 1);
+    }
+
+    SUBCASE("Test_Parallel_Lines") {
+        Process_Segments_Macro(
+            "B.B",  //
+            "r.r",  //
+            "B.B"  //
+        );
+        CHECK(segments_count == 2);
+    }
+
+    SUBCASE("Test_Horizontal_Lines") {
+        Process_Segments_Macro(
+            "BrB",  //
+            "...",  //
+            "BrB"  //
+        );
+        CHECK(segments_count == 2);
     }
 
     SUBCASE("Test_Line_CFB") {

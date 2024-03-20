@@ -432,6 +432,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                     Allocate_Zeros_Array(arena, Page, manager.segment_pages_total);
                 manager.max_segments_per_page =
                     Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+                manager.page_meta_offset = os_data.page_size - meta_size;
             }
 
             Place_Building(state, {2, 2}, state.scriptable_building_city_hall);

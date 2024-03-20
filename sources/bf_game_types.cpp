@@ -319,6 +319,7 @@ struct Segment_Manager {
     u16 segment_pages_used;
     u16 segment_pages_total;
     u16 max_segments_per_page;
+    u32 page_meta_offset;
 };
 
 struct Game_Map : public Non_Copyable {
