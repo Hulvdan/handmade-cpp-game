@@ -766,6 +766,7 @@ void Update_Graphs(
             }
         }
 
+        // NOTE(hulvdan): Поиск островов графа
         if (full_graph_build && !big_queue.count) {
             FOR_RANGE(int, y, gsize.y) {
                 FOR_RANGE(int, x, gsize.x) {
