@@ -328,6 +328,8 @@ bool Should_Segment_Be_Deleted(
         auto& tile_pos = *(updated_tiles.pos + i);
         auto& updated_type = *(updated_tiles.type + i);
 
+        // TODO(hulvdan): Логика работы была изменена после C# репы.
+        // Нужно перепроверить, что тут всё работает стабильно.
         switch (updated_type) {
         case Tile_Updated_Type::Road_Placed:
         case Tile_Updated_Type::Building_Placed: {

@@ -36,6 +36,7 @@ u8* Allocate_(Arena& arena, size_t size) {
 
     u8* result = arena.base + arena.used;
     arena.used += size;
+
 #ifdef PROFILING
     // TODO(hulvdan): Изучить способы того, как можно прикрутить профилирование памяти с
     // поддержкой arena аллокаций таким образом, чтобы не приходилось запускать Free в
@@ -43,7 +44,8 @@ u8* Allocate_(Arena& arena, size_t size) {
     //
     // Assert(arena.name != nullptr);
     // TracyAllocN(result, size, arena.name);
-#endif
+#endif  // PROFILING
+
     return result;
 }
 
@@ -57,6 +59,7 @@ void Deallocate_(Arena& arena, size_t size) {
     Assert(size > 0);
     Assert(arena.used >= size);
     arena.used -= size;
+
 #ifdef PROFILING
     // TODO(hulvdan): См. выше
     //
@@ -96,7 +99,7 @@ struct Allocator : Non_Copyable {
     size_t max_toc_entries;
 
 #ifdef PROFILING
-    const char* name;
+    const char* name = nullptr;
 #endif  // PROFILING
 
     Allocator(
@@ -116,10 +119,6 @@ struct Allocator : Non_Copyable {
         FOR_RANGE(size_t, i, a_toc_buffer_size) {
             Assert(*(a_toc_buffer + i) == 0);
         }
-
-#ifdef PROFILING
-        name = nullptr;
-#endif
     }
 
     ttuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
