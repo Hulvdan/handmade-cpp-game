@@ -1,5 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+
 #include <vector>
 template <typename... Args>
 using tvector = std::vector<Args...>;
@@ -376,12 +377,11 @@ TEST_CASE("As_Offset") {
     CHECK(As_Offset(Direction::Down) == v2i(0, -1));
 }
 
-global OS_Data os_data;
 global tvector<u8*> virtual_allocations;
 
 Allocate_Pages__Function(Win32_Allocate_Pages) {
-    Assert(count % os_data.min_pages_per_allocation == 0);
-    auto size = os_data.page_size * count;
+    Assert(count % OS_DATA.min_pages_per_allocation == 0);
+    auto size = OS_DATA.page_size * count;
     auto result = (u8*)VirtualAlloc(
         nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
@@ -435,7 +435,7 @@ int Process_Segments(
         auto struct_size = sizeof(Graph_Segment);
 
         auto max_pages_count =
-            Ceil_Division(tiles_count * struct_size, os_data.page_size);
+            Ceil_Division(tiles_count * struct_size, OS_DATA.page_size);
         Assert(max_pages_count < 100);
         Assert(max_pages_count > 0);
 
@@ -445,8 +445,8 @@ int Process_Segments(
         manager->segment_pages =
             Allocate_Zeros_Array(trash_arena, Page, manager->segment_pages_total);
         manager->max_segments_per_page =
-            Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
-        manager->page_meta_offset = os_data.page_size - meta_size;
+            Assert_Truncate_To_u16((OS_DATA.page_size - meta_size) / struct_size);
+        manager->page_meta_offset = OS_DATA.page_size - meta_size;
     }
 
     auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -506,7 +506,7 @@ int Process_Segments(
     // NOTE(hulvdan): Counting segments
     Build_Graph_Segments(
         gsize, element_tiles, *manager, trash_arena, segment_vertices_allocator,
-        graph_nodes_allocator, pages, os_data  //
+        graph_nodes_allocator, pages  //
     );
 
     int segments_count = 0;
@@ -526,7 +526,7 @@ int Process_Segments(
     REQUIRE(manager != nullptr);                                                 \
     auto [added_segments_count, removed_segments_count] = Update_Tiles(          \
         gsize, element_tiles, *manager, trash_arena, segment_vertices_allocator, \
-        graph_nodes_allocator, pages, os_data, (updated_tiles));
+        graph_nodes_allocator, pages, (updated_tiles));
 
 #define Test_Declare_Updated_Tiles(...)                                          \
     Updated_Tiles updated_tiles = {};                                            \
@@ -546,10 +546,12 @@ int Process_Segments(
 TEST_CASE("Update_Tiles") {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
+    OS_Data os_data = {};
     os_data.page_size = system_info.dwPageSize;
     os_data.min_pages_per_allocation =
         system_info.dwAllocationGranularity / os_data.page_size;
     os_data.Allocate_Pages = Win32_Allocate_Pages;
+    global_os_data = &os_data;
 
     Arena trash_arena = {};
     auto trash_size = Megabytes((size_t)2);
@@ -570,7 +572,7 @@ TEST_CASE("Update_Tiles") {
 
     Pages pages = {};
     {
-        auto pages_count = Megabytes((size_t)1) / os_data.page_size;
+        auto pages_count = Megabytes((size_t)1) / OS_DATA.page_size;
         pages.base = Allocate_Zeros_Array(trash_arena, Page, pages_count);
         pages.in_use = Allocate_Zeros_Array(trash_arena, bool, pages_count);
         pages.total_count_cap = pages_count;

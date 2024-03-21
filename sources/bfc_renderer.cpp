@@ -960,7 +960,7 @@ void Render(Game_State& state, f32 dt) {
 
     FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
         auto& page = *(game_map.building_pages + page_index);
-        auto count = Get_Building_Page_Meta(state.os_data->page_size, page).count;
+        auto count = Get_Building_Page_Meta(page).count;
 
         FOR_RANGE(size_t, index, count) {
             Building& building = *(rcast<Building*>(page.base) + index);

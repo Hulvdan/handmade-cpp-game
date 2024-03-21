@@ -14,6 +14,9 @@ struct Loaded_Texture;
 // ============================================================= //
 //                        Data Structures                        //
 // ============================================================= //
+
+// ----- Queues -----
+
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size;
@@ -44,6 +47,144 @@ T Dequeue(Fixed_Size_Queue<T>& queue) {
         memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
 
     return res;
+}
+
+// ----- Bucket Array -----
+
+template <typename T>
+struct Bucket {
+    bool* occupied;
+    u8* data;
+
+    i32 count;
+    u32 bucket_index;
+};
+
+struct Bucket_Locator {
+    u32 bucket_index;
+    u32 slot_index;
+};
+
+template <typename T>
+struct Bucket_Array {
+    i64 count;
+    // Allocator allocator;
+
+    Bucket<T>* all_buckets;
+    Bucket<T>* unfull_buckets;
+
+    i32 items_per_bucket;
+};
+
+// Bucket_Array arr;
+// auto [item, locator] = Find_And_Occupy_Empty_Slot(arr);
+
+// // @Note(hulvdan): Start
+// array_add(array: [..] $T, value: T) {
+//     if (array.capacity < array.count + 1)
+//         array.data = realloc(array.data, 2 * sizeof(value) * array.capacity);
+//
+//     array[array.count] = value;
+//     array.count += 1;
+// }
+// // @Note(hulvdan): End
+
+template <typename T>
+Bucket<T> Add_Bucket(Bucket_Array<T>& array) {
+    Assert(array.unfull_buckets.count == 0);
+
+    if (!array.all_buckets.count) {  // Therefore this is the first call.
+        // if (array.allocator) {
+        //     array.all_buckets.allocator = array.allocator;
+        //     array.unfull_buckets.allocator = array.allocator;
+        // }
+    }
+
+    // new_context := context;
+    // if allocator
+    //     new_context.allocator = allocator;
+
+    // push_context new_context {
+    Bucket<T> new_bucket = {};
+    new_bucket.bucket_index = (u32)array.all_buckets.count;
+    // Will assert if we overflowed.
+    Assert(new_bucket.bucket_index == array.all_buckets.count);
+
+    Array_Add(*array.all_buckets, new_bucket);
+    Array_Add(*array.unfull_buckets, new_bucket);
+
+    return new_bucket;
+    // }
+}
+
+template <typename T>
+ttuple<T, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& array) {
+    if (!array.unfull_buckets.count)
+        Add_Bucket(array);
+    // @Incomplete: Some kind of error handling!
+    Assert(array.unfull_buckets.count > 0);
+
+    auto& bucket = *(array.unfull_buckets + 0);
+
+    int index = -1;
+    FOR_RANGE(int, i, bucket.items_max - 1) {
+        // @Speed: We can record the first non-empty index in the occupied list?
+        bool occupied = *(bucket.occupied + i);
+        if (!occupied) {
+            index = i;
+            break;
+        }
+    }
+
+    Assert(index != -1);
+
+    bucket.occupied[index] = true;
+    bucket.count += 1;
+    Assert(bucket.count <= bucket.items_max);
+
+    array.count += 1;
+
+    if (bucket.count == bucket.items_max) {
+        auto removed = Array_Unordered_Remove(*array.unfull_buckets, bucket);
+        Assert(removed == 1);
+    }
+
+    Bucket_Locator locator = {};
+    locator.bucket_index = bucket.bucket_index;
+    locator.slot_index = (u32)index;
+
+    return {*bucket.data[index], locator};
+}
+
+template <typename T>
+Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& array, T& item) {
+    auto [pointer, locator] = Find_And_Occupy_Empty_Slot(array);
+    *pointer = item;
+    return locator;
+}
+
+template <typename T>
+T Bucket_Array_Find(Bucket_Array<T> array, Bucket_Locator locator) {
+    auto& bucket = array.all_buckets[locator.bucket_index];
+    Assert(bucket.occupied[locator.slot_index] == true);
+    return *bucket.data[locator.slot_index];
+}
+
+template <typename T>
+void Bucket_Array_Remove(Bucket_Array<T>& array, Bucket_Locator& locator) {
+    auto& bucket = array.all_buckets[locator.bucket_index];
+    Assert(bucket.occupied[locator.slot_index] == true);
+
+    bool was_full = (bucket.count == bucket.items_max);
+
+    bucket.occupied[locator.slot_index] = false;
+    bucket.count -= 1;
+    array.count -= 1;
+
+    if (was_full) {
+        Assert(Array_Find(array.unfull_buckets, bucket) == -1);
+        Array_Add(*array.unfull_buckets, bucket);
+    }
 }
 
 // ============================================================= //
@@ -393,7 +534,6 @@ struct Game_State : public Non_Copyable {
     Arena non_persistent_arena;  // Gets flushed on DLL reloads
     Arena trash_arena;  // Use for transient calculations
 
-    OS_Data* os_data;
     Pages pages;
 
 #ifdef BF_CLIENT
@@ -537,7 +677,7 @@ struct Game_Renderer_State : public Non_Copyable {
 };
 #endif  // BF_CLIENT
 
-u8* Book_Single_Page(Pages& pages, OS_Data& os_data) {
+u8* Book_Single_Page(Pages& pages) {
     // NOTE(hulvdan): If there exists allocated page that is not in use -> return it
     FOR_RANGE(u32, i, pages.allocated_count) {
         bool& in_use = *(pages.in_use + i);
@@ -550,12 +690,12 @@ u8* Book_Single_Page(Pages& pages, OS_Data& os_data) {
     // NOTE(hulvdan): Allocating more pages and mapping them
     Assert(pages.allocated_count < pages.total_count_cap);
 
-    auto pages_to_allocate = os_data.min_pages_per_allocation;
-    auto allocation_address = os_data.Allocate_Pages(pages_to_allocate);
+    auto pages_to_allocate = OS_DATA.min_pages_per_allocation;
+    auto allocation_address = OS_DATA.Allocate_Pages(pages_to_allocate);
 
     FOR_RANGE(u32, i, pages_to_allocate) {
         auto& page = *(pages.base + pages.allocated_count + i);
-        page.base = allocation_address + (ptrd)i * os_data.page_size;
+        page.base = allocation_address + (ptrd)i * OS_DATA.page_size;
     }
 
     // NOTE(hulvdan): Booking the first page that we allocated and returning it

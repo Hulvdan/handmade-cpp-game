@@ -18,6 +18,9 @@
 template <typename... Args>
 using ttuple = std::tuple<Args...>;
 
+global OS_Data* global_os_data = nullptr;
+#define OS_DATA (Assert_Deref(global_os_data))
+
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
 #include "bf_memory.cpp"
@@ -275,6 +278,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     auto first_time_initializing = !memory.is_initialized;
 
+    if (first_time_initializing)
+        global_os_data = &os_data;
+
     // --- IMGUI ---
     if (!first_time_initializing) {
         auto& rstate = Assert_Deref(state.renderer_state);
@@ -322,7 +328,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     // --- IMGUI END ---
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
-        state.os_data = &os_data;
         editor_data.changed = false;
 
         auto trash_arena_size = Megabytes((size_t)1);
@@ -349,7 +354,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count);
 
         if (first_time_initializing) {
-            auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / os_data.page_size;
+            auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / OS_DATA.page_size;
             state.pages.base =
                 Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
             state.pages.in_use =
@@ -405,7 +410,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 auto struct_size = sizeof(Building);
 
                 auto max_pages_count =
-                    Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                    Ceil_Division(tiles_count * struct_size, OS_DATA.page_size);
                 Assert(max_pages_count < 100);
                 Assert(max_pages_count > 0);
 
@@ -414,7 +419,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 state.game_map.building_pages = Allocate_Zeros_Array(
                     arena, Page, state.game_map.building_pages_total);
                 state.game_map.max_buildings_per_page =
-                    Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
+                    Assert_Truncate_To_u16((OS_DATA.page_size - meta_size) / struct_size);
             }
 
             {
@@ -422,7 +427,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 auto struct_size = sizeof(Graph_Segment);
 
                 auto max_pages_count =
-                    Ceil_Division(tiles_count * struct_size, os_data.page_size);
+                    Ceil_Division(tiles_count * struct_size, OS_DATA.page_size);
                 Assert(max_pages_count < 100);
                 Assert(max_pages_count > 0);
 
@@ -432,8 +437,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 manager.segment_pages =
                     Allocate_Zeros_Array(arena, Page, manager.segment_pages_total);
                 manager.max_segments_per_page =
-                    Assert_Truncate_To_u16((os_data.page_size - meta_size) / struct_size);
-                manager.page_meta_offset = os_data.page_size - meta_size;
+                    Assert_Truncate_To_u16((OS_DATA.page_size - meta_size) / struct_size);
+                manager.page_meta_offset = OS_DATA.page_size - meta_size;
             }
 
             Place_Building(state, {2, 2}, state.scriptable_building_city_hall);

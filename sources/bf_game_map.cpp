@@ -206,32 +206,28 @@ void Regenerate_Element_Tiles(
     }
 }
 
-Building_Page_Meta& Get_Building_Page_Meta(size_t page_size, Page& page) {
+Building_Page_Meta& Get_Building_Page_Meta(Page& page) {
     return *rcast<Building_Page_Meta*>(
-        page.base + page_size - sizeof(Building_Page_Meta));
+        page.base + OS_DATA.page_size - sizeof(Building_Page_Meta));
 }
 
-Graph_Segment_Page_Meta& Get_Graph_Segment_Page_Meta(
-    size_t page_size,
-    Page& page  //
-) {
+Graph_Segment_Page_Meta& Get_Graph_Segment_Page_Meta(Page& page) {
     return *rcast<Graph_Segment_Page_Meta*>(
-        page.base + page_size - sizeof(Graph_Segment_Page_Meta));
+        page.base + OS_DATA.page_size - sizeof(Graph_Segment_Page_Meta));
 }
 
 void Place_Building(Game_State& state, v2i pos, Scriptable_Building* scriptable) {
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
-    auto& os_data = *state.os_data;
 
-    const auto page_size = os_data.page_size;
+    const auto page_size = OS_DATA.page_size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
     Page* page = nullptr;
     Building* found_instance = nullptr;
     FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
         page = game_map.building_pages + page_index;
-        auto& meta = Get_Building_Page_Meta(page_size, *page);
+        auto& meta = Get_Building_Page_Meta(*page);
 
         if (meta.count >= game_map.max_buildings_per_page)
             continue;
@@ -252,14 +248,14 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building* scriptable)
         Assert(game_map.building_pages_used < game_map.building_pages_total);
         page = game_map.building_pages + game_map.building_pages_used;
 
-        page->base = Book_Single_Page(state.pages, *state.os_data);
+        page->base = Book_Single_Page(state.pages);
         game_map.building_pages_used++;
 
         found_instance = rcast<Building*>(page->base);
         Assert(found_instance != nullptr);
     }
 
-    Get_Building_Page_Meta(page_size, *page).count++;
+    Get_Building_Page_Meta(*page).count++;
     auto& instance = *found_instance;
 
     instance.pos = pos;
@@ -272,15 +268,14 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building* scriptable)
     tile.building = found_instance;
 }
 
-Graph_Segment&
-New_Graph_Segment(Segment_Manager& manager, OS_Data& os_data, Pages& pages) {
-    const auto page_size = os_data.page_size;
+Graph_Segment& New_Graph_Segment(Segment_Manager& manager, Pages& pages) {
+    const auto page_size = OS_DATA.page_size;
 
     Page* page = nullptr;
     Graph_Segment* found_instance = nullptr;
     FOR_RANGE(size_t, page_index, manager.segment_pages_used) {
         page = manager.segment_pages + page_index;
-        auto& meta = Get_Graph_Segment_Page_Meta(page_size, *page);
+        auto& meta = Get_Graph_Segment_Page_Meta(*page);
 
         if (meta.count >= manager.max_segments_per_page)
             continue;
@@ -301,14 +296,14 @@ New_Graph_Segment(Segment_Manager& manager, OS_Data& os_data, Pages& pages) {
         Assert(manager.segment_pages_used < manager.segment_pages_total);
         page = manager.segment_pages + manager.segment_pages_used;
 
-        page->base = Book_Single_Page(pages, os_data);
+        page->base = Book_Single_Page(pages);
         manager.segment_pages_used++;
 
         found_instance = rcast<Graph_Segment*>(page->base);
         Assert(found_instance != nullptr);
     }
 
-    Get_Graph_Segment_Page_Meta(page_size, *page).count++;
+    Get_Graph_Segment_Page_Meta(*page).count++;
     auto& instance = *found_instance;
 
     Assert(!instance.active);
@@ -845,8 +840,7 @@ void Build_Graph_Segments(
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
-    Pages& pages,
-    OS_Data& os_data  //
+    Pages& pages  //
 ) {
     Assert(segment_manager.segment_pages_used == 0);
 
@@ -905,7 +899,7 @@ void Build_Graph_Segments(
 
     {
         FOR_RANGE(int, i, added_segments_count) {
-            auto& segment = New_Graph_Segment(segment_manager, os_data, pages);
+            auto& segment = New_Graph_Segment(segment_manager, pages);
             auto& added_segment = *(added_segments + i);
 
             // TODO(hulvdan): use move semantics?
@@ -939,7 +933,6 @@ ttuple<int, int> Update_Tiles(
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
     Pages& pages,
-    OS_Data& os_data,
     const Updated_Tiles& updated_tiles  //
 ) {
     Assert(updated_tiles.count > 0);
@@ -1149,7 +1142,7 @@ ttuple<int, int> Update_Tiles(
 
     {
         FOR_RANGE(int, i, added_segments_count) {
-            auto& segment = New_Graph_Segment(segment_manager, os_data, pages);
+            auto& segment = New_Graph_Segment(segment_manager, pages);
             auto& added_segment = *(added_segments + i);
 
             // TODO(hulvdan): use move semantics?
@@ -1245,13 +1238,12 @@ ttuple<int, int> Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                                              \
-    Update_Tiles(                                                                        \
-        state.game_map.size, state.game_map.element_tiles,                               \
-        state.game_map.segment_manager, trash_arena,                                     \
-        Assert_Deref(state.game_map.segment_vertices_allocator),                         \
-        Assert_Deref(state.game_map.graph_nodes_allocator), state.pages, *state.os_data, \
-        updated_tiles);
+#define INVOKE_UPDATE_TILES                                      \
+    Update_Tiles(                                                \
+        state.game_map.size, state.game_map.element_tiles,       \
+        state.game_map.segment_manager, trash_arena,             \
+        Assert_Deref(state.game_map.segment_vertices_allocator), \
+        Assert_Deref(state.game_map.graph_nodes_allocator), state.pages, updated_tiles);
 
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {
     auto& arena = state.arena;
