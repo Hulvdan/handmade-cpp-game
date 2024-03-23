@@ -266,29 +266,26 @@ TEST_CASE("Allocator") {
 
     // Tests
     {
-        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
+        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 1);
-        CHECK(key == 0);
         CHECK(ptr == data_buffer);
 
         CHECK((alloc + 0)->next == size_t_max);
     }
     {
-        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 36, 1UL);
+        auto ptr = Allocator_Allocate_Macro(allocator, 36, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
-        CHECK(key == 1);
         CHECK(ptr == data_buffer + 12);
 
         CHECK((alloc + 0)->next == 1);
         CHECK((alloc + 1)->next == size_t_max);
     }
     {
-        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
+        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 3);
-        CHECK(key == 2);
         CHECK(ptr == data_buffer + 48);
 
         CHECK((alloc + 0)->next == 1);
@@ -296,7 +293,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->next == size_t_max);
     }
     {
-        Allocator_Free_Macro(allocator, 2UL);
+        Allocator_Free_Macro(allocator, data_buffer + 48);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
         CHECK((alloc + 0)->next == 1);
@@ -305,14 +302,13 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->active == false);
     }
     {
-        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
+        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 3);
-        CHECK(key == 2);
         CHECK(ptr == data_buffer + 48);
     }
     {
-        Allocator_Free_Macro(allocator, 0UL);
+        Allocator_Free_Macro(allocator, data_buffer + 0);
         CHECK(allocator.first_allocation_index == 1);
         CHECK(allocator.current_allocations_count == 2);
         CHECK((alloc + 0)->active == false);
@@ -321,7 +317,7 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->active == true);
     }
     {
-        Allocator_Free_Macro(allocator, 1UL);
+        Allocator_Free_Macro(allocator, data_buffer + 12);
         CHECK(allocator.first_allocation_index == 2);
         CHECK(allocator.current_allocations_count == 1);
         CHECK((alloc + 0)->active == false);
@@ -331,10 +327,9 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->active == true);
     }
     {
-        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
+        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 2);
-        CHECK(key == 0);
         CHECK(ptr == data_buffer + 0);
         CHECK((alloc + 0)->active == true);
         CHECK((alloc + 2)->active == true);
@@ -342,10 +337,9 @@ TEST_CASE("Allocator") {
         CHECK((alloc + 2)->next == size_t_max);
     }
     {
-        auto [key, ptr] = Allocator_Allocate_Macro(allocator, 12, 1UL);
+        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
         CHECK(allocator.first_allocation_index == 0);
         CHECK(allocator.current_allocations_count == 3);
-        CHECK(key == 1);
         CHECK(ptr == data_buffer + 12);
         CHECK((alloc + 0)->active == true);
         CHECK((alloc + 1)->active == true);

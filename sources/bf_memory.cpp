@@ -121,7 +121,9 @@ struct Allocator : Non_Copyable {
         }
     }
 
-    ttuple<size_t, u8*> Allocate(size_t size, size_t alignment) {
+    u8* Allocate(size_t size) { return Allocate(size, 1); }
+
+    u8* Allocate(size_t size, size_t alignment) {
         Assert(size > 0);
         Assert(alignment > 0);
         Assert(toc_buffer != nullptr);
@@ -130,7 +132,7 @@ struct Allocator : Non_Copyable {
         if (current_allocations_count + 1 > max_toc_entries) {
             // TODO(hulvdan): Diagnostic
             Assert(false);
-            return {size_t_max, nullptr};
+            return nullptr;
         }
 
         auto nodes = rcast<Allocation*>(toc_buffer);
@@ -188,12 +190,12 @@ struct Allocator : Non_Copyable {
             A_Next(previous_node) = new_free_node_index;
 
         current_allocations_count++;
-        return {new_free_node_index, base_ptr};
+        return base_ptr;
     }
 
-    void Free(size_t key) {
+    void Free(u8* ptr) {
         Assert(current_allocations_count > 0);
-        Assert(key != size_t_max);
+        Assert(ptr != nullptr);
 
         auto nodes = rcast<Allocation*>(toc_buffer);
         Allocation* previous_node = nullptr;
@@ -201,7 +203,7 @@ struct Allocator : Non_Copyable {
 
         FOR_RANGE(size_t, i, current_allocations_count) {
             auto node = nodes + current_index;
-            if (current_index == key) {
+            if (node->base == ptr) {
                 if (previous_node != nullptr)
                     A_Next(previous_node) = A_Next(node);
 

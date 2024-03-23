@@ -236,7 +236,6 @@ struct Graph_Segment_Page_Meta : public Non_Copyable {
 
 struct Graph : public Non_Copyable {
     Graph_Nodes_Count nodes_count;
-    size_t nodes_key;
     u8* nodes;  // 0b0000DLUR
 
     Graph_v2u size;
@@ -286,7 +285,6 @@ struct Graph : public Non_Copyable {
 //
 struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
-    size_t vertices_key;
     Graph_v2u* vertices;  // NOTE(hulvdan): Вершинные клетки графа (флаги, здания)
 
     Graph graph;

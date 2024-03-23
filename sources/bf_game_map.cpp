@@ -514,16 +514,12 @@ void Linked_List_Remove_At(
     Assert(false);
 }
 
-ttuple<size_t, Graph_v2u*> Allocate_Segment_Vertices(
-    Allocator& allocator,
-    int vertices_count) {
-    auto [key, buffer] = allocator.Allocate(vertices_count, 1);
-    return {key, (Graph_v2u*)buffer};
+Graph_v2u* Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
+    return (Graph_v2u*)allocator.Allocate(vertices_count, 1);
 }
 
-ttuple<size_t, u8*> Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
-    auto [key, buffer] = allocator.Allocate(nodes_count, 1);
-    return {key, buffer};
+u8* Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
+    return allocator.Allocate(nodes_count, 1);
 }
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
@@ -780,10 +776,9 @@ void Update_Graphs(
         segment.vertices_count = vertices_count;
         added_segments_count++;
 
-        auto [vertices_key, verticesss] =
+        auto verticesss =
             Allocate_Segment_Vertices(segment_vertices_allocator, vertices_count);
         segment.vertices = verticesss;
-        segment.vertices_key = vertices_key;
         memcpy(segment.vertices, vertices, sizeof(Graph_v2u) * vertices_count);
 
         segment.graph.nodes_count = temp_graph.nodes_count;
@@ -820,10 +815,8 @@ void Update_Graphs(
         // NOTE(hulvdan): Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
-        auto [nodes_key, nodesss] =
-            Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
+        auto nodesss = Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
         segment.graph.nodes = nodesss;
-        segment.graph.nodes_key = nodes_key;
 
         auto rows = gr_size.y;
         auto stride = gsize.x;
@@ -906,10 +899,8 @@ void Build_Graph_Segments(
 
             // TODO(hulvdan): use move semantics?
             segment.vertices_count = added_segment.vertices_count;
-            segment.vertices_key = added_segment.vertices_key;
             segment.vertices = added_segment.vertices;
             segment.graph.nodes_count = added_segment.graph.nodes_count;
-            segment.graph.nodes_key = added_segment.graph.nodes_key;
             segment.graph.nodes = added_segment.graph.nodes;
             segment.graph.size = added_segment.graph.size;
             segment.graph.offset = added_segment.graph.offset;
@@ -1116,8 +1107,8 @@ ttuple<int, int> Update_Tiles(
     {
         FOR_RANGE(u32, i, segments_to_be_deleted_count) {
             Graph_Segment& segment = **(segments_to_be_deleted + i);
-            segment_vertices_allocator.Free(segment.vertices_key);
-            graph_nodes_allocator.Free(segment.graph.nodes_key);
+            segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
+            graph_nodes_allocator.Free(segment.graph.nodes);
             segment.active = false;
 
             // SHIT(hulvdan): Do it later
@@ -1149,10 +1140,8 @@ ttuple<int, int> Update_Tiles(
 
             // TODO(hulvdan): use move semantics?
             segment.vertices_count = added_segment.vertices_count;
-            segment.vertices_key = added_segment.vertices_key;
             segment.vertices = added_segment.vertices;
             segment.graph.nodes_count = added_segment.graph.nodes_count;
-            segment.graph.nodes_key = added_segment.graph.nodes_key;
             segment.graph.nodes = added_segment.graph.nodes;
             segment.graph.size = added_segment.graph.size;
             segment.graph.offset = added_segment.graph.offset;
