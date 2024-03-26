@@ -102,6 +102,12 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }
 
+void Deinitialize_Game_Map(Game_State& state) {
+    auto& game_map = state.game_map;
+    Free_Bucket_Array(game_map.buildings);
+    Free_Bucket_Array(game_map.segments);
+}
+
 void Regenerate_Terrain_Tiles(
     Game_State& state,
     Game_Map& game_map,

@@ -200,6 +200,9 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
     return new_bucket;
 }
 
+// TODO(hulvdan): Прикрутить какой-либо аллокатор,
+// который позволяет использовать заранее аллоцированные memory spaces.
+// Deprecate-нуть данную функцию. Вместо этого просто удалять mspaces.
 template <typename T>
 void Free_Bucket_Array(Bucket_Array<T>& arr) {
     Assert(arr.allocator_functions.allocate != nullptr);
