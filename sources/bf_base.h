@@ -143,14 +143,14 @@ struct Arrow_Proxy {
 template <typename Derived>
 struct Iterator_Facade {
 protected:
-    using self_type = Derived;
+    using Self_Type = Derived;
 
 private:
-    self_type& _self() { return scast<self_type&>(*this); }
-    const self_type& _self() const { return scast<const self_type&>(*this); }
+    Self_Type& _self() { return scast<Self_Type&>(*this); }
+    const Self_Type& _self() const { return scast<const Self_Type&>(*this); }
 
 public:
-    decltype(auto) operator*() const { return _self().dereference(); }
+    decltype(auto) operator*() const { return _self().Dereference(); }
 
     auto operator->() const {
         decltype(auto) ref = **this;
@@ -160,20 +160,20 @@ public:
             return Arrow_Proxy<Derived>(std::move(ref));
     }
 
-    friend bool operator==(const self_type& left, const self_type& right) {
-        return left.equal_to(right);
+    friend bool operator==(const Self_Type& left, const Self_Type& right) {
+        return left.Equal_To(right);
     }
     // SHIT(hulvdan): Fuken `clang-tidy` requires this function to be specified
-    friend bool operator!=(const self_type& left, const self_type& right) {
-        return !left.equal_to(right);
+    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
+        return !left.Equal_To(right);
     }
 
-    self_type& operator++() {
-        _self().increment();
+    Self_Type& operator++() {
+        _self().Increment();
         return _self();
     }
 
-    self_type operator++(int) {
+    Self_Type operator++(int) {
         auto copy = _self();
         ++*this;
         return copy;

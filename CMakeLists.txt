@@ -18,6 +18,14 @@ add_compile_definitions(
     # TRACY_ON_DEMAND
 )
 
+# # === dlmalloc ===
+# add_library(dlmalloc SHARED)
+# target_sources(dlmalloc PUBLIC  "${PROJECT_SOURCE_DIR}/vendor/libraries/dlmalloc-2.8.6/dlmalloc.h")
+# target_sources(dlmalloc PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/dlmalloc-2.8.6/dlmalloc.c")
+# set_target_properties(dlmalloc PROPERTIES LINKER_LANGUAGE CXX)
+# target_compile_definitions(dlmalloc PRIVATE DLMALLOC_BUILD)
+# target_include_directories(dlmalloc PUBLIC "${PROJECT_SOURCE_DIR}/vendor/libraries/dlmalloc-2.8.6/")
+
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
@@ -62,6 +70,7 @@ target_sources(bf_game PRIVATE
 )
 # TODO(hulvdan): How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib tracy)
+# target_link_libraries(bf_game PUBLIC dlmalloc)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
@@ -135,10 +144,9 @@ target_sources(tests PRIVATE
 )
 target_link_libraries(tests PRIVATE opengl32.lib)
 target_link_libraries(tests PRIVATE glew glm tracy)
+# target_link_libraries(tests PRIVATE dlmalloc)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
-target_include_directories(tests PRIVATE
-    "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest"
-)
+target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 
 IF(WIN32 AND NOT CMAKE_GENERATOR STREQUAL Ninja)
     # set(COMPILATION_FLAGS ${COMPILATION_FLAGS} /fsanitize=address)

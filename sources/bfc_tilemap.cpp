@@ -22,6 +22,8 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
     return Tile_State_Check::Skip;
 }
 
+// NOTE(hulvdan): Сюда не смотреть.
+// В момент написания я забыл про то, что существуют парсеры / лексеры)
 Load_Smart_Tile_Result
 Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize) {
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE

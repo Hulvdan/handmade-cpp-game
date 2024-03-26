@@ -51,36 +51,51 @@ T Dequeue(Fixed_Size_Queue<T>& queue) {
 
 // ----- Bucket Array -----
 
+using Bucket_Index = u32;
+
 template <typename T>
 struct Bucket {
-    bool* occupied;
-    u8* data;
+    void* occupied;
+    void* data;
 
     i32 count;
-    u32 bucket_index;
+    Bucket_Index bucket_index;
 };
 
 struct Bucket_Locator {
-    u32 bucket_index;
+    Bucket_Index bucket_index;
     u32 slot_index;
 };
 
-template <typename T>
-struct Bucket_Array {
-    i64 count;
-    // Allocator allocator;
+#define ALLOCATE__FUNCTION(name) void* name(size_t n, size_t alignment)
+#define FREE__FUNCTION(name) void name(void* mem)
 
-    Bucket<T>* all_buckets;
-    Bucket<T>* unfull_buckets;
-
-    i32 items_per_bucket;
+struct Allocator_Functions {
+    ALLOCATE__FUNCTION((*allocate));
+    FREE__FUNCTION((*free));
 };
 
-// Bucket_Array arr;
-// auto [item, locator] = Find_And_Occupy_Empty_Slot(arr);
+// TODO:
+// 1) Нужно ли реализовывать expandable количество бакетов?
+template <typename T>
+struct Bucket_Array : Non_Copyable {
+    Allocator_Functions allocator_functions;
+
+    Bucket<T>* buckets;
+    Bucket_Index* unfull_buckets;
+
+    i64 count;
+    i32 items_per_bucket;
+
+    Bucket_Index buckets_count;
+    Bucket_Index used_buckets_count;
+    Bucket_Index unfull_buckets_count;
+};
 
 // // @Note(hulvdan): Start
-// array_add(array: [..] $T, value: T) {
+// Array_Unordered_Remove
+//
+// Array_Add(array: [..] $T, value: T) {
 //     if (array.capacity < array.count + 1)
 //         array.data = realloc(array.data, 2 * sizeof(value) * array.capacity);
 //
@@ -90,46 +105,121 @@ struct Bucket_Array {
 // // @Note(hulvdan): End
 
 template <typename T>
-Bucket<T> Add_Bucket(Bucket_Array<T>& array) {
-    Assert(array.unfull_buckets.count == 0);
+Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
+    Assert(arr.unfull_buckets_count == 0);
+    Assert(arr.items_per_bucket > 0);
+    Assert(arr.buckets_count > 0);
 
-    if (!array.all_buckets.count) {  // Therefore this is the first call.
-        // if (array.allocator) {
-        //     array.all_buckets.allocator = array.allocator;
-        //     array.unfull_buckets.allocator = array.allocator;
-        // }
+    // NOTE(hulvdan): Это код инициализации. Подумать, не нужно
+    // ли его инициализировать в самом начале его создания
+
+    if (arr.buckets == nullptr) {  // NOTE(hulvdan): Следовательно, это первый вызов.
+        Assert(arr.unfull_buckets == nullptr);
+
+        typedef Bucket<T> arr_type;
+
+        if (arr.allocator_functions.allocate == nullptr) {
+            Assert(arr.allocator_functions.free == nullptr);
+            arr.buckets = new arr_type[arr.buckets_count];
+            arr.unfull_buckets = new Bucket_Index[arr.buckets_count];
+        } else {
+            Assert(arr.allocator_functions.free != nullptr);
+            constexpr auto align = alignof(arr_type*);
+            auto alloc_size = arr.buckets_count * sizeof(arr_type);
+
+            arr.buckets =
+                rcast<Bucket<T>*>(arr.allocator_functions.allocate(alloc_size, align));
+            if (arr.buckets == nullptr) {
+                Assert(false);
+                return nullptr;
+            }
+
+            arr.unfull_buckets = rcast<Bucket_Index*>(arr.allocator_functions.allocate(
+                arr.buckets_count * sizeof(Bucket_Index), alignof(Bucket_Index)));
+            if (arr.unfull_buckets == nullptr) {
+                Assert(false);
+                return nullptr;
+            }
+        }
     }
 
-    // new_context := context;
-    // if allocator
-    //     new_context.allocator = allocator;
+    Assert(arr.buckets != nullptr);
+    Assert(arr.unfull_buckets != nullptr);
 
-    // push_context new_context {
-    Bucket<T> new_bucket = {};
-    new_bucket.bucket_index = (u32)array.all_buckets.count;
-    // Will assert if we overflowed.
-    Assert(new_bucket.bucket_index == array.all_buckets.count);
+    auto new_bucket = arr.buckets + arr.used_buckets_count;
+    new_bucket->bucket_index = arr.used_buckets_count;
+    new_bucket->count = 0;
 
-    Array_Add(*array.all_buckets, new_bucket);
-    Array_Add(*array.unfull_buckets, new_bucket);
+    auto occupied_bytes_count = Ceil_Division(arr.items_per_bucket, 8);
+    auto occupied = rcast<u8*>(arr.allocator_functions.allocate(occupied_bytes_count, 1));
+    if (occupied == nullptr) {
+        Assert(false);
+        return nullptr;
+    }
+    memset(occupied, 0, occupied_bytes_count);
+
+    auto data = rcast<u8*>(
+        arr.allocator_functions.allocate(sizeof(T) * arr.items_per_bucket, alignof(T)));
+    if (data == nullptr) {
+        Assert(false);
+        return nullptr;
+    }
+
+    new_bucket->occupied = occupied;
+    new_bucket->data = data;
+
+    *(arr.unfull_buckets + arr.unfull_buckets_count) = arr.used_buckets_count;
+    arr.used_buckets_count++;
+    arr.unfull_buckets_count++;
 
     return new_bucket;
-    // }
 }
 
 template <typename T>
-ttuple<T, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& array) {
-    if (!array.unfull_buckets.count)
-        Add_Bucket(array);
-    // @Incomplete: Some kind of error handling!
-    Assert(array.unfull_buckets.count > 0);
+void Free_Bucket_Array(Bucket_Array<T>& array) {
+    Assert(array.allocator != nullptr);
 
-    auto& bucket = *(array.unfull_buckets + 0);
+    for (auto bucket_ptr = array.buckets;  //
+         bucket_ptr != array.buckets + array.used_buckets_count;  //
+         bucket_ptr++  //
+    ) {
+        array.allocator_functions.free(bucket_ptr->occupied);
+        array.allocator_functions.free(bucket_ptr->data);
+    }
+
+    array.allocator_functions.free(array.buckets);
+    array.allocator_functions.free(array.unfull_buckets);
+}
+
+#define QUERY_BIT(bytes_ptr, bit_index) \
+    ((*((bytes_ptr) + ((bit_index) / 8))) & (1 << ((bit_index) % 8)))
+
+#define MARK_BIT(bytes_ptr, bit_index)                 \
+    {                                                  \
+        u8& byte = *((bytes_ptr) + ((bit_index) / 8)); \
+        byte = byte | (1 << ((bit_index) % 8));        \
+    }
+
+#define UNMARK_BIT(bytes_ptr, bit_index)               \
+    {                                                  \
+        u8& byte = *((bytes_ptr) + ((bit_index) / 8)); \
+        byte &= 0xFF - (1 << ((bit_index) % 8));       \
+    }
+
+template <typename T>
+ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
+    if (arr.unfull_buckets_count == 0)
+        Add_Bucket(arr);
+    // @Incomplete: Some kind of error handling!
+    Assert(arr.unfull_buckets_count > 0);
+
+    Bucket_Index bucket_index = *(arr.unfull_buckets + 0);
+    auto bucket_ptr = arr.buckets + bucket_index;
 
     int index = -1;
-    FOR_RANGE(int, i, bucket.items_max - 1) {
+    FOR_RANGE(int, i, arr.items_per_bucket) {
         // @Speed: We can record the first non-empty index in the occupied list?
-        bool occupied = *(bucket.occupied + i);
+        u8 occupied = QUERY_BIT(scast<u8*>(bucket_ptr->occupied), i);
         if (!occupied) {
             index = i;
             break;
@@ -137,23 +227,32 @@ ttuple<T, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& array) {
     }
 
     Assert(index != -1);
+    MARK_BIT(scast<u8*>(bucket_ptr->occupied), index);
 
-    bucket.occupied[index] = true;
-    bucket.count += 1;
-    Assert(bucket.count <= bucket.items_max);
+    bucket_ptr->count += 1;
+    Assert(bucket_ptr->count <= arr.items_per_bucket);
 
-    array.count += 1;
+    arr.count += 1;
 
-    if (bucket.count == bucket.items_max) {
-        auto removed = Array_Unordered_Remove(*array.unfull_buckets, bucket);
-        Assert(removed == 1);
+    if (bucket_ptr->count == arr.items_per_bucket) {
+        u32* found = nullptr;
+        for (auto bucket_index_ptr = arr.unfull_buckets;
+             bucket_index_ptr < arr.unfull_buckets + arr.unfull_buckets_count;
+             bucket_index_ptr++) {
+            if (*bucket_index_ptr == bucket_ptr->bucket_index) {
+                found = bucket_index_ptr;
+                break;
+            }
+        }
+        *found = *(arr.unfull_buckets + arr.unfull_buckets_count - 1);
+        arr.unfull_buckets_count -= 1;
     }
 
     Bucket_Locator locator = {};
-    locator.bucket_index = bucket.bucket_index;
-    locator.slot_index = (u32)index;
+    locator.bucket_index = bucket_ptr->bucket_index;
+    locator.slot_index = index;
 
-    return {*bucket.data[index], locator};
+    return {scast<T*>(bucket_ptr->data) + index, locator};
 }
 
 template <typename T>
@@ -165,19 +264,22 @@ Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& array, T& item) {
 
 template <typename T>
 T Bucket_Array_Find(Bucket_Array<T> array, Bucket_Locator locator) {
-    auto& bucket = array.all_buckets[locator.bucket_index];
-    Assert(bucket.occupied[locator.slot_index] == true);
-    return *bucket.data[locator.slot_index];
+    auto& bucket = *(array.all_buckets + locator.bucket_index);
+    u8 occupied_byte = *(bucket.occupied + locator.slot_index);
+    u8 occupied = occupied_byte & (1 << locator.bucket_index);
+    Assert(occupied);
+    return *(bucket.data + sizeof(T) * locator.slot_index);
 }
 
 template <typename T>
 void Bucket_Array_Remove(Bucket_Array<T>& array, Bucket_Locator& locator) {
-    auto& bucket = array.all_buckets[locator.bucket_index];
-    Assert(bucket.occupied[locator.slot_index] == true);
+    auto& bucket = *(array.all_buckets + locator.bucket_index);
+    Assert(QUERY_BIT(bucket.occupied, locator.slot_index));
 
     bool was_full = (bucket.count == bucket.items_max);
 
-    bucket.occupied[locator.slot_index] = false;
+    UNMARK_BIT(bucket.occupied, locator.slot_index);
+
     bucket.count -= 1;
     array.count -= 1;
 
@@ -454,11 +556,7 @@ static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr)
 static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
 
 struct Segment_Manager {
-    Page* segment_pages;
-    u16 segment_pages_used;
-    u16 segment_pages_total;
-    u16 max_segments_per_page;
-    u32 page_meta_offset;
+    Bucket_Array<Graph_Segment> segments;
 };
 
 struct Game_Map : public Non_Copyable {

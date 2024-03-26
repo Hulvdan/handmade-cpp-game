@@ -434,13 +434,18 @@ int Process_Segments(
         Assert(max_pages_count > 0);
 
         manager = Allocate_For(trash_arena, Segment_Manager);
-        manager->segment_pages_total = max_pages_count;
-        manager->segment_pages_used = 0;
-        manager->segment_pages =
-            Allocate_Zeros_Array(trash_arena, Page, manager->segment_pages_total);
-        manager->max_segments_per_page =
-            Assert_Truncate_To_u16((OS_DATA.page_size - meta_size) / struct_size);
-        manager->page_meta_offset = OS_DATA.page_size - meta_size;
+        auto& segments = manager->segments;
+
+        segments.allocator_functions.allocate = _aligned_malloc;
+        segments.allocator_functions.free = _aligned_free;
+        segments.items_per_bucket = 128;
+        segments.buckets_count = 32;
+
+        segments.buckets = nullptr;
+        segments.unfull_buckets = nullptr;
+        segments.count = 0;
+        segments.used_buckets_count = 0;
+        segments.unfull_buckets_count = 0;
     }
 
     auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -504,7 +509,7 @@ int Process_Segments(
     );
 
     int segments_count = 0;
-    for (auto _ : Iter(*manager))
+    for (auto _ : Iter(manager))
         segments_count++;
 
     return segments_count;

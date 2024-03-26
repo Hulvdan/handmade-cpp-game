@@ -24,10 +24,10 @@ global OS_Data* global_os_data = nullptr;
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
 #include "bf_memory.cpp"
+#include "bf_math.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
-#include "bf_math.cpp"
 #include "bf_rand.cpp"
 #include "bf_file.cpp"
 #include "bf_game_map.cpp"
@@ -403,46 +403,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
         Regenerate_Element_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data);
-
-        if (first_time_initializing) {
-            {
-                auto meta_size = sizeof(Building_Page_Meta);
-                auto struct_size = sizeof(Building);
-
-                auto max_pages_count =
-                    Ceil_Division(tiles_count * struct_size, OS_DATA.page_size);
-                Assert(max_pages_count < 100);
-                Assert(max_pages_count > 0);
-
-                state.game_map.building_pages_total = max_pages_count;
-                state.game_map.building_pages_used = 0;
-                state.game_map.building_pages = Allocate_Zeros_Array(
-                    arena, Page, state.game_map.building_pages_total);
-                state.game_map.max_buildings_per_page =
-                    Assert_Truncate_To_u16((OS_DATA.page_size - meta_size) / struct_size);
-            }
-
-            {
-                auto meta_size = sizeof(Graph_Segment_Page_Meta);
-                auto struct_size = sizeof(Graph_Segment);
-
-                auto max_pages_count =
-                    Ceil_Division(tiles_count * struct_size, OS_DATA.page_size);
-                Assert(max_pages_count < 100);
-                Assert(max_pages_count > 0);
-
-                auto& manager = state.game_map.segment_manager;
-                manager.segment_pages_total = max_pages_count;
-                manager.segment_pages_used = 0;
-                manager.segment_pages =
-                    Allocate_Zeros_Array(arena, Page, manager.segment_pages_total);
-                manager.max_segments_per_page =
-                    Assert_Truncate_To_u16((OS_DATA.page_size - meta_size) / struct_size);
-                manager.page_meta_offset = OS_DATA.page_size - meta_size;
-            }
-
-            Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
-        }
 
         On_Item_Built__Function((*callbacks[])) = {
             Renderer__On_Item_Built,
