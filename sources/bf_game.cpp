@@ -260,6 +260,7 @@ void Reset_Arena(Arena& arena) {
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
+    global_os_data = &os_data;
 
     Arena root_arena = {};
     root_arena.name = "root_arena";
@@ -277,9 +278,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     }
 
     auto first_time_initializing = !memory.is_initialized;
-
-    if (first_time_initializing)
-        global_os_data = &os_data;
 
     // --- IMGUI ---
     if (!first_time_initializing) {
@@ -326,6 +324,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
     }
     // --- IMGUI END ---
+
+    if (!first_time_initializing && state.hot_reloaded) {
+        Free_Bucket_Array(state.game_map.segment_manager.segments);
+    }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
         editor_data.changed = false;

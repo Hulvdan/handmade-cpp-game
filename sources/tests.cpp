@@ -576,6 +576,7 @@ TEST_CASE("Bit operations") {
             CHECK(byte == initial_value);
         }
     }
+
     {
         std::vector<u8> bytes = {
             0b00000000,

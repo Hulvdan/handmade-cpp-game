@@ -177,34 +177,21 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
 
 template <typename T>
 void Free_Bucket_Array(Bucket_Array<T>& array) {
-    Assert(array.allocator != nullptr);
+    Assert(array.allocator_functions.allocate != nullptr);
+    Assert(array.allocator_functions.free != nullptr);
 
     for (auto bucket_ptr = array.buckets;  //
          bucket_ptr != array.buckets + array.used_buckets_count;  //
          bucket_ptr++  //
     ) {
-        array.allocator_functions.free(bucket_ptr->occupied);
-        array.allocator_functions.free(bucket_ptr->data);
+        auto& bucket = *bucket_ptr;
+        array.allocator_functions.free(bucket.occupied);
+        array.allocator_functions.free(bucket.data);
     }
 
     array.allocator_functions.free(array.buckets);
     array.allocator_functions.free(array.unfull_buckets);
 }
-
-#define QUERY_BIT(bytes_ptr, bit_index) \
-    ((*((u8*)(bytes_ptr) + ((bit_index) / 8))) & (1 << ((bit_index) % 8)))
-
-#define MARK_BIT(bytes_ptr, bit_index)                      \
-    {                                                       \
-        u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
-        byte = byte | (1 << ((bit_index) % 8));             \
-    }
-
-#define UNMARK_BIT(bytes_ptr, bit_index)                    \
-    {                                                       \
-        u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
-        byte &= 0xFF - (1 << ((bit_index) % 8));            \
-    }
 
 template <typename T>
 ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
