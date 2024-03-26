@@ -179,3 +179,30 @@ public:
         return copy;
     }
 };
+
+// ============================================================= //
+//                            INLINE                             //
+// ============================================================= //
+// NOTE(hulvdan): Copied from `vendor/tracy/zstd/common/xxhash.h`
+#if BF_NO_INLINE_HINTS /* disable inlining hints */
+#if defined(__GNUC__) || defined(__clang__)
+#define BF_FORCE_INLINE static __attribute__((unused))
+#else
+#define BF_FORCE_INLINE static
+#endif
+#define BF_NO_INLINE static
+/* enable inlining hints */
+#elif defined(__GNUC__) || defined(__clang__)
+#define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
+#define BF_NO_INLINE static __attribute__((noinline))
+#elif defined(_MSC_VER) /* Visual Studio */
+#define BF_FORCE_INLINE static __forceinline
+#define BF_NO_INLINE static __declspec(noinline)
+#elif defined(__cplusplus) || \
+    (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
+#define BF_FORCE_INLINE static inline
+#define BF_NO_INLINE static
+#else
+#define BF_FORCE_INLINE static
+#define BF_NO_INLINE static
+#endif

@@ -958,27 +958,19 @@ void Render(Game_State& state, f32 dt) {
     }
     // --- Drawing Element Tiles End ---
 
-    FOR_RANGE(size_t, page_index, game_map.building_pages_used) {
-        auto& page = *(game_map.building_pages + page_index);
-        auto count = Get_Building_Page_Meta(page).count;
+    for (auto building_ptr : Iter(&game_map.buildings)) {
+        auto& building = *building_ptr;
+        auto& scriptable_building = Assert_Deref(building.scriptable);
 
-        FOR_RANGE(size_t, index, count) {
-            Building& building = *(rcast<Building*>(page.base) + index);
-            if (!building.active)
-                continue;
+        auto tex_id = scriptable_building.texture->id;
+        glBindTexture(GL_TEXTURE_2D, tex_id);
 
-            auto& scriptable_building = Assert_Deref(building.scriptable);
+        auto sprite_pos = building.pos * cell_size;
+        auto sprite_size = v2i(1, 1) * cell_size;
 
-            auto tex_id = scriptable_building.texture->id;
-            glBindTexture(GL_TEXTURE_2D, tex_id);
-
-            auto sprite_pos = building.pos * cell_size;
-            auto sprite_size = v2i(1, 1) * cell_size;
-
-            glBegin(GL_TRIANGLES);
-            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-            glEnd();
-        }
+        glBegin(GL_TRIANGLES);
+        Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+        glEnd();
     }
 
     glDeleteTextures(1, (GLuint*)&texture_name);
@@ -1090,8 +1082,6 @@ void Render(Game_State& state, f32 dt) {
         //
         for (auto segment_ptr : Iter(&game_map.segments)) {
             auto& segment = *segment_ptr;
-            Assert(segment.active);
-
             auto& graph = segment.graph;
 
             FOR_RANGE(int, y, graph.size.y) {

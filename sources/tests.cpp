@@ -425,14 +425,6 @@ int Process_Segments(
     element_tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
 
     {
-        auto meta_size = sizeof(Graph_Segment_Page_Meta);
-        auto struct_size = sizeof(Graph_Segment);
-
-        auto max_pages_count =
-            Ceil_Division(tiles_count * struct_size, OS_DATA.page_size);
-        Assert(max_pages_count < 100);
-        Assert(max_pages_count > 0);
-
         segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
 
         segments->allocator_functions.allocate = _aligned_malloc;

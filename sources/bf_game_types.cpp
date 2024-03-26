@@ -67,6 +67,21 @@ struct Bucket_Locator {
     u32 slot_index;
 };
 
+#if 1
+template <typename T>
+BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
+    u8 result = QUERY_BIT((bucket_ref).occupied, (index));
+    return result;
+}
+
+#define BUCKET_MARK_OCCUPIED(bucket_ref, index) MARK_BIT((bucket_ref).occupied, (index))
+#define BUCKET_UNMARK_OCCUPIED(bucket_ref, index) \
+    UNMARK_BIT((bucket_ref).occupied, (index))
+#else
+// NOTE(hulvdan): Здесь можно будет переписать
+// на использование просто bool, если понадобится
+#endif
+
 #define ALLOCATE__FUNCTION(name) void* name(size_t n, size_t alignment)
 #define FREE__FUNCTION(name) void name(void* mem)
 
@@ -103,6 +118,16 @@ struct Bucket_Array : Non_Copyable {
 //     array.count += 1;
 // }
 // // @Note(hulvdan): End
+
+template <typename T>
+i32 Array_Find(T* values, u32 n, T& value) {
+    FOR_RANGE(u32, i, n) {
+        auto& v = *(values + n);
+        if (v == value)
+            return true;
+    }
+    return -1;
+}
 
 template <typename T>
 Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
@@ -176,21 +201,21 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
 }
 
 template <typename T>
-void Free_Bucket_Array(Bucket_Array<T>& array) {
-    Assert(array.allocator_functions.allocate != nullptr);
-    Assert(array.allocator_functions.free != nullptr);
+void Free_Bucket_Array(Bucket_Array<T>& arr) {
+    Assert(arr.allocator_functions.allocate != nullptr);
+    Assert(arr.allocator_functions.free != nullptr);
 
-    for (auto bucket_ptr = array.buckets;  //
-         bucket_ptr != array.buckets + array.used_buckets_count;  //
+    for (auto bucket_ptr = arr.buckets;  //
+         bucket_ptr != arr.buckets + arr.used_buckets_count;  //
          bucket_ptr++  //
     ) {
         auto& bucket = *bucket_ptr;
-        array.allocator_functions.free(bucket.occupied);
-        array.allocator_functions.free(bucket.data);
+        arr.allocator_functions.free(bucket.occupied);
+        arr.allocator_functions.free(bucket.data);
     }
 
-    array.allocator_functions.free(array.buckets);
-    array.allocator_functions.free(array.unfull_buckets);
+    arr.allocator_functions.free(arr.buckets);
+    arr.allocator_functions.free(arr.unfull_buckets);
 }
 
 template <typename T>
@@ -206,7 +231,7 @@ ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     int index = -1;
     FOR_RANGE(int, i, arr.items_per_bucket) {
         // @Speed: We can record the first non-empty index in the occupied list?
-        u8 occupied = QUERY_BIT(scast<u8*>(bucket_ptr->occupied), i);
+        u8 occupied = Bucket_Occupied(*bucket_ptr, i);
         if (!occupied) {
             index = i;
             break;
@@ -214,7 +239,7 @@ ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     }
 
     Assert(index != -1);
-    MARK_BIT(scast<u8*>(bucket_ptr->occupied), index);
+    BUCKET_MARK_OCCUPIED(*bucket_ptr, index);
 
     bucket_ptr->count += 1;
     Assert(bucket_ptr->count <= arr.items_per_bucket);
@@ -243,36 +268,39 @@ ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
 }
 
 template <typename T>
-Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& array, T& item) {
-    auto [pointer, locator] = Find_And_Occupy_Empty_Slot(array);
-    *pointer = item;
+Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item) {
+    auto [ptr, locator] = Find_And_Occupy_Empty_Slot(arr);
+    *ptr = item;
     return locator;
 }
 
 template <typename T>
-T Bucket_Array_Find(Bucket_Array<T> array, Bucket_Locator locator) {
-    auto& bucket = *(array.all_buckets + locator.bucket_index);
-    u8 occupied_byte = *(bucket.occupied + locator.slot_index);
-    u8 occupied = occupied_byte & (1 << locator.bucket_index);
-    Assert(occupied);
-    return *(bucket.data + sizeof(T) * locator.slot_index);
+T* Bucket_Array_Find(Bucket_Array<T> arr, Bucket_Locator locator) {
+    auto& bucket = *(arr.all_buckets + locator.bucket_index);
+    Assert(Bucket_Occupied(bucket, locator.slot_index));
+    auto result = scast<T*>(bucket.data) + locator.slot_index;
+    return result;
 }
 
 template <typename T>
-void Bucket_Array_Remove(Bucket_Array<T>& array, Bucket_Locator& locator) {
-    auto& bucket = *(array.all_buckets + locator.bucket_index);
-    Assert(QUERY_BIT(bucket.occupied, locator.slot_index));
+void Bucket_Array_Remove(Bucket_Array<T>& arr, Bucket_Locator& locator) {
+    Assert(locator.bucket_index < arr.used_buckets_count);
+    auto& bucket = *(arr.buckets + locator.bucket_index);
+    Assert(Bucket_Occupied(bucket, locator.slot_index));
 
-    bool was_full = (bucket.count == bucket.items_max);
+    bool was_full = (bucket.count == arr.items_per_bucket);
 
-    UNMARK_BIT(bucket.occupied, locator.slot_index);
+    BUCKET_UNMARK_OCCUPIED(bucket, locator.slot_index);
 
     bucket.count -= 1;
-    array.count -= 1;
+    arr.count -= 1;
 
     if (was_full) {
-        Assert(Array_Find(array.unfull_buckets, bucket) == -1);
-        Array_Add(*array.unfull_buckets, bucket);
+        auto exists =
+            Array_Find(arr.unfull_buckets, arr.unfull_buckets_count, bucket.bucket_index);
+        Assert(!exists);
+        *(arr.unfull_buckets + arr.unfull_buckets_count) = bucket.bucket_index;
+        arr.unfull_buckets_count++;
     }
 }
 
@@ -317,11 +345,6 @@ Graph_v2u To_Graph_v2u(v2i pos) {
     res.y = pos.y;
     return res;
 }
-
-// NOTE(hulvdan): `Graph_Segment_Page_Meta` gets placed at the end of the `Page`
-struct Graph_Segment_Page_Meta : public Non_Copyable {
-    u16 count;
-};
 
 struct Graph : public Non_Copyable {
     Graph_Nodes_Count nodes_count;
@@ -377,7 +400,7 @@ struct Graph_Segment : public Non_Copyable {
     Graph_v2u* vertices;  // NOTE(hulvdan): Вершинные клетки графа (флаги, здания)
 
     Graph graph;
-    bool active;
+    Bucket_Locator locator;
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -457,11 +480,6 @@ struct Resource_To_Book : public Non_Copyable {
     u8 amount;
 };
 
-// NOTE(hulvdan): `Building_Page_Meta` gets placed at the end of the `Page`
-struct Building_Page_Meta : public Non_Copyable {
-    u16 count;
-};
-
 struct Building : public Non_Copyable {
     Human_ID constructor;
     Human_ID employee;
@@ -474,8 +492,9 @@ struct Building : public Non_Copyable {
 
     Building_ID id;
     f32 time_since_human_was_created;
+
+    // Bucket_Locator locator;
     // f32 time_since_item_was_placed;
-    bool active;
 };
 
 enum class Terrain {
@@ -548,11 +567,7 @@ struct Game_Map : public Non_Copyable {
     Terrain_Resource* terrain_resources;
     Element_Tile* element_tiles;
 
-    Page* building_pages;
-    u16 building_pages_used;
-    u16 building_pages_total;
-    u16 max_buildings_per_page;
-
+    Bucket_Array<Building> buildings;
     Bucket_Array<Graph_Segment> segments;
 
     Allocator* segment_vertices_allocator;
