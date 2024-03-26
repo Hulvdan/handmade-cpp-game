@@ -542,10 +542,6 @@ struct Item_To_Build : public Non_Copyable {
 static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
 static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
 
-struct Segment_Manager {
-    Bucket_Array<Graph_Segment> segments;
-};
-
 struct Game_Map : public Non_Copyable {
     v2i size;
     Terrain_Tile* terrain_tiles;
@@ -557,7 +553,7 @@ struct Game_Map : public Non_Copyable {
     u16 building_pages_total;
     u16 max_buildings_per_page;
 
-    Segment_Manager segment_manager;
+    Bucket_Array<Graph_Segment> segments;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;

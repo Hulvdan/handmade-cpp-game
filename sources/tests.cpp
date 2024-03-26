@@ -406,7 +406,7 @@ Building* Global_Make_Building(
 int Process_Segments(
     v2i& gsize,
     Element_Tile*& element_tiles,
-    Segment_Manager*& manager,
+    Bucket_Array<Graph_Segment>*& segments,
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
@@ -433,19 +433,18 @@ int Process_Segments(
         Assert(max_pages_count < 100);
         Assert(max_pages_count > 0);
 
-        manager = Allocate_For(trash_arena, Segment_Manager);
-        auto& segments = manager->segments;
+        segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
 
-        segments.allocator_functions.allocate = _aligned_malloc;
-        segments.allocator_functions.free = _aligned_free;
-        segments.items_per_bucket = 128;
-        segments.buckets_count = 32;
+        segments->allocator_functions.allocate = _aligned_malloc;
+        segments->allocator_functions.free = _aligned_free;
+        segments->items_per_bucket = 128;
+        segments->buckets_count = 32;
 
-        segments.buckets = nullptr;
-        segments.unfull_buckets = nullptr;
-        segments.count = 0;
-        segments.used_buckets_count = 0;
-        segments.unfull_buckets_count = 0;
+        segments->buckets = nullptr;
+        segments->unfull_buckets = nullptr;
+        segments->count = 0;
+        segments->used_buckets_count = 0;
+        segments->unfull_buckets_count = 0;
     }
 
     auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -504,27 +503,27 @@ int Process_Segments(
 
     // NOTE(hulvdan): Counting segments
     Build_Graph_Segments(
-        gsize, element_tiles, *manager, trash_arena, segment_vertices_allocator,
+        gsize, element_tiles, *segments, trash_arena, segment_vertices_allocator,
         graph_nodes_allocator, pages  //
     );
 
     int segments_count = 0;
-    for (auto _ : Iter(manager))
+    for (auto _ : Iter(segments))
         segments_count++;
 
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                                             \
-    tvector<const char*> _strings = {__VA_ARGS__};                              \
-    auto(segments_count) = Process_Segments(                                    \
-        gsize, element_tiles, manager, trash_arena, segment_vertices_allocator, \
+#define Process_Segments_Macro(...)                                              \
+    tvector<const char*> _strings = {__VA_ARGS__};                               \
+    auto(segments_count) = Process_Segments(                                     \
+        gsize, element_tiles, segments, trash_arena, segment_vertices_allocator, \
         graph_nodes_allocator, pages, building_sawmill, _strings);
 
-#define Update_Tiles_Macro(updated_tiles)                                        \
-    REQUIRE(manager != nullptr);                                                 \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles(          \
-        gsize, element_tiles, *manager, trash_arena, segment_vertices_allocator, \
+#define Update_Tiles_Macro(updated_tiles)                                         \
+    REQUIRE(segments != nullptr);                                                 \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(           \
+        gsize, element_tiles, *segments, trash_arena, segment_vertices_allocator, \
         graph_nodes_allocator, pages, (updated_tiles));
 
 #define Test_Declare_Updated_Tiles(...)                                          \
@@ -627,7 +626,7 @@ TEST_CASE("Update_Tiles") {
     Building* building_sawmill = nullptr;
     v2i gsize = -v2i_one;
     Element_Tile* element_tiles = nullptr;
-    Segment_Manager* manager = nullptr;
+    Bucket_Array<Graph_Segment>* segments = nullptr;
 
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
@@ -1321,4 +1320,6 @@ TEST_CASE("Update_Tiles") {
 
     delete[] trash_arena.base;
     Free_Allocations();
+    // if (segments != nullptr)
+    //     Free_Bucket_Array(*segments);
 }

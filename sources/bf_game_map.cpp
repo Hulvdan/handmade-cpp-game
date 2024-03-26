@@ -135,8 +135,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         Assert(max_pages_count < 100);
         Assert(max_pages_count > 0);
 
-        auto& manager = state.game_map.segment_manager;
-        auto& segments = manager.segments;
+        auto& segments = state.game_map.segments;
 
         // segments.allocator_functions.allocate = dlmemalign;
         // segments.allocator_functions.free = dlfree;
@@ -533,62 +532,53 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
-class Graph_Segment_Iterator : public Iterator_Facade<Graph_Segment_Iterator> {
+template <typename T>
+class Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
 public:
-    Graph_Segment_Iterator() = delete;
+    Bucket_Array_Iterator() = delete;
 
-    Graph_Segment_Iterator(Segment_Manager* manager)
-        : Graph_Segment_Iterator(manager, 0, 0) {}
+    Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
 
-    Graph_Segment_Iterator(
-        Segment_Manager* manager,
+    Bucket_Array_Iterator(
+        Bucket_Array<T>* arr,
         i32 current,
         Bucket_Index current_bucket  //
         )
         : _current(current),
           _current_bucket(current_bucket),
-          _manager(manager)  //
-    {
-        auto& segments = manager->segments;
-    }
+          _arr(arr)  //
+    {}
 
-    Graph_Segment_Iterator begin() const {
-        Graph_Segment_Iterator iter = {_manager, _current, _current_bucket};
-        auto& segments = _manager->segments;
+    Bucket_Array_Iterator begin() const {
+        Bucket_Array_Iterator iter = {_arr, _current, _current_bucket};
 
-        if (segments.used_buckets_count) {
+        if (_arr->used_buckets_count) {
             iter._current -= 1;
-            iter._current_bucket_segments_count =
-                iter._Get_Current_Bucket_Segments_Count();
+            iter._current_bucket_count = iter._Get_Current_Bucket_Count();
             iter.Increment();
         }
 
         return iter;
     }
-    Graph_Segment_Iterator end() const {
-        auto& segments = _manager->segments;
-        return {_manager, 0, segments.used_buckets_count};
-    }
+    Bucket_Array_Iterator end() const { return {_arr, 0, _arr->used_buckets_count}; }
 
-    Graph_Segment* Dereference() const {
-        auto& segments = _manager->segments;
-        auto& bucket = *(segments.buckets + _current_bucket);
-        auto result = scast<Graph_Segment*>(bucket.data) + _current;
+    T* Dereference() const {
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        auto result = scast<T*>(bucket.data) + _current;
         return result;
     }
 
     void Increment() {
-        auto& segments = _manager->segments;
         FOR_RANGE(int, _GUARD_, 256) {
             _current++;
-            if (_current >= _current_bucket_segments_count) {
+            if (_current >= _current_bucket_count) {
                 _current = 0;
                 _current_bucket++;
 
-                if (_current_bucket == segments.used_buckets_count)
+                if (_current_bucket == _arr->used_buckets_count)
                     return;
 
-                _current_bucket_segments_count = _Get_Current_Bucket_Segments_Count();
+                _current_bucket_count = _Get_Current_Bucket_Count();
             }
 
             if (Dereference()->active)
@@ -597,25 +587,25 @@ public:
         Assert(false);
     }
 
-    bool Equal_To(const Graph_Segment_Iterator& o) const {
+    bool Equal_To(const Bucket_Array_Iterator& o) const {
         return _current == o._current && _current_bucket == o._current_bucket;
     }
 
 private:
-    int _Get_Current_Bucket_Segments_Count() {
-        auto& segments = _manager->segments;
-        auto& bucket = *(segments.buckets + _current_bucket);
+    int _Get_Current_Bucket_Count() {
+        auto& bucket = *(_arr->buckets + _current_bucket);
         return bucket.count;
     }
 
-    Segment_Manager* _manager;
+    Bucket_Array<T>* _arr;
     i32 _current = 0;
     Bucket_Index _current_bucket = 0;
-    u16 _current_bucket_segments_count = 0;
+    u16 _current_bucket_count = 0;
 };
 
-auto Iter(Segment_Manager* manager) {
-    return Graph_Segment_Iterator(manager);
+template <typename T>
+auto Iter(Bucket_Array<T>* arr) {
+    return Bucket_Array_Iterator(arr);
 }
 
 typedef ttuple<Direction, v2i> Dir_v2i;
@@ -845,13 +835,13 @@ void Update_Graphs(
 void Build_Graph_Segments(
     v2i gsize,
     Element_Tile* element_tiles,
-    Segment_Manager& segment_manager,
+    Bucket_Array<Graph_Segment>& segments,
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
     Pages& pages  //
 ) {
-    Assert(segment_manager.segments.used_buckets_count == 0);
+    Assert(segments.used_buckets_count == 0);
 
     auto tiles_count = gsize.x * gsize.y;
 
@@ -908,7 +898,7 @@ void Build_Graph_Segments(
 
     {
         FOR_RANGE(int, i, added_segments_count) {
-            auto [segment_ptr, _] = Find_And_Occupy_Empty_Slot(segment_manager.segments);
+            auto [segment_ptr, _] = Find_And_Occupy_Empty_Slot(segments);
             auto& segment = *segment_ptr;
             auto& added_segment = *(added_segments + i);
 
@@ -936,7 +926,7 @@ void Build_Graph_Segments(
 ttuple<int, int> Update_Tiles(
     v2i gsize,
     Element_Tile* element_tiles,
-    Segment_Manager& manager,
+    Bucket_Array<Graph_Segment>& segments,
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
@@ -956,7 +946,7 @@ ttuple<int, int> Update_Tiles(
         trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
-    for (auto segment_ptr : Iter(&manager)) {
+    for (auto segment_ptr : Iter(&segments)) {
         auto& segment = *segment_ptr;
         Assert(segment.active);
 
@@ -1150,7 +1140,7 @@ ttuple<int, int> Update_Tiles(
 
     {
         FOR_RANGE(int, i, added_segments_count) {
-            auto [segment_ptr, _] = Find_And_Occupy_Empty_Slot(manager.segments);
+            auto [segment_ptr, _] = Find_And_Occupy_Empty_Slot(segments);
             auto& segment = *segment_ptr;
             auto& added_segment = *(added_segments + i);
 
@@ -1201,14 +1191,14 @@ ttuple<int, int> Update_Tiles(
     // }
 
 #ifdef ASSERT_SLOW
-    for (auto segment1_ptr : Iter(&manager)) {
+    for (auto segment1_ptr : Iter(&segments)) {
         auto& segment1 = *segment1_ptr;
         Assert(segment1.active);
 
         auto& g1 = segment1.graph;
         v2i g1_offset = {g1.offset.x, g1.offset.y};
 
-        for (auto segment2_ptr : Iter(&manager)) {
+        for (auto segment2_ptr : Iter(&segments)) {
             auto& segment2 = *segment2_ptr;
             Assert(segment2.active);
 
@@ -1245,11 +1235,10 @@ ttuple<int, int> Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                      \
-    Update_Tiles(                                                \
-        state.game_map.size, state.game_map.element_tiles,       \
-        state.game_map.segment_manager, trash_arena,             \
-        Assert_Deref(state.game_map.segment_vertices_allocator), \
+#define INVOKE_UPDATE_TILES                                                         \
+    Update_Tiles(                                                                   \
+        state.game_map.size, state.game_map.element_tiles, state.game_map.segments, \
+        trash_arena, Assert_Deref(state.game_map.segment_vertices_allocator),       \
         Assert_Deref(state.game_map.graph_nodes_allocator), state.pages, updated_tiles);
 
 bool Try_Build(Game_State& state, v2i pos, const Item_To_Build& item) {

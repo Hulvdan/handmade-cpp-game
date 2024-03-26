@@ -326,7 +326,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     // --- IMGUI END ---
 
     if (!first_time_initializing && state.hot_reloaded) {
-        Free_Bucket_Array(state.game_map.segment_manager.segments);
+        Free_Bucket_Array(state.game_map.segments);
     }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {

@@ -1088,7 +1088,7 @@ void Render(Game_State& state, f32 dt) {
 
         // glUseProgram(0);
         //
-        for (auto segment_ptr : Iter(&game_map.segment_manager)) {
+        for (auto segment_ptr : Iter(&game_map.segments)) {
             auto& segment = *segment_ptr;
             Assert(segment.active);
 
