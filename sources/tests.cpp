@@ -542,6 +542,52 @@ int Process_Segments(
         updated_tiles.count = data.size();                                       \
     }
 
+TEST_CASE("Bit operations") {
+    {
+        tvector<ttuple<u8, u8, u8>> marks = {
+            {0b00000000, 0, 0b00000001},
+            {0b00000000, 1, 0b00000010},
+            {0b00000000, 2, 0b00000100},
+            {0b00000000, 7, 0b10000000},
+        };
+        for (auto& [initial_value, index, after_value] : marks) {
+            u8 byte = initial_value;
+            u8* bytes = &byte;
+            MARK_BIT(bytes, index);
+            CHECK(byte == after_value);
+            UNMARK_BIT(bytes, index);
+            CHECK(byte == initial_value);
+        }
+    }
+
+    {
+        tvector<ttuple<u8, u8, u8>> unmarks = {
+            {0b11111111, 0, 0b11111110},
+            {0b11111111, 1, 0b11111101},
+            {0b11111111, 2, 0b11111011},
+            {0b11111111, 7, 0b01111111},
+        };
+        for (auto& [initial_value, index, after_value] : unmarks) {
+            u8 byte = initial_value;
+            u8* bytes = &byte;
+            UNMARK_BIT(bytes, index);
+            CHECK(byte == after_value);
+            MARK_BIT(bytes, index);
+            CHECK(byte == initial_value);
+        }
+    }
+    {
+        std::vector<u8> bytes = {
+            0b00000000,
+            0b01000001,
+        };
+        u8* ptr = bytes.data();
+        CHECK((bool)QUERY_BIT(ptr, 0) == false);
+        CHECK((bool)QUERY_BIT(ptr, 8) == true);
+        CHECK((bool)QUERY_BIT(ptr, 14) == true);
+    }
+}
+
 TEST_CASE("Update_Tiles") {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
