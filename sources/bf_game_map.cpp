@@ -71,6 +71,28 @@ void Deinit_Bucket_Array(Bucket_Array<T>& arr) {
     arr.allocator_functions.free(arr.unfull_buckets);
 }
 
+template <typename T>
+void Init_Queue(Queue<T>& queue) {
+    queue.allocate = _aligned_malloc;
+    queue.free = _aligned_free;
+    queue.count = 0;
+    queue.max_count = 0;
+    queue.base = nullptr;
+}
+
+template <typename T>
+void Deinit_Queue(Queue<T>& queue) {
+    Assert(queue.allocate != nullptr);
+    Assert(queue.free != nullptr);
+
+    if (queue.base != nullptr) {
+        queue.free(queue.base);
+        queue.base = nullptr;
+    }
+    queue.count = 0;
+    queue.max_count = 0;
+}
+
 // void Update_Building__Not_Constructed(Building& building, float dt) {
 //     if (!building.is_constructed) {
 //         building.time_since_item_was_placed += dt;
@@ -149,6 +171,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.buildings, 32, 128);
     Init_Bucket_Array(game_map.segments, 32, 128);
     Init_Bucket_Array(game_map.humans, 32, 128);
+    Init_Queue(game_map.segments_that_need_humans);
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }
@@ -158,6 +181,7 @@ void Deinitialize_Game_Map(Game_State& state) {
     Deinit_Bucket_Array(game_map.buildings);
     Deinit_Bucket_Array(game_map.segments);
     Deinit_Bucket_Array(game_map.humans);
+    Deinit_Queue(game_map.segments_that_need_humans);
 }
 
 void Regenerate_Terrain_Tiles(
