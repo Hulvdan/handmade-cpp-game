@@ -15,13 +15,31 @@ struct Loaded_Texture;
 //                        Data Structures                        //
 // ============================================================= //
 
+#define ALLOCATE__FUNCTION(name) void* name(size_t n, size_t alignment)
+#define FREE__FUNCTION(name) void name(void* mem)
+
+struct Allocator_Functions {
+    ALLOCATE__FUNCTION((*allocate));
+    FREE__FUNCTION((*free));
+};
+
 // ----- Queues -----
 
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size;
-    size_t count;
+    i32 count;
     T* base;
+};
+
+template <typename T>
+struct Queue {
+    u32 max_count;
+    i32 count;
+    T* base;
+
+    ALLOCATE__FUNCTION((*allocate));
+    FREE__FUNCTION((*free));
 };
 
 template <typename T>
@@ -37,6 +55,51 @@ void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
 template <typename T>
 T Dequeue(Fixed_Size_Queue<T>& queue) {
     // TODO(hulvdan): Test!
+    // TODO(hulvdan): Переписать на ring buffer!
+
+    Assert(queue.base != nullptr);
+    Assert(queue.count > 0);
+
+    T res = *queue.base;
+    queue.count -= 1;
+    if (queue.count > 0)
+        memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+
+    return res;
+}
+
+template <typename T>
+void Enqueue(Queue<T>& queue, const T value) {
+    Assert((queue.allocate != nullptr && queue.free != nullptr));
+
+    if (queue.base == nullptr) {
+        Assert(queue.max_count == 0);
+        Assert(queue.count == 0);
+        queue.max_count = 8;
+        queue.base = rcast<T*>(queue.allocate(queue.max_count * sizeof(T), alignof(T)));
+    }  //
+    else if (queue.max_count == queue.count) {
+        u32 doubled_max_count = queue.max_count * 2;
+        Assert(queue.max_count < doubled_max_count);  // Поймаем overflow
+        auto size = sizeof(T) * queue.max_count;
+        auto old_ptr = queue.base;
+
+        // TODO(hulvdan): Почитать про realloc
+        queue.base = rcast<T*>(queue.allocate(size * 2, alignof(T)));
+        memcpy(queue.base, old_ptr, size);
+        queue.free(old_ptr);
+
+        queue.max_count *= 2;
+    }
+
+    *(queue.base + queue.count) = value;
+    queue.count++;
+}
+
+template <typename T>
+T Dequeue(Queue<T>& queue) {
+    // TODO(hulvdan): Test!
+    // TODO(hulvdan): Переписать на что-то из разряда ring buffer!
 
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
@@ -82,14 +145,6 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
 // на использование просто bool, если понадобится
 #endif
 
-#define ALLOCATE__FUNCTION(name) void* name(size_t n, size_t alignment)
-#define FREE__FUNCTION(name) void name(void* mem)
-
-struct Allocator_Functions {
-    ALLOCATE__FUNCTION((*allocate));
-    FREE__FUNCTION((*free));
-};
-
 // TODO:
 // 1) Нужно ли реализовывать expandable количество бакетов?
 template <typename T>
@@ -106,6 +161,90 @@ struct Bucket_Array : Non_Copyable {
     Bucket_Index used_buckets_count;
     Bucket_Index unfull_buckets_count;
 };
+
+template <typename T>
+class Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
+public:
+    Bucket_Array_Iterator() = delete;
+
+    Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
+
+    Bucket_Array_Iterator(
+        Bucket_Array<T>* arr,
+        i32 current,
+        Bucket_Index current_bucket  //
+        )
+        : _current(current),
+          _current_bucket(current_bucket),
+          _arr(arr)  //
+    {
+        Assert(arr != nullptr);
+    }
+
+    Bucket_Array_Iterator begin() const {
+        Bucket_Array_Iterator iter = {_arr, _current, _current_bucket};
+
+        if (_arr->used_buckets_count) {
+            iter._current -= 1;
+            iter._current_bucket_count = iter._Get_Current_Bucket_Count();
+            iter.Increment();
+        }
+
+        return iter;
+    }
+    Bucket_Array_Iterator end() const { return {_arr, 0, _arr->used_buckets_count}; }
+
+    T* Dereference() const {
+        Assert(_current_bucket < _arr->used_buckets_count);
+        Assert(_current < _arr->items_per_bucket);
+
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        Assert(Bucket_Occupied(bucket, _current));
+
+        auto result = scast<T*>(bucket.data) + _current;
+        return result;
+    }
+
+    void Increment() {
+        FOR_RANGE(int, _GUARD_, 256) {
+            _current++;
+            if (_current >= _current_bucket_count) {
+                _current = 0;
+                _current_bucket++;
+
+                if (_current_bucket == _arr->used_buckets_count)
+                    return;
+
+                _current_bucket_count = _Get_Current_Bucket_Count();
+            }
+
+            Bucket<T>& bucket = *(_arr->buckets + _current_bucket);
+            if (Bucket_Occupied(bucket, _current))
+                return;
+        }
+        Assert(false);
+    }
+
+    bool Equal_To(const Bucket_Array_Iterator& o) const {
+        return _current == o._current && _current_bucket == o._current_bucket;
+    }
+
+private:
+    int _Get_Current_Bucket_Count() {
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        return bucket.count;
+    }
+
+    Bucket_Array<T>* _arr;
+    i32 _current = 0;
+    Bucket_Index _current_bucket = 0;
+    u16 _current_bucket_count = 0;
+};
+
+template <typename T>
+auto Iter(Bucket_Array<T>* arr) {
+    return Bucket_Array_Iterator(arr);
+}
 
 // // @Note(hulvdan): Start
 // Array_Unordered_Remove
@@ -198,27 +337,6 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
     arr.unfull_buckets_count++;
 
     return new_bucket;
-}
-
-// TODO(hulvdan): Прикрутить какой-либо аллокатор,
-// который позволяет использовать заранее аллоцированные memory spaces.
-// Deprecate-нуть данную функцию. Вместо этого просто удалять mspaces.
-template <typename T>
-void Free_Bucket_Array(Bucket_Array<T>& arr) {
-    Assert(arr.allocator_functions.allocate != nullptr);
-    Assert(arr.allocator_functions.free != nullptr);
-
-    for (auto bucket_ptr = arr.buckets;  //
-         bucket_ptr != arr.buckets + arr.used_buckets_count;  //
-         bucket_ptr++  //
-    ) {
-        auto& bucket = *bucket_ptr;
-        arr.allocator_functions.free(bucket.occupied);
-        arr.allocator_functions.free(bucket.data);
-    }
-
-    arr.allocator_functions.free(arr.buckets);
-    arr.allocator_functions.free(arr.unfull_buckets);
 }
 
 template <typename T>
@@ -398,12 +516,17 @@ struct Graph : public Non_Copyable {
 // 9)  BrFrB - это уже 2 разных сегмента. Первый - BrF, второй - FrB.
 //             При замене флага (F) на дорогу (r) эти 2 сегмента сольются в один - BrrrB.
 //
+
+struct Human;
+
 struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
     Graph_v2u* vertices;  // NOTE(hulvdan): Вершинные клетки графа (флаги, здания)
 
     Graph graph;
     Bucket_Locator locator;
+
+    Human* assigned_human;
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -474,8 +597,92 @@ struct Scriptable_Building : public Non_Copyable {
     Scriptable_Resource_ID harvestable_resource_id;
 };
 
-struct Human : public Non_Copyable {
+enum class Human_Type {
+    Transporter,
+    // Constructor,
+    // Employee,
+};
+
+struct Human_Moving_Component {
+    v2i pos;
+    f32 elapsed;
+    f32 progress;
+    v2f from;
+
+    v2i to;
+    bool to_specified;
+
+    i16 path_max_length;
+    i16 path_count;
+    v2i* path;
+};
+
+enum class Moving_In_The_World_State {
+    Moving_To_The_City_Hall,
+    Moving_To_Destination,
+};
+
+struct Moving_Inside_Segment {
     //
+};
+
+// struct Main_Controller {
+//     // Building_Database bdb;
+//     // Human_Database db;
+//     Moving_In_The_World moving_in_the_world;
+//     Moving_Inside_Segment moving_inside_segment;
+//     // Moving_Resources moving_resources;
+//     // Construction_Controller construction_controller;
+//     // Employee_Controller employee_controller;
+//     // Human_Data data;
+// };
+
+struct Main_Controller;
+
+struct Moving_In_The_World {
+    Moving_In_The_World_State state;
+    Main_Controller* controller;
+};
+
+enum class Human_Main_State {
+    // Common
+    Moving_In_The_World,
+
+    // Transporter
+    Moving_Inside_Segment,
+    Moving_Resource,
+
+    // Builder
+    Building,
+
+    // Employee
+    Employee,
+};
+
+struct Human : public Non_Copyable {
+    Human_ID id;
+    Human_Moving_Component moving;
+
+    Graph_Segment* segment;
+    Human_Type type;
+    // Building* building;
+    // Main_State state;
+
+    Moving_In_The_World_State state_moving_in_the_world;
+    // Moving_Resources_State state_moving_resources;
+    //
+    // f32 moving_resources__picking_up_resource_elapsed;
+    // f32 moving_resources__picking_up_resource_progress;
+    // f32 moving_resources__placing_resource_elapsed;
+    // f32 moving_resources__placing_resource_progress;
+    //
+    // Map_Resource* moving_resources__targeted_resource;
+    //
+    // f32 harvesting_elapsed;
+    // i32 current_behaviour_id = -1;
+    //
+    // Employee_Behaviour_Set behaviour_set;
+    // f32 processing_elapsed;
 };
 
 struct Resource_To_Book : public Non_Copyable {
@@ -572,6 +779,9 @@ struct Game_Map : public Non_Copyable {
 
     Bucket_Array<Building> buildings;
     Bucket_Array<Graph_Segment> segments;
+    Bucket_Array<Human> humans;
+
+    Queue<Graph_Segment> segments_that_need_humans;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;

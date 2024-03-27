@@ -128,126 +128,6 @@ struct Test_Node {
 
 #define Allocator_Free_Macro(allocator_, key_) (allocator_).Free((key_));
 
-TEST_CASE("Linked List") {
-    Test_Node* nodes = new Test_Node[10]{};
-
-    size_t count = 0;
-    size_t first_node_index = 0;
-
-    {
-        auto node_to_add = Test_Node(1);
-        auto index =
-            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
-        CHECK(index == 0);
-    }
-
-    CHECK(count == 1);
-
-    {
-        auto& node = *(nodes + 0);
-        CHECK(node.active);
-        CHECK(node.next == size_t_max);
-        CHECK(node.id == 1);
-    }
-
-    {
-        auto node_to_add = Test_Node(2);
-        auto index =
-            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
-        CHECK(index == 1);
-    }
-
-    CHECK(count == 2);
-
-    {
-        auto& node = *(nodes + 0);
-        CHECK(node.active);
-        CHECK(node.next == 1);
-        CHECK(node.id == 1);
-    }
-    {
-        auto& node = *(nodes + 1);
-        CHECK(node.active);
-        CHECK(node.id == 2);
-        CHECK(node.next == size_t_max);
-    }
-
-    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 1, Test_Node);
-    CHECK(count == 1);
-    {
-        auto& node = *(nodes + 0);
-        CHECK(node.active);
-        CHECK(node.next == size_t_max);
-        CHECK(node.id == 1);
-    }
-    {
-        auto& node = *(nodes + 1);
-        CHECK(!node.active);
-    }
-
-    {
-        auto node_to_add = Test_Node(3);
-        auto index =
-            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
-        CHECK(index == 1);
-    }
-    CHECK(count == 2);
-    {
-        auto& node = *(nodes + 0);
-        CHECK(node.active);
-        CHECK(node.next == 1);
-        CHECK(node.id == 1);
-    }
-    {
-        auto& node = *(nodes + 1);
-        CHECK(node.active);
-        CHECK(node.next == size_t_max);
-        CHECK(node.id == 3);
-    }
-
-    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 0, Test_Node);
-    CHECK(count == 1);
-    CHECK(first_node_index == 1);
-    {
-        auto& node = *(nodes + 0);
-        CHECK(!node.active);
-    }
-    {
-        auto& node = *(nodes + 1);
-        CHECK(node.active);
-        CHECK(node.next == size_t_max);
-        CHECK(node.id == 3);
-    }
-
-    {
-        auto node_to_add = Test_Node(4);
-        auto index =
-            Linked_List_Push_Back_Macro(nodes, count, first_node_index, node_to_add);
-        CHECK(index == 0);
-    }
-    CHECK(count == 2);
-    {
-        auto& node = *(nodes + 0);
-        CHECK(node.active);
-        CHECK(node.next == size_t_max);
-        CHECK(node.id == 4);
-    }
-    {
-        auto& node = *(nodes + 1);
-        CHECK(node.active);
-        CHECK(node.next == 0);
-        CHECK(node.id == 3);
-    }
-
-    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 0, Test_Node);
-    CHECK(count == 1);
-    CHECK(first_node_index == 1);
-
-    Linked_List_Remove_At_Macro(nodes, count, first_node_index, 1, Test_Node);
-    CHECK(count == 0);
-    CHECK(first_node_index == 0);
-}
-
 TEST_CASE("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);
     CHECK(Align_Forward((u8*)(2UL), 16) == (u8*)16UL);
@@ -372,6 +252,19 @@ TEST_CASE("As_Offset") {
 }
 
 global tvector<u8*> virtual_allocations;
+global tvector<void*> heap_allocations;
+
+void* heap_allocate(size_t n, size_t alignment) {
+    void* result = _aligned_malloc(n, alignment);
+    heap_allocations.push_back(result);
+    return result;
+}
+void heap_free(void* ptr) {
+    heap_allocations.erase(
+        std::remove(heap_allocations.begin(), heap_allocations.end(), ptr),
+        heap_allocations.end());
+    _aligned_free(ptr);
+}
 
 Allocate_Pages__Function(Win32_Allocate_Pages) {
     Assert(count % OS_DATA.min_pages_per_allocation == 0);
@@ -388,6 +281,14 @@ void Free_Allocations() {
         VirtualFree((void*)ptr, 0, MEM_RELEASE);
 
     virtual_allocations.clear();
+
+    for (auto ptr : heap_allocations) {
+        // NOTE(hulvdan): Специально не вызываю heap_free,
+        // чтобы не удаляло из массива по ходу итерирования.
+        _aligned_free(ptr);
+    }
+
+    heap_allocations.clear();
 }
 
 Building* Global_Make_Building(
@@ -426,17 +327,9 @@ int Process_Segments(
 
     {
         segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
-
-        segments->allocator_functions.allocate = _aligned_malloc;
-        segments->allocator_functions.free = _aligned_free;
-        segments->items_per_bucket = 128;
-        segments->buckets_count = 32;
-
-        segments->buckets = nullptr;
-        segments->unfull_buckets = nullptr;
-        segments->count = 0;
-        segments->used_buckets_count = 0;
-        segments->unfull_buckets_count = 0;
+        Init_Bucket_Array(*segments, 32, 128);
+        segments->allocator_functions.allocate = heap_allocate;
+        segments->allocator_functions.free = heap_free;
     }
 
     auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -1313,5 +1206,61 @@ TEST_CASE("Update_Tiles") {
     delete[] trash_arena.base;
     Free_Allocations();
     // if (segments != nullptr)
-    //     Free_Bucket_Array(*segments);
+    //     Deinitialize_Bucket_Array(*segments);
+}
+
+TEST_CASE("Queue") {
+    Queue<int> queue = {};
+    queue.allocate = heap_allocate;
+    queue.free = heap_free;
+
+    REQUIRE(queue.count == 0);
+    Enqueue(queue, 10);
+    REQUIRE(queue.count == 1);
+    auto val = Dequeue(queue);
+    CHECK(val == 10);
+    REQUIRE(queue.count == 0);
+
+    REQUIRE(queue.max_count == 8);
+    Enqueue(queue, 1);
+    REQUIRE(queue.count == 1);
+    Enqueue(queue, 2);
+    REQUIRE(queue.count == 2);
+    Enqueue(queue, 3);
+    REQUIRE(queue.count == 3);
+    Enqueue(queue, 4);
+    REQUIRE(queue.count == 4);
+    Enqueue(queue, 5);
+    REQUIRE(queue.count == 5);
+    Enqueue(queue, 6);
+    REQUIRE(queue.count == 6);
+    Enqueue(queue, 7);
+    REQUIRE(queue.count == 7);
+    Enqueue(queue, 8);
+    REQUIRE(queue.count == 8);
+    REQUIRE(queue.max_count == 8);
+    Enqueue(queue, 9);
+    REQUIRE(queue.max_count == 16);
+    REQUIRE(queue.count == 9);
+
+    REQUIRE(Dequeue(queue) == 1);
+    REQUIRE(queue.count == 8);
+    REQUIRE(Dequeue(queue) == 2);
+    REQUIRE(queue.count == 7);
+    REQUIRE(Dequeue(queue) == 3);
+    REQUIRE(queue.count == 6);
+    REQUIRE(Dequeue(queue) == 4);
+    REQUIRE(queue.count == 5);
+    REQUIRE(Dequeue(queue) == 5);
+    REQUIRE(queue.count == 4);
+    REQUIRE(Dequeue(queue) == 6);
+    REQUIRE(queue.count == 3);
+    REQUIRE(Dequeue(queue) == 7);
+    REQUIRE(queue.count == 2);
+    REQUIRE(Dequeue(queue) == 8);
+    REQUIRE(queue.count == 1);
+    REQUIRE(Dequeue(queue) == 9);
+    REQUIRE(queue.count == 0);
+
+    Free_Allocations();
 }

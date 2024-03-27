@@ -37,6 +37,83 @@ void Place_Building(Game_State& state, v2i pos, Scriptable_Building* scriptable)
     tile.building = found_instance;
 }
 
+// TODO(hulvdan): Прикрутить какой-либо аллокатор,
+// который позволяет использовать заранее аллоцированные memory spaces.
+template <typename T>
+void Init_Bucket_Array(Bucket_Array<T>& arr, u32 buckets_count, u32 items_per_bucket) {
+    arr.allocator_functions.allocate = _aligned_malloc;
+    arr.allocator_functions.free = _aligned_free;
+    arr.items_per_bucket = items_per_bucket;
+    arr.buckets_count = buckets_count;
+
+    arr.buckets = nullptr;
+    arr.unfull_buckets = nullptr;
+    arr.count = 0;
+    arr.used_buckets_count = 0;
+    arr.unfull_buckets_count = 0;
+}
+
+template <typename T>
+void Deinit_Bucket_Array(Bucket_Array<T>& arr) {
+    Assert(arr.allocator_functions.allocate != nullptr);
+    Assert(arr.allocator_functions.free != nullptr);
+
+    for (auto bucket_ptr = arr.buckets;  //
+         bucket_ptr != arr.buckets + arr.used_buckets_count;  //
+         bucket_ptr++  //
+    ) {
+        auto& bucket = *bucket_ptr;
+        arr.allocator_functions.free(bucket.occupied);
+        arr.allocator_functions.free(bucket.data);
+    }
+
+    arr.allocator_functions.free(arr.buckets);
+    arr.allocator_functions.free(arr.unfull_buckets);
+}
+
+// void Update_Building__Not_Constructed(Building& building, float dt) {
+//     if (!building.is_constructed) {
+//         building.time_since_item_was_placed += dt;
+//     }
+//
+//     if (building.resources_to_book.Count > 0) {
+//         _resourceTransportation.Add_ResourcesToBook(building.resourcesToBook);
+//         building.resourcesToBook.Clear();
+//     }
+// }
+void Update_Building__Constructed(Game_State& state, Building& building, f32 dt) {
+    // auto& game_map = state.game_map;
+    // auto& scriptable = *building.scriptable;
+    //
+    // if (scriptable.type == Building_Type::City_Hall) {
+    //     building.time_since_human_was_created += dt;
+    //     if (building.time_since_human_was_created > _humanSpawningDelay) {
+    //         building.time_since_human_was_created = _humanSpawningDelay;
+    //     }
+    //
+    //     if (segmentsThatNeedHumans.Count != 0) {
+    //         if (building.time_since_human_was_created >= _humanSpawningDelay) {
+    //             building.time_since_human_was_created -= _humanSpawningDelay;
+    //             auto human = Dequeue(segmentsThatNeedHumans);
+    //             Create_Human_Transporter(game_map, building, human);
+    //         }
+    //     }
+    // }
+    //
+    // _building_controller.Update(building, dt);
+}
+
+void Update_Buildings(Game_State& state, f32 dt) {
+    for (auto building_ptr : Iter(&state.game_map.buildings)) {
+        auto& building = *building_ptr;
+        // if (building.constructionProgress < 1) {
+        //     Update_Building__Not_Constructed(building, dt);
+        // } else {
+        // Update_Building__Constructed(building, dt);
+        // }
+    }
+}
+
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
@@ -69,43 +146,18 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
 
     auto tiles_count = game_map.size.x * game_map.size.y;
 
-    {
-        auto& buildings = game_map.buildings;
-
-        buildings.allocator_functions.allocate = _aligned_malloc;
-        buildings.allocator_functions.free = _aligned_free;
-        buildings.items_per_bucket = 128;
-        buildings.buckets_count = 32;
-
-        buildings.buckets = nullptr;
-        buildings.unfull_buckets = nullptr;
-        buildings.count = 0;
-        buildings.used_buckets_count = 0;
-        buildings.unfull_buckets_count = 0;
-    }
-
-    {
-        auto& segments = game_map.segments;
-
-        segments.allocator_functions.allocate = _aligned_malloc;
-        segments.allocator_functions.free = _aligned_free;
-        segments.items_per_bucket = 128;
-        segments.buckets_count = 32;
-
-        segments.buckets = nullptr;
-        segments.unfull_buckets = nullptr;
-        segments.count = 0;
-        segments.used_buckets_count = 0;
-        segments.unfull_buckets_count = 0;
-    }
+    Init_Bucket_Array(game_map.buildings, 32, 128);
+    Init_Bucket_Array(game_map.segments, 32, 128);
+    Init_Bucket_Array(game_map.humans, 32, 128);
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }
 
 void Deinitialize_Game_Map(Game_State& state) {
     auto& game_map = state.game_map;
-    Free_Bucket_Array(game_map.buildings);
-    Free_Bucket_Array(game_map.segments);
+    Deinit_Bucket_Array(game_map.buildings);
+    Deinit_Bucket_Array(game_map.segments);
+    Deinit_Bucket_Array(game_map.humans);
 }
 
 void Regenerate_Terrain_Tiles(
@@ -359,114 +411,6 @@ bool Should_Segment_Be_Deleted(
         }                                                               \
     }
 
-//
-// []                                 first_index = max
-// [(v1,max,t)]                       first_index = 0  (added node to the end)
-// [(v1,1,t), (v2,max,t)]             first_index = 0  (added node to the end)
-// [(v1,1,t), (v2,2,t), (v3,max,t)]   first_index = 0  (added node to the end)
-// [(v1,2,t), (v2,2,F), (v3,max,t)]   first_index = 0  (removed node at index pos 1)
-// [(v1,2,F), (v2,2,F), (v3,max,t)]   first_index = 2  (removed node at index pos 0)
-// [(v4,max,t), (v2,2,F), (v3,0,t)]   first_index = 2  (added node to the end)
-// [(v4,1,t), (v5,max,t), (v3,0,t)]   first_index = 2  (added node to the end)
-// [(v4,max,t), (v5,max,F), (v3,0,t)]   first_index = 2  (removed node at index pos 1)
-// [(v4,max,F), (v5,max,F), (v3,max,t)]   first_index = 2  (removed node at index pos
-// 0)
-// [(v4,max,F), (v5,max,F), (v3,max,F)]   first_index = max  (removed node at index
-// pos 2)
-
-size_t Linked_List_Push_Back(
-    u8* const nodes,
-    size_t& n,
-    const size_t first_node_index,
-    const u8* const node,
-    const size_t active_offset,
-    const size_t next_offset,
-    const size_t node_size  //
-) {
-    size_t new_free_node_index = size_t_max;
-    u8* new_free_node = nullptr;
-    FOR_RANGE(size_t, i, n + 1) {
-        u8* n = nodes + i * node_size;
-        bool active = *rcast<bool*>(n + active_offset);
-        if (active)
-            continue;
-
-        new_free_node = n;
-        new_free_node_index = i;
-
-        break;
-    }
-    Assert(new_free_node_index != size_t_max);
-    Assert(new_free_node != nullptr);
-
-    if (n > 0) {
-        u8* last_node = nodes + first_node_index * node_size;
-        FOR_RANGE(size_t, i, n - 1) {
-            Assert(*rcast<bool*>(last_node + active_offset) == true);
-            auto index_offset = *rcast<size_t*>(last_node + next_offset);
-            last_node = nodes + index_offset * node_size;
-        }
-
-        Assert(*rcast<bool*>(last_node + active_offset) == true);
-        *rcast<size_t*>(last_node + next_offset) = new_free_node_index;
-    }
-
-    memcpy(new_free_node, node, node_size);
-    *rcast<bool*>(new_free_node + active_offset) = true;
-    *rcast<size_t*>(new_free_node + next_offset) = size_t_max;
-
-    n++;
-    return new_free_node_index;
-}
-
-void Linked_List_Remove_At(
-    u8* const nodes,
-    size_t& n,
-    size_t& first_node_index,
-    const size_t node_index,
-    const size_t active_offset,
-    const size_t next_offset,
-    const size_t node_size  //
-) {
-    Assert(n > 0);
-
-    if (node_index == first_node_index) {
-        auto node = nodes + node_size * first_node_index;
-        *rcast<bool*>(node + active_offset) = false;
-
-        auto next = *rcast<size_t*>(node + next_offset);
-        first_node_index = next * (next != size_t_max);
-
-        n--;
-        return;
-    }
-
-    FOR_RANGE(size_t, i, n) {
-        auto node = nodes + node_size * i;
-        auto next_index = *rcast<size_t*>(node + next_offset);
-
-        if (next_index == node_index) {
-            u8* node_to_delete = nodes + next_index * node_size;
-            auto node_to_delete_next_index =
-                *rcast<size_t*>(node_to_delete + next_offset);
-
-            auto next_exists = node_to_delete_next_index != size_t_max;
-            if (next_exists)
-                *rcast<size_t*>(node + next_offset) = node_to_delete_next_index;
-            else
-                *rcast<size_t*>(node + next_offset) = size_t_max;
-        }
-
-        if (i == node_index) {
-            *rcast<bool*>(node + active_offset) = false;
-            n--;
-            return;
-        }
-    }
-
-    Assert(false);
-}
-
 Graph_v2u* Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
     return (Graph_v2u*)allocator.Allocate(vertices_count, 1);
 }
@@ -479,90 +423,6 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     FOR_RANGE(int, i, rows) {
         memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
     }
-}
-
-template <typename T>
-class Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
-public:
-    Bucket_Array_Iterator() = delete;
-
-    Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
-
-    Bucket_Array_Iterator(
-        Bucket_Array<T>* arr,
-        i32 current,
-        Bucket_Index current_bucket  //
-        )
-        : _current(current),
-          _current_bucket(current_bucket),
-          _arr(arr)  //
-    {
-        Assert(arr != nullptr);
-    }
-
-    Bucket_Array_Iterator begin() const {
-        Bucket_Array_Iterator iter = {_arr, _current, _current_bucket};
-
-        if (_arr->used_buckets_count) {
-            iter._current -= 1;
-            iter._current_bucket_count = iter._Get_Current_Bucket_Count();
-            iter.Increment();
-        }
-
-        return iter;
-    }
-    Bucket_Array_Iterator end() const { return {_arr, 0, _arr->used_buckets_count}; }
-
-    T* Dereference() const {
-        Assert(_current_bucket < _arr->used_buckets_count);
-        Assert(_current < _arr->items_per_bucket);
-
-        auto& bucket = *(_arr->buckets + _current_bucket);
-        Assert(Bucket_Occupied(bucket, _current));
-
-        auto result = scast<T*>(bucket.data) + _current;
-        return result;
-    }
-
-    void Increment() {
-        FOR_RANGE(int, _GUARD_, 256) {
-            _current++;
-            if (_current >= _current_bucket_count) {
-                _current = 0;
-                _current_bucket++;
-
-                if (_current_bucket == _arr->used_buckets_count)
-                    return;
-
-                _current_bucket_count = _Get_Current_Bucket_Count();
-            }
-
-            Bucket<T>& bucket = *(_arr->buckets + _current_bucket);
-            if (Bucket_Occupied(bucket, _current))
-                return;
-        }
-        Assert(false);
-    }
-
-    bool Equal_To(const Bucket_Array_Iterator& o) const {
-        return _current == o._current && _current_bucket == o._current_bucket;
-    }
-
-private:
-    int _Get_Current_Bucket_Count() {
-        auto& bucket = *(_arr->buckets + _current_bucket);
-        return bucket.count;
-    }
-
-    Bucket_Array<T>* _arr;
-    i32 _current = 0;
-    Bucket_Index _current_bucket = 0;
-    u16 _current_bucket_count = 0;
-};
-
-template <typename T>
-auto Iter(Bucket_Array<T>* arr) {
-    return Bucket_Array_Iterator(arr);
 }
 
 typedef ttuple<Direction, v2i> Dir_v2i;
