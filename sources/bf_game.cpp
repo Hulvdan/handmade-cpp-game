@@ -14,6 +14,10 @@
 #include "bf_base.h"
 #include "bf_game.h"
 
+#include <optional>
+template <typename T>
+using toptional = std::optional<T>;
+
 #include <tuple>
 template <typename... Args>
 using ttuple = std::tuple<Args...>;

@@ -32,15 +32,29 @@ struct Fixed_Size_Queue {
     T* base;
 };
 
+// NOTE(hulvdan): По-умолчанию `Queue` хранит указатели на функции для работы с памятью.
+// Можно предоставить из глобального окружения
+// переменную типа `Allocator_Functions`, чтобы этого не было.
 template <typename T>
 struct Queue {
     u32 max_count;
     i32 count;
     T* base;
 
-    ALLOCATE__FUNCTION((*allocate));
-    FREE__FUNCTION((*free));
+    Allocator_Functions allocator_functions;
 };
+
+template <typename T, typename Allocation_Tag>
+struct Static_Allocation_Queue {
+    u32 max_count;
+    i32 count;
+    T* base;
+
+    static Allocator_Functions allocator_functions;
+};
+
+template <typename T, typename Allocation_Tag>
+Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functions = {};
 
 template <typename T>
 void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
@@ -68,15 +82,40 @@ T Dequeue(Fixed_Size_Queue<T>& queue) {
     return res;
 }
 
+template <typename T, typename Allocation_Tag>
+void* Queue_Allocate(
+    Static_Allocation_Queue<T, Allocation_Tag>& queue,
+    i32 bytes,
+    i32 alignment  //
+) {
+    auto result = rcast<T*>(queue.allocator_functions.allocate(bytes, alignment));
+    return result;
+}
+
+template <typename T>
+void* Queue_Allocate(Queue<T>& queue, i32 bytes, i32 alignment) {
+    auto result = rcast<T*>(queue.allocator_functions.allocate(bytes, alignment));
+    return result;
+}
+
+template <typename T, typename Allocation_Tag>
+void Queue_Free(Static_Allocation_Queue<T, Allocation_Tag>& queue, void* ptr) {
+    queue.allocator_functions.free(ptr);
+}
+
+template <typename T>
+void Queue_Free(Queue<T>& queue, void* ptr) {
+    queue.allocator_functions.free(ptr);
+}
+
 template <typename T>
 void Enqueue(Queue<T>& queue, const T value) {
-    Assert((queue.allocate != nullptr && queue.free != nullptr));
-
     if (queue.base == nullptr) {
         Assert(queue.max_count == 0);
         Assert(queue.count == 0);
         queue.max_count = 8;
-        queue.base = rcast<T*>(queue.allocate(queue.max_count * sizeof(T), alignof(T)));
+        queue.base = rcast<T*>(
+            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T)));
     }  //
     else if (queue.max_count == queue.count) {
         u32 doubled_max_count = queue.max_count * 2;
@@ -85,9 +124,9 @@ void Enqueue(Queue<T>& queue, const T value) {
         auto old_ptr = queue.base;
 
         // TODO(hulvdan): Почитать про realloc
-        queue.base = rcast<T*>(queue.allocate(size * 2, alignof(T)));
+        queue.base = rcast<T*>(queue.allocator_functions.allocate(size * 2, alignof(T)));
         memcpy(queue.base, old_ptr, size);
-        queue.free(old_ptr);
+        queue.allocator_functions.free(old_ptr);
 
         queue.max_count *= 2;
     }
@@ -100,7 +139,6 @@ template <typename T>
 T Dequeue(Queue<T>& queue) {
     // TODO(hulvdan): Test!
     // TODO(hulvdan): Переписать на что-то из разряда ring buffer!
-
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
 
@@ -110,6 +148,60 @@ T Dequeue(Queue<T>& queue) {
         memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
 
     return res;
+}
+
+template <typename T, typename Allocation_Tag>
+void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& queue, const T value) {
+    if (queue.base == nullptr) {
+        Assert(queue.max_count == 0);
+        Assert(queue.count == 0);
+        queue.max_count = 8;
+        queue.base = rcast<T*>(
+            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T)));
+    }  //
+    else if (queue.max_count == queue.count) {
+        u32 doubled_max_count = queue.max_count * 2;
+        Assert(queue.max_count < doubled_max_count);  // Поймаем overflow
+        auto size = sizeof(T) * queue.max_count;
+        auto old_ptr = queue.base;
+
+        // TODO(hulvdan): Почитать про realloc
+        queue.base = rcast<T*>(queue.allocator_functions.allocate(size * 2, alignof(T)));
+        memcpy(queue.base, old_ptr, size);
+        queue.allocator_functions.free(old_ptr);
+
+        queue.max_count *= 2;
+    }
+
+    *(queue.base + queue.count) = value;
+    queue.count++;
+}
+
+template <typename T, typename Allocation_Tag>
+T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
+    // TODO(hulvdan): Test!
+    // TODO(hulvdan): Переписать на что-то из разряда ring buffer!
+    Assert(queue.base != nullptr);
+    Assert(queue.count > 0);
+
+    T res = *queue.base;
+    queue.count -= 1;
+    if (queue.count > 0)
+        memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+
+    return res;
+}
+
+// ----- Array Functions -----
+
+template <typename T>
+i32 Array_Find(T* values, u32 n, T& value) {
+    FOR_RANGE(u32, i, n) {
+        auto& v = *(values + n);
+        if (v == value)
+            return true;
+    }
+    return -1;
 }
 
 // ----- Bucket Array -----
@@ -161,112 +253,6 @@ struct Bucket_Array : Non_Copyable {
     Bucket_Index used_buckets_count;
     Bucket_Index unfull_buckets_count;
 };
-
-template <typename T>
-class Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
-public:
-    Bucket_Array_Iterator() = delete;
-
-    Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
-
-    Bucket_Array_Iterator(
-        Bucket_Array<T>* arr,
-        i32 current,
-        Bucket_Index current_bucket  //
-        )
-        : _current(current),
-          _current_bucket(current_bucket),
-          _arr(arr)  //
-    {
-        Assert(arr != nullptr);
-    }
-
-    Bucket_Array_Iterator begin() const {
-        Bucket_Array_Iterator iter = {_arr, _current, _current_bucket};
-
-        if (_arr->used_buckets_count) {
-            iter._current -= 1;
-            iter._current_bucket_count = iter._Get_Current_Bucket_Count();
-            iter.Increment();
-        }
-
-        return iter;
-    }
-    Bucket_Array_Iterator end() const { return {_arr, 0, _arr->used_buckets_count}; }
-
-    T* Dereference() const {
-        Assert(_current_bucket < _arr->used_buckets_count);
-        Assert(_current < _arr->items_per_bucket);
-
-        auto& bucket = *(_arr->buckets + _current_bucket);
-        Assert(Bucket_Occupied(bucket, _current));
-
-        auto result = scast<T*>(bucket.data) + _current;
-        return result;
-    }
-
-    void Increment() {
-        FOR_RANGE(int, _GUARD_, 256) {
-            _current++;
-            if (_current >= _current_bucket_count) {
-                _current = 0;
-                _current_bucket++;
-
-                if (_current_bucket == _arr->used_buckets_count)
-                    return;
-
-                _current_bucket_count = _Get_Current_Bucket_Count();
-            }
-
-            Bucket<T>& bucket = *(_arr->buckets + _current_bucket);
-            if (Bucket_Occupied(bucket, _current))
-                return;
-        }
-        Assert(false);
-    }
-
-    bool Equal_To(const Bucket_Array_Iterator& o) const {
-        return _current == o._current && _current_bucket == o._current_bucket;
-    }
-
-private:
-    int _Get_Current_Bucket_Count() {
-        auto& bucket = *(_arr->buckets + _current_bucket);
-        return bucket.count;
-    }
-
-    Bucket_Array<T>* _arr;
-    i32 _current = 0;
-    Bucket_Index _current_bucket = 0;
-    u16 _current_bucket_count = 0;
-};
-
-template <typename T>
-auto Iter(Bucket_Array<T>* arr) {
-    return Bucket_Array_Iterator(arr);
-}
-
-// // @Note(hulvdan): Start
-// Array_Unordered_Remove
-//
-// Array_Add(array: [..] $T, value: T) {
-//     if (array.capacity < array.count + 1)
-//         array.data = realloc(array.data, 2 * sizeof(value) * array.capacity);
-//
-//     array[array.count] = value;
-//     array.count += 1;
-// }
-// // @Note(hulvdan): End
-
-template <typename T>
-i32 Array_Find(T* values, u32 n, T& value) {
-    FOR_RANGE(u32, i, n) {
-        auto& v = *(values + n);
-        if (v == value)
-            return true;
-    }
-    return -1;
-}
 
 template <typename T>
 Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
@@ -425,6 +411,90 @@ void Bucket_Array_Remove(Bucket_Array<T>& arr, Bucket_Locator& locator) {
     }
 }
 
+template <typename T>
+class Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
+public:
+    Bucket_Array_Iterator() = delete;
+
+    Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
+
+    Bucket_Array_Iterator(
+        Bucket_Array<T>* arr,
+        i32 current,
+        Bucket_Index current_bucket  //
+        )
+        : _current(current),
+          _current_bucket(current_bucket),
+          _arr(arr)  //
+    {
+        Assert(arr != nullptr);
+    }
+
+    Bucket_Array_Iterator begin() const {
+        Bucket_Array_Iterator iter = {_arr, _current, _current_bucket};
+
+        if (_arr->used_buckets_count) {
+            iter._current -= 1;
+            iter._current_bucket_count = iter._Get_Current_Bucket_Count();
+            iter.Increment();
+        }
+
+        return iter;
+    }
+    Bucket_Array_Iterator end() const { return {_arr, 0, _arr->used_buckets_count}; }
+
+    T* Dereference() const {
+        Assert(_current_bucket < _arr->used_buckets_count);
+        Assert(_current < _arr->items_per_bucket);
+
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        Assert(Bucket_Occupied(bucket, _current));
+
+        auto result = scast<T*>(bucket.data) + _current;
+        return result;
+    }
+
+    void Increment() {
+        FOR_RANGE(int, _GUARD_, 256) {
+            _current++;
+            if (_current >= _current_bucket_count) {
+                _current = 0;
+                _current_bucket++;
+
+                if (_current_bucket == _arr->used_buckets_count)
+                    return;
+
+                _current_bucket_count = _Get_Current_Bucket_Count();
+            }
+
+            Bucket<T>& bucket = *(_arr->buckets + _current_bucket);
+            if (Bucket_Occupied(bucket, _current))
+                return;
+        }
+        Assert(false);
+    }
+
+    bool Equal_To(const Bucket_Array_Iterator& o) const {
+        return _current == o._current && _current_bucket == o._current_bucket;
+    }
+
+private:
+    int _Get_Current_Bucket_Count() {
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        return bucket.count;
+    }
+
+    Bucket_Array<T>* _arr;
+    i32 _current = 0;
+    Bucket_Index _current_bucket = 0;
+    u16 _current_bucket_count = 0;
+};
+
+template <typename T>
+auto Iter(Bucket_Array<T>* arr) {
+    return Bucket_Array_Iterator(arr);
+}
+
 // ============================================================= //
 //                          Game Logic                           //
 // ============================================================= //
@@ -478,6 +548,21 @@ struct Graph : public Non_Copyable {
     // Graph_v2u* centers;
     // Graph_double_u centers_count;
 };
+
+BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i pos) {
+    v2i off = {pos.x - graph.offset.x, pos.y - graph.offset.y};
+    bool result = Pos_Is_In_Bounds(off, graph.size);
+    return result;
+}
+
+BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i pos) {
+    v2i off = {pos.x - graph.offset.x, pos.y - graph.offset.y};
+    Assert(Pos_Is_In_Bounds(off, graph.size));
+
+    u8* node_ptr = graph.nodes + off.y * graph.size.x + off.x;
+    u8 result = *node_ptr;
+    return result;
+}
 
 // NOTE(hulvdan): Сегмент - это несколько склеенных друг с другом клеток карты,
 // на которых может находиться один человек, который перетаскивает предметы.
@@ -575,6 +660,7 @@ void Graph_Update(Graph& graph, v2i pos, Direction dir, bool value) {
 using Scriptable_Resource_ID = u16;
 global Scriptable_Resource_ID global_forest_resource_id = 1;
 
+using Player_ID = u8;
 using Building_ID = u32;
 using Human_ID = u32;
 
@@ -595,12 +681,14 @@ struct Scriptable_Building : public Non_Copyable {
 #endif  // BF_CLIENT
 
     Scriptable_Resource_ID harvestable_resource_id;
+
+    f32 human_spawning_delay;
 };
 
 enum class Human_Type {
     Transporter,
-    // Constructor,
-    // Employee,
+    Constructor,
+    Employee,
 };
 
 struct Human_Moving_Component {
@@ -609,8 +697,7 @@ struct Human_Moving_Component {
     f32 progress;
     v2f from;
 
-    v2i to;
-    bool to_specified;
+    toptional<v2i> to;
 
     i16 path_max_length;
     i16 path_count;
@@ -618,6 +705,7 @@ struct Human_Moving_Component {
 };
 
 enum class Moving_In_The_World_State {
+    None = 0,
     Moving_To_The_City_Hall,
     Moving_To_Destination,
 };
@@ -645,6 +733,8 @@ struct Moving_In_The_World {
 };
 
 enum class Human_Main_State {
+    None = 0,
+
     // Common
     Moving_In_The_World,
 
@@ -659,16 +749,20 @@ enum class Human_Main_State {
     Employee,
 };
 
+struct Building;
+
 struct Human : public Non_Copyable {
-    Human_ID id;
+    Player_ID player_id;
     Human_Moving_Component moving;
 
     Graph_Segment* segment;
     Human_Type type;
-    // Building* building;
-    // Main_State state;
 
+    Human_Main_State state;
     Moving_In_The_World_State state_moving_in_the_world;
+
+    // Human_ID id;
+    Building* building;
     // Moving_Resources_State state_moving_resources;
     //
     // f32 moving_resources__picking_up_resource_elapsed;
@@ -691,6 +785,8 @@ struct Resource_To_Book : public Non_Copyable {
 };
 
 struct Building : public Non_Copyable {
+    Player_ID player_id;
+
     Human_ID constructor;
     Human_ID employee;
 
@@ -702,6 +798,8 @@ struct Building : public Non_Copyable {
 
     Building_ID id;
     f32 time_since_human_was_created;
+
+    bool employee_is_inside;
 
     // Bucket_Locator locator;
     // f32 time_since_item_was_placed;
@@ -730,6 +828,7 @@ enum class Element_Tile_Type {
 struct Element_Tile : public Non_Copyable {
     Element_Tile_Type type;
     Building* building;
+    Player_ID player_id;
 };
 
 void Validate_Element_Tile(Element_Tile& tile) {
@@ -781,7 +880,8 @@ struct Game_Map : public Non_Copyable {
     Bucket_Array<Graph_Segment> segments;
     Bucket_Array<Human> humans;
 
-    Queue<Graph_Segment> segments_that_need_humans;
+    struct Segments_Queue_Tag {};
+    Static_Allocation_Queue<Graph_Segment*, Segments_Queue_Tag> segments_that_need_humans;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;

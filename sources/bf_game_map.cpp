@@ -73,20 +73,40 @@ void Deinit_Bucket_Array(Bucket_Array<T>& arr) {
 
 template <typename T>
 void Init_Queue(Queue<T>& queue) {
-    queue.allocate = _aligned_malloc;
-    queue.free = _aligned_free;
     queue.count = 0;
     queue.max_count = 0;
     queue.base = nullptr;
+
+    queue.allocator_functions.allocate = _aligned_malloc;
+    queue.allocator_functions.free = _aligned_free;
+}
+
+template <typename T, typename Allocation_Tag>
+void Init_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
+    queue.count = 0;
+    queue.max_count = 0;
+    queue.base = nullptr;
+
+    queue.allocator_functions.allocate = _aligned_malloc;
+    queue.allocator_functions.free = _aligned_free;
 }
 
 template <typename T>
 void Deinit_Queue(Queue<T>& queue) {
-    Assert(queue.allocate != nullptr);
-    Assert(queue.free != nullptr);
-
     if (queue.base != nullptr) {
-        queue.free(queue.base);
+        Assert(queue.max_count > 0);
+        queue.allocator_functions.free(queue.base);
+        queue.base = nullptr;
+    }
+    queue.count = 0;
+    queue.max_count = 0;
+}
+
+template <typename T, typename Allocation_Tag>
+void Deinit_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
+    if (queue.base != nullptr) {
+        Assert(queue.max_count > 0);
+        queue.allocator_functions.free(queue.base);
         queue.base = nullptr;
     }
     queue.count = 0;
@@ -103,35 +123,296 @@ void Deinit_Queue(Queue<T>& queue) {
 //         building.resourcesToBook.Clear();
 //     }
 // }
-void Update_Building__Constructed(Game_State& state, Building& building, f32 dt) {
-    // auto& game_map = state.game_map;
-    // auto& scriptable = *building.scriptable;
+
+// template <typename Derived>
+// struct Human_Top_Controller {
+// protected:
+//     auto Self_Type = Derived;
+//
+// public:
+//     void On_Enter(Human& human, Human_Data& data) { Self_Type::On_Enter(human, data); }
+//
+//     void On_Exit(Human& human, Human_Data& data) { Self_Type::On_Exit(human, data); }
+//
+//     void Update(Human& human, Human_Data& data, f32 dt) {
+//         Self_Type::Update(human, data, dt);
+//     }
+//
+//     void On_Human_Current_Segment_Changed(
+//         Human& human,
+//         Human_Data& data,
+//         Graph_Segment* old_segment  //
+//     ) {
+//         Self_Type::On_Human_Current_Segment_Changed(human, datta, old_segment);
+//     }
+//
+//     void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {}
+//
+//     void Update_States(
+//         Human& human,
+//         Human_Data& data,
+//         Graph_Segment* old_segment,
+//         Building* old_building) {}
+// };
+//
+struct Human_Data {
+    Player_ID max_player_id;
+    Building* city_halls;
+    Game_Map* game_map;
+};
+
+void Set_Human_State(Human& human, Human_Main_State new_state);
+
+static struct Human_Moving_In_The_World_Controller {
+    static void On_Enter(Human& human, Human_Data& data) {
+        // if (human.segment != nullptr) {
+        //     TRACELOG(
+        //         "human.segment.resourcesToTransport.Count = "
+        //         "{human.segment.resourcesToTransport.Count}");
+        // }
+
+        human.moving.path_count = 0;
+        Update_States(human, data, nullptr, nullptr);
+    }
+
+    static void On_Exit(Human& human, Human_Data& data) {
+        // TRACELOG_SCOPE;
+
+        human.state_moving_in_the_world = Moving_In_The_World_State::None;
+        human.moving.to.reset();
+        human.moving.path_count = 0;
+
+        if (human.type == Human_Type::Employee) {
+            Assert(human.building != nullptr);
+            human.building->employee_is_inside = true;
+            // TODO: Somehow remove this human
+        }
+    }
+
+    static void Update(Human& human, Human_Data& data, f32 dt) {
+        Update_States(human, data, human.segment, human.building);
+    }
+
+    static void On_Human_Current_Segment_Changed(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment  //
+    ) {
+        // TRACELOG_SCOPE;
+        Assert(human.type == Human_Type::Transporter);
+        Update_States(human, data, old_segment, nullptr);
+    }
+
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data data) {
+        if (human.type == Human_Type::Constructor  //
+            && human.building != nullptr  //
+            && human.moving.pos == human.building->pos  //
+        ) {
+            Set_Human_State(human, Human_Main_State::Building);
+        }
+
+        if (human.type == Human_Type::Employee) {
+            Assert(human.building != nullptr);
+            auto& building = *human.building;
+
+            if (human.moving.pos == building.pos) {
+                Assert_False(human.moving.to.has_value());
+
+                // TODO: data.game_map->Employee_Reached_Building_Callback(human);
+                building.employee_is_inside = true;
+            }
+        }
+    }
+
+    static void Update_States(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment,
+        Building* old_building  //
+    ) {
+        // TRACELOG_SCOPE;
+
+        if (human.segment != nullptr) {
+            auto& segment = *human.segment;
+            Assert(human.type == Human_Type::Transporter);
+
+            // NOTE(hulvdan): Human stepped on a tile of the segment.
+            // We don't need to keep the path anymore
+            if (human.moving.to.has_value() &&
+                Graph_Contains(segment.graph, human.moving.to.value()) &&
+                Graph_Node(segment.graph, human.moving.to.value()) != 0  //
+            ) {
+                // TODO: human.moving.path.Clear();
+                return;
+            }
+
+            // NOTE(hulvdan): Human stepped on a tile of the segment
+            // and finished moving. Starting Moving_Inside_Segment
+            if (!(human.moving.to.has_value())  //
+                && Graph_Contains(segment.graph, human.moving.pos)  //
+                && Graph_Node(segment.graph, human.moving.pos) != 0  //
+            ) {
+                // TRACELOG("_controller.SetState(human,
+                // HumanState.MovingInsideSegment)");
+                // TODO: _controller.Set_State(human, MainState.MovingInsideSegment);
+                return;
+            }
+
+            if (old_segment != human.segment  //
+                || human.state_moving_in_the_world !=
+                    Moving_In_The_World_State::Moving_To_Destination  //
+            ) {
+                // TRACELOG("Setting human.stateMovingInTheWorld =
+                // State.MovingToSegment");
+                human.state_moving_in_the_world =
+                    Moving_In_The_World_State::Moving_To_Destination;
+
+                // TODO:
+                // var center = segment.graph.Get_Centers()[0];
+                // var path = data.map.Find_Path(human.moving.to ?? human.moving.pos,
+                // center, true);
+                //
+                // Assert(path.success);
+                // human.moving.AddPath(path.value);
+            }
+        }  //
+        else if (human.building != nullptr) {
+            auto& building = *human.building;
+
+            auto is_constructor_or_employee = human.type == Human_Type::Constructor  //
+                || human.type == Human_Type::Employee;
+            Assert(is_constructor_or_employee);
+
+            if (human.type == Human_Type::Constructor) {
+                // TODO:
+                // Assert_False(building.is_constructed);
+            } else if (human.type == Human_Type::Employee) {
+                // TODO:
+                // Assert(building.is_constructed);
+            }
+
+            if (old_building != human.building) {
+                // TODO:
+                // human.moving.path.Clear();
+                //
+                // var path = data.map.Find_Path(
+                //     human.moving.to ?? human.moving.pos, building.pos, true
+                // );
+                //
+                // Assert(path.success);
+                // human.moving.Add_Path(path.value);
+            }
+        } else if (
+            human.state_moving_in_the_world !=
+            Moving_In_The_World_State::Moving_To_The_City_Hall  //
+        ) {
+            // TRACELOG("human.stateMovingInTheWorld = State.MovingToTheCityHall");
+            human.state_moving_in_the_world =
+                Moving_In_The_World_State::Moving_To_The_City_Hall;
+
+            auto& city_hall = Assert_Deref(data.city_halls + human.player_id);
+            // TODO:
+            // auto path = data.game_map->Find_Path(
+            //     human.moving.to.value_or(human.moving.pos), city_hall.pos, true);
+            //
+            // Assert(path.success);
+            // human.moving.Add_Path(path.value);
+        }
+    }
+};
+
+#define TOP_HUMAN_CONTROLLERS_FUNCTIONS(_generate_case_, code) \
+    _generate_case_(Moving_In_The_World, Human_Moving_In_The_World_Controller::code);
+
+#define GENERATE_CASE(_human_main_state_, _called_function_) \
+    case (Human_Main_State::_human_main_state_): {           \
+        _called_function_;                                   \
+    } break;
+
+void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data) {
+    // TRACELOG_SCOPE;
+    // TRACELOG("Set_Human_State");
+    auto old_state = human.state;
+    human.state = new_state;
+
+    if (old_state != Human_Main_State::None) {
+        switch (old_state) {
+            TOP_HUMAN_CONTROLLERS_FUNCTIONS(GENERATE_CASE, On_Exit(human, data))
+        default:
+            INVALID_PATH;
+        }
+    }
+
+    human.state_moving_in_the_world = Moving_In_The_World_State::Moving_To_Destination;
+
+    switch (new_state) {
+        TOP_HUMAN_CONTROLLERS_FUNCTIONS(GENERATE_CASE, On_Enter(human, data))
+        // NOTE(hulvdan): There is another way of specifying Employee's behaviour
+    default:
+        INVALID_PATH;
+    }
+}
+
+Human* Create_Human_Transporter(
+    Game_Map& game_map,
+    Building& building,
+    Graph_Segment& segment,
+    Human_Data& data  //
+) {
+    auto [human_ptr, locator] = Find_And_Occupy_Empty_Slot(game_map.humans);
+    auto& human = *human_ptr;
+    // TODO:
+    // var human = Human.Transporter(Guid.NewGuid(), building.pos, segment);
+    // human.aboba = 1;
+
+    Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
+
+    // onHumanCreated.OnNext(new() { human = human });
     //
-    // if (scriptable.type == Building_Type::City_Hall) {
-    //     building.time_since_human_was_created += dt;
-    //     if (building.time_since_human_was_created > _humanSpawningDelay) {
-    //         building.time_since_human_was_created = _humanSpawningDelay;
-    //     }
-    //
-    //     if (segmentsThatNeedHumans.Count != 0) {
-    //         if (building.time_since_human_was_created >= _humanSpawningDelay) {
-    //             building.time_since_human_was_created -= _humanSpawningDelay;
-    //             auto human = Dequeue(segmentsThatNeedHumans);
-    //             Create_Human_Transporter(game_map, building, human);
-    //         }
-    //     }
+    // if (building.scriptable.type == BuildingType.SpecialCityHall) {
+    //     onCityHallCreatedHuman.OnNext(new() { cityHall = building });
+    //     DomainEvents<E_CityHallCreatedHuman>.Publish(new() { cityHall = building });
     // }
-    //
+
+    segment.assigned_human = human_ptr;
+    return human_ptr;
+}
+
+void Update_Building__Constructed(
+    Game_Map& game_map,
+    Building& building,
+    f32 dt,
+    Human_Data& data  //
+) {
+    auto& scriptable = *building.scriptable;
+
+    auto delay = scriptable.human_spawning_delay;
+
+    if (scriptable.type == Building_Type::City_Hall) {
+        auto& since_created = building.time_since_human_was_created;
+        since_created += dt;
+        if (since_created > delay)
+            since_created = delay;
+
+        if (game_map.segments_that_need_humans.count > 0) {
+            if (since_created >= delay) {
+                since_created -= delay;
+                auto segment = Dequeue(game_map.segments_that_need_humans);
+                Create_Human_Transporter(game_map, building, *segment, data);
+            }
+        }
+    }
+
     // _building_controller.Update(building, dt);
 }
 
-void Update_Buildings(Game_State& state, f32 dt) {
+void Update_Buildings(Game_State& state, f32 dt, Human_Data& data) {
     for (auto building_ptr : Iter(&state.game_map.buildings)) {
         auto& building = *building_ptr;
         // if (building.constructionProgress < 1) {
         //     Update_Building__Not_Constructed(building, dt);
         // } else {
-        // Update_Building__Constructed(building, dt);
+        Update_Building__Constructed(state.game_map, building, dt, data);
         // }
     }
 }
@@ -178,6 +459,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
 
 void Deinitialize_Game_Map(Game_State& state) {
     auto& game_map = state.game_map;
+
     Deinit_Bucket_Array(game_map.buildings);
     Deinit_Bucket_Array(game_map.segments);
     Deinit_Bucket_Array(game_map.humans);
