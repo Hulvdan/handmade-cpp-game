@@ -22,7 +22,7 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
     return Tile_State_Check::Skip;
 }
 
-// NOTE(hulvdan): Сюда не смотреть.
+// NOTE: Сюда не смотреть.
 // В момент написания я забыл про то, что существуют парсеры / лексеры)
 Load_Smart_Tile_Result
 Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize) {
@@ -36,7 +36,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     auto rules_output = arena.base + arena.used;
     auto output_max_bytes = arena.size - arena.used;
 
-    // NOTE(hulvdan): Example of file's contents
+    // NOTE: Example of file's contents
     // grass_7 -- fallback texture name
     // grass_1 -- rule #1
     // | * |
@@ -170,7 +170,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     return res;
 }
 
-// NOTE(hulvdan): `tile_ids_distance` is the distance
+// NOTE: `tile_ids_distance` is the distance
 // (in bytes) between two adjacent Tile_IDs in `tile_ids`
 BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Tile& tile) {
     v2i16 offsets[]

@@ -26,8 +26,8 @@ struct Pages : public Non_Copyable {
 
 #define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))
 
-// TODO(hulvdan): Introduce the notion of `alignment` here!
-// NOTE(hulvdan): Refer to Casey's memory allocation functions
+// TODO: Introduce the notion of `alignment` here!
+// NOTE: Refer to Casey's memory allocation functions
 // https://youtu.be/MvDUe2evkHg?list=PLEMXAbCVnmY6Azbmzj3BiC3QRYHE9QoG7&t=2121
 u8* Allocate_(Arena& arena, size_t size) {
     Assert(size > 0);
@@ -38,7 +38,7 @@ u8* Allocate_(Arena& arena, size_t size) {
     arena.used += size;
 
 #ifdef PROFILING
-    // TODO(hulvdan): Изучить способы того, как можно прикрутить профилирование памяти с
+    // TODO: Изучить способы того, как можно прикрутить профилирование памяти с
     // поддержкой arena аллокаций таким образом, чтобы не приходилось запускать Free в
     // профилировщике для старых аллокаций, когда делаем Reset арен
     //
@@ -61,7 +61,7 @@ void Deallocate_(Arena& arena, size_t size) {
     arena.used -= size;
 
 #ifdef PROFILING
-    // TODO(hulvdan): См. выше
+    // TODO: См. выше
     //
     // Assert(arena.name != nullptr);
     // TracyFreeN(arena.base + arena.used, arena.name);
@@ -86,7 +86,7 @@ struct Allocation {
     bool active;
 };
 
-// NOTE(hulvdan): `toc_pages` должны быть занулены!
+// NOTE: `toc_pages` должны быть занулены!
 struct Allocator : Non_Copyable {
     size_t toc_buffer_size;
     u8* toc_buffer;
@@ -129,7 +129,7 @@ struct Allocator : Non_Copyable {
         Assert(data_buffer != nullptr);
 
         if (current_allocations_count + 1 > max_toc_entries) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             Assert(false);
             return nullptr;
         }

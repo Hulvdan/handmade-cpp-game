@@ -15,7 +15,7 @@ struct Debug_BMP_Header {
     u32 height;
     u16 planes;
     u16 bits_per_pixel;
-    // NOTE(hulvdan): Mapping things below this line is not technically correct.
+    // NOTE: Mapping things below this line is not technically correct.
     // Earlier versions of BMP Info Headers don't anything specified below
     u32 compression;
 };
@@ -37,14 +37,14 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
     auto& header = *(Debug_BMP_Header*)filedata;
 
     if (header.signature != *(u16*)"BM") {
-        // TODO(hulvdan): Diagnostic. Not a BMP file
+        // TODO: Diagnostic. Not a BMP file
         INVALID_PATH;
         return res;
     }
 
     auto dib_size = header.dib_header_size;
     if (dib_size != 125 && dib_size != 56) {
-        // TODO(hulvdan): Is not yet implemented algorithm
+        // TODO: Is not yet implemented algorithm
         INVALID_PATH;
         return res;
     }
@@ -188,7 +188,7 @@ void Initialize_Renderer(
     if (!first_time_initializing && !hot_reloaded)
         return;
 
-    // NOTE(hulvdan): I could not find a way of initializing glew once
+    // NOTE: I could not find a way of initializing glew once
     // in win32 layer so that initializing here'd unnecessary.
     // However, I did not dig very deep into using GLEW as a dll.
     local_persist bool glew_was_initialized = false;
@@ -205,7 +205,7 @@ void Initialize_Renderer(
     auto& game_map = state.game_map;
     auto gsize = game_map.size;
 
-    // NOTE(hulvdan): Reloading shaders
+    // NOTE: Reloading shaders
     {
         GLint fragment_success = 0;
         GLint vertex_success = 0;
@@ -373,18 +373,18 @@ void main() {
     }
 
     rstate.tilemaps_count = 0;
-    // NOTE(hulvdan): Terrain tilemaps ([0; max_height])
+    // NOTE: Terrain tilemaps ([0; max_height])
     rstate.terrain_tilemaps_count = max_height + 1;
     rstate.tilemaps_count += rstate.terrain_tilemaps_count;
 
-    // NOTE(hulvdan): Terrain Resources (forests, stones, etc.)
+    // NOTE: Terrain Resources (forests, stones, etc.)
     // Currently use 2 tilemaps:
     // 1) Forests
     // 2) Tree's top tiles
     rstate.resources_tilemap_index = rstate.tilemaps_count;
     rstate.tilemaps_count += 2;
 
-    // NOTE(hulvdan): Element Tiles (roads, buildings, etc.)
+    // NOTE: Element Tiles (roads, buildings, etc.)
     // Currently use 2 tilemaps:
     // 1) Roads
     // 2) Flags above roads
@@ -537,7 +537,7 @@ void Draw_Sprite(
     model = glm::scale(model, size);
 
     auto matrix = projection * model;
-    // TODO(hulvdan): How bad is it that there are vec3, but not vec2?
+    // TODO: How bad is it that there are vec3, but not vec2?
     v3f vertices[] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}};
     for (auto& vertex : vertices) {
         vertex = matrix * vertex;
@@ -548,7 +548,7 @@ void Draw_Sprite(
 
     f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
     for (ptrd i : {0, 1, 2, 2, 1, 3}) {
-        // TODO(hulvdan): How bad is that there are 2 vertices duplicated?
+        // TODO: How bad is that there are 2 vertices duplicated?
         glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
         glVertex2f(vertices[i].x, vertices[i].y);
     }
@@ -885,7 +885,7 @@ void Render(Game_State& state, f32 dt) {
                 if (tile.height < h)
                     continue;
 
-                // TODO(hulvdan): Spritesheets! Vertices array,
+                // TODO: Spritesheets! Vertices array,
                 // texture vertices array, indices array
                 auto texture_id = Test_Smart_Tile(
                     tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
@@ -1182,7 +1182,7 @@ void Render(Game_State& state, f32 dt) {
     );
 }
 
-// NOTE(hulvdan): Game_State& state, v2i16 pos, Item_To_Build item
+// NOTE: Game_State& state, v2i16 pos, Item_To_Build item
 On_Item_Built__Function(Renderer__On_Item_Built) {
     Assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;

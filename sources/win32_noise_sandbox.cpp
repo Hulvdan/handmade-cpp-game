@@ -113,7 +113,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     } break;
 
     case WM_DESTROY: {
-        // TODO(hulvdan): It was an error. Should we try to recreate the window?
+        // TODO: It was an error. Should we try to recreate the window?
         running = false;
     } break;
 
@@ -256,7 +256,7 @@ int main(int, char**) {
         0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
     );
     if (!game_memory) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return -1;
     }
 
@@ -264,7 +264,7 @@ int main(int, char**) {
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
     WNDCLASSA windowClass = {};
-    // NOTE(hulvdan): Casey says that OWNDC is what makes us able
+    // NOTE: Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     // windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -272,11 +272,11 @@ int main(int, char**) {
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
 
-    // TODO(hulvdan): Icon!
+    // TODO: Icon!
     // HICON     hIcon;
 
     if (RegisterClassA(&windowClass) == NULL) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return 0;
     }
 
@@ -301,7 +301,7 @@ int main(int, char**) {
     );
 
     if (!window_handle) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return -1;
     }
 
@@ -334,14 +334,14 @@ int main(int, char**) {
 
         auto pixelformat = ChoosePixelFormat(hdc, &pfd);
         if (!pixelformat) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             return -1;
         }
 
         DescribePixelFormat(hdc, pixelformat, pfd.nSize, &pfd);
 
         if (SetPixelFormat(hdc, pixelformat, &pfd) == FALSE) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             return -1;
         }
         // --- Setting up pixel format end ---
@@ -350,12 +350,12 @@ int main(int, char**) {
         wglMakeCurrent(hdc, ghRC);
 
         if (glewInit() != GLEW_OK) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
             INVALID_PATH;
         }
 
-        // NOTE(hulvdan): Enabling VSync
+        // NOTE: Enabling VSync
         // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
         // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control_tear.txt
         if (WGLEW_EXT_swap_control_tear)
@@ -399,7 +399,7 @@ int main(int, char**) {
 
     f32 last_frame_dt = 0;
     const f32 MAX_FRAME_DT = 1.0f / 10.0f;
-    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole
+    // TODO: Use DirectX / OpenGL to calculate refresh_rate and rework this whole
     // mess
     f32 REFRESH_RATE = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
@@ -465,7 +465,7 @@ int main(int, char**) {
             }
         }
         else {
-            // TODO(hulvdan): There go your frameskips...
+            // TODO: There go your frameskips...
         }
 
         last_frame_dt = (f32)(perf_counter_new - perf_counter_current)

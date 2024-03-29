@@ -101,7 +101,7 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-// NOTE(hulvdan): bounds are EXCLUSIVE
+// NOTE: bounds are EXCLUSIVE
 #define Pos_Is_In_Bounds(pos, bounds) \
     (!((pos).x < 0 || (pos).x >= (bounds).x || (pos).y < 0 || (pos).y >= (bounds).y))
 
@@ -144,7 +144,7 @@ void Initialize_As_Zeros(T& value) {
 //                           Iterators                           //
 // ============================================================= //
 //
-// NOTE(hulvdan): Proudly taken from
+// NOTE: Proudly taken from
 // https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
 template <class Reference>
 struct Arrow_Proxy {
@@ -175,7 +175,7 @@ public:
     friend bool operator==(const Self_Type& left, const Self_Type& right) {
         return left.Equal_To(right);
     }
-    // SHIT(hulvdan): Fuken `clang-tidy` requires this function to be specified
+    // SHIT: Fuken `clang-tidy` requires this function to be specified
     friend bool operator!=(const Self_Type& left, const Self_Type& right) {
         return !left.Equal_To(right);
     }
@@ -195,7 +195,7 @@ public:
 // ============================================================= //
 //                            INLINE                             //
 // ============================================================= //
-// NOTE(hulvdan): Copied from `vendor/tracy/zstd/common/xxhash.h`
+// NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
 #if BF_NO_INLINE_HINTS /* disable inlining hints */
 #if defined(__GNUC__) || defined(__clang__)
 #define BF_FORCE_INLINE static __attribute__((unused))

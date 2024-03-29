@@ -1,9 +1,9 @@
-# SHIT(hulvdan): Oh, god, I hate this shit
+# SHIT: Oh, god, I hate this shit
 cmake_minimum_required(VERSION 3.27)
 
 project(game LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
@@ -68,7 +68,7 @@ target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/imgui_tables.cpp"
     "${IMGUI_DIR}/imgui_widgets.cpp"
 )
-# TODO(hulvdan): How to decouple from windows OpenGL?
+# TODO: How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib tracy)
 # target_link_libraries(bf_game PUBLIC dlmalloc)
 
@@ -160,7 +160,7 @@ ENDIF()
 # - Casey Muratori: MSVC PDBs Are Filled With Stale Debug Info:
 #   https://www.computerenhance.com/p/msvc-pdbs-are-filled-with-stale-debug
 IF (WIN32)
-    # NOTE(hulvdan): Visual Studio won't let us delete old bf_game.dll PDB files.
+    # NOTE: Visual Studio won't let us delete old bf_game.dll PDB files.
     # This is why we are creating PDBs with timestamped names.
     string(TIMESTAMP V_TIMESTAMP "%Y%m%d-%H%M%S" UTC)
     set_target_properties(bf_game PROPERTIES

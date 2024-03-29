@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <memory>
+#include <concepts>
 
 #include "glew.h"
 #include "wglew.h"
@@ -251,7 +252,7 @@ void Process_Events(
         } break;
 
         default:
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             INVALID_PATH;
         }
     }
@@ -356,7 +357,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         auto arena_size = root_arena.size - root_arena.used - non_persistent_arena_size
             - trash_arena_size;
 
-        // NOTE(hulvdan): `arena` remains the same after hot reloading. Others get reset
+        // NOTE: `arena` remains the same after hot reloading. Others get reset
         auto& arena = state.arena;
         auto& non_persistent_arena = state.non_persistent_arena;
         auto& trash_arena = state.trash_arena;
@@ -445,7 +446,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         && state.renderer_state->shaders_compilation_failed)
         ImGui::Text("ERROR: Shaders compilation failed!");
 
-    // TODO(hulvdan): Оно ругается на null-pointer dereference. Если так написать, норм?
+    // TODO: Оно ругается на null-pointer dereference. Если так написать, норм?
     if (state.renderer_state != nullptr)
         state.renderer_state->bitmap = &bitmap;
     else

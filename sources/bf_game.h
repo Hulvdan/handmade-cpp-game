@@ -6,10 +6,10 @@
 #define Gigabytes(value) (Megabytes(value) * 1024)
 #define Terabytes(value) (Gigabytes(value) * 1024)
 
-// NOTE(hulvdan): This importing nonsense was hastily taken from
+// NOTE: This importing nonsense was hastily taken from
 // https://blog.shaduri.dev/easily-create-shared-libraries-with-cmake-part-1
 // I just wanted to enable dll builds as fast as possible.
-// SHIT(hulvdan): Rewrite this shiet in a better way
+// SHIT: Rewrite this shiet in a better way
 //
 // Is it possible to write this
 

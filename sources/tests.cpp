@@ -297,7 +297,7 @@ void Free_Allocations() {
     virtual_allocations.clear();
 
     for (auto ptr : heap_allocations) {
-        // NOTE(hulvdan): Специально не вызываю heap_free,
+        // NOTE: Специально не вызываю heap_free,
         // чтобы не удаляло из массива по ходу итерирования.
         _aligned_free(ptr);
     }
@@ -329,7 +329,7 @@ int Process_Segments(
     Building*& building_sawmill,
     tvector<const char*> strings  //
 ) {
-    // NOTE(hulvdan): Creating `element_tiles`
+    // NOTE: Creating `element_tiles`
     gsize.y = strings.size();
     gsize.x = strlen(strings[0]);
 
@@ -400,7 +400,7 @@ int Process_Segments(
         }
     }
 
-    // NOTE(hulvdan): Counting segments
+    // NOTE: Counting segments
     Build_Graph_Segments(
         gsize,
         element_tiles,

@@ -36,7 +36,7 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
     tile.building = found_instance;
 }
 
-// TODO(hulvdan): Прикрутить какой-либо аллокатор,
+// TODO: Прикрутить какой-либо аллокатор,
 // который позволяет использовать заранее аллоцированные memory spaces.
 template <typename T>
 void Init_Bucket_Array(Bucket_Array<T>& arr, u32 buckets_count, u32 items_per_bucket) {
@@ -235,7 +235,7 @@ struct Human_Moving_In_The_World_Controller {
             auto& segment = *human.segment;
             Assert(human.type == Human_Type::Transporter);
 
-            // NOTE(hulvdan): Human stepped on a tile of the segment.
+            // NOTE: Human stepped on a tile of the segment.
             // We don't need to keep the path anymore
             if (human.moving.to.has_value()
                 && Graph_Contains(segment.graph, human.moving.to.value())
@@ -245,7 +245,7 @@ struct Human_Moving_In_The_World_Controller {
                 return;
             }
 
-            // NOTE(hulvdan): Human stepped on a tile of the segment
+            // NOTE: Human stepped on a tile of the segment
             // and finished moving. Starting Moving_Inside_Segment
             if (!(human.moving.to.has_value())  //
                 && Graph_Contains(segment.graph, human.moving.pos)  //
@@ -348,7 +348,7 @@ void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data)
 
     switch (new_state) {
         TOP_HUMAN_CONTROLLERS_FUNCTIONS(GENERATE_CASE, On_Enter(human, data))
-        // NOTE(hulvdan): There is another way of specifying Employee's behaviour
+        // NOTE: There is another way of specifying Employee's behaviour
     default:
         INVALID_PATH;
     }
@@ -522,7 +522,7 @@ void Regenerate_Terrain_Tiles(
         }
     }
 
-    // NOTE(hulvdan): Removing one-tile-high grass blocks because they'd look ugly
+    // NOTE: Removing one-tile-high grass blocks because they'd look ugly
     while (true) {
         bool changed = false;
         FOR_RANGE(int, y, gsize.y) {
@@ -574,7 +574,7 @@ void Regenerate_Terrain_Tiles(
         }
     }
 
-    // TODO(hulvdan): Element Tiles
+    // TODO: Element Tiles
     // element_tiles = _initialMapProvider.LoadElementTiles();
     //
     // auto cityHalls = buildings.FindAll(i = > i.scriptable.type ==
@@ -656,7 +656,7 @@ bool Should_Segment_Be_Deleted(
         auto& tile_pos = *(updated_tiles.pos + i);
         auto& updated_type = *(updated_tiles.type + i);
 
-        // TODO(hulvdan): Логика работы была изменена после C# репы.
+        // TODO: Логика работы была изменена после C# репы.
         // Нужно перепроверить, что тут всё работает стабильно.
         switch (updated_type) {
         case Tile_Updated_Type::Road_Placed:
@@ -753,6 +753,13 @@ typedef ttuple<Direction, v2i16> Dir_v2i16;
 
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
+#define Array_Push(array, array_count, array_max_count, value) \
+    {                                                          \
+        *(array + (array_count)) = value;                      \
+        (array_count)++;                                       \
+        Assert((array_count) <= (array_max_count));            \
+    }
+
 BF_FORCE_INLINE void Update_Segments_Function(
     Arena& trash_arena,
     Game_Map& game_map,
@@ -763,7 +770,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 ) {
     auto& segments = game_map.segments;
 
-    // @Speed: можем кешировать и инвалидировать,
+    // PERF: можем кешировать и инвалидировать,
     // трекая переходы состояний чувачков / моменты их прибытия в City Hall
     auto humans_moving_to_city_hall = 0;
     for (auto human_ptr : Iter(&game_map.humans)) {
@@ -772,24 +779,28 @@ BF_FORCE_INLINE void Update_Segments_Function(
             humans_moving_to_city_hall++;
     }
 
-    // @Memory: мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее
+    // PERF: мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее
     i32 humans_wo_segment_count = 0;
-    // @Note: `Graph_Segment*` is nullable, `Human*` is not
+    // NOTE: `Graph_Segment*` is nullable, `Human*` is not
     using tttt = ttuple<Graph_Segment*, Human*>;
     const i32 humans_wo_segment_max_count
         = segments_to_be_deleted_count + humans_moving_to_city_hall;
-    tttt* humans_that_need_new_segment
-        = Allocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
-    DEFER(Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count));
 
-    {
+    tttt* humans_that_need_new_segment = nullptr;
+    if (humans_wo_segment_max_count > 0) {
+        humans_that_need_new_segment
+            = Allocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
+
         i32 i = 0;
         for (auto human_ptr : Iter(&game_map.humans)) {
             auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
             if (human_ptr->state_moving_in_the_world == state) {
-                *(humans_that_need_new_segment + i) = {nullptr, human_ptr};
-                humans_wo_segment_count++;
-                Assert(humans_wo_segment_count <= humans_wo_segment_max_count);
+                Array_Push(
+                    humans_that_need_new_segment,
+                    humans_wo_segment_count,
+                    humans_wo_segment_max_count,
+                    tttt(nullptr, human_ptr)
+                );
             }
             i++;
         }
@@ -799,7 +810,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
         auto& segment = *segment_ptr;
 
-        // SHIT(hulvdan): Do it later
+        // SHIT: Do it later
         // FROM C# REPO
         // auto human = segment.assignedHuman;
         // if (human != null) {
@@ -827,7 +838,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
         auto& added_segment = *(added_segments + i);
 
-        // TODO(hulvdan): use move semantics?
+        // TODO: use move semantics?
         segment.vertices_count = added_segment.vertices_count;
         segment.vertices = added_segment.vertices;
         segment.graph.nodes_count = added_segment.graph.nodes_count;
@@ -835,15 +846,19 @@ BF_FORCE_INLINE void Update_Segments_Function(
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
 
-        // SHIT(hulvdan): Do it later
+        // SHIT: Do it later
         // FROM C# REPO
-        // foreach (auto segmentToLink in segments) {
+        // foreach (auto segment_to_link in segments) {
         //     // Mb there Graph.CollidesWith(other.Graph) is needed for
-        //     optimization if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
-        //         segment.Link(segmentToLink);
-        //         segmentToLink.Link(segment);
+        //     optimization if (segment_to_link.HasSomeOfTheSameVertices(segment)) {
+        //         segment.Link(segment_to_link);
+        //         segment_to_link.Link(segment);
         //     }
         // }
+    }
+
+    if (humans_wo_segment_max_count > 0) {
+        Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
     }
 }
 
@@ -979,7 +994,7 @@ void Update_Graphs(
             }
         }
 
-        // NOTE(hulvdan): Поиск островов графа
+        // NOTE: Поиск островов графа
         if (full_graph_build && !big_queue.count) {
             FOR_RANGE(int, y, gsize.y) {
                 FOR_RANGE(int, x, gsize.x) {
@@ -1004,7 +1019,7 @@ void Update_Graphs(
         if (vertices_count <= 1)
             continue;
 
-        // NOTE(hulvdan): Adding a new segment
+        // NOTE: Adding a new segment
         Assert(temp_graph.nodes_count > 0);
         // Assert(temp_height > 0);
         // Assert(width > 0);
@@ -1020,7 +1035,7 @@ void Update_Graphs(
 
         segment.graph.nodes_count = temp_graph.nodes_count;
 
-        // NOTE(hulvdan): Вычисление size и offset графа
+        // NOTE: Вычисление size и offset графа
         auto& gr_size = segment.graph.size;
         auto& offset = segment.graph.offset;
         offset.x = gsize.x - 1;
@@ -1049,7 +1064,7 @@ void Update_Graphs(
         Assert(offset.x < gsize.x);
         Assert(offset.y < gsize.y);
 
-        // NOTE(hulvdan): Копирование нод из временного графа
+        // NOTE: Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
         auto nodesss = Allocate_Graph_Nodes(graph_nodes_allocator, all_nodes_count);
@@ -1080,7 +1095,7 @@ void Build_Graph_Segments(
 
     auto tiles_count = gsize.x * gsize.y;
 
-    // NOTE(hulvdan): Создание новых сегментов
+    // NOTE: Создание новых сегментов
     auto added_segments_allocate = tiles_count * 4;
     u32 added_segments_count = 0;
     Graph_Segment* added_segments
@@ -1148,7 +1163,7 @@ void Build_Graph_Segments(
         segment.locator = locator;
         auto& added_segment = *(added_segments + i);
 
-        // TODO(hulvdan): use move semantics?
+        // TODO: use move semantics?
         segment.vertices_count = added_segment.vertices_count;
         segment.vertices = added_segment.vertices;
         segment.graph.nodes_count = added_segment.graph.nodes_count;
@@ -1176,7 +1191,7 @@ ttuple<int, int> Update_Tiles(
 
     auto tiles_count = gsize.x * gsize.y;
 
-    // NOTE(hulvdan): Ищем сегменты для удаления
+    // NOTE: Ищем сегменты для удаления
     auto segments_to_be_deleted_allocate = updated_tiles.count * 4;
     u32 segments_to_be_deleted_count = 0;
     Graph_Segment** segments_to_be_deleted = Allocate_Zeros_Array(
@@ -1194,7 +1209,7 @@ ttuple<int, int> Update_Tiles(
         segments_to_be_deleted_count++;
     };
 
-    // NOTE(hulvdan): Создание новых сегментов
+    // NOTE: Создание новых сегментов
     auto added_segments_allocate = updated_tiles.count * 4;
     u32 added_segments_count = 0;
     Graph_Segment* added_segments
@@ -1307,7 +1322,7 @@ ttuple<int, int> Update_Tiles(
         }
     }
 
-    // NOTE(hulvdan): Each byte here contains differently bit-shifted values of
+    // NOTE: Each byte here contains differently bit-shifted values of
     // `Direction`
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
     DEFER(Deallocate_Array(trash_arena, u8, tiles_count));

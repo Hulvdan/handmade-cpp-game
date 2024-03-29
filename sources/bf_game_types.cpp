@@ -3,7 +3,7 @@
 // ============================================================= //
 //                     Forward Declarations                      //
 // ============================================================= //
-// SHIT(hulvdan): Oh, god, I hate this shit
+// SHIT: Oh, god, I hate this shit
 struct Game_State;
 
 #ifdef BF_CLIENT
@@ -32,7 +32,7 @@ struct Fixed_Size_Queue {
     T* base;
 };
 
-// NOTE(hulvdan): По-умолчанию `Queue` хранит указатели на функции для работы с памятью.
+// NOTE: По-умолчанию `Queue` хранит указатели на функции для работы с памятью.
 // Можно предоставить из глобального окружения
 // переменную типа `Allocator_Functions`, чтобы этого не было.
 template <typename T>
@@ -58,7 +58,7 @@ Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functi
 
 template <typename T>
 void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
-    // TODO(hulvdan): Test!
+    // TODO: Test!
 
     Assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
 
@@ -68,8 +68,8 @@ void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
 
 template <typename T>
 T Dequeue(Fixed_Size_Queue<T>& queue) {
-    // TODO(hulvdan): Test!
-    // TODO(hulvdan): Переписать на ring buffer!
+    // TODO: Test!
+    // TODO: Переписать на ring buffer!
 
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
@@ -120,11 +120,11 @@ void Enqueue(Queue<T>& queue, const T value) {
     }
     else if (queue.max_count == queue.count) {
         u32 doubled_max_count = queue.max_count * 2;
-        Assert(queue.max_count < doubled_max_count);  // Поймаем overflow
+        Assert(queue.max_count < doubled_max_count);
         auto size = sizeof(T) * queue.max_count;
         auto old_ptr = queue.base;
 
-        // TODO(hulvdan): Почитать про realloc
+        // TODO: Почитать про realloc
         queue.base = rcast<T*>(queue.allocator_functions.allocate(size * 2, alignof(T)));
         memcpy(queue.base, old_ptr, size);
         queue.allocator_functions.free(old_ptr);
@@ -138,8 +138,8 @@ void Enqueue(Queue<T>& queue, const T value) {
 
 template <typename T>
 T Dequeue(Queue<T>& queue) {
-    // TODO(hulvdan): Test!
-    // TODO(hulvdan): Переписать на что-то из разряда ring buffer!
+    // TODO: Test!
+    // TODO: Переписать на что-то из разряда ring buffer!
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
 
@@ -167,7 +167,7 @@ void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& queue, const T value) {
         auto size = sizeof(T) * queue.max_count;
         auto old_ptr = queue.base;
 
-        // TODO(hulvdan): Почитать про realloc
+        // TODO: Почитать про realloc
         queue.base = rcast<T*>(queue.allocator_functions.allocate(size * 2, alignof(T)));
         memcpy(queue.base, old_ptr, size);
         queue.allocator_functions.free(old_ptr);
@@ -181,8 +181,8 @@ void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& queue, const T value) {
 
 template <typename T, typename Allocation_Tag>
 T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
-    // TODO(hulvdan): Test!
-    // TODO(hulvdan): Переписать на что-то из разряда ring buffer!
+    // TODO: Test!
+    // TODO: Переписать на что-то из разряда ring buffer!
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
 
@@ -235,7 +235,7 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
 #define BUCKET_UNMARK_OCCUPIED(bucket_ref, index) \
     UNMARK_BIT((bucket_ref).occupied, (index))
 #else
-// NOTE(hulvdan): Здесь можно будет переписать
+// NOTE: Здесь можно будет переписать
 // на использование просто bool, если понадобится
 #endif
 
@@ -262,10 +262,10 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
     Assert(arr.items_per_bucket > 0);
     Assert(arr.buckets_count > 0);
 
-    // NOTE(hulvdan): Это код инициализации. Подумать, не нужно
+    // NOTE: Это код инициализации. Подумать, не нужно
     // ли его инициализировать в самом начале его создания
 
-    if (arr.buckets == nullptr) {  // NOTE(hulvdan): Следовательно, это первый вызов.
+    if (arr.buckets == nullptr) {  // NOTE: Следовательно, это первый вызов.
         Assert(arr.unfull_buckets == nullptr);
 
         typedef Bucket<T> arr_type;
@@ -334,7 +334,7 @@ template <typename T>
 ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     if (arr.unfull_buckets_count == 0)
         Add_Bucket(arr);
-    // @Incomplete: Some kind of error handling!
+    // TODO: Some kind of error handling!
     Assert(arr.unfull_buckets_count > 0);
 
     Bucket_Index bucket_index = *(arr.unfull_buckets + 0);
@@ -342,7 +342,7 @@ ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
 
     int index = -1;
     FOR_RANGE(int, i, arr.items_per_bucket) {
-        // @Speed: We can record the first non-empty index in the occupied list?
+        // PERF: We can record the first non-empty index in the occupied list?
         u8 occupied = Bucket_Occupied(*bucket_ptr, i);
         if (!occupied) {
             index = i;
@@ -536,7 +536,7 @@ struct Graph : public Non_Copyable {
     v2i16 size;
     v2i16 offset;
 
-    // SHIT(hulvdan): Do this shiet later
+    // SHIT: Do this shiet later
     // Graph_v2u* centers;
     // Graph_double_u centers_count;
 };
@@ -556,7 +556,7 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
     return result;
 }
 
-// NOTE(hulvdan): Сегмент - это несколько склеенных друг с другом клеток карты,
+// NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
 // на которых может находиться один человек, который перетаскивает предметы.
 //
 // Сегменты формируются между зданиями, дорогами и флагами.
@@ -598,7 +598,7 @@ struct Human;
 
 struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
-    v2i16* vertices;  // NOTE(hulvdan): Вершинные клетки графа (флаги, здания)
+    v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
 
     Graph graph;
     Bucket_Locator locator;
@@ -608,7 +608,7 @@ struct Graph_Segment : public Non_Copyable {
 };
 
 struct Graph_Segment_Precalculated_Data {
-    // TODO(hulvdan): Reimplement `CalculatedGraphPathData` calculation from the old repo
+    // TODO: Reimplement `CalculatedGraphPathData` calculation from the old repo
 };
 
 [[nodiscard]] bool Graph_Node_Has(u8 node, Direction d) {
@@ -802,12 +802,12 @@ enum class Terrain {
 
 struct Terrain_Tile : public Non_Copyable {
     Terrain terrain;
-    // NOTE(hulvdan): Height starts at 0
+    // NOTE: Height starts at 0
     int height;
     bool is_cliff;
 };
 
-// NOTE(hulvdan): Upon editing ensure `Validate_Element_Tile` remains correct
+// NOTE: Upon editing ensure `Validate_Element_Tile` remains correct
 enum class Element_Tile_Type {
     None = 0,
     Road = 1,
@@ -835,7 +835,7 @@ struct Scriptable_Resource : public Non_Copyable {
     const char* name;
 };
 
-// NOTE(hulvdan): `scriptable` is `null` when `amount` = 0
+// NOTE: `scriptable` is `null` when `amount` = 0
 struct Terrain_Resource {
     Scriptable_Resource_ID scriptable_id;
 
@@ -1075,7 +1075,7 @@ struct Game_Renderer_State : public Non_Copyable {
 #endif  // BF_CLIENT
 
 u8* Book_Single_Page(Pages& pages) {
-    // NOTE(hulvdan): If there exists allocated page that is not in use -> return it
+    // NOTE: If there exists allocated page that is not in use -> return it
     FOR_RANGE(u32, i, pages.allocated_count) {
         bool& in_use = *(pages.in_use + i);
         if (!in_use) {
@@ -1084,7 +1084,7 @@ u8* Book_Single_Page(Pages& pages) {
         }
     }
 
-    // NOTE(hulvdan): Allocating more pages and mapping them
+    // NOTE: Allocating more pages and mapping them
     Assert(pages.allocated_count < pages.total_count_cap);
 
     auto pages_to_allocate = OS_DATA.min_pages_per_allocation;
@@ -1095,7 +1095,7 @@ u8* Book_Single_Page(Pages& pages) {
         page.base = allocation_address + (ptrd)i * OS_DATA.page_size;
     }
 
-    // NOTE(hulvdan): Booking the first page that we allocated and returning it
+    // NOTE: Booking the first page that we allocated and returning it
     Page* result = pages.base + (ptrd)pages.allocated_count;
 
     *(pages.in_use + pages.allocated_count) = true;

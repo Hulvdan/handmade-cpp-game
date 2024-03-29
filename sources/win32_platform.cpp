@@ -47,13 +47,13 @@ global void* initial_game_memory = nullptr;
 global size_t events_count = 0;
 global std::vector<u8> events = {};
 
-// TODO(hulvdan): Is there any way to restrict T
+// TODO: Is there any way to restrict T
 // to be only one of event structs specified in game.h?
 template <typename T>
 void push_event(T& event) {
     auto can_push = events.capacity() >= events.size() + sizeof(T) + 1;
     if (!can_push) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         INVALID_PATH;
         OutputDebugStringA("win32_platform: push_event(): skipped");
         return;
@@ -172,7 +172,7 @@ void Load_Or_Update_Game_Dll() {
 using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
 using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration);
 
-// NOTE(hulvdan): These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
+// NOTE: These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
 DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
@@ -210,7 +210,7 @@ XAudio2CreateStub(
     UINT32 Flags,
     XAUDIO2_PROCESSOR XAudio2Processor
 ) {
-    // TODO(hulvdan): Diagnostic
+    // TODO: Diagnostic
     return XAUDIO2_E_INVALID_CALL;
 }
 
@@ -224,7 +224,7 @@ void Load_XAudio_Dll() {
         library = LoadLibraryA("xaudio2_7.dll");
 
     if (!library) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return;
     }
 
@@ -257,7 +257,7 @@ f32 FillSamples(
     for (int i = 0; i < samples_count_per_channel; i++) {
         last_angle += angle_step;
 
-        // TODO(hulvdan): Implement our own sin function
+        // TODO: Implement our own sin function
         for (int k = 0; k < channels; k++) {
             auto val = volume * sinf(last_angle * (f32)(k + 1));
             samples[i * channels + k] = (i16)val;
@@ -418,7 +418,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     } break;
 
     case WM_DESTROY: {
-        // TODO(hulvdan): It was an error. Should we try to recreate the window?
+        // TODO: It was an error. Should we try to recreate the window?
         running = false;
     } break;
 
@@ -568,7 +568,7 @@ public:
 
         auto res = voice->SubmitSourceBuffer(buffer);
         if (FAILED(res)) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
         }
 
         std::swap(b1, b2);
@@ -656,7 +656,7 @@ static int WinMain(
         PAGE_EXECUTE_READWRITE
     );
     if (!initial_game_memory) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return -1;
     }
 
@@ -684,7 +684,7 @@ static int WinMain(
     u8* samples1 = nullptr;
     u8* samples2 = nullptr;
 
-    // TODO(hulvdan): Am I supposed to dynamically load xaudio2.dll?
+    // TODO: Am I supposed to dynamically load xaudio2.dll?
     // What about targeting different versions of xaudio on different OS?
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
@@ -702,7 +702,7 @@ static int WinMain(
                     &source_voice,
                     &voice_struct,
                     0,
-                    // TODO(hulvdan): Revise max frequency ratio
+                    // TODO: Revise max frequency ratio
                     // https://learn.microsoft.com/en-us/windows/win32/api/xaudio2/nf-xaudio2-ixaudio2-createsourcevoice
                     XAUDIO2_DEFAULT_FREQ_RATIO,
                     &voice_callback,
@@ -758,29 +758,29 @@ static int WinMain(
                     //     voice_callback.s1 = nullptr;
                     //     voice_callback.s2 = nullptr;
                     //
-                    //     // TODO(hulvdan): Diagnostic
+                    //     // TODO: Diagnostic
                     // }
                     //
                 }
                 else {
-                    // TODO(hulvdan): Diagnostic
+                    // TODO: Diagnostic
                     Assert(!source_voice);
                 }
             }
             else {
-                // TODO(hulvdan): Diagnostic
+                // TODO: Diagnostic
                 Assert(!master_voice);
             }
         }
         else {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             Assert(!xaudio);
         }
     }
     // --- XAudio stuff end ---
 
     WNDCLASSA windowClass = {};
-    // NOTE(hulvdan): Casey says that OWNDC is what makes us able
+    // NOTE: Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     // windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -788,17 +788,17 @@ static int WinMain(
     windowClass.lpszClassName = "BFGWindowClass";
     windowClass.hInstance = application_handle;
 
-    // TODO(hulvdan): Icon!
+    // TODO: Icon!
     // HICON     hIcon;
 
     if (RegisterClassA(&windowClass) == NULL) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return 0;
     }
 
     if (source_voice != nullptr) {
         auto res = source_voice->Start(0);
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         Assert(SUCCEEDED(res));
     }
 
@@ -818,7 +818,7 @@ static int WinMain(
     );
 
     if (!window_handle) {
-        // TODO(hulvdan): Diagnostic
+        // TODO: Diagnostic
         return -1;
     }
 
@@ -847,14 +847,14 @@ static int WinMain(
 
         auto pixelformat = ChoosePixelFormat(hdc, &pfd);
         if (!pixelformat) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             return -1;
         }
 
         DescribePixelFormat(hdc, pixelformat, pfd.nSize, &pfd);
 
         if (SetPixelFormat(hdc, pixelformat, &pfd) == FALSE) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             return -1;
         }
         // --- Setting up pixel format end ---
@@ -864,13 +864,13 @@ static int WinMain(
 
         // glewExperimental = GL_TRUE;
         if (glewInit() != GLEW_OK) {
-            // TODO(hulvdan): Diagnostic
+            // TODO: Diagnostic
             // fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
             INVALID_PATH;
             return -1;
         }
 
-        // NOTE(hulvdan): Enabling VSync
+        // NOTE: Enabling VSync
         // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
         // https://registry.khronos.org/OpenGL/extensions/EXT/WGL_EXT_swap_control_tear.txt
         if (WGLEW_EXT_swap_control_tear)
@@ -917,7 +917,7 @@ static int WinMain(
 
     f32 last_frame_dt = 0;
     const f32 MAX_FRAME_DT = 1.0f / 10.0f;
-    // TODO(hulvdan): Use DirectX / OpenGL to calculate refresh_rate and rework this whole
+    // TODO: Use DirectX / OpenGL to calculate refresh_rate and rework this whole
     // mess
     f32 REFRESH_RATE = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
@@ -940,7 +940,7 @@ static int WinMain(
             break;
 
         // CONTROLLER STUFF
-        // TODO(hulvdan): Improve on latency?
+        // TODO: Improve on latency?
         for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
             XINPUT_STATE state = {};
 
@@ -965,7 +965,7 @@ static int WinMain(
                     = starting_frequency * powf(2, stick_y_normalized);
             }
             else {
-                // TODO(hulvdan): Handling disconnects
+                // TODO: Handling disconnects
             }
         }
         // CONTROLLER STUFF END
@@ -998,7 +998,7 @@ static int WinMain(
             }
         }
         else {
-            // TODO(hulvdan): There go your frameskips...
+            // TODO: There go your frameskips...
         }
 
         last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
@@ -1015,11 +1015,11 @@ static int WinMain(
     // if (buffer2 != nullptr)
     //     delete buffer2;
     //
-    // TODO(hulvdan): How am I supposed to release it?
+    // TODO: How am I supposed to release it?
     // source_voice
     //
     // if (master_voice != nullptr) {
-    //     // TODO(hulvdan): How am I supposed to release it?
+    //     // TODO: How am I supposed to release it?
     //     //
     //     //
     //     https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--initialize-xaudio2
