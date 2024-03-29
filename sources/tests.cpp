@@ -1374,3 +1374,15 @@ TEST_CASE("Array functions") {
     CHECK(*(arr + 3) == 4);
     CHECK(*(arr + 4) == 5);
 }
+
+TEST_CASE("Longest_Meaningful_Path") {
+    CHECK(Longest_Meaningful_Path({1, 1}) == 1);
+    CHECK(Longest_Meaningful_Path({2, 2}) == 3);
+    CHECK(Longest_Meaningful_Path({3, 2}) == 5);
+    CHECK(Longest_Meaningful_Path({3, 3}) == 7);
+    CHECK(Longest_Meaningful_Path({4, 1}) == 4);
+    CHECK(Longest_Meaningful_Path({1, 4}) == 4);
+    CHECK(Longest_Meaningful_Path({4, 3}) == 9);
+    CHECK(Longest_Meaningful_Path({5, 3}) == 11);
+    CHECK(Longest_Meaningful_Path({5, 5}) == 17);
+}

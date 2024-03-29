@@ -49,3 +49,27 @@ u32 Ceil_To_Power_Of_2(u32 value) {
 
     return power;
 }
+
+//
+// NOTE:
+// Подсчёт самого длинного пути без циклов,
+// который может быть выдан при расчёте кратчайшего пути.
+//
+// В геометрическом смысле его длина
+// равна количеству клеток с буквой R - 20.
+//
+//     R.RRR.RRR
+//     R.R.R.R.R
+//     R.R.R.R.R
+//     RRR.RRR.R
+//
+u32 Longest_Meaningful_Path(v2i16 gsize) {
+    i32 a = MIN(gsize.x, gsize.y);
+    i32 b = MAX(gsize.x, gsize.y);
+
+    i32 v1 = a / 2 + Ceil_Division(a, 2) * b;
+    i32 v2 = b / 2 + Ceil_Division(b, 2) * a;
+
+    i32 result = MAX(v1, v2);
+    return result;
+}

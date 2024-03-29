@@ -56,10 +56,8 @@ ttuple<size_t, v2i16*, i32> Build_Path(
         destination = value;
     }
 #else
-    // NOTE: Одинарный проход, но без RAM overhead-а на `trash_arena`
-    i32 path_max_count =  //
-        Ceil_Division((i32)gsize.x * gsize.y, 2)
-        + Ceil_Division(MAX(gsize.x, gsize.y), 2);
+    // NOTE: Одинарный проход. С RAM overhead-ом
+    i32 path_max_count = Longest_Meaningful_Path(gsize);
 #endif
 
     size_t trash_allocation_size = sizeof(v2i16) * path_max_count;
