@@ -81,7 +81,7 @@ void Init_Queue(Queue<T>& queue) {
 }
 
 template <typename T, typename Allocation_Tag>
-void Init_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
+void Init_Static_Allocation_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
     queue.count = 0;
     queue.max_count = 0;
     queue.base = nullptr;
@@ -457,7 +457,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.buildings, 32, 128);
     Init_Bucket_Array(game_map.segments, 32, 128);
     Init_Bucket_Array(game_map.humans, 32, 128);
-    Init_Queue(game_map.segments_that_need_humans);
+    Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }

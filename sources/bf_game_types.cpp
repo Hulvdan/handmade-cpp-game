@@ -690,7 +690,6 @@ struct Human_Moving_Component {
     v2f from;
 
     toptional<v2i16> to;
-
     Queue<v2i16> path;
 };
 

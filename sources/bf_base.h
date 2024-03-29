@@ -42,8 +42,9 @@ using v2f = glm::vec2;
 using v2i = glm::ivec2;
 typedef glm::vec<2, int16_t, glm::defaultp> v2i16;
 
-const v2i v2i_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 const v2i16 v2i16_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+const v2i16 v2i16_adjacent_offsets_including_0[5]
+    = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
 constexpr v2i v2i_zero = v2i(0, 0);
 constexpr v2i v2i_one = v2i(1, 1);

@@ -428,12 +428,6 @@ void main() {
 
     // --- Element Tiles ---
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
-    v2i16 adjacent_offsets[4] = {
-        {1, 0},
-        {0, 1},
-        {-1, 0},
-        {0, -1},
-    };
     FOR_RANGE(i32, y, gsize.y) {
         FOR_RANGE(i32, x, gsize.x) {
             Element_Tile& element_tile = *(game_map.element_tiles + y * gsize.x + x);
@@ -1188,8 +1182,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     if (element_tile.type != Element_Tile_Type::Building)
         Assert(element_tile.building == nullptr);
 
-    v2i16 offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
-    for (auto offset : offsets) {
+    for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
