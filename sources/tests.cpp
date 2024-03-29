@@ -1317,3 +1317,25 @@ TEST_CASE("Queue") {
 
     Free_Allocations();
 }
+
+TEST_CASE("Array functions") {
+    const auto max_count = 10;
+    int arr_arr[max_count];
+
+    i32 count = 0;
+    int* arr = arr_arr;
+    Array_Push(arr, count, max_count, 5);
+    CHECK(*(arr + 0) == 5);
+    Array_Push(arr, count, max_count, 4);
+    CHECK(*(arr + 1) == 4);
+    Array_Push(arr, count, max_count, 3);
+    Array_Push(arr, count, max_count, 2);
+    Array_Push(arr, count, max_count, 1);
+
+    Array_Reverse(arr, count);
+    CHECK(*(arr + 0) == 1);
+    CHECK(*(arr + 1) == 2);
+    CHECK(*(arr + 2) == 3);
+    CHECK(*(arr + 3) == 4);
+    CHECK(*(arr + 4) == 5);
+}

@@ -1,5 +1,146 @@
 #pragma once
 
+#define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
+
+#define Array_Push(array, array_count, array_max_count, value) \
+    {                                                          \
+        *(array + (array_count)) = value;                      \
+        (array_count)++;                                       \
+        Assert((array_count) <= (array_max_count));            \
+    }
+
+#define Array_Reverse(array, count)                    \
+    {                                                  \
+        Assert(count >= 0);                            \
+        FOR_RANGE(i32, i, count / 2) {                 \
+            auto t = *(array + i);                     \
+            *(array + i) = *(array + (count - i - 1)); \
+            *(array + (count - i - 1)) = t;            \
+        }                                              \
+    }
+
+struct Path_Find_Result {
+    bool success;
+    v2i16* path;
+    i32 path_count;
+    size_t trash_allocation_size;
+};
+
+ttuple<size_t, v2i16*, i32> Build_Path(
+    Arena& trash_arena,
+    v2i16 gsize,
+    toptional<v2i16>* bfs_parents_mtx,
+    v2i16 destination
+) {
+#if 1
+    // NOTE: Двойной проход, но без RAM overhead-а на `trash_arena`
+    i32 path_max_count = 1;
+    while (GRID_PTR_VALUE(bfs_parents_mtx, destination).has_value()) {
+        auto value = GRID_PTR_VALUE(bfs_parents_mtx, destination).value();
+        path_max_count++;
+        destination = value;
+    }
+#else
+    // NOTE: Одинарный проход, но без RAM overhead-а на `trash_arena`
+    i32 path_max_count =  //
+        Ceil_Division((i32)gsize.x * gsize.y, 2)
+        + Ceil_Division(MAX(gsize.x, gsize.y), 2);
+#endif
+
+    size_t trash_allocation_size = sizeof(v2i16) * path_max_count;
+
+    i32 path_count = 0;
+    v2i16* path = Allocate_Array(trash_arena, v2i16, path_max_count);
+
+    Array_Push(path, path_count, path_max_count, destination);
+    while (GRID_PTR_VALUE(bfs_parents_mtx, destination).has_value()) {
+        auto value = GRID_PTR_VALUE(bfs_parents_mtx, destination).value();
+        Array_Push(path, path_count, path_max_count, value);
+        destination = value;
+    }
+
+    Array_Reverse(path, path_count);
+
+    return {trash_allocation_size, path, path_count};
+}
+
+// NOTE:
+// TODO: DON'T FORGET TO DEALLOCATE!!!
+Path_Find_Result Find_Path(
+    Arena& arena,
+    Arena& trash_arena,
+    v2i16 gsize,
+    Terrain_Tile* terrain_tiles,
+    Element_Tile* element_tiles,
+    v2i16 source,
+    v2i16 destination,
+    bool avoid_harvestable_resources
+) {
+    if (source == destination)
+        return {true, {}, 0};
+
+    i32 tiles_count = gsize.x * gsize.y;
+
+    Path_Find_Result result = {};
+    Fixed_Size_Queue<v2i16> queue = {};
+    queue.memory_size = sizeof(v2i16) * tiles_count;
+    queue.base = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    result.trash_allocation_size = queue.memory_size;
+    Enqueue(queue, source);
+
+    bool* visited_mtx = Allocate_Array(trash_arena, bool, tiles_count);
+    DEFER(Deallocate_Array(trash_arena, bool, tiles_count));
+    GRID_PTR_VALUE(visited_mtx, source) = true;
+
+    toptional<v2i16>* bfs_parents_mtx
+        = Allocate_Array(trash_arena, toptional<v2i16>, tiles_count);
+    DEFER(Deallocate_Array(trash_arena, toptional<v2i16>, tiles_count));
+
+    while (queue.count > 0) {
+        auto pos = Dequeue(queue);
+        FOR_DIRECTION(dir) {
+            auto offset = As_Offset(dir);
+            auto new_pos = pos + offset;
+            if (!Pos_Is_In_Bounds(new_pos, gsize))
+                continue;
+
+            auto& visited = GRID_PTR_VALUE(visited_mtx, new_pos);
+            if (visited)
+                continue;
+
+            if (avoid_harvestable_resources) {
+                auto& terrain_tile = GRID_PTR_VALUE(terrain_tiles, new_pos);
+                if (terrain_tile.resource_amount > 0)
+                    continue;
+            }
+
+            auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+            visited = true;
+
+            GRID_PTR_VALUE(bfs_parents_mtx, new_pos) = pos;
+
+            if (new_pos == destination) {
+                // NOTE:
+                // TODO: DON'T FORGET TO DEALLOCATE!!!
+                result.success = true;
+                auto [trash_allocation_size, path, path_count]
+                    = Build_Path(trash_arena, gsize, bfs_parents_mtx, new_pos);
+                result.trash_allocation_size += trash_allocation_size;
+                result.path = path;
+                result.path_count = path_count;
+                return result;
+            }
+
+            Enqueue(queue, new_pos);
+        }
+    }
+
+    result.success = false;
+    result.trash_allocation_size = 0;
+    Deallocate_Array(trash_arena, u8, queue.memory_size);
+    return result;
+}
+
 Scriptable_Resource*
 Get_Scriptable_Resource(Game_State& state, Scriptable_Resource_ID id) {
     Assert(id - 1 < state.scriptable_resources_count);
@@ -750,15 +891,6 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
 }
 
 typedef ttuple<Direction, v2i16> Dir_v2i16;
-
-#define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
-
-#define Array_Push(array, array_count, array_max_count, value) \
-    {                                                          \
-        *(array + (array_count)) = value;                      \
-        (array_count)++;                                       \
-        Assert((array_count) <= (array_max_count));            \
-    }
 
 BF_FORCE_INLINE void Update_Segments_Function(
     Arena& trash_arena,

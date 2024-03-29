@@ -805,6 +805,8 @@ struct Terrain_Tile : public Non_Copyable {
     // NOTE: Height starts at 0
     int height;
     bool is_cliff;
+
+    i16 resource_amount;
 };
 
 // NOTE: Upon editing ensure `Validate_Element_Tile` remains correct
