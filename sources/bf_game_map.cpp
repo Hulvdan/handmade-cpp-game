@@ -427,8 +427,10 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
 
         auto buf = Allocate_Zeros_For(arena, Allocator);
         new (buf) Allocator(
-            toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
-            data_size, Allocate_Array(arena, u8, data_size)
+            toc_size,
+            Allocate_Zeros_Array(arena, u8, toc_size),
+            data_size,
+            Allocate_Array(arena, u8, data_size)
         );
 
         game_map.segment_vertices_allocator = buf;
@@ -442,8 +444,10 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
 
         auto buf = Allocate_Zeros_For(arena, Allocator);
         new (buf) Allocator(
-            toc_size, Allocate_Zeros_Array(arena, u8, toc_size),  //
-            data_size, Allocate_Array(arena, u8, data_size)
+            toc_size,
+            Allocate_Zeros_Array(arena, u8, toc_size),
+            data_size,
+            Allocate_Array(arena, u8, data_size)
         );
 
         game_map.graph_nodes_allocator = buf;
@@ -487,15 +491,23 @@ void Regenerate_Terrain_Tiles(
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
     DEFER(Deallocate_Array(trash_arena, u16, output_size));
     Fill_Perlin_2D(
-        terrain_perlin, sizeof(u16) * output_size, trash_arena, data.terrain_perlin,
-        noise_pitch, noise_pitch
+        terrain_perlin,
+        sizeof(u16) * output_size,
+        trash_arena,
+        data.terrain_perlin,
+        noise_pitch,
+        noise_pitch
     );
 
     auto forest_perlin = Allocate_Array(trash_arena, u16, output_size);
     DEFER(Deallocate_Array(trash_arena, u16, output_size));
     Fill_Perlin_2D(
-        forest_perlin, sizeof(u16) * output_size, trash_arena, data.forest_perlin,
-        noise_pitch, noise_pitch
+        forest_perlin,
+        sizeof(u16) * output_size,
+        trash_arena,
+        data.forest_perlin,
+        noise_pitch,
+        noise_pitch
     );
 
     FOR_RANGE(int, y, gsize.y) {
@@ -1116,8 +1128,16 @@ void Build_Graph_Segments(
 
     bool full_graph_build = true;
     Update_Graphs(
-        gsize, element_tiles, added_segments, added_segments_count, big_queue, queue,
-        trash_arena, visited, segment_vertices_allocator, graph_nodes_allocator,
+        gsize,
+        element_tiles,
+        added_segments,
+        added_segments_count,
+        big_queue,
+        queue,
+        trash_arena,
+        visited,
+        segment_vertices_allocator,
+        graph_nodes_allocator,
         full_graph_build
     );
 
@@ -1310,14 +1330,24 @@ ttuple<int, int> Update_Tiles(
 
     bool full_graph_build = false;
     Update_Graphs(
-        gsize, element_tiles, added_segments, added_segments_count, big_queue, queue,
-        trash_arena, visited, segment_vertices_allocator, graph_nodes_allocator,
+        gsize,
+        element_tiles,
+        added_segments,
+        added_segments_count,
+        big_queue,
+        queue,
+        trash_arena,
+        visited,
+        segment_vertices_allocator,
+        graph_nodes_allocator,
         full_graph_build
     );
 
     Update_Segments_Lambda(
-        segments_to_be_deleted_count, segments_to_be_deleted,  //
-        added_segments_count, added_segments
+        segments_to_be_deleted_count,
+        segments_to_be_deleted,
+        added_segments_count,
+        added_segments
     );
 
     FOR_RANGE(u32, i, segments_to_be_deleted_count) {
@@ -1423,27 +1453,31 @@ ttuple<int, int> Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                           \
-    Update_Tiles(                                                     \
-        state.game_map.size, /**/                                     \
-        state.game_map.element_tiles, /**/                            \
-        state.game_map.segments, /**/                                 \
-        trash_arena, /**/                                             \
-        Assert_Deref(state.game_map.segment_vertices_allocator), /**/ \
-        Assert_Deref(state.game_map.graph_nodes_allocator), /**/      \
-        state.pages, /**/                                             \
-        updated_tiles, /**/                                           \
-        [&game_map, &trash_arena](                                    \
-            u32 segments_to_be_deleted_count,                         \
-            Graph_Segment** segments_to_be_deleted, /**/              \
-            u32 added_segments_count, Graph_Segment* added_segments   \
-        ) {                                                           \
-            Update_Segments_Function(                                 \
-                trash_arena, game_map, /**/                           \
-                segments_to_be_deleted_count, segments_to_be_deleted, \
-                added_segments_count, added_segments                  \
-            );                                                        \
-        }                                                             \
+#define INVOKE_UPDATE_TILES                                      \
+    Update_Tiles(                                                \
+        state.game_map.size,                                     \
+        state.game_map.element_tiles,                            \
+        state.game_map.segments,                                 \
+        trash_arena,                                             \
+        Assert_Deref(state.game_map.segment_vertices_allocator), \
+        Assert_Deref(state.game_map.graph_nodes_allocator),      \
+        state.pages,                                             \
+        updated_tiles,                                           \
+        [&game_map, &trash_arena](                               \
+            u32 segments_to_be_deleted_count,                    \
+            Graph_Segment** segments_to_be_deleted,              \
+            u32 added_segments_count,                            \
+            Graph_Segment* added_segments                        \
+        ) {                                                      \
+            Update_Segments_Function(                            \
+                trash_arena,                                     \
+                game_map,                                        \
+                segments_to_be_deleted_count,                    \
+                segments_to_be_deleted,                          \
+                added_segments_count,                            \
+                added_segments                                   \
+            );                                                   \
+        }                                                        \
     );
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item) {

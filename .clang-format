@@ -11,6 +11,8 @@ BreakInheritanceList: BeforeComma
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Custom
 Cpp11BracedListStyle: 'true'
+BinPackArguments: 'false'
+BinPackParameters : 'false'
 BraceWrapping:
     BeforeElse: 'true'
 ColumnLimit: '90'

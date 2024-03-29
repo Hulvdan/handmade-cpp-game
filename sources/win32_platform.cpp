@@ -109,9 +109,14 @@ void Load_Or_Update_Game_Dll() {
 
     char systemtime_fmt[4096];
     sprintf(
-        systemtime_fmt, "%04d%02d%02d-%02d%02d%02d", (int)systemtime.wYear,
-        (int)systemtime.wMonth, (int)systemtime.wDay, (int)systemtime.wHour,
-        (int)systemtime.wMinute, (int)systemtime.wSecond
+        systemtime_fmt,
+        "%04d%02d%02d-%02d%02d%02d",
+        (int)systemtime.wYear,
+        (int)systemtime.wMonth,
+        (int)systemtime.wDay,
+        (int)systemtime.wHour,
+        (int)systemtime.wMinute,
+        (int)systemtime.wSecond
     );
 
     char temp_path[4096];
@@ -325,15 +330,20 @@ void Win32UpdateBitmap(HDC device_context) {
     game_bitmap.memory = VirtualAlloc(
         nullptr,
         game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
-        MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_EXECUTE_READWRITE
     );
 
     if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
 
     screen_bitmap.handle = CreateDIBitmap(
-        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory,
-        &screen_bitmap.info, DIB_RGB_COLORS
+        device_context,
+        &screen_bitmap.info.bmiHeader,
+        0,
+        game_bitmap.memory,
+        &screen_bitmap.info,
+        DIB_RGB_COLORS
     );
 }
 
@@ -346,8 +356,15 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     ImGui::NewFrame();
 
     Game_Update_And_Render_(
-        dt, initial_game_memory, initial_game_memory_size, screen_bitmap.bitmap,
-        (void*)events.data(), events_count, editor_data, os_data, hot_reloaded
+        dt,
+        initial_game_memory,
+        initial_game_memory_size,
+        screen_bitmap.bitmap,
+        (void*)events.data(),
+        events_count,
+        editor_data,
+        os_data,
+        hot_reloaded
     );
 
     ImGui::Render();
@@ -541,7 +558,11 @@ public:
         auto& buffer = b1;
 
         last_angle = FillSamples(
-            (i16*)samples, SAMPLES_HZ, samples_count_per_channel, channels, frequency,
+            (i16*)samples,
+            SAMPLES_HZ,
+            samples_count_per_channel,
+            channels,
+            frequency,
             last_angle
         );
 
@@ -595,7 +616,9 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
     Assert(count % os_data.min_pages_per_allocation == 0);
 
     return (u8*)VirtualAlloc(
-        nullptr, os_data.page_size * count, MEM_RESERVE | MEM_COMMIT,
+        nullptr,
+        os_data.page_size * count,
+        MEM_RESERVE | MEM_COMMIT,
         PAGE_EXECUTE_READWRITE
     );
 }
@@ -627,7 +650,9 @@ static int WinMain(
 
     initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
     initial_game_memory = VirtualAlloc(
-        nullptr, initial_game_memory_size, MEM_RESERVE | MEM_COMMIT,
+        nullptr,
+        initial_game_memory_size,
+        MEM_RESERVE | MEM_COMMIT,
         PAGE_EXECUTE_READWRITE
     );
     if (!initial_game_memory) {
@@ -674,10 +699,15 @@ static int WinMain(
                 voice_struct.cbSize = 0;
 
                 auto res = xaudio->CreateSourceVoice(
-                    &source_voice, &voice_struct, 0,
+                    &source_voice,
+                    &voice_struct,
+                    0,
                     // TODO(hulvdan): Revise max frequency ratio
                     // https://learn.microsoft.com/en-us/windows/win32/api/xaudio2/nf-xaudio2-ixaudio2-createsourcevoice
-                    XAUDIO2_DEFAULT_FREQ_RATIO, &voice_callback, nullptr, nullptr
+                    XAUDIO2_DEFAULT_FREQ_RATIO,
+                    &voice_callback,
+                    nullptr,
+                    nullptr
                 );
 
                 if (SUCCEEDED(res)) {
@@ -773,8 +803,14 @@ static int WinMain(
     }
 
     auto window_handle = CreateWindowExA(
-        0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
-        CW_USEDEFAULT, 640, 480,
+        0,
+        windowClass.lpszClassName,
+        "The Big Fuken Game",
+        WS_TILEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        640,
+        480,
         nullptr,  // [in, optional] HWND      hWndParent,
         nullptr,  // [in, optional] HMENU     hMenu,
         application_handle,  // [in, optional] HINSTANCE hInstance,

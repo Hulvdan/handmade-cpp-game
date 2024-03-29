@@ -76,8 +76,15 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     Check_OpenGL_Errors();
 
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE, texture.base
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA8,
+        texture.size.x,
+        texture.size.y,
+        0,
+        GL_BGRA_EXT,
+        GL_UNSIGNED_BYTE,
+        texture.base
     );
     Check_OpenGL_Errors();
 }
@@ -335,7 +342,9 @@ void main() {
             Debug_Load_File_And_Defer_Deallocate(load_result, path, trash_arena);
 
             auto rule_loading_result = Load_Smart_Tile_Rules(
-                rstate.grass_smart_tile, non_persistent_arena, load_result.output,
+                rstate.grass_smart_tile,
+                non_persistent_arena,
+                load_result.output,
                 load_result.size
             );
             Assert(rule_loading_result.success);
@@ -346,7 +355,9 @@ void main() {
             Debug_Load_File_And_Defer_Deallocate(load_result, path, trash_arena);
 
             auto rule_loading_result = Load_Smart_Tile_Rules(
-                rstate.forest_smart_tile, non_persistent_arena, load_result.output,
+                rstate.forest_smart_tile,
+                non_persistent_arena,
+                load_result.output,
                 load_result.size
             );
             Assert(rule_loading_result.success);
@@ -468,11 +479,15 @@ void main() {
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
     DEBUG_Load_Texture(
-        arena, non_persistent_arena, "ui/buildables_panel",
+        arena,
+        non_persistent_arena,
+        "ui/buildables_panel",
         ui_state.buildables_panel_background
     );
     DEBUG_Load_Texture(
-        arena, non_persistent_arena, "ui/buildables_placeholder",
+        arena,
+        non_persistent_arena,
+        "ui/buildables_placeholder",
         ui_state.buildables_placeholder_background
     );
 
@@ -704,13 +719,15 @@ void Draw_Stretchable_Sprite(
             Assert(sx >= 0);
 
             Draw_UI_Sprite(
-                tex_x0, tex_y0,  //
-                tex_x1, tex_y1,  //
-                v2f(sprite_x0, sprite_y0),  //
-                v2f(sx, sy),  //
-                v2f(0, 0),  //
-                BF_Color_White,  //
-                rstate  //
+                tex_x0,
+                tex_y0,
+                tex_x1,
+                tex_y1,
+                v2f(sprite_x0, sprite_y0),
+                v2f(sx, sy),
+                v2f(0, 0),
+                BF_Color_White,
+                rstate
             );
         }
     }
@@ -815,8 +832,15 @@ void Render(Game_State& state, f32 dt) {
     Check_OpenGL_Errors();
 
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, bitmap.width, bitmap.height, 0, GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE, bitmap.memory
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA8,
+        bitmap.width,
+        bitmap.height,
+        0,
+        GL_BGRA_EXT,
+        GL_UNSIGNED_BYTE,
+        bitmap.memory
     );
     Check_OpenGL_Errors();
 
@@ -1033,7 +1057,14 @@ void Render(Game_State& state, f32 dt) {
             auto p0 = projection * p0_local;
             auto p1 = projection * p1_local;
             Draw_Stretchable_Sprite(
-                p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale,
+                p0.x,
+                p1.x,
+                p0.y,
+                p1.y,
+                texture,
+                sprite_params,
+                panel_size,
+                in_scale,
                 rstate
             );
 

@@ -111,19 +111,28 @@ struct Test_Node {
     Test_Node(u32 a_id) : id(a_id), next(0), active(false) {}
 };
 
-#define Linked_List_Push_Back_Macro(nodes_, n_, first_node_index_, node_to_add_)    \
-    Linked_List_Push_Back(                                                          \
-        rcast<u8*>(nodes_), (n_), (first_node_index_), rcast<u8*>(&(node_to_add_)), \
-        offsetof(node_to_add_, active), offsetof(node_to_add_, next),               \
-        sizeof(node_to_add_)                                                        \
+#define Linked_List_Push_Back_Macro(nodes_, n_, first_node_index_, node_to_add_) \
+    Linked_List_Push_Back(                                                       \
+        rcast<u8*>(nodes_),                                                      \
+        (n_),                                                                    \
+        (first_node_index_),                                                     \
+        rcast<u8*>(&(node_to_add_)),                                             \
+        offsetof(node_to_add_, active),                                          \
+        offsetof(node_to_add_, next),                                            \
+        sizeof(node_to_add_)                                                     \
     );
 
-#define Linked_List_Remove_At_Macro(                                       \
-    nodes_, n_, first_node_index_, index_to_remove_, type_                 \
-)                                                                          \
-    Linked_List_Remove_At(                                                 \
-        rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_), \
-        offsetof(type_, active), offsetof(type_, next), sizeof(type_)      \
+#define Linked_List_Remove_At_Macro(                       \
+    nodes_, n_, first_node_index_, index_to_remove_, type_ \
+)                                                          \
+    Linked_List_Remove_At(                                 \
+        rcast<u8*>(nodes_),                                \
+        (n_),                                              \
+        (first_node_index_),                               \
+        (index_to_remove_),                                \
+        offsetof(type_, active),                           \
+        offsetof(type_, next),                             \
+        sizeof(type_)                                      \
     );
 
 #define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
@@ -393,8 +402,13 @@ int Process_Segments(
 
     // NOTE(hulvdan): Counting segments
     Build_Graph_Segments(
-        gsize, element_tiles, *segments, trash_arena, segment_vertices_allocator,
-        graph_nodes_allocator, pages  //
+        gsize,
+        element_tiles,
+        *segments,
+        trash_arena,
+        segment_vertices_allocator,
+        graph_nodes_allocator,
+        pages
     );
 
     int segments_count = 0;
@@ -404,18 +418,32 @@ int Process_Segments(
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                                              \
-    tvector<const char*> _strings = {__VA_ARGS__};                               \
-    auto(segments_count) = Process_Segments(                                     \
-        gsize, element_tiles, segments, trash_arena, segment_vertices_allocator, \
-        graph_nodes_allocator, pages, building_sawmill, _strings                 \
+#define Process_Segments_Macro(...)                \
+    tvector<const char*> _strings = {__VA_ARGS__}; \
+    auto(segments_count) = Process_Segments(       \
+        gsize,                                     \
+        element_tiles,                             \
+        segments,                                  \
+        trash_arena,                               \
+        segment_vertices_allocator,                \
+        graph_nodes_allocator,                     \
+        pages,                                     \
+        building_sawmill,                          \
+        _strings                                   \
     );
 
-#define Update_Tiles_Macro(updated_tiles)                                         \
-    REQUIRE(segments != nullptr);                                                 \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles(           \
-        gsize, element_tiles, *segments, trash_arena, segment_vertices_allocator, \
-        graph_nodes_allocator, pages, (updated_tiles), [](...) {}                 \
+#define Update_Tiles_Macro(updated_tiles)                               \
+    REQUIRE(segments != nullptr);                                       \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles( \
+        gsize,                                                          \
+        element_tiles,                                                  \
+        *segments,                                                      \
+        trash_arena,                                                    \
+        segment_vertices_allocator,                                     \
+        graph_nodes_allocator,                                          \
+        pages,                                                          \
+        (updated_tiles),                                                \
+        [](...) {}                                                      \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \
@@ -497,15 +525,19 @@ TEST_CASE("Update_Tiles") {
 
     auto segment_vertices_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
     new (segment_vertices_allocator_buf) Allocator(
-        1024, Allocate_Zeros_Array(trash_arena, u8, 1024),  //
-        4096, Allocate_Zeros_Array(trash_arena, u8, 4096)
+        1024,
+        Allocate_Zeros_Array(trash_arena, u8, 1024),
+        4096,
+        Allocate_Zeros_Array(trash_arena, u8, 4096)
     );
     auto& segment_vertices_allocator = *segment_vertices_allocator_buf;
 
     auto graph_nodes_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
     new (graph_nodes_allocator_buf) Allocator(
-        1024, Allocate_Zeros_Array(trash_arena, u8, 1024),  //
-        4096, Allocate_Zeros_Array(trash_arena, u8, 4096)
+        1024,
+        Allocate_Zeros_Array(trash_arena, u8, 1024),
+        4096,
+        Allocate_Zeros_Array(trash_arena, u8, 4096)
     );
     auto& graph_nodes_allocator = *graph_nodes_allocator_buf;
 

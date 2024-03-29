@@ -299,7 +299,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
-                "Terrain Scaling Bias", &editor_data.terrain_perlin.scaling_bias, 0.001f,
+                "Terrain Scaling Bias",
+                &editor_data.terrain_perlin.scaling_bias,
+                0.001f,
                 2.0f
             )) {
             editor_data.changed = true;
@@ -320,7 +322,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
-                "Forest Scaling Bias", &editor_data.forest_perlin.scaling_bias, 0.001f,
+                "Forest Scaling Bias",
+                &editor_data.forest_perlin.scaling_bias,
+                0.001f,
                 2.0f
             )) {
             editor_data.changed = true;

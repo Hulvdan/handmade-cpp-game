@@ -64,15 +64,20 @@ void Win32UpdateBitmap(HDC device_context) {
     game_bitmap.memory = VirtualAlloc(
         0,
         game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
-        MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_EXECUTE_READWRITE
     );
 
     if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
 
     screen_bitmap.handle = CreateDIBitmap(
-        device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory,
-        &screen_bitmap.info, DIB_RGB_COLORS
+        device_context,
+        &screen_bitmap.info.bmiHeader,
+        0,
+        game_bitmap.memory,
+        &screen_bitmap.info,
+        DIB_RGB_COLORS
     );
 }
 
@@ -200,7 +205,11 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
         // Perlin(tex, arena.base + arena.used, arena.size - arena.used, octaves,
         // scaling_bias, seed);
         Perlin_2D(
-            tex, arena.base + arena.used, arena.size - arena.used, octaves, scaling_bias,
+            tex,
+            arena.base + arena.used,
+            arena.size - arena.used,
+            octaves,
+            scaling_bias,
             seed
         );
 
@@ -214,14 +223,25 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
         Check_OpenGL_Errors();
 
         glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, tex.base
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA8,
+            tex.size.x,
+            tex.size.y,
+            0,
+            GL_BGRA_EXT,
+            GL_UNSIGNED_BYTE,
+            tex.base
         );
     }
 
     ImGui::Image(
-        (ImTextureID)tex.id, ImVec2(texture_display_size, texture_display_size), {0, 0},
-        {1, 1}, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImGui::GetStyleColorVec4(ImGuiCol_Border)
+        (ImTextureID)tex.id,
+        ImVec2(texture_display_size, texture_display_size),
+        {0, 0},
+        {1, 1},
+        ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+        ImGui::GetStyleColorVec4(ImGuiCol_Border)
     );
 }
 
@@ -266,8 +286,14 @@ int main(int, char**) {
     arena.base = (u8*)(game_memory) + sizeof(Arena);
 
     auto window_handle = CreateWindowExA(
-        0, windowClass.lpszClassName, "The Big Fuken Game", WS_TILEDWINDOW, CW_USEDEFAULT,
-        CW_USEDEFAULT, 640, 480,
+        0,
+        windowClass.lpszClassName,
+        "The Big Fuken Game",
+        WS_TILEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        640,
+        480,
         NULL,  // [in, optional] HWND      hWndParent,
         NULL,  // [in, optional] HMENU     hMenu,
         application_handle,  // [in, optional] HINSTANCE hInstance,
