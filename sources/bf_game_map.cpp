@@ -1053,8 +1053,13 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // PERF: Много memmove происходит
         auto& queue = game_map.segments_that_need_humans;
         auto index = Queue_Find(queue, segment_ptr);
-        if (index != -1)
+        if (index != -1) {
             Remove_From_Queue_At(queue, index);
+        }
+
+        Bucket_Array_Remove(segments, segment.locator);
+        segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
+        graph_nodes_allocator.Free(segment.graph.nodes);
     }
 
     FOR_RANGE(u32, i, added_segments_count) {
@@ -1072,24 +1077,21 @@ BF_FORCE_INLINE void Update_Segments_Function(
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
 
-        for (auto segment_to_link_ptr : Iter(&game_map.segments)) {
-            auto& segment_to_link = *segment_to_link_ptr;
+        for (auto segment2_ptr : Iter(&game_map.segments)) {
+            if (segment2_ptr == segment_ptr)
+                continue;
 
             // PERF: Мб тут чтоит что-то из разряда
             // AABB(graph1, graph2) для оптимизации заюзать
-            if (Have_Some_Of_The_Same_Vertices(segment, segment_to_link)) {
-                if (Vector_Find(segment_to_link.linked_segments, segment_ptr) == -1)
-                    Vector_Add(segment_to_link.linked_segments, segment_ptr);
+            auto& segment2 = *segment2_ptr;
+            if (Have_Some_Of_The_Same_Vertices(segment, segment2)) {
+                if (Vector_Find(segment2.linked_segments, segment_ptr) == -1)
+                    Vector_Add(segment2.linked_segments, segment_ptr);
 
-                if (Vector_Find(segment.linked_segments, segment_to_link_ptr) == -1)
-                    Vector_Add(segment.linked_segments, segment_to_link_ptr);
+                if (Vector_Find(segment.linked_segments, segment2_ptr) == -1)
+                    Vector_Add(segment.linked_segments, segment2_ptr);
             }
         }
-
-        // SHIT: Do it later
-        // FROM C# REPO
-        // foreach (auto segment_to_link in segments) {
-        // }
     }
 
     if (humans_wo_segment_max_count > 0) {
@@ -1256,8 +1258,6 @@ void Update_Graphs(
 
         // NOTE: Adding a new segment
         Assert(temp_graph.nodes_count > 0);
-        // Assert(temp_height > 0);
-        // Assert(width > 0);
 
         auto& segment = *(added_segments + added_segments_count);
         segment.vertices_count = vertices_count;
@@ -1588,30 +1588,6 @@ ttuple<int, int> Update_Tiles(
         added_segments_count,
         added_segments
     );
-
-    FOR_RANGE(u32, i, segments_to_be_deleted_count) {
-        Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
-        auto& segment = *segment_ptr;
-        segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
-        graph_nodes_allocator.Free(segment.graph.nodes);
-
-        Bucket_Array_Remove(segments, segment.locator);
-    }
-
-    FOR_RANGE(int, i, added_segments_count) {
-        auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
-        auto& segment = *segment_ptr;
-        segment.locator = locator;
-
-        auto& added_segment = *(added_segments + i);
-
-        segment.vertices_count = added_segment.vertices_count;
-        segment.vertices = added_segment.vertices;
-        segment.graph.nodes_count = added_segment.graph.nodes_count;
-        segment.graph.nodes = added_segment.graph.nodes;
-        segment.graph.size = added_segment.graph.size;
-        segment.graph.offset = added_segment.graph.offset;
-    }
 
 #ifdef ASSERT_SLOW
     for (auto segment1_ptr : Iter(&segments)) {
