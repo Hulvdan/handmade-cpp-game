@@ -773,14 +773,14 @@ BF_FORCE_INLINE void Update_Segments_Function(
     }
 
     // @Memory: мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее
-    i32 humans_that_need_new_segment_count = 0;
+    i32 humans_wo_segment_count = 0;
     // @Note: `Graph_Segment*` is nullable, `Human*` is not
     using tttt = ttuple<Graph_Segment*, Human*>;
-    const i32 humans_that_need_new_segment_max_count
+    const i32 humans_wo_segment_max_count
         = segments_to_be_deleted_count + humans_moving_to_city_hall;
     tttt* humans_that_need_new_segment
-        = Allocate_Array(trash_arena, tttt, humans_that_need_new_segment_max_count);
-    DEFER(Deallocate_Array(trash_arena, tttt, humans_that_need_new_segment_max_count));
+        = Allocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
+    DEFER(Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count));
 
     {
         i32 i = 0;
@@ -788,11 +788,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
             auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
             if (human_ptr->state_moving_in_the_world == state) {
                 *(humans_that_need_new_segment + i) = {nullptr, human_ptr};
-                humans_that_need_new_segment_count++;
-                Assert(
-                    humans_that_need_new_segment_count
-                    <= humans_that_need_new_segment_max_count
-                );
+                humans_wo_segment_count++;
+                Assert(humans_wo_segment_count <= humans_wo_segment_max_count);
             }
             i++;
         }
@@ -823,7 +820,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // }
     }
 
-    FOR_RANGE(int, i, added_segments_count) {
+    FOR_RANGE(u32, i, added_segments_count) {
         auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
         auto& segment = *segment_ptr;
         segment.locator = locator;
@@ -1075,7 +1072,9 @@ void Build_Graph_Segments(
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
-    Pages& pages
+    Pages& pages,
+    std::invocable<u32, Graph_Segment**, u32, Graph_Segment*> auto&&
+        Update_Segments_Lambda
 ) {
     Assert(segments.used_buckets_count == 0);
 
@@ -1141,31 +1140,21 @@ void Build_Graph_Segments(
         full_graph_build
     );
 
-    {
-        FOR_RANGE(int, i, added_segments_count) {
-            auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
-            auto& segment = *segment_ptr;
-            segment.locator = locator;
-            auto& added_segment = *(added_segments + i);
+    Update_Segments_Lambda(0, nullptr, added_segments_count, added_segments);
 
-            // TODO(hulvdan): use move semantics?
-            segment.vertices_count = added_segment.vertices_count;
-            segment.vertices = added_segment.vertices;
-            segment.graph.nodes_count = added_segment.graph.nodes_count;
-            segment.graph.nodes = added_segment.graph.nodes;
-            segment.graph.size = added_segment.graph.size;
-            segment.graph.offset = added_segment.graph.offset;
+    FOR_RANGE(u32, i, added_segments_count) {
+        auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
+        auto& segment = *segment_ptr;
+        segment.locator = locator;
+        auto& added_segment = *(added_segments + i);
 
-            // SHIT(hulvdan): Do it later
-            // FROM C# REPO
-            // foreach (auto segmentToLink in segments) {
-            //     // Mb there Graph.CollidesWith(other.Graph) is needed for
-            //     optimization if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
-            //         segment.Link(segmentToLink);
-            //         segmentToLink.Link(segment);
-            //     }
-            // }
-        }
+        // TODO(hulvdan): use move semantics?
+        segment.vertices_count = added_segment.vertices_count;
+        segment.vertices = added_segment.vertices;
+        segment.graph.nodes_count = added_segment.graph.nodes_count;
+        segment.graph.nodes = added_segment.graph.nodes;
+        segment.graph.size = added_segment.graph.size;
+        segment.graph.offset = added_segment.graph.offset;
     }
 }
 
@@ -1366,51 +1355,13 @@ ttuple<int, int> Update_Tiles(
 
         auto& added_segment = *(added_segments + i);
 
-        // TODO(hulvdan): use move semantics?
         segment.vertices_count = added_segment.vertices_count;
         segment.vertices = added_segment.vertices;
         segment.graph.nodes_count = added_segment.graph.nodes_count;
         segment.graph.nodes = added_segment.graph.nodes;
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
-
-        // SHIT(hulvdan): Do it later
-        // FROM C# REPO
-        // foreach (auto segmentToLink in segments) {
-        //     // Mb there Graph.CollidesWith(other.Graph) is needed for
-        //     // optimization
-        //     if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
-        //         segment.Link(segmentToLink);
-        //         segmentToLink.Link(segment);
-        //     }
-        // }
     }
-
-    // SHIT(hulvdan): Do it later
-    // _resourceTransportation.PathfindItemsInQueue();
-    // Tracing.Log("_itemTransportationSystem.PathfindItemsInQueue()");
-    //
-    // while (humansThatNeedNewSegment.Count > 0 && segmentsThatNeedHumans.Count > 0)
-    // {
-    //     auto segment = segmentsThatNeedHumans.Dequeue();
-    //
-    //     auto (oldSegment, human) = humansThatNeedNewSegment.Pop();
-    //     human.segment = segment;
-    //     segment.assignedHuman = human;
-    //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
-    // }
-    //
-    // foreach (auto segment in res.addedSegments) {
-    //     if (humansThatNeedNewSegment.Count == 0) {
-    //         segmentsThatNeedHumans.Enqueue(segment, 0);
-    //         continue;
-    //     }
-    //
-    //     auto (oldSegment, human) = humansThatNeedNewSegment.Pop();
-    //     human.segment = segment;
-    //     segment.assignedHuman = human;
-    //     _humanController.OnHumanCurrentSegmentChanged(human, oldSegment);
-    // }
 
 #ifdef ASSERT_SLOW
     for (auto segment1_ptr : Iter(&segments)) {

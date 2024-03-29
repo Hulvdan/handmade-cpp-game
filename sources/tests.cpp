@@ -408,7 +408,8 @@ int Process_Segments(
         trash_arena,
         segment_vertices_allocator,
         graph_nodes_allocator,
-        pages
+        pages,
+        [](...) {}
     );
 
     int segments_count = 0;
