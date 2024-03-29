@@ -233,6 +233,11 @@ T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
     return res;
 }
 
+template <typename T>
+FORCE_INLINE void Reset_Queue(Queue<T>& queue) {
+    queue.count = 0;
+}
+
 // ----- Array Functions -----
 
 template <typename T>
@@ -828,6 +833,7 @@ struct Building : public Non_Copyable {
     f32 time_since_human_was_created;
 
     bool employee_is_inside;
+    bool is_constructed;
 
     // Bucket_Locator locator;
     // f32 time_since_item_was_placed;

@@ -1315,8 +1315,6 @@ TEST_CASE("Queue") {
         REQUIRE(queue.count == 1);
         REQUIRE(Dequeue(queue) == 9);
         REQUIRE(queue.count == 0);
-
-        Free_Allocations();
     }
 
     SUBCASE("Bulk_Enqueue") {
@@ -1350,9 +1348,9 @@ TEST_CASE("Queue") {
         REQUIRE(queue.count == 1);
         CHECK(Dequeue(queue) == 10);
         REQUIRE(queue.count == 0);
-
-        Free_Allocations();
     }
+
+    Free_Allocations();
 }
 
 TEST_CASE("Array functions") {

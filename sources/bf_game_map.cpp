@@ -308,6 +308,8 @@ void Human_Moving_Component_Add_Path(
     v2i16* path,
     i32 path_count
 ) {
+    Reset_Queue(moving.path);
+
     if (moving.to.value_or(moving.pos) == *(path + 0)) {
         path += 1;
         path_count -= 1;
@@ -323,7 +325,8 @@ struct Human_Moving_In_The_World_Controller {
         //         "{human.segment.resourcesToTransport.Count}");
         // }
 
-        human.moving.path.count = 0;
+        Reset_Queue(human.moving.path);
+
         Update_States(human, data, nullptr, nullptr);
     }
 
@@ -332,7 +335,7 @@ struct Human_Moving_In_The_World_Controller {
 
         human.state_moving_in_the_world = Moving_In_The_World_State::None;
         human.moving.to.reset();
-        human.moving.path.count = 0;
+        Reset_Queue(human.moving.path);
 
         if (human.type == Human_Type::Employee) {
             Assert(human.building != nullptr);
@@ -394,7 +397,7 @@ struct Human_Moving_In_The_World_Controller {
                 && Graph_Contains(segment.graph, human.moving.to.value())
                 && Graph_Node(segment.graph, human.moving.to.value()) != 0  //
             ) {
-                human.moving.path.count = 0;
+                Reset_Queue(human.moving.path);
                 return;
             }
 
@@ -404,15 +407,15 @@ struct Human_Moving_In_The_World_Controller {
                 && Graph_Contains(segment.graph, human.moving.pos)  //
                 && Graph_Node(segment.graph, human.moving.pos) != 0  //
             ) {
-                // TRACELOG("_controller.SetState(human,
-                // HumanState.MovingInsideSegment)");
-                // TODO: _controller.Set_State(human, MainState.MovingInsideSegment);
+                // TRACELOG("Set_Human_State(human,
+                //     Human_Main_State::Moving_Inside_Segment, data)");
+                Set_Human_State(human, Human_Main_State::Moving_Inside_Segment, data);
                 return;
             }
 
-            if (old_segment != human.segment  //
-                || human.state_moving_in_the_world
-                    != Moving_In_The_World_State::Moving_To_Destination  //
+            auto moving_to_destination = Moving_In_The_World_State::Moving_To_Destination;
+            if (old_segment != human.segment
+                || human.state_moving_in_the_world != moving_to_destination  //
             ) {
                 // TRACELOG("Setting human.stateMovingInTheWorld =
                 // State.MovingToSegment");
@@ -435,13 +438,15 @@ struct Human_Moving_In_The_World_Controller {
                 Assert(path_count > 0);
 
                 Human_Moving_Component_Add_Path(human.moving, path, path_count);
-                Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
+                if (trash_allocation_size > 0)
+                    Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
             }
         }
         else if (human.building != nullptr) {
             auto& building = *human.building;
 
-            auto is_constructor_or_employee = human.type == Human_Type::Constructor  //
+            auto is_constructor_or_employee =  //
+                human.type == Human_Type::Constructor
                 || human.type == Human_Type::Employee;
             Assert(is_constructor_or_employee);
 
@@ -455,15 +460,24 @@ struct Human_Moving_In_The_World_Controller {
             }
 
             if (old_building != human.building) {
-                human.moving.path.count = 0;
+                Assert(data.trash_arena != nullptr);
+                auto& game_map = *data.game_map;
+                auto [success, path, path_count, trash_allocation_size] = Find_Path(
+                    *data.trash_arena,
+                    game_map.size,
+                    game_map.terrain_tiles,
+                    game_map.element_tiles,
+                    human.moving.to.value_or(human.moving.pos),
+                    building.pos,
+                    true
+                );
 
-                // TODO:
-                // var path = data.map.Find_Path(
-                //     human.moving.to ?? human.moving.pos, building.pos, true
-                // );
-                //
-                // Assert(path.success);
-                // human.moving.Add_Path(path.value);
+                Assert(success);
+                Assert(path_count > 0);
+
+                Human_Moving_Component_Add_Path(human.moving, path, path_count);
+                if (trash_allocation_size > 0)
+                    Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
             }
         }
         else if (
