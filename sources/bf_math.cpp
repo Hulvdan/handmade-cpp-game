@@ -31,3 +31,21 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
         u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
         byte &= 0xFF - (1 << ((bit_index) % 8));            \
     }
+
+// Usage Examples:
+//     32 -> 32
+//     26 -> 32
+//     13 -> 16
+//     8 -> 8
+//     0 -> ASSERT
+//     2147483648 and above -> ASSERT
+u32 Ceil_To_Power_Of_2(u32 value) {
+    Assert(value <= 2147483648);
+    Assert(value != 0);
+
+    u32 power = 1;
+    while (power < value)
+        power *= 2;
+
+    return power;
+}

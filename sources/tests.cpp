@@ -1267,55 +1267,92 @@ TEST_CASE("Queue") {
     queue.allocator_functions.allocate = heap_allocate;
     queue.allocator_functions.free = heap_free;
 
-    REQUIRE(queue.count == 0);
-    Enqueue(queue, 10);
-    REQUIRE(queue.count == 1);
-    auto val = Dequeue(queue);
-    CHECK(val == 10);
-    REQUIRE(queue.count == 0);
+    SUBCASE("Enqueue") {
+        REQUIRE(queue.count == 0);
+        Enqueue(queue, 10);
+        REQUIRE(queue.count == 1);
+        auto val = Dequeue(queue);
+        CHECK(val == 10);
+        REQUIRE(queue.count == 0);
 
-    REQUIRE(queue.max_count == 8);
-    Enqueue(queue, 1);
-    REQUIRE(queue.count == 1);
-    Enqueue(queue, 2);
-    REQUIRE(queue.count == 2);
-    Enqueue(queue, 3);
-    REQUIRE(queue.count == 3);
-    Enqueue(queue, 4);
-    REQUIRE(queue.count == 4);
-    Enqueue(queue, 5);
-    REQUIRE(queue.count == 5);
-    Enqueue(queue, 6);
-    REQUIRE(queue.count == 6);
-    Enqueue(queue, 7);
-    REQUIRE(queue.count == 7);
-    Enqueue(queue, 8);
-    REQUIRE(queue.count == 8);
-    REQUIRE(queue.max_count == 8);
-    Enqueue(queue, 9);
-    REQUIRE(queue.max_count == 16);
-    REQUIRE(queue.count == 9);
+        REQUIRE(queue.max_count == 8);
+        Enqueue(queue, 1);
+        REQUIRE(queue.count == 1);
+        Enqueue(queue, 2);
+        REQUIRE(queue.count == 2);
+        Enqueue(queue, 3);
+        REQUIRE(queue.count == 3);
+        Enqueue(queue, 4);
+        REQUIRE(queue.count == 4);
+        Enqueue(queue, 5);
+        REQUIRE(queue.count == 5);
+        Enqueue(queue, 6);
+        REQUIRE(queue.count == 6);
+        Enqueue(queue, 7);
+        REQUIRE(queue.count == 7);
+        Enqueue(queue, 8);
+        REQUIRE(queue.count == 8);
+        REQUIRE(queue.max_count == 8);
+        Enqueue(queue, 9);
+        REQUIRE(queue.max_count == 16);
+        REQUIRE(queue.count == 9);
 
-    REQUIRE(Dequeue(queue) == 1);
-    REQUIRE(queue.count == 8);
-    REQUIRE(Dequeue(queue) == 2);
-    REQUIRE(queue.count == 7);
-    REQUIRE(Dequeue(queue) == 3);
-    REQUIRE(queue.count == 6);
-    REQUIRE(Dequeue(queue) == 4);
-    REQUIRE(queue.count == 5);
-    REQUIRE(Dequeue(queue) == 5);
-    REQUIRE(queue.count == 4);
-    REQUIRE(Dequeue(queue) == 6);
-    REQUIRE(queue.count == 3);
-    REQUIRE(Dequeue(queue) == 7);
-    REQUIRE(queue.count == 2);
-    REQUIRE(Dequeue(queue) == 8);
-    REQUIRE(queue.count == 1);
-    REQUIRE(Dequeue(queue) == 9);
-    REQUIRE(queue.count == 0);
+        REQUIRE(Dequeue(queue) == 1);
+        REQUIRE(queue.count == 8);
+        REQUIRE(Dequeue(queue) == 2);
+        REQUIRE(queue.count == 7);
+        REQUIRE(Dequeue(queue) == 3);
+        REQUIRE(queue.count == 6);
+        REQUIRE(Dequeue(queue) == 4);
+        REQUIRE(queue.count == 5);
+        REQUIRE(Dequeue(queue) == 5);
+        REQUIRE(queue.count == 4);
+        REQUIRE(Dequeue(queue) == 6);
+        REQUIRE(queue.count == 3);
+        REQUIRE(Dequeue(queue) == 7);
+        REQUIRE(queue.count == 2);
+        REQUIRE(Dequeue(queue) == 8);
+        REQUIRE(queue.count == 1);
+        REQUIRE(Dequeue(queue) == 9);
+        REQUIRE(queue.count == 0);
 
-    Free_Allocations();
+        Free_Allocations();
+    }
+
+    SUBCASE("Bulk_Enqueue") {
+        REQUIRE(queue.count == 0);
+        int numbers_[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        constexpr auto n = sizeof(numbers_) / sizeof(numbers_[0]);
+        int* numbers = numbers_;
+        REQUIRE(n == 10);
+        Bulk_Enqueue(queue, numbers, 10);
+        REQUIRE(queue.count == 10);
+        REQUIRE(queue.max_count == 16);
+
+        REQUIRE(queue.count == 10);
+        CHECK(Dequeue(queue) == 1);
+        REQUIRE(queue.count == 9);
+        CHECK(Dequeue(queue) == 2);
+        REQUIRE(queue.count == 8);
+        CHECK(Dequeue(queue) == 3);
+        REQUIRE(queue.count == 7);
+        CHECK(Dequeue(queue) == 4);
+        REQUIRE(queue.count == 6);
+        CHECK(Dequeue(queue) == 5);
+        REQUIRE(queue.count == 5);
+        CHECK(Dequeue(queue) == 6);
+        REQUIRE(queue.count == 4);
+        CHECK(Dequeue(queue) == 7);
+        REQUIRE(queue.count == 3);
+        CHECK(Dequeue(queue) == 8);
+        REQUIRE(queue.count == 2);
+        CHECK(Dequeue(queue) == 9);
+        REQUIRE(queue.count == 1);
+        CHECK(Dequeue(queue) == 10);
+        REQUIRE(queue.count == 0);
+
+        Free_Allocations();
+    }
 }
 
 TEST_CASE("Array functions") {

@@ -67,7 +67,6 @@ ttuple<size_t, v2i16*, i32> Build_Path(
 // NOTE:
 // TODO: DON'T FORGET TO DEALLOCATE!!!
 Path_Find_Result Find_Path(
-    Arena& arena,
     Arena& trash_arena,
     v2i16 gsize,
     Terrain_Tile* terrain_tiles,
@@ -299,9 +298,22 @@ struct Human_Data {
     Player_ID max_player_id;
     Building* city_halls;
     Game_Map* game_map;
+    Arena* trash_arena;
 };
 
 void Set_Human_State(Human& human, Human_Main_State new_state);
+
+void Human_Moving_Component_Add_Path(
+    Human_Moving_Component& moving,
+    v2i16* path,
+    i32 path_count
+) {
+    if (moving.to.value_or(moving.pos) == *(path + 0)) {
+        path += 1;
+        path_count -= 1;
+    }
+    Bulk_Enqueue(moving.path, path, path_count);
+}
 
 struct Human_Moving_In_The_World_Controller {
     static void On_Enter(Human& human, Human_Data& data) {
@@ -407,13 +419,23 @@ struct Human_Moving_In_The_World_Controller {
                 human.state_moving_in_the_world
                     = Moving_In_The_World_State::Moving_To_Destination;
 
-                // TODO:
-                // var center = segment.graph.Get_Centers()[0];
-                // var path = data.map.Find_Path(human.moving.to ?? human.moving.pos,
-                // center, true);
-                //
-                // Assert(path.success);
-                // human.moving.AddPath(path.value);
+                Assert(data.trash_arena != nullptr);
+                auto& game_map = *data.game_map;
+                auto [success, path, path_count, trash_allocation_size] = Find_Path(
+                    *data.trash_arena,
+                    game_map.size,
+                    game_map.terrain_tiles,
+                    game_map.element_tiles,
+                    human.moving.to.value_or(human.moving.pos),
+                    segment.graph.center,
+                    true
+                );
+
+                Assert(success);
+                Assert(path_count > 0);
+
+                Human_Moving_Component_Add_Path(human.moving, path, path_count);
+                Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
             }
         }
         else if (human.building != nullptr) {

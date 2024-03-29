@@ -42,24 +42,6 @@ bool Is_Multiple_Of_2(int number, u8& power) {
     return true;
 }
 
-// Usage Examples:
-//     32 -> 32
-//     26 -> 32
-//     13 -> 16
-//     8 -> 8
-//     0 -> ASSERT
-//     2147483648 and above -> ASSERT
-u32 Ceil_To_Power_Of_2(u32 value) {
-    Assert(value <= 2147483648);
-    Assert(value != 0);
-
-    u32 power = 1;
-    while (power < value)
-        power *= 2;
-
-    return power;
-}
-
 void Fill_Perlin_1D(
     u16* output,
     u8* temp_storage,

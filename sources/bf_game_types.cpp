@@ -25,6 +25,7 @@ struct Allocator_Functions {
 
 // ----- Queues -----
 
+// TODO: Переписать на ring buffer!
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size;
@@ -32,10 +33,9 @@ struct Fixed_Size_Queue {
     T* base;
 };
 
-// NOTE: По-умолчанию `Queue` хранит указатели на функции для работы с памятью.
-// Можно предоставить из глобального окружения
-// переменную типа `Allocator_Functions`, чтобы этого не было.
+// TODO: Переписать на ring buffer!
 template <typename T>
+    requires std::is_trivially_copyable_v<T>
 struct Queue {
     u32 max_count;
     i32 count;
@@ -44,7 +44,9 @@ struct Queue {
     Allocator_Functions allocator_functions;
 };
 
+// TODO: Переписать на ring buffer!
 template <typename T, typename Allocation_Tag>
+    requires std::is_trivially_copyable_v<T>
 struct Static_Allocation_Queue {
     u32 max_count;
     i32 count;
@@ -54,6 +56,7 @@ struct Static_Allocation_Queue {
 };
 
 template <typename T, typename Allocation_Tag>
+    requires std::is_trivially_copyable_v<T>
 Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functions = {};
 
 template <typename T>
@@ -69,8 +72,6 @@ void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
 template <typename T>
 T Dequeue(Fixed_Size_Queue<T>& queue) {
     // TODO: Test!
-    // TODO: Переписать на ring buffer!
-
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
 
@@ -109,13 +110,17 @@ void Queue_Free(Queue<T>& queue, void* ptr) {
 }
 
 template <typename T>
-void Enqueue(Queue<T>& queue, const T value) {
+void Enqueue(Queue<T>& queue, const T value)
+    requires std::is_trivially_copyable_v<T>
+{
+    const auto& allocator_functions = queue.allocator_functions;
+
     if (queue.base == nullptr) {
         Assert(queue.max_count == 0);
         Assert(queue.count == 0);
         queue.max_count = 8;
         queue.base = rcast<T*>(
-            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T))
+            allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T))
         );
     }
     else if (queue.max_count == queue.count) {
@@ -124,10 +129,9 @@ void Enqueue(Queue<T>& queue, const T value) {
         auto size = sizeof(T) * queue.max_count;
         auto old_ptr = queue.base;
 
-        // TODO: Почитать про realloc
-        queue.base = rcast<T*>(queue.allocator_functions.allocate(size * 2, alignof(T)));
+        queue.base = rcast<T*>(allocator_functions.allocate(size * 2, alignof(T)));
         memcpy(queue.base, old_ptr, size);
-        queue.allocator_functions.free(old_ptr);
+        allocator_functions.free(old_ptr);
 
         queue.max_count *= 2;
     }
@@ -137,9 +141,45 @@ void Enqueue(Queue<T>& queue, const T value) {
 }
 
 template <typename T>
-T Dequeue(Queue<T>& queue) {
+void Bulk_Enqueue(Queue<T>& queue, const T* values, const u32 values_count)
+    requires std::is_trivially_copyable_v<T>
+{
+    const auto& allocator_functions = queue.allocator_functions;
+
     // TODO: Test!
-    // TODO: Переписать на что-то из разряда ring buffer!
+    if (queue.base == nullptr) {
+        Assert(queue.max_count == 0);
+        Assert(queue.count == 0);
+
+        queue.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
+        size_t memory_size = queue.max_count * sizeof(T);
+        Assert(memory_size / sizeof(T) == queue.max_count);  // NOTE: Ловим overflow
+
+        queue.base = rcast<T*>(allocator_functions.allocate(memory_size, alignof(T)));
+    }
+    else if (queue.max_count < queue.count + values_count) {
+        auto old_ptr = queue.base;
+        u32 new_max_count = Ceil_To_Power_Of_2(queue.max_count + values_count);
+        size_t old_memory_size = sizeof(T) * queue.max_count;
+        size_t new_memory_size = sizeof(T) * new_max_count;
+
+        // NOTE: Ловим overflow
+        Assert(queue.max_count < new_max_count);
+        Assert(old_memory_size < new_memory_size);
+
+        queue.base = rcast<T*>(allocator_functions.allocate(new_memory_size, alignof(T)));
+        memcpy(queue.base, old_ptr, sizeof(T) * queue.count);
+        allocator_functions.free(old_ptr);
+
+        queue.max_count = new_max_count;
+    }
+
+    memcpy(queue.base + queue.count, values, sizeof(T) * values_count);
+    queue.count += values_count;
+}
+
+template <typename T>
+T Dequeue(Queue<T>& queue) {
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
 
@@ -182,7 +222,6 @@ void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& queue, const T value) {
 template <typename T, typename Allocation_Tag>
 T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
     // TODO: Test!
-    // TODO: Переписать на что-то из разряда ring buffer!
     Assert(queue.base != nullptr);
     Assert(queue.count > 0);
 
@@ -240,7 +279,7 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
 #endif
 
 // TODO:
-// 1) Нужно ли реализовывать expandable количество бакетов?
+// 1) Нужно ли реализовать expandable количество бакетов?
 template <typename T>
 struct Bucket_Array : Non_Copyable {
     Allocator_Functions allocator_functions;
@@ -536,9 +575,8 @@ struct Graph : public Non_Copyable {
     v2i16 size;
     v2i16 offset;
 
-    // SHIT: Do this shiet later
-    // Graph_v2u* centers;
-    // Graph_double_u centers_count;
+    // TODO: Calculate it
+    v2i16 center;
 };
 
 BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
