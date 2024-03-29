@@ -415,7 +415,7 @@ int Process_Segments(
     REQUIRE(segments != nullptr);                                                 \
     auto [added_segments_count, removed_segments_count] = Update_Tiles(           \
         gsize, element_tiles, *segments, trash_arena, segment_vertices_allocator, \
-        graph_nodes_allocator, pages, (updated_tiles)                             \
+        graph_nodes_allocator, pages, (updated_tiles), [](...) {}                 \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \

@@ -604,6 +604,7 @@ struct Graph_Segment : public Non_Copyable {
     Bucket_Locator locator;
 
     Human* assigned_human;
+    // Vector<Graph_Segment*> linked_segments;
 };
 
 struct Graph_Segment_Precalculated_Data {

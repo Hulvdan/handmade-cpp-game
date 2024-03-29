@@ -741,6 +741,103 @@ typedef ttuple<Direction, v2i16> Dir_v2i16;
 
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
+BF_FORCE_INLINE void Update_Segments_Function(
+    Arena& trash_arena,
+    Game_Map& game_map,
+    u32 segments_to_be_deleted_count,
+    Graph_Segment** segments_to_be_deleted,
+    u32 added_segments_count,
+    Graph_Segment* added_segments
+) {
+    auto& segments = game_map.segments;
+
+    // @Speed: можем кешировать и инвалидировать,
+    // трекая переходы состояний чувачков / моменты их прибытия в City Hall
+    auto humans_moving_to_city_hall = 0;
+    for (auto human_ptr : Iter(&game_map.humans)) {
+        auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
+        if (human_ptr->state_moving_in_the_world == state)
+            humans_moving_to_city_hall++;
+    }
+
+    // @Memory: мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее
+    i32 humans_that_need_new_segment_count = 0;
+    // @Note: `Graph_Segment*` is nullable, `Human*` is not
+    using tttt = ttuple<Graph_Segment*, Human*>;
+    const i32 humans_that_need_new_segment_max_count
+        = segments_to_be_deleted_count + humans_moving_to_city_hall;
+    tttt* humans_that_need_new_segment
+        = Allocate_Array(trash_arena, tttt, humans_that_need_new_segment_max_count);
+    DEFER(Deallocate_Array(trash_arena, tttt, humans_that_need_new_segment_max_count));
+
+    {
+        i32 i = 0;
+        for (auto human_ptr : Iter(&game_map.humans)) {
+            auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
+            if (human_ptr->state_moving_in_the_world == state) {
+                *(humans_that_need_new_segment + i) = {nullptr, human_ptr};
+                humans_that_need_new_segment_count++;
+                Assert(
+                    humans_that_need_new_segment_count
+                    <= humans_that_need_new_segment_max_count
+                );
+            }
+            i++;
+        }
+    }
+
+    FOR_RANGE(u32, i, segments_to_be_deleted_count) {
+        Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
+        auto& segment = *segment_ptr;
+
+        // SHIT(hulvdan): Do it later
+        // FROM C# REPO
+        // auto human = segment.assignedHuman;
+        // if (human != null) {
+        //     human.segment = null;
+        //     segment.assignedHuman = null;
+        //     humansThatNeedNewSegment.Push(new(segment, human));
+        // }
+        //
+        // foreach (auto linkedSegment in segment.linkedSegments) {
+        //     linkedSegment.Unlink(segment);
+        // }
+        //
+        // _resourceTransportation.OnSegmentDeleted(segment);
+        //
+        // if (segmentsThatNeedHumans.Contains(segment)) {
+        //     segmentsThatNeedHumans.Remove(segment);
+        //     Assert.IsFalse(segmentsThatNeedHumans.Contains(segment));
+        // }
+    }
+
+    FOR_RANGE(int, i, added_segments_count) {
+        auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
+        auto& segment = *segment_ptr;
+        segment.locator = locator;
+
+        auto& added_segment = *(added_segments + i);
+
+        // TODO(hulvdan): use move semantics?
+        segment.vertices_count = added_segment.vertices_count;
+        segment.vertices = added_segment.vertices;
+        segment.graph.nodes_count = added_segment.graph.nodes_count;
+        segment.graph.nodes = added_segment.graph.nodes;
+        segment.graph.size = added_segment.graph.size;
+        segment.graph.offset = added_segment.graph.offset;
+
+        // SHIT(hulvdan): Do it later
+        // FROM C# REPO
+        // foreach (auto segmentToLink in segments) {
+        //     // Mb there Graph.CollidesWith(other.Graph) is needed for
+        //     optimization if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+        //         segment.Link(segmentToLink);
+        //         segmentToLink.Link(segment);
+        //     }
+        // }
+    }
+}
+
 #define QUEUES_SCALE 4
 
 void Update_Graphs(
@@ -1060,7 +1157,9 @@ ttuple<int, int> Update_Tiles(
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
     Pages& pages,
-    const Updated_Tiles& updated_tiles
+    const Updated_Tiles& updated_tiles,
+    std::invocable<u32, Graph_Segment**, u32, Graph_Segment*> auto&&
+        Update_Segments_Lambda
 ) {
     Assert(updated_tiles.count > 0);
     if (!updated_tiles.count)
@@ -1216,85 +1315,45 @@ ttuple<int, int> Update_Tiles(
         full_graph_build
     );
 
-    // ====================================================================================
-    // FROM C# REPO void UpdateSegments(ItemTransportationGraph.OnTilesUpdatedResult
-    // res)
+    Update_Segments_Lambda(
+        segments_to_be_deleted_count, segments_to_be_deleted,  //
+        added_segments_count, added_segments
+    );
 
-    // SHIT(hulvdan): Do it later
-    // auto humansMovingToCityHall = 0;
-    // foreach (auto human in _humans) {
-    //     auto state = MovingInTheWorld.State.MovingToTheCityHall;
-    //     if (human.stateMovingInTheWorld == state) {
-    //         humansMovingToCityHall++;
-    //     }
-    // }
-    //
-    // Stack<Tuple<GraphSegment?, Human>> humansThatNeedNewSegment =
-    //     new(res.deletedSegments.Count + humansMovingToCityHall);
-    // foreach (auto human in _humans) {
-    //     auto state = MovingInTheWorld.State.MovingToTheCityHall;
-    //     if (human.stateMovingInTheWorld == state) {
-    //         humansThatNeedNewSegment.Push(new(null, human));
-    //     }
-    // }
+    FOR_RANGE(u32, i, segments_to_be_deleted_count) {
+        Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
+        auto& segment = *segment_ptr;
+        segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
+        graph_nodes_allocator.Free(segment.graph.nodes);
 
-    {
-        FOR_RANGE(u32, i, segments_to_be_deleted_count) {
-            Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
-            auto& segment = *segment_ptr;
-            segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
-            graph_nodes_allocator.Free(segment.graph.nodes);
-
-            Bucket_Array_Remove(segments, segment.locator);
-
-            // SHIT(hulvdan): Do it later
-            // FROM C# REPO
-            // auto human = segment.assignedHuman;
-            // if (human != null) {
-            //     human.segment = null;
-            //     segment.assignedHuman = null;
-            //     humansThatNeedNewSegment.Push(new(segment, human));
-            // }
-            //
-            // foreach (auto linkedSegment in segment.linkedSegments) {
-            //     linkedSegment.Unlink(segment);
-            // }
-            //
-            // _resourceTransportation.OnSegmentDeleted(segment);
-            //
-            // if (segmentsThatNeedHumans.Contains(segment)) {
-            //     segmentsThatNeedHumans.Remove(segment);
-            //     Assert.IsFalse(segmentsThatNeedHumans.Contains(segment));
-            // }
-        }
+        Bucket_Array_Remove(segments, segment.locator);
     }
 
-    {
-        FOR_RANGE(int, i, added_segments_count) {
-            auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
-            auto& segment = *segment_ptr;
-            segment.locator = locator;
+    FOR_RANGE(int, i, added_segments_count) {
+        auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
+        auto& segment = *segment_ptr;
+        segment.locator = locator;
 
-            auto& added_segment = *(added_segments + i);
+        auto& added_segment = *(added_segments + i);
 
-            // TODO(hulvdan): use move semantics?
-            segment.vertices_count = added_segment.vertices_count;
-            segment.vertices = added_segment.vertices;
-            segment.graph.nodes_count = added_segment.graph.nodes_count;
-            segment.graph.nodes = added_segment.graph.nodes;
-            segment.graph.size = added_segment.graph.size;
-            segment.graph.offset = added_segment.graph.offset;
+        // TODO(hulvdan): use move semantics?
+        segment.vertices_count = added_segment.vertices_count;
+        segment.vertices = added_segment.vertices;
+        segment.graph.nodes_count = added_segment.graph.nodes_count;
+        segment.graph.nodes = added_segment.graph.nodes;
+        segment.graph.size = added_segment.graph.size;
+        segment.graph.offset = added_segment.graph.offset;
 
-            // SHIT(hulvdan): Do it later
-            // FROM C# REPO
-            // foreach (auto segmentToLink in segments) {
-            //     // Mb there Graph.CollidesWith(other.Graph) is needed for
-            //     optimization if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
-            //         segment.Link(segmentToLink);
-            //         segmentToLink.Link(segment);
-            //     }
-            // }
-        }
+        // SHIT(hulvdan): Do it later
+        // FROM C# REPO
+        // foreach (auto segmentToLink in segments) {
+        //     // Mb there Graph.CollidesWith(other.Graph) is needed for
+        //     // optimization
+        //     if (segmentToLink.HasSomeOfTheSameVertices(segment)) {
+        //         segment.Link(segmentToLink);
+        //         segmentToLink.Link(segment);
+        //     }
+        // }
     }
 
     // SHIT(hulvdan): Do it later
@@ -1364,11 +1423,27 @@ ttuple<int, int> Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                                            \
-    Update_Tiles(                                                                      \
-        state.game_map.size, state.game_map.element_tiles, state.game_map.segments,    \
-        trash_arena, Assert_Deref(state.game_map.segment_vertices_allocator),          \
-        Assert_Deref(state.game_map.graph_nodes_allocator), state.pages, updated_tiles \
+#define INVOKE_UPDATE_TILES                                           \
+    Update_Tiles(                                                     \
+        state.game_map.size, /**/                                     \
+        state.game_map.element_tiles, /**/                            \
+        state.game_map.segments, /**/                                 \
+        trash_arena, /**/                                             \
+        Assert_Deref(state.game_map.segment_vertices_allocator), /**/ \
+        Assert_Deref(state.game_map.graph_nodes_allocator), /**/      \
+        state.pages, /**/                                             \
+        updated_tiles, /**/                                           \
+        [&game_map, &trash_arena](                                    \
+            u32 segments_to_be_deleted_count,                         \
+            Graph_Segment** segments_to_be_deleted, /**/              \
+            u32 added_segments_count, Graph_Segment* added_segments   \
+        ) {                                                           \
+            Update_Segments_Function(                                 \
+                trash_arena, game_map, /**/                           \
+                segments_to_be_deleted_count, segments_to_be_deleted, \
+                added_segments_count, added_segments                  \
+            );                                                        \
+        }                                                             \
     );
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item) {
