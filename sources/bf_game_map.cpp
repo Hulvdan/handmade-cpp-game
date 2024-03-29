@@ -19,6 +19,21 @@
         }                                              \
     }
 
+bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
+    FOR_RANGE(i32, i1, s1.vertices_count) {
+        auto& v1 = *(s1.vertices + i1);
+
+        FOR_RANGE(i32, i2, s2.vertices_count) {
+            auto& v2 = *(s2.vertices + i2);
+
+            if (v1 == v2)
+                return true;
+        }
+    }
+
+    return false;
+}
+
 struct Path_Find_Result {
     bool success;
     v2i16* path;
@@ -64,8 +79,7 @@ ttuple<size_t, v2i16*, i32> Build_Path(
     return {trash_allocation_size, path, path_count};
 }
 
-// NOTE:
-// TODO: DON'T FORGET TO DEALLOCATE!!!
+// NOTE: Не забывать деаллоцировать trash_allocation_size
 Path_Find_Result Find_Path(
     Arena& trash_arena,
     v2i16 gsize,
@@ -119,8 +133,6 @@ Path_Find_Result Find_Path(
             GRID_PTR_VALUE(bfs_parents_mtx, new_pos) = pos;
 
             if (new_pos == destination) {
-                // NOTE:
-                // TODO: DON'T FORGET TO DEALLOCATE!!!
                 result.success = true;
                 auto [trash_allocation_size, path, path_count]
                     = Build_Path(trash_arena, gsize, bfs_parents_mtx, new_pos);
@@ -179,77 +191,113 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
 // TODO: Прикрутить какой-либо аллокатор,
 // который позволяет использовать заранее аллоцированные memory spaces.
 template <typename T>
-void Init_Bucket_Array(Bucket_Array<T>& arr, u32 buckets_count, u32 items_per_bucket) {
-    arr.allocator_functions.allocate = _aligned_malloc;
-    arr.allocator_functions.free = _aligned_free;
-    arr.items_per_bucket = items_per_bucket;
-    arr.buckets_count = buckets_count;
+void Init_Bucket_Array(
+    Bucket_Array<T>& container,
+    u32 buckets_count,
+    u32 items_per_bucket
+) {
+    container.allocator_functions.allocate = _aligned_malloc;
+    container.allocator_functions.free = _aligned_free;
+    container.items_per_bucket = items_per_bucket;
+    container.buckets_count = buckets_count;
 
-    arr.buckets = nullptr;
-    arr.unfull_buckets = nullptr;
-    arr.count = 0;
-    arr.used_buckets_count = 0;
-    arr.unfull_buckets_count = 0;
+    container.buckets = nullptr;
+    container.unfull_buckets = nullptr;
+    container.count = 0;
+    container.used_buckets_count = 0;
+    container.unfull_buckets_count = 0;
 }
 
 template <typename T>
-void Deinit_Bucket_Array(Bucket_Array<T>& arr) {
-    Assert(arr.allocator_functions.allocate != nullptr);
-    Assert(arr.allocator_functions.free != nullptr);
+void Deinit_Bucket_Array(Bucket_Array<T>& container) {
+    Assert(container.allocator_functions.allocate != nullptr);
+    Assert(container.allocator_functions.free != nullptr);
 
-    for (auto bucket_ptr = arr.buckets;  //
-         bucket_ptr != arr.buckets + arr.used_buckets_count;  //
+    for (auto bucket_ptr = container.buckets;  //
+         bucket_ptr != container.buckets + container.used_buckets_count;  //
          bucket_ptr++  //
     ) {
         auto& bucket = *bucket_ptr;
-        arr.allocator_functions.free(bucket.occupied);
-        arr.allocator_functions.free(bucket.data);
+        container.allocator_functions.free(bucket.occupied);
+        container.allocator_functions.free(bucket.data);
     }
 
-    arr.allocator_functions.free(arr.buckets);
-    arr.allocator_functions.free(arr.unfull_buckets);
+    container.allocator_functions.free(container.buckets);
+    container.allocator_functions.free(container.unfull_buckets);
 }
 
 template <typename T>
-void Init_Queue(Queue<T>& queue) {
-    queue.count = 0;
-    queue.max_count = 0;
-    queue.base = nullptr;
+void Init_Queue(Queue<T>& container) {
+    container.count = 0;
+    container.max_count = 0;
+    container.base = nullptr;
 
-    queue.allocator_functions.allocate = _aligned_malloc;
-    queue.allocator_functions.free = _aligned_free;
+    container.allocator_functions.allocate = _aligned_malloc;
+    container.allocator_functions.free = _aligned_free;
 }
 
 template <typename T, typename Allocation_Tag>
-void Init_Static_Allocation_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
-    queue.count = 0;
-    queue.max_count = 0;
-    queue.base = nullptr;
+void Init_Static_Allocation_Queue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
+    container.count = 0;
+    container.max_count = 0;
+    container.base = nullptr;
 
-    queue.allocator_functions.allocate = _aligned_malloc;
-    queue.allocator_functions.free = _aligned_free;
+    container.allocator_functions.allocate = _aligned_malloc;
+    container.allocator_functions.free = _aligned_free;
 }
 
 template <typename T>
-void Deinit_Queue(Queue<T>& queue) {
-    if (queue.base != nullptr) {
-        Assert(queue.max_count > 0);
-        queue.allocator_functions.free(queue.base);
-        queue.base = nullptr;
+void Init_Vector(Vector<T>& container) {
+    container.count = 0;
+    container.max_count = 0;
+    container.base = nullptr;
+
+    container.allocator_functions.allocate = _aligned_malloc;
+    container.allocator_functions.free = _aligned_free;
+}
+
+template <typename T>
+void Deinit_Queue(Queue<T>& container) {
+    if (container.base != nullptr) {
+        Assert(container.max_count > 0);
+        container.allocator_functions.free(container.base);
+        container.base = nullptr;
     }
-    queue.count = 0;
-    queue.max_count = 0;
+    container.count = 0;
+    container.max_count = 0;
 }
 
 template <typename T, typename Allocation_Tag>
-void Deinit_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
-    if (queue.base != nullptr) {
-        Assert(queue.max_count > 0);
-        queue.allocator_functions.free(queue.base);
-        queue.base = nullptr;
+void Deinit_Queue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
+    if (container.base != nullptr) {
+        Assert(container.max_count > 0);
+        container.allocator_functions.free(container.base);
+        container.base = nullptr;
     }
-    queue.count = 0;
-    queue.max_count = 0;
+    container.count = 0;
+    container.max_count = 0;
+}
+
+template <typename T>
+void Deinit_Vector(Queue<T>& container) {
+    if (container.base != nullptr) {
+        Assert(container.max_count > 0);
+        container.allocator_functions.free(container.base);
+        container.base = nullptr;
+    }
+    container.count = 0;
+    container.max_count = 0;
+}
+
+template <typename T, typename Allocation_Tag>
+void Deinit_Vector(Static_Allocation_Vector<T, Allocation_Tag>& container) {
+    if (container.base != nullptr) {
+        Assert(container.max_count > 0);
+        container.allocator_functions.free(container.base);
+        container.base = nullptr;
+    }
+    container.count = 0;
+    container.max_count = 0;
 }
 
 // void Update_Building__Not_Constructed(Building& building, float dt) {
@@ -293,15 +341,15 @@ void Deinit_Queue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
 //         Graph_Segment* old_segment,
 //         Building* old_building) {}
 // };
-//
-struct Human_Data {
+
+struct Human_Data : public Non_Copyable {
     Player_ID max_player_id;
     Building* city_halls;
     Game_Map* game_map;
     Arena* trash_arena;
 };
 
-void Set_Human_State(Human& human, Human_Main_State new_state);
+void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data);
 
 void Human_Moving_Component_Add_Path(
     Human_Moving_Component& moving,
@@ -358,12 +406,12 @@ struct Human_Moving_In_The_World_Controller {
         Update_States(human, data, old_segment, nullptr);
     }
 
-    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data data) {
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
         if (human.type == Human_Type::Constructor  //
             && human.building != nullptr  //
             && human.moving.pos == human.building->pos  //
         ) {
-            Set_Human_State(human, Human_Main_State::Building);
+            Set_Human_State(human, Human_Main_State::Building, data);
         }
 
         if (human.type == Human_Type::Employee) {
@@ -639,6 +687,12 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.segments, 32, 128);
     Init_Bucket_Array(game_map.humans, 32, 128);
     Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
+    Static_Allocation_Vector<Graph_Segment*, Graph_Segment::Linked_Segments_Tag>::
+        allocator_functions.allocate
+        = _aligned_malloc;
+    Static_Allocation_Vector<Graph_Segment*, Graph_Segment::Linked_Segments_Tag>::
+        allocator_functions.free
+        = _aligned_free;
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }
@@ -947,7 +1001,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             humans_moving_to_city_hall++;
     }
 
-    // PERF: мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее
+    // PERF: Мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее
     i32 humans_wo_segment_count = 0;
     // NOTE: `Graph_Segment*` is nullable, `Human*` is not
     using tttt = ttuple<Graph_Segment*, Human*>;
@@ -997,11 +1051,12 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // }
         //
         // _resource_transportation.OnSegmentDeleted(segment);
-        //
-        // if (segments_that_need_humans.Contains(segment)) {
-        //     segments_that_need_humans.Remove(segment);
-        //     Assert_False(segments_that_need_humans.Contains(segment));
-        // }
+
+        // PERF: Много memmove происходит
+        auto& queue = game_map.segments_that_need_humans;
+        auto index = Queue_Find(queue, segment_ptr);
+        if (index != -1)
+            Remove_From_Queue_At(queue, index);
     }
 
     FOR_RANGE(u32, i, added_segments_count) {
@@ -1019,15 +1074,23 @@ BF_FORCE_INLINE void Update_Segments_Function(
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
 
+        for (auto segment_to_link_ptr : Iter(&game_map.segments)) {
+            auto& segment_to_link = *segment_to_link_ptr;
+
+            // PERF: Мб тут чтоит что-то из разряда
+            // AABB(graph1, graph2) для оптимизации заюзать
+            if (Have_Some_Of_The_Same_Vertices(segment, segment_to_link)) {
+                if (Vector_Find(segment_to_link.linked_segments, segment_ptr) == -1)
+                    Vector_Add(segment_to_link.linked_segments, segment_ptr);
+
+                if (Vector_Find(segment.linked_segments, segment_to_link_ptr) == -1)
+                    Vector_Add(segment.linked_segments, segment_to_link_ptr);
+            }
+        }
+
         // SHIT: Do it later
         // FROM C# REPO
         // foreach (auto segment_to_link in segments) {
-        //     // Mb there Graph.CollidesWith(other.Graph)
-        //     // is needed for optimization
-        //     if (segment_to_link.Has_Some_Of_The_Same_Vertices(segment)) {
-        //         segment.Link(segment_to_link);
-        //         segment_to_link.Link(segment);
-        //     }
         // }
     }
 

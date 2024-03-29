@@ -23,6 +23,12 @@ struct Allocator_Functions {
     FREE__FUNCTION((*free));
 };
 
+#define CHECK_CONTAINER_ALLOCATOR_FUNCTIONS                        \
+    {                                                              \
+        Assert(container.allocator_functions.allocate != nullptr); \
+        Assert(container.allocator_functions.free != nullptr);     \
+    }
+
 // ----- Queues -----
 
 // TODO: Переписать на ring buffer!
@@ -55,187 +61,357 @@ struct Static_Allocation_Queue {
     static Allocator_Functions allocator_functions;
 };
 
+template <typename T>
+struct Vector {
+    T* base;
+    i32 count;
+    u32 max_count;
+
+    Allocator_Functions allocator_functions;
+};
+
+template <typename T, typename Allocation_Tag>
+    requires std::is_trivially_copyable_v<T>
+struct Static_Allocation_Vector {
+    T* base;
+    i32 count;
+    u32 max_count;
+
+    static Allocator_Functions allocator_functions;
+};
+
 template <typename T, typename Allocation_Tag>
     requires std::is_trivially_copyable_v<T>
 Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functions = {};
 
+template <typename T, typename Allocation_Tag>
+    requires std::is_trivially_copyable_v<T>
+Allocator_Functions Static_Allocation_Vector<T, Allocation_Tag>::allocator_functions = {};
+
 template <typename T>
-void Enqueue(Fixed_Size_Queue<T>& queue, const T value) {
+void Enqueue(Fixed_Size_Queue<T>& container, const T value) {
     // TODO: Test!
 
-    Assert(queue.memory_size >= (queue.count + 1) * sizeof(T));
+    Assert(container.memory_size >= (container.count + 1) * sizeof(T));
 
-    *(queue.base + queue.count) = value;
-    queue.count++;
+    *(container.base + container.count) = value;
+    container.count++;
 }
 
+// PERF: Много memmove происходит
 template <typename T>
-T Dequeue(Fixed_Size_Queue<T>& queue) {
+T Dequeue(Fixed_Size_Queue<T>& container) {
     // TODO: Test!
-    Assert(queue.base != nullptr);
-    Assert(queue.count > 0);
+    Assert(container.base != nullptr);
+    Assert(container.count > 0);
 
-    T res = *queue.base;
-    queue.count -= 1;
-    if (queue.count > 0)
-        memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+    T res = *container.base;
+    container.count -= 1;
+    if (container.count > 0)
+        memmove(container.base, container.base + 1, sizeof(T) * container.count);
 
     return res;
 }
 
 template <typename T, typename Allocation_Tag>
 void* Queue_Allocate(
-    Static_Allocation_Queue<T, Allocation_Tag>& queue,
+    Static_Allocation_Queue<T, Allocation_Tag>& container,
     i32 bytes,
     i32 alignment
 ) {
-    auto result = rcast<T*>(queue.allocator_functions.allocate(bytes, alignment));
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    auto result = rcast<T*>(container.allocator_functions.allocate(bytes, alignment));
     return result;
 }
 
 template <typename T>
-void* Queue_Allocate(Queue<T>& queue, i32 bytes, i32 alignment) {
-    auto result = rcast<T*>(queue.allocator_functions.allocate(bytes, alignment));
+void* Queue_Allocate(Queue<T>& container, i32 bytes, i32 alignment) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    auto result = rcast<T*>(container.allocator_functions.allocate(bytes, alignment));
     return result;
 }
 
 template <typename T, typename Allocation_Tag>
-void Queue_Free(Static_Allocation_Queue<T, Allocation_Tag>& queue, void* ptr) {
-    queue.allocator_functions.free(ptr);
+void Queue_Free(Static_Allocation_Queue<T, Allocation_Tag>& container, void* ptr) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    container.allocator_functions.free(ptr);
 }
 
 template <typename T>
-void Queue_Free(Queue<T>& queue, void* ptr) {
-    queue.allocator_functions.free(ptr);
+void Queue_Free(Queue<T>& container, void* ptr) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    container.allocator_functions.free(ptr);
 }
 
 template <typename T>
-void Enqueue(Queue<T>& queue, const T value)
+void Enqueue(Queue<T>& container, const T value)
     requires std::is_trivially_copyable_v<T>
 {
-    const auto& allocator_functions = queue.allocator_functions;
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
 
-    if (queue.base == nullptr) {
-        Assert(queue.max_count == 0);
-        Assert(queue.count == 0);
-        queue.max_count = 8;
-        queue.base = rcast<T*>(
-            allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T))
-        );
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+        container.max_count = 8;
+        container.base = rcast<T*>(container.allocator_functions.allocate(
+            container.max_count * sizeof(T), alignof(T)
+        ));
     }
-    else if (queue.max_count == queue.count) {
-        u32 doubled_max_count = queue.max_count * 2;
-        Assert(queue.max_count < doubled_max_count);
-        auto size = sizeof(T) * queue.max_count;
-        auto old_ptr = queue.base;
+    else if (container.max_count == container.count) {
+        u32 doubled_max_count = container.max_count * 2;
+        Assert(container.max_count < doubled_max_count);
+        auto size = sizeof(T) * container.max_count;
+        auto old_ptr = container.base;
 
-        queue.base = rcast<T*>(allocator_functions.allocate(size * 2, alignof(T)));
-        memcpy(queue.base, old_ptr, size);
-        allocator_functions.free(old_ptr);
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
+        memcpy(container.base, old_ptr, size);
+        container.allocator_functions.free(old_ptr);
 
-        queue.max_count *= 2;
+        container.max_count *= 2;
     }
 
-    *(queue.base + queue.count) = value;
-    queue.count++;
+    *(container.base + container.count) = value;
+    container.count++;
 }
 
 template <typename T>
-void Bulk_Enqueue(Queue<T>& queue, const T* values, const u32 values_count)
+void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count)
     requires std::is_trivially_copyable_v<T>
 {
-    const auto& allocator_functions = queue.allocator_functions;
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
 
     // TODO: Test!
-    if (queue.base == nullptr) {
-        Assert(queue.max_count == 0);
-        Assert(queue.count == 0);
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
 
-        queue.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
-        size_t memory_size = queue.max_count * sizeof(T);
-        Assert(memory_size / sizeof(T) == queue.max_count);  // NOTE: Ловим overflow
+        container.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
+        size_t memory_size = container.max_count * sizeof(T);
+        Assert(memory_size / sizeof(T) == container.max_count);  // NOTE: Ловим overflow
 
-        queue.base = rcast<T*>(allocator_functions.allocate(memory_size, alignof(T)));
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(memory_size, alignof(T)));
     }
-    else if (queue.max_count < queue.count + values_count) {
-        auto old_ptr = queue.base;
-        u32 new_max_count = Ceil_To_Power_Of_2(queue.max_count + values_count);
-        size_t old_memory_size = sizeof(T) * queue.max_count;
+    else if (container.max_count < container.count + values_count) {
+        auto old_ptr = container.base;
+        u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
+        size_t old_memory_size = sizeof(T) * container.max_count;
         size_t new_memory_size = sizeof(T) * new_max_count;
 
         // NOTE: Ловим overflow
-        Assert(queue.max_count < new_max_count);
+        Assert(container.max_count < new_max_count);
         Assert(old_memory_size < new_memory_size);
 
-        queue.base = rcast<T*>(allocator_functions.allocate(new_memory_size, alignof(T)));
-        memcpy(queue.base, old_ptr, sizeof(T) * queue.count);
-        allocator_functions.free(old_ptr);
+        container.base = rcast<T*>(
+            container.allocator_functions.allocate(new_memory_size, alignof(T))
+        );
+        memcpy(container.base, old_ptr, sizeof(T) * container.count);
+        container.allocator_functions.free(old_ptr);
 
-        queue.max_count = new_max_count;
+        container.max_count = new_max_count;
     }
 
-    memcpy(queue.base + queue.count, values, sizeof(T) * values_count);
-    queue.count += values_count;
+    memcpy(container.base + container.count, values, sizeof(T) * values_count);
+    container.count += values_count;
 }
 
+// PERF: Много memmove происходит
 template <typename T>
-T Dequeue(Queue<T>& queue) {
-    Assert(queue.base != nullptr);
-    Assert(queue.count > 0);
+T Dequeue(Queue<T>& container) {
+    Assert(container.base != nullptr);
+    Assert(container.count > 0);
 
-    T res = *queue.base;
-    queue.count -= 1;
-    if (queue.count > 0)
-        memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+    T res = *container.base;
+    container.count -= 1;
+    if (container.count > 0)
+        memmove(container.base, container.base + 1, sizeof(T) * container.count);
 
     return res;
 }
 
 template <typename T, typename Allocation_Tag>
-void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& queue, const T value) {
-    if (queue.base == nullptr) {
-        Assert(queue.max_count == 0);
-        Assert(queue.count == 0);
-        queue.max_count = 8;
-        queue.base = rcast<T*>(
-            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T))
-        );
+void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& container, const T value) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+        container.max_count = 8;
+        container.base = rcast<T*>(container.allocator_functions.allocate(
+            container.max_count * sizeof(T), alignof(T)
+        ));
     }
-    else if (queue.max_count == queue.count) {
-        u32 doubled_max_count = queue.max_count * 2;
-        Assert(queue.max_count < doubled_max_count);  // Поймаем overflow
-        auto size = sizeof(T) * queue.max_count;
-        auto old_ptr = queue.base;
+    else if (container.max_count == container.count) {
+        u32 doubled_max_count = container.max_count * 2;
+        Assert(container.max_count < doubled_max_count);  // Поймаем overflow
+        auto size = sizeof(T) * container.max_count;
+        auto old_ptr = container.base;
 
         // TODO: Почитать про realloc
-        queue.base = rcast<T*>(queue.allocator_functions.allocate(size * 2, alignof(T)));
-        memcpy(queue.base, old_ptr, size);
-        queue.allocator_functions.free(old_ptr);
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
+        memcpy(container.base, old_ptr, size);
+        container.allocator_functions.free(old_ptr);
 
-        queue.max_count *= 2;
+        container.max_count *= 2;
     }
 
-    *(queue.base + queue.count) = value;
-    queue.count++;
+    *(container.base + container.count) = value;
+    container.count++;
 }
 
+// PERF: Много memmove происходит
 template <typename T, typename Allocation_Tag>
-T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& queue) {
+T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
     // TODO: Test!
-    Assert(queue.base != nullptr);
-    Assert(queue.count > 0);
+    Assert(container.base != nullptr);
+    Assert(container.count > 0);
 
-    T res = *queue.base;
-    queue.count -= 1;
-    if (queue.count > 0)
-        memmove(queue.base, queue.base + 1, sizeof(T) * queue.count);
+    T res = *container.base;
+    container.count -= 1;
+    if (container.count > 0)
+        memmove(container.base, container.base + 1, sizeof(T) * container.count);
 
     return res;
 }
 
 template <typename T>
-FORCE_INLINE void Reset_Queue(Queue<T>& queue) {
-    queue.count = 0;
+BF_FORCE_INLINE void Reset_Queue(Queue<T>& container) {
+    container.count = 0;
+}
+
+template <typename T, typename Allocation_Tag>
+i32 Queue_Find(Static_Allocation_Queue<T, Allocation_Tag>& container, T value) {
+    FOR_RANGE(i32, i, container.count) {
+        auto& v = *(container.base + i);
+        if (v == value)
+            return i;
+    }
+
+    return -1;
+}
+
+template <typename T, typename Allocation_Tag>
+i32 Vector_Find(Static_Allocation_Vector<T, Allocation_Tag>& container, T value) {
+    FOR_RANGE(i32, i, container.count) {
+        auto& v = *(container.base + i);
+        if (v == value)
+            return i;
+    }
+
+    return -1;
+}
+
+template <typename T>
+i32 Vector_Find(Vector<T>& container, T value) {
+    FOR_RANGE(i32, i, container.count) {
+        auto& v = *(container.base + i);
+        if (v == value)
+            return i;
+    }
+
+    return -1;
+}
+
+template <typename T, typename Allocation_Tag>
+    requires std::is_trivially_copyable_v<T>
+void Remove_From_Queue_At(Static_Allocation_Queue<T, Allocation_Tag>& container, i32 i) {
+    Assert(i >= 0);
+    Assert(i < container.count);
+
+    i32 delta_count = container.count - i - 1;
+    Assert(delta_count >= 0);
+
+    if (delta_count > 0) {
+        memmove(container.base + i, container.base + i + 1, sizeof(T) * delta_count);
+    }
+
+    container.count -= 1;
+}
+
+template <typename T>
+i32 Vector_Add(Vector<T>& container, T& value) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    i32 locator = container.count;
+
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+
+        container.max_count = 8;
+        container.base = rcast<T*>(container.allocator_functions.allocate(
+            container.max_count * sizeof(T), alignof(T)
+        ));
+    }
+    else if (container.max_count == container.count) {
+        u32 doubled_max_count = container.max_count * 2;
+        Assert(container.max_count < doubled_max_count);  // NOTE: Ловим overflow
+        auto size = sizeof(T) * container.max_count;
+        auto old_ptr = container.base;
+
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
+        memcpy(container.base, old_ptr, size);
+        container.allocator_functions.free(old_ptr);
+
+        container.max_count *= 2;
+    }
+
+    *(container.base + container.count) = value;
+    container.count += 1;
+
+    return locator;
+}
+
+template <typename T, typename Allocation_Tag>
+i32 Vector_Add(Static_Allocation_Vector<T, Allocation_Tag>& container, T& value) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    i32 locator = container.count;
+
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+
+        container.max_count = 8;
+        container.base = rcast<T*>(container.allocator_functions.allocate(
+            container.max_count * sizeof(T), alignof(T)
+        ));
+    }
+    else if (container.max_count == container.count) {
+        u32 doubled_max_count = container.max_count * 2;
+        Assert(container.max_count < doubled_max_count);  // NOTE: Ловим overflow
+        auto size = sizeof(T) * container.max_count;
+        auto old_ptr = container.base;
+
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
+        memcpy(container.base, old_ptr, size);
+        container.allocator_functions.free(old_ptr);
+
+        container.max_count *= 2;
+    }
+
+    *(container.base + container.count) = value;
+    container.count += 1;
+
+    return locator;
+}
+
+template <typename T>
+T Vector_Pop(Vector<T>& vec) {
+    Assert(vec.count > 0);
+
+    T result = *(vec.base + vec.count - 1);
+    vec.count -= 1;
+
+    return result;
 }
 
 // ----- Array Functions -----
@@ -647,7 +823,8 @@ struct Graph_Segment : public Non_Copyable {
     Bucket_Locator locator;
 
     Human* assigned_human;
-    // Vector<Graph_Segment*> linked_segments;
+    struct Linked_Segments_Tag {};
+    Static_Allocation_Vector<Graph_Segment*, Linked_Segments_Tag> linked_segments;
 };
 
 struct Graph_Segment_Precalculated_Data {
