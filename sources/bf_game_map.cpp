@@ -810,24 +810,29 @@ BF_FORCE_INLINE void Update_Segments_Function(
         Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
         auto& segment = *segment_ptr;
 
+        auto human_ptr = segment.assigned_human;
+        if (human_ptr != nullptr) {
+            human_ptr->segment = nullptr;
+            segment.assigned_human = nullptr;
+            Array_Push(
+                humans_that_need_new_segment,
+                humans_wo_segment_count,
+                humans_wo_segment_max_count,
+                tttt(segment_ptr, human_ptr)
+            );
+        }
+
         // SHIT: Do it later
         // FROM C# REPO
-        // auto human = segment.assignedHuman;
-        // if (human != null) {
-        //     human.segment = null;
-        //     segment.assignedHuman = null;
-        //     humansThatNeedNewSegment.Push(new(segment, human));
+        // foreach (auto linkedSegment in segment.linked_segments) {
+        //     linked_segment.Unlink(segment);
         // }
         //
-        // foreach (auto linkedSegment in segment.linkedSegments) {
-        //     linkedSegment.Unlink(segment);
-        // }
+        // _resource_transportation.OnSegmentDeleted(segment);
         //
-        // _resourceTransportation.OnSegmentDeleted(segment);
-        //
-        // if (segmentsThatNeedHumans.Contains(segment)) {
-        //     segmentsThatNeedHumans.Remove(segment);
-        //     Assert.IsFalse(segmentsThatNeedHumans.Contains(segment));
+        // if (segments_that_need_humans.Contains(segment)) {
+        //     segments_that_need_humans.Remove(segment);
+        //     Assert_False(segments_that_need_humans.Contains(segment));
         // }
     }
 
@@ -849,8 +854,9 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // SHIT: Do it later
         // FROM C# REPO
         // foreach (auto segment_to_link in segments) {
-        //     // Mb there Graph.CollidesWith(other.Graph) is needed for
-        //     optimization if (segment_to_link.HasSomeOfTheSameVertices(segment)) {
+        //     // Mb there Graph.CollidesWith(other.Graph)
+        //     // is needed for optimization
+        //     if (segment_to_link.Has_Some_Of_The_Same_Vertices(segment)) {
         //         segment.Link(segment_to_link);
         //         segment_to_link.Link(segment);
         //     }
