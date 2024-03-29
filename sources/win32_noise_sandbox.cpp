@@ -64,14 +64,16 @@ void Win32UpdateBitmap(HDC device_context) {
     game_bitmap.memory = VirtualAlloc(
         0,
         game_bitmap.width * screen_bitmap.bitmap.height * game_bitmap.bits_per_pixel / 8,
-        MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+    );
 
     if (screen_bitmap.handle)
         DeleteObject(screen_bitmap.handle);
 
     screen_bitmap.handle = CreateDIBitmap(
         device_context, &screen_bitmap.info.bmiHeader, 0, game_bitmap.memory,
-        &screen_bitmap.info, DIB_RGB_COLORS);
+        &screen_bitmap.info, DIB_RGB_COLORS
+    );
 }
 
 void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
@@ -96,9 +98,7 @@ extern IMGUI_IMPL_API LRESULT
 ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT
-WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam)
-
-{
+WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
         return true;
 
@@ -201,7 +201,8 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
         // scaling_bias, seed);
         Perlin_2D(
             tex, arena.base + arena.used, arena.size - arena.used, octaves, scaling_bias,
-            seed);
+            seed
+        );
 
         glBindTexture(GL_TEXTURE_2D, tex.id);
         Check_OpenGL_Errors();
@@ -214,13 +215,14 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
 
         glTexImage2D(
             GL_TEXTURE_2D, 0, GL_RGBA8, tex.size.x, tex.size.y, 0, GL_BGRA_EXT,
-            GL_UNSIGNED_BYTE, tex.base);
+            GL_UNSIGNED_BYTE, tex.base
+        );
     }
 
     ImGui::Image(
         (ImTextureID)tex.id, ImVec2(texture_display_size, texture_display_size), {0, 0},
-        {1, 1}, ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
-        ImGui::GetStyleColorVec4(ImGuiCol_Border));
+        {1, 1}, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImGui::GetStyleColorVec4(ImGuiCol_Border)
+    );
 }
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
@@ -231,7 +233,8 @@ int main(int, char**) {
 
     game_memory_size = Megabytes(64LL);
     game_memory = VirtualAlloc(
-        0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+    );
     if (!game_memory) {
         // TODO(hulvdan): Diagnostic
         return -1;
@@ -418,15 +421,15 @@ int main(int, char**) {
         ReleaseDC(window_handle, device_context);
 
         u64 perf_counter_new = Win32Clock();
-        last_frame_dt =
-            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
+            / (f32)perf_counter_frequency;
         Assert(last_frame_dt >= 0);
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
             while (perf_counter_new < next_frame_expected_perf_counter) {
-                i32 msec_to_sleep =
-                    (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new) *
-                          1000.0f / (f32)perf_counter_frequency);
+                i32 msec_to_sleep
+                    = (i32)((f32)(next_frame_expected_perf_counter - perf_counter_new)
+                            * 1000.0f / (f32)perf_counter_frequency);
                 Assert(msec_to_sleep >= 0);
 
                 if (msec_to_sleep >= 2 * SLEEP_MSEC_GRANULARITY)
@@ -434,12 +437,13 @@ int main(int, char**) {
 
                 perf_counter_new = Win32Clock();
             }
-        } else {
+        }
+        else {
             // TODO(hulvdan): There go your frameskips...
         }
 
-        last_frame_dt =
-            (f32)(perf_counter_new - perf_counter_current) / (f32)perf_counter_frequency;
+        last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
+            / (f32)perf_counter_frequency;
         perf_counter_current = perf_counter_new;
     }
 

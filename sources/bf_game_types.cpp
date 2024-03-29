@@ -86,7 +86,7 @@ template <typename T, typename Allocation_Tag>
 void* Queue_Allocate(
     Static_Allocation_Queue<T, Allocation_Tag>& queue,
     i32 bytes,
-    i32 alignment  //
+    i32 alignment
 ) {
     auto result = rcast<T*>(queue.allocator_functions.allocate(bytes, alignment));
     return result;
@@ -115,8 +115,9 @@ void Enqueue(Queue<T>& queue, const T value) {
         Assert(queue.count == 0);
         queue.max_count = 8;
         queue.base = rcast<T*>(
-            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T)));
-    }  //
+            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T))
+        );
+    }
     else if (queue.max_count == queue.count) {
         u32 doubled_max_count = queue.max_count * 2;
         Assert(queue.max_count < doubled_max_count);  // Поймаем overflow
@@ -157,8 +158,9 @@ void Enqueue(Static_Allocation_Queue<T, Allocation_Tag>& queue, const T value) {
         Assert(queue.count == 0);
         queue.max_count = 8;
         queue.base = rcast<T*>(
-            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T)));
-    }  //
+            queue.allocator_functions.allocate(queue.max_count * sizeof(T), alignof(T))
+        );
+    }
     else if (queue.max_count == queue.count) {
         u32 doubled_max_count = queue.max_count * 2;
         Assert(queue.max_count < doubled_max_count);  // Поймаем overflow
@@ -272,20 +274,22 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
             Assert(arr.allocator_functions.free == nullptr);
             arr.buckets = new arr_type[arr.buckets_count];
             arr.unfull_buckets = new Bucket_Index[arr.buckets_count];
-        } else {
+        }
+        else {
             Assert(arr.allocator_functions.free != nullptr);
             constexpr auto align = alignof(arr_type*);
             auto alloc_size = arr.buckets_count * sizeof(arr_type);
 
-            arr.buckets =
-                rcast<Bucket<T>*>(arr.allocator_functions.allocate(alloc_size, align));
+            arr.buckets
+                = rcast<Bucket<T>*>(arr.allocator_functions.allocate(alloc_size, align));
             if (arr.buckets == nullptr) {
                 Assert(false);
                 return nullptr;
             }
 
             arr.unfull_buckets = rcast<Bucket_Index*>(arr.allocator_functions.allocate(
-                arr.buckets_count * sizeof(Bucket_Index), alignof(Bucket_Index)));
+                arr.buckets_count * sizeof(Bucket_Index), alignof(Bucket_Index)
+            ));
             if (arr.unfull_buckets == nullptr) {
                 Assert(false);
                 return nullptr;
@@ -309,7 +313,8 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
     memset(occupied, 0, occupied_bytes_count);
 
     auto data = rcast<u8*>(
-        arr.allocator_functions.allocate(sizeof(T) * arr.items_per_bucket, alignof(T)));
+        arr.allocator_functions.allocate(sizeof(T) * arr.items_per_bucket, alignof(T))
+    );
     if (data == nullptr) {
         Assert(false);
         return nullptr;
@@ -403,8 +408,9 @@ void Bucket_Array_Remove(Bucket_Array<T>& arr, Bucket_Locator& locator) {
     arr.count -= 1;
 
     if (was_full) {
-        auto exists =
-            Array_Find(arr.unfull_buckets, arr.unfull_buckets_count, bucket.bucket_index);
+        auto exists = Array_Find(
+            arr.unfull_buckets, arr.unfull_buckets_count, bucket.bucket_index
+        );
         Assert(!exists);
         *(arr.unfull_buckets + arr.unfull_buckets_count) = bucket.bucket_index;
         arr.unfull_buckets_count++;
@@ -422,10 +428,10 @@ public:
         Bucket_Array<T>* arr,
         i32 current,
         Bucket_Index current_bucket  //
-        )
-        : _current(current),
-          _current_bucket(current_bucket),
-          _arr(arr)  //
+    )
+        : _current(current)
+        , _current_bucket(current_bucket)
+        , _arr(arr)  //
     {
         Assert(arr != nullptr);
     }
@@ -646,8 +652,8 @@ void Graph_Update(Graph& graph, v2i pos, Direction dir, bool value) {
     auto& node = *(graph.nodes + pos.y * graph.size.x + pos.x);
 
     bool node_is_zero_but_wont_be_after = (node == 0) && value;
-    bool node_is_not_zero_but_will_be =
-        (!value) && (node != 0) && (Graph_Node_Mark(node, dir, false) == 0);
+    bool node_is_not_zero_but_will_be
+        = (!value) && (node != 0) && (Graph_Node_Mark(node, dir, false) == 0);
 
     if (node_is_zero_but_wont_be_after)
         graph.nodes_count += 1;
@@ -908,12 +914,12 @@ struct Observer : public Non_Copyable {
 //         Renderer__On_Item_Built,
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
-#define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)               \
-    {                                                                                \
-        (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                 \
-        (observer).functions =                                                       \
-            (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
-        memcpy((observer).functions, callbacks, sizeof(callbacks));                  \
+#define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
+    {                                                                                  \
+        (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                   \
+        (observer).functions                                                           \
+            = (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
+        memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
     }
 
 #define On_Item_Built__Function(name_) \

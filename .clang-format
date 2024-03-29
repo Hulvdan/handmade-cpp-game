@@ -1,12 +1,18 @@
 ---
 BasedOnStyle: Chromium
 AccessModifierOffset: '-4'
-AlignAfterOpenBracket: AlwaysBreak
+AlignAfterOpenBracket: BlockIndent
 AlignConsecutiveAssignments: 'false'
 AlignConsecutiveDeclarations: 'false'
 AlignOperands: 'false'
 AlignTrailingComments: 'false'
-BreakBeforeBraces: Attach
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+BreakBeforeBinaryOperators: All
+BreakBeforeBraces: Custom
+Cpp11BracedListStyle: 'true'
+BraceWrapping:
+    BeforeElse: 'true'
 ColumnLimit: '90'
 ContinuationIndentWidth: '4'
 IndentCaseLabels: 'false'

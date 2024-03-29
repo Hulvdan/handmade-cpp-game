@@ -200,8 +200,8 @@ public:
 #elif defined(_MSC_VER) /* Visual Studio */
 #define BF_FORCE_INLINE static __forceinline
 #define BF_NO_INLINE static __declspec(noinline)
-#elif defined(__cplusplus) || \
-    (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
+#elif defined(__cplusplus) \
+    || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
 #define BF_FORCE_INLINE static inline
 #define BF_NO_INLINE static
 #else

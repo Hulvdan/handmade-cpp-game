@@ -26,8 +26,8 @@ TEST_CASE("Load_Smart_Tile_Rules, ItWorks") {
     arena.size = size;
     arena.base = output;
 
-    auto rules_data =
-        "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
+    auto rules_data
+        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
     i32 rules_data_size = 0;
     auto p = rules_data;
     while (*p++)
@@ -49,8 +49,8 @@ TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
     arena.size = size;
     arena.base = output;
 
-    auto rules_data =
-        "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
+    auto rules_data
+        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
     i32 rules_data_size = 0;
     auto p = rules_data;
     while (*p++)
@@ -115,13 +115,16 @@ struct Test_Node {
     Linked_List_Push_Back(                                                          \
         rcast<u8*>(nodes_), (n_), (first_node_index_), rcast<u8*>(&(node_to_add_)), \
         offsetof(node_to_add_, active), offsetof(node_to_add_, next),               \
-        sizeof(node_to_add_));
+        sizeof(node_to_add_)                                                        \
+    );
 
 #define Linked_List_Remove_At_Macro(                                       \
-    nodes_, n_, first_node_index_, index_to_remove_, type_)                \
+    nodes_, n_, first_node_index_, index_to_remove_, type_                 \
+)                                                                          \
     Linked_List_Remove_At(                                                 \
         rcast<u8*>(nodes_), (n_), (first_node_index_), (index_to_remove_), \
-        offsetof(type_, active), offsetof(type_, next), sizeof(type_));
+        offsetof(type_, active), offsetof(type_, next), sizeof(type_)      \
+    );
 
 #define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
     (allocator_).Allocate((size_), (alignment_));
@@ -262,7 +265,8 @@ void* heap_allocate(size_t n, size_t alignment) {
 void heap_free(void* ptr) {
     heap_allocations.erase(
         std::remove(heap_allocations.begin(), heap_allocations.end(), ptr),
-        heap_allocations.end());
+        heap_allocations.end()
+    );
     _aligned_free(ptr);
 }
 
@@ -270,7 +274,8 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
     Assert(count % OS_DATA.min_pages_per_allocation == 0);
     auto size = OS_DATA.page_size * count;
     auto result = (u8*)VirtualAlloc(
-        nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+    );
 
     virtual_allocations.push_back(result);
     return result;
@@ -403,21 +408,23 @@ int Process_Segments(
     tvector<const char*> _strings = {__VA_ARGS__};                               \
     auto(segments_count) = Process_Segments(                                     \
         gsize, element_tiles, segments, trash_arena, segment_vertices_allocator, \
-        graph_nodes_allocator, pages, building_sawmill, _strings);
+        graph_nodes_allocator, pages, building_sawmill, _strings                 \
+    );
 
 #define Update_Tiles_Macro(updated_tiles)                                         \
     REQUIRE(segments != nullptr);                                                 \
     auto [added_segments_count, removed_segments_count] = Update_Tiles(           \
         gsize, element_tiles, *segments, trash_arena, segment_vertices_allocator, \
-        graph_nodes_allocator, pages, (updated_tiles));
+        graph_nodes_allocator, pages, (updated_tiles)                             \
+    );
 
 #define Test_Declare_Updated_Tiles(...)                                          \
     Updated_Tiles updated_tiles = {};                                            \
     {                                                                            \
         tvector<ttuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};            \
         updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i, data.size()); \
-        updated_tiles.type =                                                     \
-            Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
+        updated_tiles.type                                                       \
+            = Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size()); \
         FOR_RANGE(int, i, data.size()) {                                         \
             auto& [pos, type] = data[i];                                         \
             *(updated_tiles.pos + i) = pos;                                      \
@@ -478,8 +485,8 @@ TEST_CASE("Update_Tiles") {
     GetSystemInfo(&system_info);
     OS_Data os_data = {};
     os_data.page_size = system_info.dwPageSize;
-    os_data.min_pages_per_allocation =
-        system_info.dwAllocationGranularity / os_data.page_size;
+    os_data.min_pages_per_allocation
+        = system_info.dwAllocationGranularity / os_data.page_size;
     os_data.Allocate_Pages = Win32_Allocate_Pages;
     global_os_data = &os_data;
 
@@ -491,13 +498,15 @@ TEST_CASE("Update_Tiles") {
     auto segment_vertices_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
     new (segment_vertices_allocator_buf) Allocator(
         1024, Allocate_Zeros_Array(trash_arena, u8, 1024),  //
-        4096, Allocate_Zeros_Array(trash_arena, u8, 4096));
+        4096, Allocate_Zeros_Array(trash_arena, u8, 4096)
+    );
     auto& segment_vertices_allocator = *segment_vertices_allocator_buf;
 
     auto graph_nodes_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
     new (graph_nodes_allocator_buf) Allocator(
         1024, Allocate_Zeros_Array(trash_arena, u8, 1024),  //
-        4096, Allocate_Zeros_Array(trash_arena, u8, 4096));
+        4096, Allocate_Zeros_Array(trash_arena, u8, 4096)
+    );
     auto& graph_nodes_allocator = *graph_nodes_allocator_buf;
 
     Pages pages = {};
@@ -822,7 +831,8 @@ TEST_CASE("Update_Tiles") {
         Process_Segments_Macro(
             ".B",  //
             ".F",  //
-            "Cr");
+            "Cr"
+        );
         CHECK(segments_count == 1);
 
         auto pos = v2i(0, 1);
@@ -839,7 +849,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_RoadPlaced_2") {
         Process_Segments_Macro(
             ".B",  //
-            "Cr");
+            "Cr"
+        );
         CHECK(segments_count == 1);
 
         auto pos = v2i(0, 1);
@@ -856,7 +867,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_RoadPlaced_3") {
         Process_Segments_Macro(
             ".B",  //
-            "CF");
+            "CF"
+        );
 
         auto pos = v2i(0, 1);
         CHECK(GRID_PTR_VALUE(element_tiles, pos).type == Element_Tile_Type::None);
@@ -872,7 +884,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_RoadPlaced_4") {
         Process_Segments_Macro(
             ".rr",  //
-            "Crr");
+            "Crr"
+        );
 
         {
             auto pos = v2i(1, 0);
@@ -912,7 +925,8 @@ TEST_CASE("Update_Tiles") {
         Process_Segments_Macro(
             ".B",  //
             ".r",  //
-            "Cr");
+            "Cr"
+        );
 
         auto pos = v2i(1, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
@@ -928,7 +942,8 @@ TEST_CASE("Update_Tiles") {
         Process_Segments_Macro(
             ".B",  //
             ".r",  //
-            "CF");
+            "CF"
+        );
         CHECK(segments_count == 1);
 
         auto pos = v2i(1, 1);
@@ -944,7 +959,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_FlagPlaced_3") {
         Process_Segments_Macro(
             ".B",  //
-            "CF");
+            "CF"
+        );
 
         auto pos = v2i(0, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
@@ -973,7 +989,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_BuildingPlaced_1") {
         Process_Segments_Macro(
             ".B",  //
-            "CF");
+            "CF"
+        );
 
         auto pos = v2i(0, 1);
         auto building = Make_Building(Building_Type::Produce, pos);
@@ -990,7 +1007,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_BuildingPlaced_2") {
         Process_Segments_Macro(
             "..",  //
-            "CF");
+            "CF"
+        );
         CHECK(segments_count == 0);
 
         auto pos = v2i(1, 1);
@@ -1008,7 +1026,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Test_BuildingPlaced_3") {
         Process_Segments_Macro(
             "..",  //
-            "Cr");
+            "Cr"
+        );
         CHECK(segments_count == 0);
 
         auto pos = v2i(1, 1);
@@ -1062,7 +1081,8 @@ TEST_CASE("Update_Tiles") {
     SUBCASE("Shit_Test") {
         Process_Segments_Macro(
             "...",  //
-            "...");
+            "..."
+        );
         CHECK(segments_count == 0);
 
         {

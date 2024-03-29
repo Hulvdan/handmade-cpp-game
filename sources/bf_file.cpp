@@ -37,8 +37,8 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
 }
 
 Debug_Load_File_Result Debug_Load_File_To_Arena(const char* filename, Arena& arena) {
-    auto res =
-        Debug_Load_File(filename, arena.base + arena.used, arena.size - arena.used);
+    auto res
+        = Debug_Load_File(filename, arena.base + arena.used, arena.size - arena.used);
     res.output = Allocate_Array(arena, u8, res.size);
     return res;
 }

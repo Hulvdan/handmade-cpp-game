@@ -106,16 +106,15 @@ struct Allocator : Non_Copyable {
         size_t a_toc_buffer_size,
         u8* a_toc_buffer,
         size_t a_data_buffer_size,
-        u8* a_data_buffer  //
-        )
-        : toc_buffer(a_toc_buffer),
-          data_buffer(a_data_buffer),
-          toc_buffer_size(a_toc_buffer_size),
-          data_buffer_size(a_data_buffer_size),
-          current_allocations_count(0),
-          first_allocation_index(0),
-          max_toc_entries(a_toc_buffer_size / sizeof(Allocation))  //
-    {
+        u8* a_data_buffer
+    )
+        : toc_buffer(a_toc_buffer)
+        , data_buffer(a_data_buffer)
+        , toc_buffer_size(a_toc_buffer_size)
+        , data_buffer_size(a_data_buffer_size)
+        , current_allocations_count(0)
+        , first_allocation_index(0)
+        , max_toc_entries(a_toc_buffer_size / sizeof(Allocation)) {
         FOR_RANGE(size_t, i, a_toc_buffer_size) {
             Assert(*(a_toc_buffer + i) == 0);
         }
@@ -151,14 +150,15 @@ struct Allocator : Non_Copyable {
             Assert(A_Active(next_node));
 
             if (base_ptr + size > A_Base(next_node)) {
-                base_ptr =
-                    Align_Forward(A_Base(next_node) + A_Size(next_node), alignment);
+                base_ptr
+                    = Align_Forward(A_Base(next_node) + A_Size(next_node), alignment);
 
                 previous_node = next_node;
                 previous_node_index = next_node_index;
                 next_node_index = A_Next(next_node);
                 next_node = nullptr;
-            } else
+            }
+            else
                 break;
         }
 

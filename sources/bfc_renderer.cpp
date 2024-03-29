@@ -77,7 +77,8 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
 
     glTexImage2D(
         GL_TEXTURE_2D, 0, GL_RGBA8, texture.size.x, texture.size.y, 0, GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE, texture.base);
+        GL_UNSIGNED_BYTE, texture.base
+    );
     Check_OpenGL_Errors();
 }
 
@@ -85,7 +86,7 @@ void DEBUG_Load_Texture(
     Arena& destination_arena,
     Arena& trash_arena,
     const char* texture_name,
-    Loaded_Texture& out_texture  //
+    Loaded_Texture& out_texture
 ) {
     char filepath[512];
     sprintf(filepath, "assets/art/%s.bmp", texture_name);
@@ -144,7 +145,8 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 void Debug_Print_Shader_Info_Log(
     GLuint shader_id,
     Arena& trash_arena,
-    const char* aboba) {
+    const char* aboba
+) {
     GLint succeeded;
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
 
@@ -171,7 +173,7 @@ void Initialize_Renderer(
     Game_State& state,
     Arena& arena,
     Arena& non_persistent_arena,
-    Arena& trash_arena  //
+    Arena& trash_arena
 ) {
     auto hot_reloaded = state.hot_reloaded;
     auto first_time_initializing = state.renderer_state == nullptr;
@@ -281,7 +283,8 @@ void main() {
                 glDeleteProgram(rstate.ui_shader_program);
             rstate.ui_shader_program = program_id;
             rstate.shaders_compilation_failed = false;
-        } else {
+        }
+        else {
             rstate.shaders_compilation_failed = true;
         }
     }
@@ -295,33 +298,36 @@ void main() {
     // if (first_time_initializing) {
     {
         DEBUG_Load_Texture(
-            non_persistent_arena, trash_arena, "human", rstate.human_texture);
+            non_persistent_arena, trash_arena, "human", rstate.human_texture
+        );
 
         char texture_name[512] = {};
         FOR_RANGE(int, i, 17) {
             sprintf(texture_name, "tiles/grass_%d", i);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name,
-                rstate.grass_textures[i]);
+                non_persistent_arena, trash_arena, texture_name, rstate.grass_textures[i]
+            );
         }
 
         FOR_RANGE(int, i, 3) {
             sprintf(texture_name, "tiles/forest_%d", i);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name,
-                rstate.forest_textures[i]);
+                non_persistent_arena, trash_arena, texture_name, rstate.forest_textures[i]
+            );
         }
 
         FOR_RANGE(int, i, 16) {
             sprintf(texture_name, "tiles/road_%d", i);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.road_textures[i]);
+                non_persistent_arena, trash_arena, texture_name, rstate.road_textures[i]
+            );
         }
 
         FOR_RANGE(int, i, 4) {
             sprintf(texture_name, "tiles/flag_%d", i);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.flag_textures[i]);
+                non_persistent_arena, trash_arena, texture_name, rstate.flag_textures[i]
+            );
         }
 
         {
@@ -330,7 +336,8 @@ void main() {
 
             auto rule_loading_result = Load_Smart_Tile_Rules(
                 rstate.grass_smart_tile, non_persistent_arena, load_result.output,
-                load_result.size);
+                load_result.size
+            );
             Assert(rule_loading_result.success);
         }
 
@@ -340,7 +347,8 @@ void main() {
 
             auto rule_loading_result = Load_Smart_Tile_Rules(
                 rstate.forest_smart_tile, non_persistent_arena, load_result.output,
-                load_result.size);
+                load_result.size
+            );
             Assert(rule_loading_result.success);
         }
     }
@@ -372,8 +380,8 @@ void main() {
     rstate.element_tilemap_index = rstate.tilemaps_count;
     rstate.tilemaps_count += 2;
 
-    rstate.tilemaps =
-        Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
+    rstate.tilemaps
+        = Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
     FOR_RANGE(i32, h, rstate.tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
@@ -447,13 +455,15 @@ void main() {
         auto& b = *state.scriptable_building_city_hall;
         b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
         DEBUG_Load_Texture(
-            non_persistent_arena, trash_arena, "tiles/building_house", *b.texture);
+            non_persistent_arena, trash_arena, "tiles/building_house", *b.texture
+        );
     }
     {
         auto& b = *state.scriptable_building_lumberjacks_hut;
         b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
         DEBUG_Load_Texture(
-            non_persistent_arena, trash_arena, "tiles/building_lumberjack", *b.texture);
+            non_persistent_arena, trash_arena, "tiles/building_lumberjack", *b.texture
+        );
     }
 
     rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
@@ -464,10 +474,12 @@ void main() {
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
     DEBUG_Load_Texture(
         arena, non_persistent_arena, "ui/buildables_panel",
-        ui_state.buildables_panel_background);
+        ui_state.buildables_panel_background
+    );
     DEBUG_Load_Texture(
         arena, non_persistent_arena, "ui/buildables_placeholder",
-        ui_state.buildables_placeholder_background);
+        ui_state.buildables_placeholder_background
+    );
 
     auto buildables_count = 2;
     ui_state.buildables = Allocate_Array(arena, Item_To_Build, buildables_count);
@@ -475,8 +487,8 @@ void main() {
     (ui_state.buildables + 0)->type = Item_To_Build_Type::Road;
     (ui_state.buildables + 0)->scriptable_building = state.scriptable_building_city_hall;
     (ui_state.buildables + 1)->type = Item_To_Build_Type::Building;
-    (ui_state.buildables + 1)->scriptable_building =
-        state.scriptable_building_lumberjacks_hut;
+    (ui_state.buildables + 1)->scriptable_building
+        = state.scriptable_building_lumberjacks_hut;
 
     ui_state.padding = {6, 6};
     ui_state.placeholders = 2;
@@ -503,7 +515,7 @@ void Draw_Sprite(
     v2f pos,
     v2f size,
     float rotation,
-    const glm::mat3& projection  //
+    const glm::mat3& projection
 ) {
     Assert(x0 < x1);
     Assert(y0 < y1);
@@ -541,7 +553,7 @@ void Draw_UI_Sprite(
     v2f size,
     v2f anchor,
     BF_Color color,
-    Game_Renderer_State& rstate  //
+    Game_Renderer_State& rstate
 ) {
     Assert(x0 < x1);
     Assert(y0 < y1);
@@ -572,9 +584,11 @@ void Draw_UI_Sprite(
     // 3. then set our vertex attributes pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
     glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32)));
+        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+    );
     glVertexAttribPointer(
-        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32)));
+        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+    );
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -648,7 +662,7 @@ void Draw_Stretchable_Sprite(
     UI_Sprite_Params& sprite_params,
     v2i panel_size,
     f32 in_scale,
-    Game_Renderer_State& rstate  //
+    Game_Renderer_State& rstate
 ) {
     auto& pad_h = sprite_params.stretch_paddings_h;
     auto& pad_v = sprite_params.stretch_paddings_v;
@@ -664,12 +678,12 @@ void Draw_Stretchable_Sprite(
     auto p3 = v3f(x3, y3, 1);
     auto dx = x3 - x0;
     auto dy = y3 - y0;
-    auto dp1 =
-        v3f(pad_h.x * in_scale * dx / panel_size.x,
-            pad_v.x * in_scale * dy / panel_size.y, 0);
-    auto dp2 =
-        v3f(pad_h.y * in_scale * dx / panel_size.x,
-            pad_v.y * in_scale * dy / panel_size.y, 0);
+    auto dp1 = v3f(
+        pad_h.x * in_scale * dx / panel_size.x, pad_v.x * in_scale * dy / panel_size.y, 0
+    );
+    auto dp2 = v3f(
+        pad_h.y * in_scale * dx / panel_size.x, pad_v.y * in_scale * dy / panel_size.y, 0
+    );
     v3f p1 = p0 + dp1;
     v3f p2 = p3 - dp2;
 
@@ -712,9 +726,8 @@ struct Get_Buildable_Textures_Result {
     GLuint* textures;
 };
 
-Get_Buildable_Textures_Result Get_Buildable_Textures(
-    Arena& trash_arena,
-    Game_State& state) {
+Get_Buildable_Textures_Result
+Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     auto& rstate = Assert_Deref(state.renderer_state);
     auto& ui_state = Assert_Deref(rstate.ui_state);
 
@@ -765,10 +778,11 @@ void Render(Game_State& state, f32 dt) {
     {
         auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
         ImGui::Text(
-            "Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y);
+            "Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y
+        );
 
-        auto new_zoom =
-            Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
+        auto new_zoom
+            = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
         rstate.zoom = new_zoom;
 
         auto cursor_on_tilemap_pos2 = Screen_To_World(state, rstate.mouse_pos);
@@ -807,7 +821,8 @@ void Render(Game_State& state, f32 dt) {
 
     glTexImage2D(
         GL_TEXTURE_2D, 0, GL_RGBA8, bitmap.width, bitmap.height, 0, GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE, bitmap.memory);
+        GL_UNSIGNED_BYTE, bitmap.memory
+    );
     Check_OpenGL_Errors();
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -854,7 +869,8 @@ void Render(Game_State& state, f32 dt) {
                 // TODO(hulvdan): Spritesheets! Vertices array,
                 // texture vertices array, indices array
                 auto texture_id = Test_Smart_Tile(
-                    tilemap, game_map.size, {x, y}, rstate.grass_smart_tile);
+                    tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
+                );
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
@@ -878,7 +894,8 @@ void Render(Game_State& state, f32 dt) {
 
             if (tile == rstate.forest_smart_tile.id) {
                 auto texture_id = Test_Smart_Tile(
-                    resources_tilemap, game_map.size, {x, y}, rstate.forest_smart_tile);
+                    resources_tilemap, game_map.size, {x, y}, rstate.forest_smart_tile
+                );
 
                 glBindTexture(GL_TEXTURE_2D, texture_id);
 
@@ -888,7 +905,8 @@ void Render(Game_State& state, f32 dt) {
                 glBegin(GL_TRIANGLES);
                 Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
                 glEnd();
-            } else
+            }
+            else
                 INVALID_PATH;
         }
     }
@@ -909,7 +927,8 @@ void Render(Game_State& state, f32 dt) {
                 glBegin(GL_TRIANGLES);
                 Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
                 glEnd();
-            } else
+            }
+            else
                 INVALID_PATH;
         }
     }
@@ -994,10 +1013,10 @@ void Render(Game_State& state, f32 dt) {
         v2f padding = ui_state.padding;
         f32 placeholders_gap = ui_state.placeholders_gap;
         auto placeholders = ui_state.placeholders;
-        auto panel_size =
-            v2f(psize.x + 2 * padding.x,
-                2 * padding.y + placeholders_gap * (placeholders - 1) +
-                    placeholders * psize.y);
+        auto panel_size = v2f(
+            psize.x + 2 * padding.x,
+            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
+        );
 
         auto outer_anchor = ui_state.buildables_panel_container_anchor;
         auto outer_container_size = v2i(swidth, sheight);
@@ -1020,7 +1039,8 @@ void Render(Game_State& state, f32 dt) {
             auto p1 = projection * p1_local;
             Draw_Stretchable_Sprite(
                 p0.x, p1.x, p0.y, p1.y, texture, sprite_params, panel_size, in_scale,
-                rstate);
+                rstate
+            );
 
             auto origin = (p1_local + p0_local) / 2.0f;
 
@@ -1041,8 +1061,8 @@ void Render(Game_State& state, f32 dt) {
             }
 
             auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
-            DEFER(
-                Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size));
+            DEFER(Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size)
+            );
 
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE(int, i, placeholders) {
@@ -1090,8 +1110,8 @@ void Render(Game_State& state, f32 dt) {
                     if (!node)
                         continue;
 
-                    v2f center =
-                        v2f(x, y) + v2f(graph.offset.x, graph.offset.y) + v2f_one / 2.0f;
+                    v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y)
+                        + v2f_one / 2.0f;
                     FOR_RANGE(int, ii, 4) {
                         auto dir = (Direction)ii;
                         if (!Graph_Node_Has(node, dir))
@@ -1132,7 +1152,8 @@ void Render(Game_State& state, f32 dt) {
     }
 
     ImGui::Text(
-        "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index);
+        "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index
+    );
 }
 
 // NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item
@@ -1155,8 +1176,8 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     } break;
 
     case Element_Tile_Type::Flag: {
-        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) =
-            global_flag_starting_tile_id;
+        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x)
+            = global_flag_starting_tile_id;
     } break;
 
     default:
