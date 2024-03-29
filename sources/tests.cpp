@@ -248,10 +248,10 @@ TEST_CASE("Opposite") {
 }
 
 TEST_CASE("As_Offset") {
-    CHECK(As_Offset(Direction::Right) == v2i(1, 0));
-    CHECK(As_Offset(Direction::Up) == v2i(0, 1));
-    CHECK(As_Offset(Direction::Left) == v2i(-1, 0));
-    CHECK(As_Offset(Direction::Down) == v2i(0, -1));
+    CHECK(As_Offset(Direction::Right) == v2i16(1, 0));
+    CHECK(As_Offset(Direction::Up) == v2i16(0, 1));
+    CHECK(As_Offset(Direction::Left) == v2i16(-1, 0));
+    CHECK(As_Offset(Direction::Down) == v2i16(0, -1));
 }
 
 global tvector<u8*> virtual_allocations;
@@ -418,19 +418,19 @@ int Process_Segments(
         graph_nodes_allocator, pages, (updated_tiles)                             \
     );
 
-#define Test_Declare_Updated_Tiles(...)                                          \
-    Updated_Tiles updated_tiles = {};                                            \
-    {                                                                            \
-        tvector<ttuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};            \
-        updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i, data.size()); \
-        updated_tiles.type                                                       \
-            = Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size()); \
-        FOR_RANGE(int, i, data.size()) {                                         \
-            auto& [pos, type] = data[i];                                         \
-            *(updated_tiles.pos + i) = pos;                                      \
-            *(updated_tiles.type + i) = type;                                    \
-        }                                                                        \
-        updated_tiles.count = data.size();                                       \
+#define Test_Declare_Updated_Tiles(...)                                            \
+    Updated_Tiles updated_tiles = {};                                              \
+    {                                                                              \
+        tvector<ttuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};              \
+        updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i16, data.size()); \
+        updated_tiles.type                                                         \
+            = Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
+        FOR_RANGE(int, i, data.size()) {                                           \
+            auto& [pos, type] = data[i];                                           \
+            *(updated_tiles.pos + i) = pos;                                        \
+            *(updated_tiles.type + i) = type;                                      \
+        }                                                                          \
+        updated_tiles.count = data.size();                                         \
     }
 
 TEST_CASE("Bit operations") {

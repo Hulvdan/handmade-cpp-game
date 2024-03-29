@@ -107,7 +107,7 @@ void DEBUG_Load_Texture(
     Send_Texture_To_GPU(out_texture);
 }
 
-int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
+int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize) {
     Element_Tile& tile = *(element_tiles + pos.y * gsize.x + pos.x);
     bool tile_is_flag = tile.type == Element_Tile_Type::Flag;
     bool tile_is_road = tile.type == Element_Tile_Type::Road;
@@ -115,7 +115,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i pos, v2i gsize) {
 
     int road_texture_number = 0;
     FOR_RANGE(int, i, 4) {
-        auto new_pos = pos + v2i_adjacent_offsets[i];
+        auto new_pos = pos + v2i16_adjacent_offsets[i];
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
 
@@ -428,7 +428,7 @@ void main() {
 
     // --- Element Tiles ---
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
-    v2i adjacent_offsets[4] = {
+    v2i16 adjacent_offsets[4] = {
         {1, 0},
         {0, 1},
         {-1, 0},
@@ -440,7 +440,8 @@ void main() {
             if (element_tile.type != Element_Tile_Type::Road)
                 continue;
 
-            auto tex = Get_Road_Texture_Number(game_map.element_tiles, v2i(x, y), gsize);
+            auto tex
+                = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
             auto& tile_id = *(element_tilemap.tiles + y * gsize.x + x);
             tile_id = global_road_starting_tile_id + tex;
         }
@@ -643,14 +644,14 @@ v2f Screen_To_World(Game_State& state, v2f pos) {
     return projection_inv * v3f(pos.x, pos.y, 1);
 }
 
-v2i World_Pos_To_Tile(v2f pos) {
+v2i16 World_Pos_To_Tile(v2f pos) {
     auto x = (int)(pos.x);
     auto y = (int)(pos.y);
     // if (pos.x < 0.5f)
     //     x--;
     // if (pos.y < -0.5f)
     //     y--;
-    return v2i(x, y);
+    return {x, y};
 }
 
 void Draw_Stretchable_Sprite(
@@ -660,7 +661,7 @@ void Draw_Stretchable_Sprite(
     f32 y3,
     Loaded_Texture& texture,
     UI_Sprite_Params& sprite_params,
-    v2i panel_size,
+    v2i16 panel_size,
     f32 in_scale,
     Game_Renderer_State& rstate
 ) {
@@ -984,7 +985,7 @@ void Render(Game_State& state, f32 dt) {
         auto tex_id = scriptable_building.texture->id;
         glBindTexture(GL_TEXTURE_2D, tex_id);
 
-        auto sprite_pos = building.pos * cell_size;
+        auto sprite_pos = v2i(building.pos) * cell_size;
         auto sprite_size = v2i(1, 1) * cell_size;
 
         glBegin(GL_TRIANGLES);
@@ -1156,7 +1157,7 @@ void Render(Game_State& state, f32 dt) {
     );
 }
 
-// NOTE(hulvdan): Game_State& state, v2i pos, Item_To_Build item
+// NOTE(hulvdan): Game_State& state, v2i16 pos, Item_To_Build item
 On_Item_Built__Function(Renderer__On_Item_Built) {
     Assert(state.renderer_state != nullptr);
     auto& rstate = *state.renderer_state;
@@ -1187,7 +1188,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     if (element_tile.type != Element_Tile_Type::Building)
         Assert(element_tile.building == nullptr);
 
-    v2i offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+    v2i16 offsets[] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
     for (auto offset : offsets) {
         auto new_pos = pos + offset;
         if (!Pos_Is_In_Bounds(new_pos, gsize))

@@ -515,10 +515,10 @@ enum class Direction {
     for (auto var_name = (Direction)0; (int)(var_name) < 4; \
          var_name = (Direction)((int)(var_name) + 1))
 
-v2i As_Offset(Direction dir) {
+v2i16 As_Offset(Direction dir) {
     Assert((u8)dir >= 0);
     Assert((u8)dir < 4);
-    return v2i_adjacent_offsets[(int)dir];
+    return v2i16_adjacent_offsets[(unsigned int)dir];
 }
 
 Direction Opposite(Direction dir) {
@@ -527,42 +527,28 @@ Direction Opposite(Direction dir) {
     return (Direction)(((u8)(dir) + 2) % 4);
 }
 
-// using Graph_Segment_ID = u32;
-using Graph_u = i8;
 using Graph_Nodes_Count = u16;
-
-struct Graph_v2u {
-    Graph_u x;
-    Graph_u y;
-};
-
-Graph_v2u To_Graph_v2u(v2i pos) {
-    Graph_v2u res;
-    res.x = pos.x;
-    res.y = pos.y;
-    return res;
-}
 
 struct Graph : public Non_Copyable {
     Graph_Nodes_Count nodes_count;
     u8* nodes;  // 0b0000DLUR
 
-    Graph_v2u size;
-    Graph_v2u offset;
+    v2i16 size;
+    v2i16 offset;
 
     // SHIT(hulvdan): Do this shiet later
     // Graph_v2u* centers;
     // Graph_double_u centers_count;
 };
 
-BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i pos) {
-    v2i off = {pos.x - graph.offset.x, pos.y - graph.offset.y};
+BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
+    auto off = pos - graph.offset;
     bool result = Pos_Is_In_Bounds(off, graph.size);
     return result;
 }
 
-BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i pos) {
-    v2i off = {pos.x - graph.offset.x, pos.y - graph.offset.y};
+BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
+    auto off = pos - graph.offset;
     Assert(Pos_Is_In_Bounds(off, graph.size));
 
     u8* node_ptr = graph.nodes + off.y * graph.size.x + off.x;
@@ -612,7 +598,7 @@ struct Human;
 
 struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
-    Graph_v2u* vertices;  // NOTE(hulvdan): Вершинные клетки графа (флаги, здания)
+    v2i16* vertices;  // NOTE(hulvdan): Вершинные клетки графа (флаги, здания)
 
     Graph graph;
     Bucket_Locator locator;
@@ -644,7 +630,7 @@ struct Graph_Segment_Precalculated_Data {
     return node;
 }
 
-void Graph_Update(Graph& graph, v2i pos, Direction dir, bool value) {
+void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
     Assert((u8)dir >= 0);
     Assert((u8)dir < 4);
     Assert(graph.offset.x == 0);
@@ -698,16 +684,14 @@ enum class Human_Type {
 };
 
 struct Human_Moving_Component {
-    v2i pos;
+    v2i16 pos;
     f32 elapsed;
     f32 progress;
     v2f from;
 
-    toptional<v2i> to;
+    toptional<v2i16> to;
 
-    i16 path_max_length;
-    i16 path_count;
-    v2i* path;
+    Queue<v2i16> path;
 };
 
 enum class Moving_In_The_World_State {
@@ -800,7 +784,7 @@ struct Building : public Non_Copyable {
 
     size_t resources_to_book_count;
     Resource_To_Book* resources_to_book;
-    v2i pos;
+    v2i16 pos;
 
     Building_ID id;
     f32 time_since_human_was_created;
@@ -877,7 +861,7 @@ static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr)
 static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
 
 struct Game_Map : public Non_Copyable {
-    v2i size;
+    v2i16 size;
     Terrain_Tile* terrain_tiles;
     Terrain_Resource* terrain_resources;
     Element_Tile* element_tiles;
@@ -923,7 +907,7 @@ struct Observer : public Non_Copyable {
     }
 
 #define On_Item_Built__Function(name_) \
-    void name_(Game_State& state, v2i pos, const Item_To_Build& item)
+    void name_(Game_State& state, v2i16 pos, const Item_To_Build& item)
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;

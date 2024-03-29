@@ -172,8 +172,8 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
 
 // NOTE(hulvdan): `tile_ids_distance` is the distance
 // (in bytes) between two adjacent Tile_IDs in `tile_ids`
-BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i size, v2i pos, Smart_Tile& tile) {
-    v2i offsets[]
+BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Tile& tile) {
+    v2i16 offsets[]
         = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
 
     for (int r = 0; r < tile.rules_count; r++) {
