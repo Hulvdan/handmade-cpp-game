@@ -31,7 +31,7 @@ struct Allocator_Functions {
 
 // ----- Queues -----
 
-// TODO: Переписать на ring buffer!
+// PERF: Переписать на ring buffer!
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size;
@@ -39,7 +39,7 @@ struct Fixed_Size_Queue {
     T* base;
 };
 
-// TODO: Переписать на ring buffer!
+// PERF: Переписать на ring buffer!
 template <typename T>
     requires std::is_trivially_copyable_v<T>
 struct Queue {
@@ -50,7 +50,7 @@ struct Queue {
     Allocator_Functions allocator_functions;
 };
 
-// TODO: Переписать на ring buffer!
+// PERF: Переписать на ring buffer!
 template <typename T, typename Allocation_Tag>
     requires std::is_trivially_copyable_v<T>
 struct Static_Allocation_Queue {

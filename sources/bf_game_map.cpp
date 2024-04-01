@@ -386,7 +386,7 @@ struct Human_Moving_In_The_World_Controller {
         if (human.type == Human_Type::Employee) {
             Assert(human.building != nullptr);
             human.building->employee_is_inside = true;
-            // TODO: Somehow remove this human
+            // TODO: (this TODO is from c# repo) Somehow remove this human
         }
     }
 
@@ -685,12 +685,12 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.segments, 32, 128);
     Init_Bucket_Array(game_map.humans, 32, 128);
     Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
-    Static_Allocation_Vector<Graph_Segment*, Graph_Segment::Linked_Segments_Tag>::
-        allocator_functions.allocate
-        = _aligned_malloc;
-    Static_Allocation_Vector<Graph_Segment*, Graph_Segment::Linked_Segments_Tag>::
-        allocator_functions.free
-        = _aligned_free;
+
+    {
+        using T = decltype(game_map.segments_that_need_humans);
+        T::allocator_functions.allocate = _aligned_malloc;
+        T::allocator_functions.free = _aligned_free;
+    }
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }
@@ -986,7 +986,9 @@ BF_FORCE_INLINE void Update_Segments_Function(
     u32 segments_to_be_deleted_count,
     Graph_Segment** segments_to_be_deleted,
     u32 added_segments_count,
-    Graph_Segment* added_segments
+    Graph_Segment* added_segments,
+    Allocator& segment_vertices_allocator,
+    Allocator& graph_nodes_allocator
 ) {
     auto& segments = game_map.segments;
 
@@ -1042,8 +1044,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             );
         }
 
-        // SHIT: Do it later
-        // FROM C# REPO
+        // TODO:
         // foreach (auto linkedSegment in segment.linked_segments) {
         //     linked_segment.Unlink(segment);
         // }
@@ -1058,38 +1059,39 @@ BF_FORCE_INLINE void Update_Segments_Function(
         }
 
         Bucket_Array_Remove(segments, segment.locator);
+        // TODO:
         segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
         graph_nodes_allocator.Free(segment.graph.nodes);
     }
 
     FOR_RANGE(u32, i, added_segments_count) {
-        auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
-        auto& segment = *segment_ptr;
-        segment.locator = locator;
+        auto [segment1_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
+        auto& segment1 = *segment1_ptr;
+        segment1.locator = locator;
 
         auto& added_segment = *(added_segments + i);
 
         // TODO: use move semantics?
-        segment.vertices_count = added_segment.vertices_count;
-        segment.vertices = added_segment.vertices;
-        segment.graph.nodes_count = added_segment.graph.nodes_count;
-        segment.graph.nodes = added_segment.graph.nodes;
-        segment.graph.size = added_segment.graph.size;
-        segment.graph.offset = added_segment.graph.offset;
+        segment1.vertices_count = added_segment.vertices_count;
+        segment1.vertices = added_segment.vertices;
+        segment1.graph.nodes_count = added_segment.graph.nodes_count;
+        segment1.graph.nodes = added_segment.graph.nodes;
+        segment1.graph.size = added_segment.graph.size;
+        segment1.graph.offset = added_segment.graph.offset;
 
         for (auto segment2_ptr : Iter(&game_map.segments)) {
-            if (segment2_ptr == segment_ptr)
+            if (segment2_ptr == segment1_ptr)
                 continue;
 
             // PERF: Мб тут чтоит что-то из разряда
             // AABB(graph1, graph2) для оптимизации заюзать
             auto& segment2 = *segment2_ptr;
-            if (Have_Some_Of_The_Same_Vertices(segment, segment2)) {
-                if (Vector_Find(segment2.linked_segments, segment_ptr) == -1)
-                    Vector_Add(segment2.linked_segments, segment_ptr);
+            if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
+                if (Vector_Find(segment2.linked_segments, segment1_ptr) == -1)
+                    Vector_Add(segment2.linked_segments, segment1_ptr);
 
-                if (Vector_Find(segment.linked_segments, segment2_ptr) == -1)
-                    Vector_Add(segment.linked_segments, segment2_ptr);
+                if (Vector_Find(segment1.linked_segments, segment2_ptr) == -1)
+                    Vector_Add(segment1.linked_segments, segment2_ptr);
             }
         }
     }
@@ -1630,31 +1632,33 @@ ttuple<int, int> Update_Tiles(
     auto type__ = (type_);                                 \
     (variable_name_).type = &type__;
 
-#define INVOKE_UPDATE_TILES                                      \
-    Update_Tiles(                                                \
-        state.game_map.size,                                     \
-        state.game_map.element_tiles,                            \
-        state.game_map.segments,                                 \
-        trash_arena,                                             \
-        Assert_Deref(state.game_map.segment_vertices_allocator), \
-        Assert_Deref(state.game_map.graph_nodes_allocator),      \
-        state.pages,                                             \
-        updated_tiles,                                           \
-        [&game_map, &trash_arena](                               \
-            u32 segments_to_be_deleted_count,                    \
-            Graph_Segment** segments_to_be_deleted,              \
-            u32 added_segments_count,                            \
-            Graph_Segment* added_segments                        \
-        ) {                                                      \
-            Update_Segments_Function(                            \
-                trash_arena,                                     \
-                game_map,                                        \
-                segments_to_be_deleted_count,                    \
-                segments_to_be_deleted,                          \
-                added_segments_count,                            \
-                added_segments                                   \
-            );                                                   \
-        }                                                        \
+#define INVOKE_UPDATE_TILES                                              \
+    Update_Tiles(                                                        \
+        state.game_map.size,                                             \
+        state.game_map.element_tiles,                                    \
+        state.game_map.segments,                                         \
+        trash_arena,                                                     \
+        Assert_Deref(state.game_map.segment_vertices_allocator),         \
+        Assert_Deref(state.game_map.graph_nodes_allocator),              \
+        state.pages,                                                     \
+        updated_tiles,                                                   \
+        [&game_map, &trash_arena, &state](                               \
+            u32 segments_to_be_deleted_count,                            \
+            Graph_Segment** segments_to_be_deleted,                      \
+            u32 added_segments_count,                                    \
+            Graph_Segment* added_segments                                \
+        ) {                                                              \
+            Update_Segments_Function(                                    \
+                trash_arena,                                             \
+                game_map,                                                \
+                segments_to_be_deleted_count,                            \
+                segments_to_be_deleted,                                  \
+                added_segments_count,                                    \
+                added_segments,                                          \
+                Assert_Deref(state.game_map.segment_vertices_allocator), \
+                Assert_Deref(state.game_map.graph_nodes_allocator)       \
+            );                                                           \
+        }                                                                \
     );
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item) {
