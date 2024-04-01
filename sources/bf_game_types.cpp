@@ -1064,6 +1064,46 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
     return result;
 }
 
+struct Human;
+struct Building;
+struct Scriptable_Resource;
+struct Graph_Segment;
+
+enum class Map_Resource_Booking_Type {
+    Construction,
+    Processing,
+};
+
+struct Map_Resource_Booking {
+    Map_Resource_Booking_Type type;
+    Building* building;
+    i32 priority;
+};
+
+struct Graph_Segment;
+
+struct Map_Resource {
+    using ID = u32;
+
+    ID id;
+    Scriptable_Resource* scriptable;
+
+    v2i16 pos;
+
+    Map_Resource_Booking* booking;
+
+    struct Transportation_Segments_Allocation_Tag {};
+    Static_Allocation_Vector<Graph_Segment*, Transportation_Segments_Allocation_Tag>
+        transportation_segments;
+
+    struct Transportation_Vertices_Allocation_Tag {};
+    Static_Allocation_Vector<v2i16, Transportation_Vertices_Allocation_Tag>
+        transportation_vertices;
+
+    Human* targeted_human;
+    Human* carrying_human;
+};
+
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
 // на которых может находиться один человек, который перетаскивает предметы.
 //
@@ -1101,11 +1141,6 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
 // 9)  BrFrB - это уже 2 разных сегмента. Первый - BrF, второй - FrB.
 //             При замене флага (F) на дорогу (r) эти 2 сегмента сольются в один - BrrrB.
 //
-
-struct Human;
-
-struct Graph_Segment;
-
 struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
@@ -1116,6 +1151,9 @@ struct Graph_Segment : public Non_Copyable {
     Human* assigned_human;
     struct Linked_Segments_Tag {};
     Static_Allocation_Vector<Graph_Segment*, Linked_Segments_Tag> linked_segments;
+
+    struct Resources_To_Transport {};
+    Static_Allocation_Queue<Map_Resource, Resources_To_Transport> resources_to_transport;
 };
 
 struct Graph_Segment_Precalculated_Data {

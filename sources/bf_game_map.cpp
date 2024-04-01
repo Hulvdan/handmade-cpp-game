@@ -518,15 +518,40 @@ struct Human_Moving_In_The_World_Controller {
 
 struct Human_Moving_Inside_Segment {
     static void On_Enter(Human& human, Human_Data& data) {
-        //
+        Assert(human.segment != nullptr);
+        Assert(!human.moving.to.has_value());
+        Assert(human.moving.path.count == 0);
+
+        auto& game_map = *data.game_map;
+
+        if (human.segment->resources_to_transport.count == 0) {
+            // Tracing.Log("Setting path to center");
+            auto [success, path, path_count, trash_allocation_size] = Find_Path(
+                *data.trash_arena,
+                game_map.size,
+                game_map.terrain_tiles,
+                game_map.element_tiles,
+                human.moving.to.value_or(human.moving.pos),
+                human.segment->graph.center,
+                true
+            );
+
+            Assert(success);
+            Assert(path_count > 0);
+
+            Human_Moving_Component_Add_Path(human.moving, path, path_count);
+            if (trash_allocation_size > 0)
+                Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
+        }
     }
 
     static void On_Exit(Human& human, Human_Data& data) {
-        //
+        // TODO: using var _ = Tracing.Scope();
+        Container_Reset(human.moving.path);
     }
 
     static void Update(Human& human, Human_Data& data, f32 dt) {
-        //
+        Update_States(human, data, nullptr, nullptr);
     }
 
     static void On_Human_Current_Segment_Changed(
@@ -534,11 +559,13 @@ struct Human_Moving_Inside_Segment {
         Human_Data& data,
         Graph_Segment* old_segment
     ) {
-        //
+        // TODO: using var _ = Tracing.Scope();
+        // Tracing.Log("_controller.SetState(human, HumanState.MovingInTheWorld)");
+        Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
     }
 
     static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
-        //
+        // NOTE: Intentionally left blank
     }
 
     static void Update_States(
@@ -547,21 +574,36 @@ struct Human_Moving_Inside_Segment {
         Graph_Segment* old_segment,
         Building* old_building
     ) {
-        //
+        // TODO: using var _ = Tracing.Scope();
+        if (human.segment == nullptr) {
+            Container_Reset(human.moving.path);
+            Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
+            return;
+        }
+
+        if (human.segment->resources_to_transport.count > 0) {
+            if (!human.moving.to.has_value()) {
+                // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
+                Main_Set_Human_State(human, Human_Main_State::Moving_Resource, data);
+                return;
+            }
+
+            Container_Reset(human.moving.path);
+        }
     }
 };
 
 struct Human_Moving_Resources {
     static void On_Enter(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void On_Exit(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void Update(Human& human, Human_Data& data, f32 dt) {
-        //
+        // TODO:
     }
 
     static void On_Human_Current_Segment_Changed(
@@ -569,11 +611,11 @@ struct Human_Moving_Resources {
         Human_Data& data,
         Graph_Segment* old_segment
     ) {
-        //
+        // TODO:
     }
 
     static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void Update_States(
@@ -582,21 +624,21 @@ struct Human_Moving_Resources {
         Graph_Segment* old_segment,
         Building* old_building
     ) {
-        //
+        // TODO:
     }
 };
 
 struct Human_Construction_Controller {
     static void On_Enter(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void On_Exit(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void Update(Human& human, Human_Data& data, f32 dt) {
-        //
+        // TODO:
     }
 
     static void On_Human_Current_Segment_Changed(
@@ -604,11 +646,11 @@ struct Human_Construction_Controller {
         Human_Data& data,
         Graph_Segment* old_segment
     ) {
-        //
+        // TODO:
     }
 
     static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void Update_States(
@@ -617,21 +659,21 @@ struct Human_Construction_Controller {
         Graph_Segment* old_segment,
         Building* old_building
     ) {
-        //
+        // TODO:
     }
 };
 
 struct Human_Employee_Controller {
     static void On_Enter(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void On_Exit(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void Update(Human& human, Human_Data& data, f32 dt) {
-        //
+        // TODO:
     }
 
     static void On_Human_Current_Segment_Changed(
@@ -639,11 +681,11 @@ struct Human_Employee_Controller {
         Human_Data& data,
         Graph_Segment* old_segment
     ) {
-        //
+        // TODO:
     }
 
     static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
-        //
+        // TODO:
     }
 
     static void Update_States(
@@ -652,7 +694,7 @@ struct Human_Employee_Controller {
         Graph_Segment* old_segment,
         Building* old_building
     ) {
-        //
+        // TODO:
     }
 };
 
@@ -661,18 +703,23 @@ void Main_Update(Human& human, Human_Data& data, f32 dt) {
     case Human_Main_State::Moving_In_The_World:
         Human_Moving_In_The_World_Controller::Update(human, data, dt);
         break;
+
     case Human_Main_State::Moving_Inside_Segment:
         Human_Moving_Inside_Segment::Update(human, data, dt);
         break;
+
     case Human_Main_State::Moving_Resource:
         Human_Moving_Resources::Update(human, data, dt);
         break;
+
     case Human_Main_State::Building:
         Human_Construction_Controller::Update(human, data, dt);
         break;
+
     case Human_Main_State::Employee:
         Human_Employee_Controller::Update(human, data, dt);
         break;
+
     default:
         INVALID_PATH;
     }
@@ -689,16 +736,19 @@ void Main_On_Human_Current_Segment_Changed(
             human, data, old_segment
         );
         break;
+
     case Human_Main_State::Moving_Inside_Segment:
         Human_Moving_Inside_Segment::On_Human_Current_Segment_Changed(
             human, data, old_segment
         );
         break;
+
     case Human_Main_State::Moving_Resource:
         Human_Moving_Resources::On_Human_Current_Segment_Changed(
             human, data, old_segment
         );
         break;
+
     case Human_Main_State::Building:
     default:
         INVALID_PATH;
@@ -712,15 +762,19 @@ void Main_On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
             human, data
         );
         break;
+
     case Human_Main_State::Moving_Inside_Segment:
         Human_Moving_Inside_Segment::On_Human_Moved_To_The_Next_Tile(human, data);
         break;
+
     case Human_Main_State::Moving_Resource:
         Human_Moving_Resources::On_Human_Moved_To_The_Next_Tile(human, data);
         break;
+
     case Human_Main_State::Employee:
         Human_Employee_Controller::On_Human_Moved_To_The_Next_Tile(human, data);
         break;
+
     case Human_Main_State::Building:
     default:
         INVALID_PATH;
@@ -738,17 +792,22 @@ void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& 
         case Human_Main_State::Moving_In_The_World:
             Human_Moving_In_The_World_Controller::On_Exit(human, data);
             break;
+
         case Human_Main_State::Moving_Inside_Segment:
             Human_Moving_Inside_Segment::On_Exit(human, data);
             break;
+
         case Human_Main_State::Moving_Resource:
             Human_Moving_Resources::On_Exit(human, data);
             break;
+
         case Human_Main_State::Building:
             Human_Construction_Controller::On_Exit(human, data);
             break;
+
         case Human_Main_State::Employee:
             break;
+
         default:
             INVALID_PATH;
         }
@@ -760,18 +819,23 @@ void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& 
     case Human_Main_State::Moving_In_The_World:
         Human_Moving_In_The_World_Controller::On_Enter(human, data);
         break;
+
     case Human_Main_State::Moving_Inside_Segment:
         Human_Moving_Inside_Segment::On_Enter(human, data);
         break;
+
     case Human_Main_State::Moving_Resource:
         Human_Moving_Resources::On_Enter(human, data);
         break;
+
     case Human_Main_State::Building:
         Human_Construction_Controller::On_Enter(human, data);
         break;
+
     case Human_Main_State::Employee:
         // TODO: Human_Employee_Controller::Switch_To_The_Next_Behaviour(human);
         break;
+
     default:
         INVALID_PATH;
     }
@@ -1423,8 +1487,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         for (auto linked_segment_pptr : Iter(&segment.linked_segments)) {
             Graph_Segment* linked_segment_ptr = *linked_segment_pptr;
             Graph_Segment& linked_segment = *linked_segment_ptr;
-            auto found_index
-                = Vector_Find(linked_segment.linked_segments, segment_ptr);
+            auto found_index = Vector_Find(linked_segment.linked_segments, segment_ptr);
             if (found_index == -1)
                 Vector_Remove_At(linked_segment.linked_segments, found_index);
         }
