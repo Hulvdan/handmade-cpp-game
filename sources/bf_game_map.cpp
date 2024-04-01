@@ -174,7 +174,7 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
     auto gsize = game_map.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
-    auto [found_instance, _] = Find_And_Occupy_Empty_Slot(game_map.buildings);
+    auto [_, found_instance] = Find_And_Occupy_Empty_Slot(game_map.buildings);
     auto& instance = *found_instance;
 
     instance.pos = pos;
@@ -309,52 +309,21 @@ void Deinit_Vector(Static_Allocation_Vector<T, Allocation_Tag>& container) {
 //     }
 // }
 
-// template <typename Derived>
-// struct Human_Top_Controller {
-// protected:
-//     auto Self_Type = Derived;
-//
-// public:
-//     void On_Enter(Human& human, Human_Data& data) { Self_Type::On_Enter(human, data); }
-//
-//     void On_Exit(Human& human, Human_Data& data) { Self_Type::On_Exit(human, data); }
-//
-//     void Update(Human& human, Human_Data& data, f32 dt) {
-//         Self_Type::Update(human, data, dt);
-//     }
-//
-//     void On_Human_Current_Segment_Changed(
-//         Human& human,
-//         Human_Data& data,
-//         Graph_Segment* old_segment  //
-//     ) {
-//         Self_Type::On_Human_Current_Segment_Changed(human, datta, old_segment);
-//     }
-//
-//     void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {}
-//
-//     void Update_States(
-//         Human& human,
-//         Human_Data& data,
-//         Graph_Segment* old_segment,
-//         Building* old_building) {}
-// };
-
 struct Human_Data : public Non_Copyable {
     Player_ID max_player_id;
-    Building* city_halls;
+    Building** city_halls;
     Game_Map* game_map;
     Arena* trash_arena;
 };
 
-void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data);
+void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data);
 
 void Human_Moving_Component_Add_Path(
     Human_Moving_Component& moving,
     v2i16* path,
     i32 path_count
 ) {
-    Reset_Queue(moving.path);
+    Container_Reset(moving.path);
 
     if (moving.to.value_or(moving.pos) == *(path + 0)) {
         path += 1;
@@ -371,7 +340,7 @@ struct Human_Moving_In_The_World_Controller {
         //         "{human.segment.resourcesToTransport.Count}");
         // }
 
-        Reset_Queue(human.moving.path);
+        Container_Reset(human.moving.path);
 
         Update_States(human, data, nullptr, nullptr);
     }
@@ -381,7 +350,7 @@ struct Human_Moving_In_The_World_Controller {
 
         human.state_moving_in_the_world = Moving_In_The_World_State::None;
         human.moving.to.reset();
-        Reset_Queue(human.moving.path);
+        Container_Reset(human.moving.path);
 
         if (human.type == Human_Type::Employee) {
             Assert(human.building != nullptr);
@@ -409,7 +378,7 @@ struct Human_Moving_In_The_World_Controller {
             && human.building != nullptr  //
             && human.moving.pos == human.building->pos  //
         ) {
-            Set_Human_State(human, Human_Main_State::Building, data);
+            Main_Set_Human_State(human, Human_Main_State::Building, data);
         }
 
         if (human.type == Human_Type::Employee) {
@@ -443,7 +412,7 @@ struct Human_Moving_In_The_World_Controller {
                 && Graph_Contains(segment.graph, human.moving.to.value())
                 && Graph_Node(segment.graph, human.moving.to.value()) != 0  //
             ) {
-                Reset_Queue(human.moving.path);
+                Container_Reset(human.moving.path);
                 return;
             }
 
@@ -453,9 +422,11 @@ struct Human_Moving_In_The_World_Controller {
                 && Graph_Contains(segment.graph, human.moving.pos)  //
                 && Graph_Node(segment.graph, human.moving.pos) != 0  //
             ) {
-                // TRACELOG("Set_Human_State(human,
+                // TRACELOG("Main_Set_Human_State(human,
                 //     Human_Main_State::Moving_Inside_Segment, data)");
-                Set_Human_State(human, Human_Main_State::Moving_Inside_Segment, data);
+                Main_Set_Human_State(
+                    human, Human_Main_State::Moving_Inside_Segment, data
+                );
                 return;
             }
 
@@ -534,7 +505,7 @@ struct Human_Moving_In_The_World_Controller {
             human.state_moving_in_the_world
                 = Moving_In_The_World_State::Moving_To_The_City_Hall;
 
-            auto& city_hall = Assert_Deref(data.city_halls + human.player_id);
+            auto& city_hall = Assert_Deref(*(data.city_halls + human.player_id));
             // TODO:
             // auto path = data.game_map->Find_Path(
             //     human.moving.to.value_or(human.moving.pos), city_hall.pos, true);
@@ -545,15 +516,218 @@ struct Human_Moving_In_The_World_Controller {
     }
 };
 
-#define TOP_HUMAN_CONTROLLERS_FUNCTIONS(_generate_case_, code) \
-    _generate_case_(Moving_In_The_World, Human_Moving_In_The_World_Controller::code);
+struct Human_Moving_Inside_Segment {
+    static void On_Enter(Human& human, Human_Data& data) {
+        //
+    }
 
-#define GENERATE_CASE(_human_main_state_, _called_function_) \
-    case (Human_Main_State::_human_main_state_): {           \
-        _called_function_;                                   \
-    } break;
+    static void On_Exit(Human& human, Human_Data& data) {
+        //
+    }
 
-void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data) {
+    static void Update(Human& human, Human_Data& data, f32 dt) {
+        //
+    }
+
+    static void On_Human_Current_Segment_Changed(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment
+    ) {
+        //
+    }
+
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update_States(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment,
+        Building* old_building
+    ) {
+        //
+    }
+};
+
+struct Human_Moving_Resources {
+    static void On_Enter(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void On_Exit(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update(Human& human, Human_Data& data, f32 dt) {
+        //
+    }
+
+    static void On_Human_Current_Segment_Changed(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment
+    ) {
+        //
+    }
+
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update_States(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment,
+        Building* old_building
+    ) {
+        //
+    }
+};
+
+struct Human_Construction_Controller {
+    static void On_Enter(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void On_Exit(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update(Human& human, Human_Data& data, f32 dt) {
+        //
+    }
+
+    static void On_Human_Current_Segment_Changed(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment
+    ) {
+        //
+    }
+
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update_States(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment,
+        Building* old_building
+    ) {
+        //
+    }
+};
+
+struct Human_Employee_Controller {
+    static void On_Enter(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void On_Exit(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update(Human& human, Human_Data& data, f32 dt) {
+        //
+    }
+
+    static void On_Human_Current_Segment_Changed(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment
+    ) {
+        //
+    }
+
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+        //
+    }
+
+    static void Update_States(
+        Human& human,
+        Human_Data& data,
+        Graph_Segment* old_segment,
+        Building* old_building
+    ) {
+        //
+    }
+};
+
+void Main_Update(Human& human, Human_Data& data, f32 dt) {
+    switch (human.state) {
+    case Human_Main_State::Moving_In_The_World:
+        Human_Moving_In_The_World_Controller::Update(human, data, dt);
+        break;
+    case Human_Main_State::Moving_Inside_Segment:
+        Human_Moving_Inside_Segment::Update(human, data, dt);
+        break;
+    case Human_Main_State::Moving_Resource:
+        Human_Moving_Resources::Update(human, data, dt);
+        break;
+    case Human_Main_State::Building:
+        Human_Construction_Controller::Update(human, data, dt);
+        break;
+    case Human_Main_State::Employee:
+        Human_Employee_Controller::Update(human, data, dt);
+        break;
+    default:
+        INVALID_PATH;
+    }
+}
+
+void Main_On_Human_Current_Segment_Changed(
+    Human& human,
+    Human_Data& data,
+    Graph_Segment* old_segment
+) {
+    switch (human.state) {
+    case Human_Main_State::Moving_In_The_World:
+        Human_Moving_In_The_World_Controller::On_Human_Current_Segment_Changed(
+            human, data, old_segment
+        );
+        break;
+    case Human_Main_State::Moving_Inside_Segment:
+        Human_Moving_Inside_Segment::On_Human_Current_Segment_Changed(
+            human, data, old_segment
+        );
+        break;
+    case Human_Main_State::Moving_Resource:
+        Human_Moving_Resources::On_Human_Current_Segment_Changed(
+            human, data, old_segment
+        );
+        break;
+    case Human_Main_State::Building:
+    default:
+        INVALID_PATH;
+    }
+}
+
+void Main_On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+    switch (human.state) {
+    case Human_Main_State::Moving_In_The_World:
+        Human_Moving_In_The_World_Controller::On_Human_Moved_To_The_Next_Tile(
+            human, data
+        );
+        break;
+    case Human_Main_State::Moving_Inside_Segment:
+        Human_Moving_Inside_Segment::On_Human_Moved_To_The_Next_Tile(human, data);
+        break;
+    case Human_Main_State::Moving_Resource:
+        Human_Moving_Resources::On_Human_Moved_To_The_Next_Tile(human, data);
+        break;
+    case Human_Main_State::Employee:
+        Human_Employee_Controller::On_Human_Moved_To_The_Next_Tile(human, data);
+        break;
+    case Human_Main_State::Building:
+    default:
+        INVALID_PATH;
+    }
+}
+
+void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data) {
     // TRACELOG_SCOPE;
     // TRACELOG("Set_Human_State");
     auto old_state = human.state;
@@ -561,7 +735,20 @@ void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data)
 
     if (old_state != Human_Main_State::None) {
         switch (old_state) {
-            TOP_HUMAN_CONTROLLERS_FUNCTIONS(GENERATE_CASE, On_Exit(human, data))
+        case Human_Main_State::Moving_In_The_World:
+            Human_Moving_In_The_World_Controller::On_Exit(human, data);
+            break;
+        case Human_Main_State::Moving_Inside_Segment:
+            Human_Moving_Inside_Segment::On_Exit(human, data);
+            break;
+        case Human_Main_State::Moving_Resource:
+            Human_Moving_Resources::On_Exit(human, data);
+            break;
+        case Human_Main_State::Building:
+            Human_Construction_Controller::On_Exit(human, data);
+            break;
+        case Human_Main_State::Employee:
+            break;
         default:
             INVALID_PATH;
         }
@@ -570,8 +757,21 @@ void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data)
     human.state_moving_in_the_world = Moving_In_The_World_State::Moving_To_Destination;
 
     switch (new_state) {
-        TOP_HUMAN_CONTROLLERS_FUNCTIONS(GENERATE_CASE, On_Enter(human, data))
-        // NOTE: There is another way of specifying Employee's behaviour
+    case Human_Main_State::Moving_In_The_World:
+        Human_Moving_In_The_World_Controller::On_Enter(human, data);
+        break;
+    case Human_Main_State::Moving_Inside_Segment:
+        Human_Moving_Inside_Segment::On_Enter(human, data);
+        break;
+    case Human_Main_State::Moving_Resource:
+        Human_Moving_Resources::On_Enter(human, data);
+        break;
+    case Human_Main_State::Building:
+        Human_Construction_Controller::On_Enter(human, data);
+        break;
+    case Human_Main_State::Employee:
+        // TODO: Human_Employee_Controller::Switch_To_The_Next_Behaviour(human);
+        break;
     default:
         INVALID_PATH;
     }
@@ -580,17 +780,20 @@ void Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data)
 Human* Create_Human_Transporter(
     Game_Map& game_map,
     Building& building,
-    Graph_Segment& segment,
+    Graph_Segment* segment_ptr,
     Human_Data& data
 ) {
-    auto [human_ptr, locator] = Find_And_Occupy_Empty_Slot(game_map.humans);
+    auto& segment = Assert_Deref(segment_ptr);
+
+    // TODO: По-идее нужно добавлять в humans_to_add
+    auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans);
     auto& human = *human_ptr;
+    human.moving.pos = building.pos;
+    human.segment = segment_ptr;
+
+    Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
+
     // TODO:
-    // var human = Human.Transporter(Guid.NewGuid(), building.pos, segment);
-    // human.aboba = 1;
-
-    Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
-
     // onHumanCreated.OnNext(new() { human = human });
     //
     // if (building.scriptable.type == BuildingType.SpecialCityHall) {
@@ -621,8 +824,8 @@ void Update_Building__Constructed(
         if (game_map.segments_that_need_humans.count > 0) {
             if (since_created >= delay) {
                 since_created -= delay;
-                auto segment = Dequeue(game_map.segments_that_need_humans);
-                Create_Human_Transporter(game_map, building, *segment, data);
+                Graph_Segment* segment = Dequeue(game_map.segments_that_need_humans);
+                Create_Human_Transporter(game_map, building, segment, data);
             }
         }
     }
@@ -633,12 +836,184 @@ void Update_Building__Constructed(
 void Update_Buildings(Game_State& state, f32 dt, Human_Data& data) {
     for (auto building_ptr : Iter(&state.game_map.buildings)) {
         auto& building = *building_ptr;
-        // if (building.constructionProgress < 1) {
+        // TODO: if (building.constructionProgress < 1) {
         //     Update_Building__Not_Constructed(building, dt);
         // } else {
         Update_Building__Constructed(state.game_map, building, dt, data);
         // }
     }
+}
+
+void Remove_Humans(Game_State& state) {
+    auto& game_map = state.game_map;
+
+    for (auto pptr : Iter(&game_map.humans_to_remove)) {
+        auto& [reason, human_ptr, locator_in_humans_array] = *pptr;
+        Human& human = Assert_Deref(human_ptr);
+
+        if (reason == Human_Removal_Reason::Transporter_Returned_To_City_Hall) {
+            // TODO: on_Human_Reached_City_Hall.On_Next(new (){human = human});
+        }
+        else if (reason == Human_Removal_Reason::Employee_Reached_Building) {
+            // TODO: on_Employee_Reached_Building.On_Next(new (){human = human});
+            Assert(human.building != nullptr);
+            human.building->employee = nullptr;
+        }
+
+        Bucket_Array_Remove(game_map.humans, locator_in_humans_array);
+    }
+
+    Container_Reset(game_map.humans_to_remove);
+}
+
+void Advance_Moving_To(Human_Moving_Component& moving) {
+    if (moving.path.count == 0) {
+        moving.elapsed = 0;
+        moving.to.reset();
+    }
+    else {
+        moving.to = Dequeue(moving.path);
+    }
+}
+
+void Update_Human_Moving_Component(
+    Game_Map& game_map,
+    Human& human,
+    float dt,
+    Human_Data& data
+) {
+    auto& game_map_data = Assert_Deref(game_map.data);
+
+    auto& moving = human.moving;
+    moving.elapsed += dt;
+
+    constexpr int _GUARD_MAX_MOVING_TILES_PER_FRAME = 4;
+
+    auto iteration = 0;
+    while (iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME  //
+           && moving.to.has_value()  //
+           && moving.elapsed > game_map_data.human_moving_one_tile_duration  //
+    ) {
+        iteration++;
+
+        // using var _ = Tracing.Scope();
+        // Tracing.Log("Human reached the next tile");
+
+        moving.elapsed -= game_map_data.human_moving_one_tile_duration;
+
+        moving.pos = moving.to.value();
+        moving.from = moving.pos;
+        Advance_Moving_To(moving);
+
+        Main_On_Human_Moved_To_The_Next_Tile(human, data);
+        // TODO: on_Human_Moved_To_The_Next_Tile.On_Next(new (){ human = human });
+    }
+
+    Assert(iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME);
+    if (iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME) {
+        // TODO: Debug.Log_Warning("WTF?");
+    }
+
+    moving.progress
+        = MIN(1.0f, moving.elapsed / game_map_data.human_moving_one_tile_duration);
+}
+
+#define USING(path, var) auto&(var) = (path).(var)
+
+void Update_Human(
+    Game_Map& game_map,
+    Human* human_ptr,
+    Bucket_Locator locator,
+    float dt,
+    Building** city_halls,
+    Human_Data& data
+) {
+    auto& human = *human_ptr;
+    auto& humans_to_remove = game_map.humans_to_remove;
+
+    if (human.moving.to.has_value())
+        Update_Human_Moving_Component(game_map, human, dt, data);
+
+    if (humans_to_remove.count > 0  //
+        && std::get<1>(*(humans_to_remove.base + humans_to_remove.count - 1))
+            == human_ptr)
+        return;
+
+    Main_Update(human, data, dt);
+
+    auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
+    if (human.state_moving_in_the_world == state  //
+        && human.moving.pos == (*(city_halls + human.player_id))->pos  //
+        && !human.moving.to.has_value()  //
+    ) {
+        // auto rem = Game_Map::Human_To_Remove{
+        //     Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator
+        // };
+        // Vector_Add(humans_to_remove, std::move(rem));
+        Vector_Add(
+            humans_to_remove,
+            {Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator}
+        );
+    }
+}
+
+void Update_Humans(Game_State& state, f32 dt, Human_Data& data, Building** city_halls) {
+    auto& game_map = state.game_map;
+
+    for (auto abobe : Iter(&game_map.humans_to_remove)) {
+        auto [reason, _, _2] = *abobe;
+        Assert(reason != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
+    }
+
+    Remove_Humans(state);
+
+    for (auto [locator, human_ptr] : Iter_With_Locator(&game_map.humans)) {
+        Update_Human(game_map, human_ptr, locator, dt, city_halls, data);
+    }
+
+    auto prev_count = game_map.humans_to_add.count;
+    for (auto human_ptr : Iter(&game_map.humans_to_add)) {
+        auto [locator, arr_place] = Find_And_Occupy_Empty_Slot(game_map.humans);
+        *arr_place = std::move(*human_ptr);
+        Update_Human(game_map, arr_place, locator, dt, city_halls, data);
+    }
+
+    Assert(prev_count == game_map.humans_to_add.count);
+    Container_Reset(game_map.humans_to_add);
+
+    Remove_Humans(state);
+}
+
+void Update_Game_Map(Game_State& state, float dt) {
+    auto& game_map = state.game_map;
+    auto& trash_arena = state.trash_arena;
+
+    int players_count = 1;
+    int city_halls_count = 0;
+    Building** city_halls = Allocate_Zeros_Array(trash_arena, Building*, players_count);
+
+    {  // NOTE: Доставание всех City Hall
+        for (auto building_ptr : Iter(&game_map.buildings)) {
+            auto& building = *building_ptr;
+            if (building.scriptable->type == Building_Type::City_Hall) {
+                *(city_halls + city_halls_count) = building_ptr;
+                city_halls_count++;
+            }
+
+            if (city_halls_count == players_count)
+                break;
+        }
+        Assert(city_halls_count == players_count);
+    }
+
+    Human_Data data;
+    data.max_player_id = players_count;
+    data.city_halls = city_halls;
+    data.game_map = &game_map;
+    data.trash_arena = &trash_arena;
+
+    Update_Buildings(state, dt, data);
+    Update_Humans(state, dt, data, city_halls);
 }
 
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
@@ -1044,11 +1419,17 @@ BF_FORCE_INLINE void Update_Segments_Function(
             );
         }
 
+        // NOTE: Удаляем данный вектор из привязанных
+        for (auto linked_segment_pptr : Iter(&segment.linked_segments)) {
+            Graph_Segment* linked_segment_ptr = *linked_segment_pptr;
+            Graph_Segment& linked_segment = *linked_segment_ptr;
+            auto found_index
+                = Vector_Find(linked_segment.linked_segments, segment_ptr);
+            if (found_index == -1)
+                Vector_Remove_At(linked_segment.linked_segments, found_index);
+        }
+
         // TODO:
-        // foreach (auto linkedSegment in segment.linked_segments) {
-        //     linked_segment.Unlink(segment);
-        // }
-        //
         // _resource_transportation.OnSegmentDeleted(segment);
 
         // PERF: Много memmove происходит
@@ -1059,13 +1440,12 @@ BF_FORCE_INLINE void Update_Segments_Function(
         }
 
         Bucket_Array_Remove(segments, segment.locator);
-        // TODO:
         segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
         graph_nodes_allocator.Free(segment.graph.nodes);
     }
 
     FOR_RANGE(u32, i, added_segments_count) {
-        auto [segment1_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
+        auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
         auto& segment1 = *segment1_ptr;
         segment1.locator = locator;
 
@@ -1083,7 +1463,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             if (segment2_ptr == segment1_ptr)
                 continue;
 
-            // PERF: Мб тут чтоит что-то из разряда
+            // PERF: Мб тут стоит что-то из разряда
             // AABB(graph1, graph2) для оптимизации заюзать
             auto& segment2 = *segment2_ptr;
             if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
@@ -1395,7 +1775,7 @@ void Build_Graph_Segments(
     Update_Segments_Lambda(0, nullptr, added_segments_count, added_segments);
 
     FOR_RANGE(u32, i, added_segments_count) {
-        auto [segment_ptr, locator] = Find_And_Occupy_Empty_Slot(segments);
+        auto [locator, segment_ptr] = Find_And_Occupy_Empty_Slot(segments);
         auto& segment = *segment_ptr;
         segment.locator = locator;
         auto& added_segment = *(added_segments + i);

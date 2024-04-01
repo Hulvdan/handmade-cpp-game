@@ -73,6 +73,8 @@ using v3i = glm::ivec3;
 #define local_persist static
 #define global static
 
+#define USING(path, var) auto&(var) = (path).(var)
+
 #include "bf_types.h"
 
 #ifdef TESTS

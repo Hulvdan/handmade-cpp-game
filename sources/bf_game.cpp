@@ -489,5 +489,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     }
 
     Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt);
+    Update_Game_Map(state, dt);
     Render(state, dt);
 }

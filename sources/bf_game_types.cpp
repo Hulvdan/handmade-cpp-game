@@ -71,7 +71,7 @@ struct Vector {
 };
 
 template <typename T, typename Allocation_Tag>
-    requires std::is_trivially_copyable_v<T>
+// requires std::is_trivially_copyable_v<T>
 struct Static_Allocation_Vector {
     T* base;
     i32 count;
@@ -85,8 +85,41 @@ template <typename T, typename Allocation_Tag>
 Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functions = {};
 
 template <typename T, typename Allocation_Tag>
-    requires std::is_trivially_copyable_v<T>
+// requires std::is_trivially_copyable_v<T>
 Allocator_Functions Static_Allocation_Vector<T, Allocation_Tag>::allocator_functions = {};
+
+using Bucket_Index = u32;
+
+template <typename T>
+struct Bucket {
+    void* occupied;
+    void* data;
+
+    i32 count;
+    Bucket_Index bucket_index;
+};
+
+struct Bucket_Locator {
+    Bucket_Index bucket_index;
+    u32 slot_index;
+};
+
+// TODO:
+// 1) Нужно ли реализовать expandable количество бакетов?
+template <typename T>
+struct Bucket_Array : Non_Copyable {
+    Allocator_Functions allocator_functions;
+
+    Bucket<T>* buckets;
+    Bucket_Index* unfull_buckets;
+
+    i64 count;
+    i32 items_per_bucket;
+
+    Bucket_Index buckets_count;
+    Bucket_Index used_buckets_count;
+    Bucket_Index unfull_buckets_count;
+};
 
 template <typename T>
 void Enqueue(Fixed_Size_Queue<T>& container, const T value) {
@@ -280,11 +313,6 @@ T Dequeue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
     return res;
 }
 
-template <typename T>
-BF_FORCE_INLINE void Reset_Queue(Queue<T>& container) {
-    container.count = 0;
-}
-
 template <typename T, typename Allocation_Tag>
 i32 Queue_Find(Static_Allocation_Queue<T, Allocation_Tag>& container, T value) {
     FOR_RANGE(i32, i, container.count) {
@@ -307,6 +335,17 @@ i32 Vector_Find(Static_Allocation_Vector<T, Allocation_Tag>& container, T value)
     return -1;
 }
 
+template <typename T, typename Allocation_Tag>
+i32 Vector_Find_Ptr(
+    Static_Allocation_Vector<T, Allocation_Tag>& container,
+    T* value_ptr
+) {
+    Assert(container.base <= value_ptr);
+    Assert(value_ptr < container.base + container.count * sizeof(T));
+    Assert((value_ptr - container.base) % sizeof(T) == 0);
+    return (value_ptr - container.base) / sizeof(T);
+}
+
 template <typename T>
 i32 Vector_Find(Vector<T>& container, T value) {
     FOR_RANGE(i32, i, container.count) {
@@ -316,6 +355,14 @@ i32 Vector_Find(Vector<T>& container, T value) {
     }
 
     return -1;
+}
+
+template <typename T>
+i32 Vector_Find_Ptr(Vector<T>& container, T* value_ptr) {
+    Assert(container.base <= value_ptr);
+    Assert(value_ptr < container.base + container.count * sizeof(T));
+    Assert((value_ptr - container.base) % sizeof(T) == 0);
+    return (value_ptr - container.base) / sizeof(T);
 }
 
 template <typename T, typename Allocation_Tag>
@@ -369,8 +416,73 @@ i32 Vector_Add(Vector<T>& container, T& value) {
     return locator;
 }
 
+template <typename T>
+void Vector_Remove_At(Vector<T>& container, i32 i) {
+    Assert(i >= 0);
+    Assert(i < container.count);
+
+    i32 delta_count = container.count - i - 1;
+    Assert(delta_count >= 0);
+
+    if (delta_count > 0) {
+        memmove(container.base + i, container.base + i + 1, sizeof(T) * delta_count);
+    }
+
+    container.count -= 1;
+}
+
+template <typename T, typename Allocation_Tag>
+void Vector_Remove_At(Static_Allocation_Vector<T, Allocation_Tag>& container, i32 i) {
+    Assert(i >= 0);
+    Assert(i < container.count);
+
+    i32 delta_count = container.count - i - 1;
+    Assert(delta_count >= 0);
+
+    if (delta_count > 0) {
+        memmove(container.base + i, container.base + i + 1, sizeof(T) * delta_count);
+    }
+
+    container.count -= 1;
+}
+
 template <typename T, typename Allocation_Tag>
 i32 Vector_Add(Static_Allocation_Vector<T, Allocation_Tag>& container, T& value) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    i32 locator = container.count;
+
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+
+        container.max_count = 8;
+        container.base = rcast<T*>(container.allocator_functions.allocate(
+            container.max_count * sizeof(T), alignof(T)
+        ));
+    }
+    else if (container.max_count == container.count) {
+        u32 doubled_max_count = container.max_count * 2;
+        Assert(container.max_count < doubled_max_count);  // NOTE: Ловим overflow
+        auto size = sizeof(T) * container.max_count;
+        auto old_ptr = container.base;
+
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
+        memcpy(container.base, old_ptr, size);
+        container.allocator_functions.free(old_ptr);
+
+        container.max_count *= 2;
+    }
+
+    *(container.base + container.count) = value;
+    container.count += 1;
+
+    return locator;
+}
+
+template <typename T, typename Allocation_Tag>
+i32 Vector_Add(Static_Allocation_Vector<T, Allocation_Tag>& container, T&& value) {
     CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
 
     i32 locator = container.count;
@@ -428,22 +540,6 @@ i32 Array_Find(T* values, u32 n, T& value) {
 
 // ----- Bucket Array -----
 
-using Bucket_Index = u32;
-
-template <typename T>
-struct Bucket {
-    void* occupied;
-    void* data;
-
-    i32 count;
-    Bucket_Index bucket_index;
-};
-
-struct Bucket_Locator {
-    Bucket_Index bucket_index;
-    u32 slot_index;
-};
-
 #if 1
 template <typename T>
 BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
@@ -459,82 +555,62 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
 // на использование просто bool, если понадобится
 #endif
 
-// TODO:
-// 1) Нужно ли реализовать expandable количество бакетов?
 template <typename T>
-struct Bucket_Array : Non_Copyable {
-    Allocator_Functions allocator_functions;
+Bucket<T>* Add_Bucket(Bucket_Array<T>& container) {
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
 
-    Bucket<T>* buckets;
-    Bucket_Index* unfull_buckets;
-
-    i64 count;
-    i32 items_per_bucket;
-
-    Bucket_Index buckets_count;
-    Bucket_Index used_buckets_count;
-    Bucket_Index unfull_buckets_count;
-};
-
-template <typename T>
-Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
-    Assert(arr.unfull_buckets_count == 0);
-    Assert(arr.items_per_bucket > 0);
-    Assert(arr.buckets_count > 0);
+    Assert(container.unfull_buckets_count == 0);
+    Assert(container.items_per_bucket > 0);
+    Assert(container.buckets_count > 0);
 
     // NOTE: Это код инициализации. Подумать, не нужно
     // ли его инициализировать в самом начале его создания
 
-    if (arr.buckets == nullptr) {  // NOTE: Следовательно, это первый вызов.
-        Assert(arr.unfull_buckets == nullptr);
+    if (container.buckets == nullptr) {  // NOTE: Следовательно, это первый вызов.
+        Assert(container.unfull_buckets == nullptr);
 
         typedef Bucket<T> arr_type;
 
-        if (arr.allocator_functions.allocate == nullptr) {
-            Assert(arr.allocator_functions.free == nullptr);
-            arr.buckets = new arr_type[arr.buckets_count];
-            arr.unfull_buckets = new Bucket_Index[arr.buckets_count];
+        constexpr auto align = alignof(arr_type*);
+        auto alloc_size = container.buckets_count * sizeof(arr_type);
+
+        container.buckets
+            = rcast<Bucket<T>*>(container.allocator_functions.allocate(alloc_size, align)
+            );
+        if (container.buckets == nullptr) {
+            Assert(false);
+            return nullptr;
         }
-        else {
-            Assert(arr.allocator_functions.free != nullptr);
-            constexpr auto align = alignof(arr_type*);
-            auto alloc_size = arr.buckets_count * sizeof(arr_type);
 
-            arr.buckets
-                = rcast<Bucket<T>*>(arr.allocator_functions.allocate(alloc_size, align));
-            if (arr.buckets == nullptr) {
-                Assert(false);
-                return nullptr;
-            }
-
-            arr.unfull_buckets = rcast<Bucket_Index*>(arr.allocator_functions.allocate(
-                arr.buckets_count * sizeof(Bucket_Index), alignof(Bucket_Index)
+        container.unfull_buckets
+            = rcast<Bucket_Index*>(container.allocator_functions.allocate(
+                container.buckets_count * sizeof(Bucket_Index), alignof(Bucket_Index)
             ));
-            if (arr.unfull_buckets == nullptr) {
-                Assert(false);
-                return nullptr;
-            }
+        if (container.unfull_buckets == nullptr) {
+            Assert(false);
+            return nullptr;
         }
     }
 
-    Assert(arr.buckets != nullptr);
-    Assert(arr.unfull_buckets != nullptr);
+    Assert(container.buckets != nullptr);
+    Assert(container.unfull_buckets != nullptr);
 
-    auto new_bucket = arr.buckets + arr.used_buckets_count;
-    new_bucket->bucket_index = arr.used_buckets_count;
+    auto new_bucket = container.buckets + container.used_buckets_count;
+    new_bucket->bucket_index = container.used_buckets_count;
     new_bucket->count = 0;
 
-    auto occupied_bytes_count = Ceil_Division(arr.items_per_bucket, 8);
-    auto occupied = rcast<u8*>(arr.allocator_functions.allocate(occupied_bytes_count, 1));
+    auto occupied_bytes_count = Ceil_Division(container.items_per_bucket, 8);
+    auto occupied
+        = rcast<u8*>(container.allocator_functions.allocate(occupied_bytes_count, 1));
     if (occupied == nullptr) {
         Assert(false);
         return nullptr;
     }
     memset(occupied, 0, occupied_bytes_count);
 
-    auto data = rcast<u8*>(
-        arr.allocator_functions.allocate(sizeof(T) * arr.items_per_bucket, alignof(T))
-    );
+    auto data = rcast<u8*>(container.allocator_functions.allocate(
+        sizeof(T) * container.items_per_bucket, alignof(T)
+    ));
     if (data == nullptr) {
         Assert(false);
         return nullptr;
@@ -543,15 +619,16 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& arr) {
     new_bucket->occupied = occupied;
     new_bucket->data = data;
 
-    *(arr.unfull_buckets + arr.unfull_buckets_count) = arr.used_buckets_count;
-    arr.used_buckets_count++;
-    arr.unfull_buckets_count++;
+    *(container.unfull_buckets + container.unfull_buckets_count)
+        = container.used_buckets_count;
+    container.used_buckets_count++;
+    container.unfull_buckets_count++;
 
     return new_bucket;
 }
 
 template <typename T>
-ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
+ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     if (arr.unfull_buckets_count == 0)
         Add_Bucket(arr);
     // TODO: Some kind of error handling!
@@ -596,12 +673,12 @@ ttuple<T*, Bucket_Locator> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     locator.bucket_index = bucket_ptr->bucket_index;
     locator.slot_index = index;
 
-    return {scast<T*>(bucket_ptr->data) + index, locator};
+    return {locator, scast<T*>(bucket_ptr->data) + index};
 }
 
 template <typename T>
 Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item) {
-    auto [ptr, locator] = Find_And_Occupy_Empty_Slot(arr);
+    auto [locator, ptr] = Find_And_Occupy_Empty_Slot(arr);
     *ptr = item;
     return locator;
 }
@@ -717,8 +794,220 @@ private:
 };
 
 template <typename T>
+class Bucket_Array_With_Locator_Iterator
+    : public Iterator_Facade<Bucket_Array_With_Locator_Iterator<T>> {
+public:
+    Bucket_Array_With_Locator_Iterator() = delete;
+
+    Bucket_Array_With_Locator_Iterator(Bucket_Array<T>* arr)
+        : Bucket_Array_With_Locator_Iterator(arr, 0, 0) {}
+
+    Bucket_Array_With_Locator_Iterator(
+        Bucket_Array<T>* arr,
+        i32 current,
+        Bucket_Index current_bucket  //
+    )
+        : _current(current)
+        , _current_bucket(current_bucket)
+        , _arr(arr)  //
+    {
+        Assert(arr != nullptr);
+    }
+
+    Bucket_Array_With_Locator_Iterator begin() const {
+        Bucket_Array_With_Locator_Iterator iter = {_arr, _current, _current_bucket};
+
+        if (_arr->used_buckets_count) {
+            iter._current -= 1;
+            iter._current_bucket_count = iter._Get_Current_Bucket_Count();
+            iter.Increment();
+        }
+
+        return iter;
+    }
+    Bucket_Array_With_Locator_Iterator end() const {
+        return {_arr, 0, _arr->used_buckets_count};
+    }
+
+    ttuple<Bucket_Locator, T*> Dereference() const {
+        Assert(_current_bucket < _arr->used_buckets_count);
+        Assert(_current < _arr->items_per_bucket);
+        Assert(_current >= 0);
+
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        Assert(Bucket_Occupied(bucket, _current));
+
+        auto result = scast<T*>(bucket.data) + _current;
+        return {{_current_bucket, (u32)_current}, result};
+    }
+
+    void Increment() {
+        FOR_RANGE(int, _GUARD_, 256) {
+            _current++;
+            if (_current >= _current_bucket_count) {
+                _current = 0;
+                _current_bucket++;
+
+                if (_current_bucket == _arr->used_buckets_count)
+                    return;
+
+                _current_bucket_count = _Get_Current_Bucket_Count();
+            }
+
+            Bucket<T>& bucket = *(_arr->buckets + _current_bucket);
+            if (Bucket_Occupied(bucket, _current))
+                return;
+        }
+        Assert(false);
+    }
+
+    bool Equal_To(const Bucket_Array_With_Locator_Iterator& o) const {
+        return _current == o._current && _current_bucket == o._current_bucket;
+    }
+
+private:
+    int _Get_Current_Bucket_Count() {
+        auto& bucket = *(_arr->buckets + _current_bucket);
+        return bucket.count;
+    }
+
+    Bucket_Array<T>* _arr;
+    i32 _current = 0;
+    Bucket_Index _current_bucket = 0;
+    u16 _current_bucket_count = 0;
+};
+
+template <typename T>
+class Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
+public:
+    Vector_Iterator() = delete;
+    Vector_Iterator(Vector<T>* container) : Vector_Iterator(container, 0) {}
+    Vector_Iterator(Vector<T>* container, i32 current)
+        : _current(current)
+        , _container(container)  //
+    {
+        Assert(container != nullptr);
+    }
+
+    Vector_Iterator begin() const { return {_container, _current}; }
+    Vector_Iterator end() const { return {_container, _container->count}; }
+
+    T* Dereference() const {
+        Assert(_current >= 0);
+        Assert(_current < _container->count);
+        return _container->base + _container->count - 1;
+    }
+
+    void Increment() { _current++; }
+
+    bool Equal_To(const Vector_Iterator& o) const { return _current == o._current; }
+
+private:
+    Vector<T>* _container;
+    i32 _current = 0;
+};
+
+template <typename T, typename Allocation_Tag>
+class Static_Allocation_Vector_Iterator
+    : public Iterator_Facade<Static_Allocation_Vector_Iterator<T, Allocation_Tag>> {
+public:
+    Static_Allocation_Vector_Iterator() = delete;
+
+    Static_Allocation_Vector_Iterator(
+        Static_Allocation_Vector<T, Allocation_Tag>* container
+    )
+        : Static_Allocation_Vector_Iterator(container, 0) {}
+
+    Static_Allocation_Vector_Iterator(
+        Static_Allocation_Vector<T, Allocation_Tag>* container,
+        i32 current
+    )
+        : _current(current)
+        , _container(container)  //
+    {
+        Assert(container != nullptr);
+    }
+
+    Static_Allocation_Vector_Iterator begin() const { return {_container, _current}; }
+    Static_Allocation_Vector_Iterator end() const {
+        return {_container, _container->count};
+    }
+
+    T* Dereference() const {
+        Assert(_current >= 0);
+        Assert(_current < _container->count);
+        return _container->base + _container->count - 1;
+    }
+
+    void Increment() { _current++; }
+
+    bool Equal_To(const Static_Allocation_Vector_Iterator& o) const {
+        return _current == o._current;
+    }
+
+private:
+    Static_Allocation_Vector<T, Allocation_Tag>* _container;
+    i32 _current = 0;
+};
+
+template <typename T>
 auto Iter(Bucket_Array<T>* arr) {
     return Bucket_Array_Iterator(arr);
+}
+
+template <typename T, typename Allocation_Tag>
+auto Iter(Static_Allocation_Vector<T, Allocation_Tag>* container) {
+    return Static_Allocation_Vector_Iterator(container);
+}
+
+template <typename T>
+auto Iter_With_Locator(Bucket_Array<T>* arr) {
+    return Bucket_Array_With_Locator_Iterator(arr);
+}
+
+template <typename T>
+BF_FORCE_INLINE void Container_Reset(Queue<T>& container) {
+    container.count = 0;
+}
+
+template <typename T, typename Allocation_Tag>
+BF_FORCE_INLINE void Container_Reset(  //
+    Static_Allocation_Queue<T, Allocation_Tag>& container
+) {
+    container.count = 0;
+}
+
+template <typename T>
+BF_FORCE_INLINE void Container_Reset(Vector<T>& container) {
+    container.count = 0;
+}
+
+template <typename T, typename Allocation_Tag>
+BF_FORCE_INLINE void Container_Reset(
+    Static_Allocation_Vector<T, Allocation_Tag>& container
+) {
+    container.count = 0;
+}
+
+template <typename T>
+BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
+    container.count = 0;
+    container.used_buckets_count = 0;
+    container.unfull_buckets_count = container.buckets_count;
+
+    FOR_RANGE(Bucket_Index, i, container.buckets_count) {
+        *(container.unfull_buckets + i) = i;
+    }
+
+    auto occupied_bytes_count = Ceil_Division(container.items_per_bucket, 8);
+    FOR_RANGE(Bucket_Index, i, container.buckets_count) {
+        auto& bucket = *(container.buckets + i);
+
+        if (bucket.count > 0) {
+            memset(bucket.occupied, 0, occupied_bytes_count);
+            bucket.count = 0;
+        }
+    }
 }
 
 // ============================================================= //
@@ -814,6 +1103,8 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
 //
 
 struct Human;
+
+struct Graph_Segment;
 
 struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
@@ -987,6 +1278,27 @@ struct Human : public Non_Copyable {
     //
     // Employee_Behaviour_Set behaviour_set;
     // f32 processing_elapsed;
+    //
+    Human(const Human&& o) {
+        player_id = std::move(o.player_id);
+        moving = std::move(o.moving);
+        segment = std::move(o.segment);
+        type = std::move(o.type);
+        state = std::move(o.state);
+        state_moving_in_the_world = std::move(o.state_moving_in_the_world);
+        building = std::move(o.building);
+    }
+
+    Human& operator=(Human&& o) {
+        player_id = std::move(o.player_id);
+        moving = std::move(o.moving);
+        segment = std::move(o.segment);
+        type = std::move(o.type);
+        state = std::move(o.state);
+        state_moving_in_the_world = std::move(o.state_moving_in_the_world);
+        building = std::move(o.building);
+        return *this;
+    }
 };
 
 struct Resource_To_Book : public Non_Copyable {
@@ -997,8 +1309,8 @@ struct Resource_To_Book : public Non_Copyable {
 struct Building : public Non_Copyable {
     Player_ID player_id;
 
-    Human_ID constructor;
-    Human_ID employee;
+    Human* constructor;
+    Human* employee;
 
     Scriptable_Building* scriptable;
 
@@ -1083,6 +1395,15 @@ struct Item_To_Build : public Non_Copyable {
 static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
 static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
 
+enum class Human_Removal_Reason {
+    Transporter_Returned_To_City_Hall,
+    Employee_Reached_Building,
+};
+
+struct Game_Map_Data {
+    f32 human_moving_one_tile_duration;
+};
+
 struct Game_Map : public Non_Copyable {
     v2i16 size;
     Terrain_Tile* terrain_tiles;
@@ -1093,11 +1414,19 @@ struct Game_Map : public Non_Copyable {
     Bucket_Array<Graph_Segment> segments;
     Bucket_Array<Human> humans;
 
+    Bucket_Array<Human> humans_to_add;
+
+    using Human_To_Remove = ttuple<Human_Removal_Reason, Human*, Bucket_Locator>;
+    struct Human_To_Remove_Tag {};
+    Static_Allocation_Vector<Human_To_Remove, Human_To_Remove_Tag> humans_to_remove;
+
     struct Segments_Queue_Tag {};
     Static_Allocation_Queue<Graph_Segment*, Segments_Queue_Tag> segments_that_need_humans;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;
+
+    Game_Map_Data* data;
 };
 
 template <typename T>
