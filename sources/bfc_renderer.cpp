@@ -1011,6 +1011,19 @@ void Render(Game_State& state, f32 dt) {
         glEnd();
     }
 
+    for (auto human_ptr : Iter(&game_map.humans)) {
+        auto& human = *human_ptr;
+        auto tex_id = rstate.human_texture.id;
+        glBindTexture(GL_TEXTURE_2D, tex_id);
+
+        auto sprite_pos = v2i(human.moving.pos) * cell_size;
+        auto sprite_size = v2i(1, 1) * cell_size;
+
+        glBegin(GL_TRIANGLES);
+        Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+        glEnd();
+    }
+
     glDeleteTextures(1, (GLuint*)&texture_name);
     Check_OpenGL_Errors();
 
