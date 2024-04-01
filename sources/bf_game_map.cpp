@@ -239,9 +239,6 @@ void Init_Static_Allocation_Queue(Static_Allocation_Queue<T, Allocation_Tag>& co
     container.count = 0;
     container.max_count = 0;
     container.base = nullptr;
-
-    container.allocator_functions.allocate = _aligned_malloc;
-    container.allocator_functions.free = _aligned_free;
 }
 
 template <typename T>
@@ -252,6 +249,14 @@ void Init_Vector(Vector<T>& container) {
 
     container.allocator_functions.allocate = _aligned_malloc;
     container.allocator_functions.free = _aligned_free;
+}
+
+template <typename T, typename Allocation_Tag>
+void Init_Static_Allocation_Vector(Static_Allocation_Vector<T, Allocation_Tag>& container
+) {
+    container.count = 0;
+    container.max_count = 0;
+    container.base = nullptr;
 }
 
 template <typename T>
@@ -1135,10 +1140,26 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.buildings, 32, 128);
     Init_Bucket_Array(game_map.segments, 32, 128);
     Init_Bucket_Array(game_map.humans, 32, 128);
-    Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
+    Init_Bucket_Array(game_map.humans_to_add, 32, 128);
 
     {
+        Init_Static_Allocation_Vector(game_map.humans_to_remove);
+        using T = decltype(game_map.humans_to_remove);
+        T::allocator_functions.allocate = _aligned_malloc;
+        T::allocator_functions.free = _aligned_free;
+    }
+
+    {
+        Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
         using T = decltype(game_map.segments_that_need_humans);
+        T::allocator_functions.allocate = _aligned_malloc;
+        T::allocator_functions.free = _aligned_free;
+    }
+
+    {
+        using T = Static_Allocation_Queue<
+            v2i16,
+            Human_Moving_Component::Human_Moving_Component_Allocation_Tag>;
         T::allocator_functions.allocate = _aligned_malloc;
         T::allocator_functions.free = _aligned_free;
     }
@@ -1152,7 +1173,15 @@ void Deinitialize_Game_Map(Game_State& state) {
     Deinit_Bucket_Array(game_map.buildings);
     Deinit_Bucket_Array(game_map.segments);
     Deinit_Bucket_Array(game_map.humans);
+    Deinit_Bucket_Array(game_map.humans_to_add);
+
+    Deinit_Vector(game_map.humans_to_remove);
     Deinit_Queue(game_map.segments_that_need_humans);
+
+    for (auto human_ptr : Iter(&game_map.humans)) {
+        auto& human = *human_ptr;
+        Deinit_Queue(human.moving.path);
+    }
 }
 
 void Regenerate_Terrain_Tiles(

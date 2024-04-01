@@ -253,6 +253,51 @@ void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count)
     container.count += values_count;
 }
 
+template <typename T, typename Allocation_Tag>
+void Bulk_Enqueue(
+    Static_Allocation_Queue<T, Allocation_Tag>& container,
+    const T* values,
+    const u32 values_count
+)
+    requires std::is_trivially_copyable_v<T>
+{
+    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+
+    // TODO: Test!
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+
+        container.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
+        size_t memory_size = container.max_count * sizeof(T);
+        Assert(memory_size / sizeof(T) == container.max_count);  // NOTE: Ловим overflow
+
+        container.base
+            = rcast<T*>(container.allocator_functions.allocate(memory_size, alignof(T)));
+    }
+    else if (container.max_count < container.count + values_count) {
+        auto old_ptr = container.base;
+        u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
+        size_t old_memory_size = sizeof(T) * container.max_count;
+        size_t new_memory_size = sizeof(T) * new_max_count;
+
+        // NOTE: Ловим overflow
+        Assert(container.max_count < new_max_count);
+        Assert(old_memory_size < new_memory_size);
+
+        container.base = rcast<T*>(
+            container.allocator_functions.allocate(new_memory_size, alignof(T))
+        );
+        memcpy(container.base, old_ptr, sizeof(T) * container.count);
+        container.allocator_functions.free(old_ptr);
+
+        container.max_count = new_max_count;
+    }
+
+    memcpy(container.base + container.count, values, sizeof(T) * values_count);
+    container.count += values_count;
+}
+
 // PERF: Много memmove происходит
 template <typename T>
 T Dequeue(Queue<T>& container) {
@@ -1240,7 +1285,8 @@ struct Human_Moving_Component {
     v2f from;
 
     toptional<v2i16> to;
-    Queue<v2i16> path;
+    struct Human_Moving_Component_Allocation_Tag {};
+    Static_Allocation_Queue<v2i16, Human_Moving_Component_Allocation_Tag> path;
 };
 
 enum class Moving_In_The_World_State {
