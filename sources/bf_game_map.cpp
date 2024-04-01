@@ -334,6 +334,7 @@ void Human_Moving_Component_Add_Path(
 
 struct Human_Moving_In_The_World_Controller {
     static void On_Enter(Human& human, Human_Data& data) {
+        // TODO:
         // if (human.segment != nullptr) {
         //     TRACELOG(
         //         "human.segment.resourcesToTransport.Count = "
@@ -346,7 +347,7 @@ struct Human_Moving_In_The_World_Controller {
     }
 
     static void On_Exit(Human& human, Human_Data& data) {
-        // TRACELOG_SCOPE;
+        // TODO: TRACELOG_SCOPE;
 
         human.state_moving_in_the_world = Moving_In_The_World_State::None;
         human.moving.to.reset();
@@ -368,7 +369,7 @@ struct Human_Moving_In_The_World_Controller {
         Human_Data& data,
         Graph_Segment* old_segment
     ) {
-        // TRACELOG_SCOPE;
+        // TODO: TRACELOG_SCOPE;
         Assert(human.type == Human_Type::Transporter);
         Update_States(human, data, old_segment, nullptr);
     }
@@ -400,7 +401,8 @@ struct Human_Moving_In_The_World_Controller {
         Graph_Segment* old_segment,
         Building* old_building
     ) {
-        // TRACELOG_SCOPE;
+        // TODO: TRACELOG_SCOPE;
+        auto& game_map = *data.game_map;
 
         if (human.segment != nullptr) {
             auto& segment = *human.segment;
@@ -422,7 +424,7 @@ struct Human_Moving_In_The_World_Controller {
                 && Graph_Contains(segment.graph, human.moving.pos)  //
                 && Graph_Node(segment.graph, human.moving.pos) != 0  //
             ) {
-                // TRACELOG("Main_Set_Human_State(human,
+                // TODO: TRACELOG("Main_Set_Human_State(human,
                 //     Human_Main_State::Moving_Inside_Segment, data)");
                 Main_Set_Human_State(
                     human, Human_Main_State::Moving_Inside_Segment, data
@@ -434,7 +436,7 @@ struct Human_Moving_In_The_World_Controller {
             if (old_segment != human.segment
                 || human.state_moving_in_the_world != moving_to_destination  //
             ) {
-                // TRACELOG("Setting human.stateMovingInTheWorld =
+                // TODO: TRACELOG("Setting human.stateMovingInTheWorld =
                 // State.MovingToSegment");
                 human.state_moving_in_the_world
                     = Moving_In_The_World_State::Moving_To_Destination;
@@ -468,12 +470,10 @@ struct Human_Moving_In_The_World_Controller {
             Assert(is_constructor_or_employee);
 
             if (human.type == Human_Type::Constructor) {
-                // TODO:
-                // Assert_False(building.is_constructed);
+                // TODO: Assert_False(building.is_constructed);
             }
             else if (human.type == Human_Type::Employee) {
-                // TODO:
-                // Assert(building.is_constructed);
+                // TODO: Assert(building.is_constructed);
             }
 
             if (old_building != human.building) {
@@ -501,17 +501,28 @@ struct Human_Moving_In_The_World_Controller {
             human.state_moving_in_the_world
             != Moving_In_The_World_State::Moving_To_The_City_Hall  //
         ) {
-            // TRACELOG("human.stateMovingInTheWorld = State.MovingToTheCityHall");
+            // TODO: TRACELOG("human.stateMovingInTheWorld = State.MovingToTheCityHall");
             human.state_moving_in_the_world
                 = Moving_In_The_World_State::Moving_To_The_City_Hall;
 
-            auto& city_hall = Assert_Deref(*(data.city_halls + human.player_id));
-            // TODO:
-            // auto path = data.game_map->Find_Path(
-            //     human.moving.to.value_or(human.moving.pos), city_hall.pos, true);
-            //
-            // Assert(path.success);
-            // human.moving.Add_Path(path.value);
+            Building& city_hall = Assert_Deref(*(data.city_halls + human.player_id));
+
+            auto [success, path, path_count, trash_allocation_size] = Find_Path(
+                *data.trash_arena,
+                game_map.size,
+                game_map.terrain_tiles,
+                game_map.element_tiles,
+                human.moving.to.value_or(human.moving.pos),
+                city_hall.pos,
+                true
+            );
+
+            Assert(success);
+            Assert(path_count > 0);
+
+            Human_Moving_Component_Add_Path(human.moving, path, path_count);
+            if (trash_allocation_size > 0)
+                Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
         }
     }
 };
@@ -525,7 +536,7 @@ struct Human_Moving_Inside_Segment {
         auto& game_map = *data.game_map;
 
         if (human.segment->resources_to_transport.count == 0) {
-            // Tracing.Log("Setting path to center");
+            // TODO: Tracing.Log("Setting path to center");
             auto [success, path, path_count, trash_allocation_size] = Find_Path(
                 *data.trash_arena,
                 game_map.size,
@@ -583,6 +594,7 @@ struct Human_Moving_Inside_Segment {
 
         if (human.segment->resources_to_transport.count > 0) {
             if (!human.moving.to.has_value()) {
+                // TODO:
                 // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
                 Main_Set_Human_State(human, Human_Main_State::Moving_Resource, data);
                 return;
@@ -782,7 +794,7 @@ void Main_On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
 }
 
 void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data) {
-    // TRACELOG_SCOPE;
+    // TODO: TRACELOG_SCOPE;
     // TRACELOG("Set_Human_State");
     auto old_state = human.state;
     human.state = new_state;
@@ -894,7 +906,7 @@ void Update_Building__Constructed(
         }
     }
 
-    // _building_controller.Update(building, dt);
+    // TODO: _building_controller.Update(building, dt);
 }
 
 void Update_Buildings(Game_State& state, f32 dt, Human_Data& data) {
@@ -960,7 +972,7 @@ void Update_Human_Moving_Component(
     ) {
         iteration++;
 
-        // using var _ = Tracing.Scope();
+        // TODO: using var _ = Tracing.Scope();
         // Tracing.Log("Human reached the next tile");
 
         moving.elapsed -= game_map_data.human_moving_one_tile_duration;
@@ -1010,7 +1022,7 @@ void Update_Human(
         && human.moving.pos == (*(city_halls + human.player_id))->pos  //
         && !human.moving.to.has_value()  //
     ) {
-        // auto rem = Game_Map::Human_To_Remove{
+        // TODO: auto rem = Game_Map::Human_To_Remove{
         //     Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator
         // };
         // Vector_Add(humans_to_remove, std::move(rem));
@@ -1246,7 +1258,8 @@ void Regenerate_Terrain_Tiles(
     // element_tiles = _initialMapProvider.LoadElementTiles();
     //
     // auto cityHalls = buildings.FindAll(i = > i.scriptable.type ==
-    // Building_Type.SpecialCityHall); foreach (auto building in cityHalls) {
+    // Building_Type.SpecialCityHall);
+    // foreach (auto building in cityHalls) {
     //     auto pos = building.pos;
     //     element_tiles[pos.y][pos.x] = new (Element_Tile_Type::Building, building);
     // }
