@@ -1037,15 +1037,14 @@ BF_FORCE_INLINE void Container_Reset(
 template <typename T>
 BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
     container.count = 0;
-    container.used_buckets_count = 0;
-    container.unfull_buckets_count = container.buckets_count;
+    container.unfull_buckets_count = container.used_buckets_count;
 
-    FOR_RANGE(Bucket_Index, i, container.buckets_count) {
+    FOR_RANGE(Bucket_Index, i, container.unfull_buckets_count) {
         *(container.unfull_buckets + i) = i;
     }
 
     auto occupied_bytes_count = Ceil_Division(container.items_per_bucket, 8);
-    FOR_RANGE(Bucket_Index, i, container.buckets_count) {
+    FOR_RANGE(Bucket_Index, i, container.used_buckets_count) {
         auto& bucket = *(container.buckets + i);
 
         if (bucket.count > 0) {
@@ -1053,6 +1052,7 @@ BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
             bucket.count = 0;
         }
     }
+    container.used_buckets_count = 0;
 }
 
 // ============================================================= //

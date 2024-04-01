@@ -999,8 +999,6 @@ void Update_Human_Moving_Component(
         = MIN(1.0f, moving.elapsed / game_map_data.human_moving_one_tile_duration);
 }
 
-#define USING(path, var) auto&(var) = (path).(var)
-
 void Update_Human(
     Game_Map& game_map,
     Human* human_ptr,
@@ -1100,6 +1098,9 @@ void Update_Game_Map(Game_State& state, float dt) {
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
+    game_map.data = Allocate_For(arena, Game_Map_Data);
+    game_map.data->human_moving_one_tile_duration = 1;
+
     {
         size_t toc_size = 1024;
         size_t data_size = 4096;
@@ -1117,6 +1118,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
             arena, *buf, "segment_vertices_allocator_%d", state.dll_reloads_count
         );
     }
+
     {
         size_t toc_size = 1024;
         size_t data_size = 4096;
