@@ -34,6 +34,9 @@ bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment
     return false;
 }
 
+global int global_last_segments_to_be_deleted_count = 0;
+global int global_last_added_segments_count = 0;
+
 struct Path_Find_Result {
     bool success;
     v2i16* path;
@@ -1067,6 +1070,12 @@ void Update_Game_Map(Game_State& state, float dt) {
     auto& game_map = state.game_map;
     auto& trash_arena = state.trash_arena;
 
+    ImGui::Text(
+        "last_segments_to_be_deleted_count %d", global_last_segments_to_be_deleted_count
+    );
+    ImGui::Text("last_added_segments_count %d", global_last_added_segments_count);
+    ImGui::Text("segments count %d", game_map.segments.count);
+
     int players_count = 1;
     int city_halls_count = 0;
     Building** city_halls = Allocate_Zeros_Array(trash_arena, Building*, players_count);
@@ -1511,6 +1520,31 @@ void Construct_Graph_Segment(
     segment->resources_to_transport.base = nullptr;
 }
 
+void Add_And_Link_Segment(
+    Bucket_Array<Graph_Segment>& segments,
+    Graph_Segment& added_segment
+) {
+    auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
+    Construct_Graph_Segment(segment1_ptr, added_segment, locator);
+
+    for (auto segment2_ptr : Iter(&segments)) {
+        if (segment2_ptr == segment1_ptr)
+            continue;
+
+        // PERF: Мб тут стоит что-то из разряда
+        // AABB(graph1, graph2) для оптимизации заюзать
+        auto& segment1 = *segment1_ptr;
+        auto& segment2 = *segment2_ptr;
+        if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
+            if (Vector_Find(segment2.linked_segments, segment1_ptr) == -1)
+                Vector_Add(segment2.linked_segments, segment1_ptr);
+
+            if (Vector_Find(segment1.linked_segments, segment2_ptr) == -1)
+                Vector_Add(segment1.linked_segments, segment2_ptr);
+        }
+    }
+}
+
 BF_FORCE_INLINE void Update_Segments_Function(
     Arena& trash_arena,
     Game_Map& game_map,
@@ -1522,6 +1556,9 @@ BF_FORCE_INLINE void Update_Segments_Function(
     Allocator& graph_nodes_allocator
 ) {
     auto& segments = game_map.segments;
+
+    global_last_segments_to_be_deleted_count = segments_to_be_deleted_count;
+    global_last_added_segments_count = added_segments_count;
 
     // PERF: можем кешировать и инвалидировать,
     // трекая переходы состояний чувачков / моменты их прибытия в City Hall
@@ -1599,25 +1636,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     }
 
     FOR_RANGE(u32, i, added_segments_count) {
-        auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
-        Construct_Graph_Segment(segment1_ptr, *(added_segments + i), locator);
-
-        for (auto segment2_ptr : Iter(&game_map.segments)) {
-            if (segment2_ptr == segment1_ptr)
-                continue;
-
-            // PERF: Мб тут стоит что-то из разряда
-            // AABB(graph1, graph2) для оптимизации заюзать
-            auto& segment1 = *segment1_ptr;
-            auto& segment2 = *segment2_ptr;
-            if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
-                if (Vector_Find(segment2.linked_segments, segment1_ptr) == -1)
-                    Vector_Add(segment2.linked_segments, segment1_ptr);
-
-                if (Vector_Find(segment1.linked_segments, segment2_ptr) == -1)
-                    Vector_Add(segment1.linked_segments, segment2_ptr);
-            }
-        }
+        Add_And_Link_Segment(game_map.segments, *(added_segments + i));
     }
 
     if (humans_wo_segment_max_count > 0) {
@@ -1919,18 +1938,7 @@ void Build_Graph_Segments(
     Update_Segments_Lambda(0, nullptr, added_segments_count, added_segments);
 
     FOR_RANGE(u32, i, added_segments_count) {
-        auto [locator, segment_ptr] = Find_And_Occupy_Empty_Slot(segments);
-        auto& segment = *segment_ptr;
-        segment.locator = locator;
-        auto& added_segment = *(added_segments + i);
-
-        // TODO: use move semantics?
-        segment.vertices_count = added_segment.vertices_count;
-        segment.vertices = added_segment.vertices;
-        segment.graph.nodes_count = added_segment.graph.nodes_count;
-        segment.graph.nodes = added_segment.graph.nodes;
-        segment.graph.size = added_segment.graph.size;
-        segment.graph.offset = added_segment.graph.offset;
+        Add_And_Link_Segment(segments, *(added_segments + i));
     }
 }
 
