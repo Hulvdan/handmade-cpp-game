@@ -237,13 +237,6 @@ void Init_Queue(Queue<T>& container) {
     container.allocator_functions.free = _aligned_free;
 }
 
-template <typename T, typename Allocation_Tag>
-void Init_Static_Allocation_Queue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
-    container.count = 0;
-    container.max_count = 0;
-    container.base = nullptr;
-}
-
 template <typename T>
 void Init_Vector(Vector<T>& container) {
     container.count = 0;
@@ -256,17 +249,6 @@ void Init_Vector(Vector<T>& container) {
 
 template <typename T>
 void Deinit_Queue(Queue<T>& container) {
-    if (container.base != nullptr) {
-        Assert(container.max_count > 0);
-        container.allocator_functions.free(container.base);
-        container.base = nullptr;
-    }
-    container.count = 0;
-    container.max_count = 0;
-}
-
-template <typename T, typename Allocation_Tag>
-void Deinit_Queue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
         container.allocator_functions.free(container.base);
@@ -1137,26 +1119,10 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.humans_to_add, 32, 128);
 
     {
-        Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
-        using T = decltype(game_map.segments_that_need_humans);
-        T::allocator_functions.allocate = _aligned_malloc;
-        T::allocator_functions.free = _aligned_free;
-    }
-
-    {
-        using T = Static_Allocation_Queue<
-            v2i16,
-            Human_Moving_Component::Human_Moving_Component_Allocation_Tag>;
-        T::allocator_functions.allocate = _aligned_malloc;
-        T::allocator_functions.free = _aligned_free;
-    }
-
-    {
-        using T = Static_Allocation_Queue<
-            Map_Resource,
-            Graph_Segment::Resources_To_Transport>;
-        T::allocator_functions.allocate = _aligned_malloc;
-        T::allocator_functions.free = _aligned_free;
+        auto& container = game_map.segments_that_need_humans;
+        container.count = 0;
+        container.max_count = 0;
+        container.base = nullptr;
     }
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
