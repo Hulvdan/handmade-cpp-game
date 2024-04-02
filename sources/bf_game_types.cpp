@@ -388,11 +388,14 @@ i32 Vector_Find(Static_Allocation_Vector<T, Allocation_Tag>& container, T value)
 
 template <typename T, template <typename> typename _Allocator>
 i32 Vector_Find(tvector<T, _Allocator<T>>& container, T value) {
-    auto v = std::find(container.begin(), container.end(), value);
-    if (v == container.end())
-        return -1;
+    i32 i = 0;
+    for (auto& v : container) {
+        if (v == value)
+            return i;
 
-    return (v - container.begin()) / sizeof(T);
+        i++;
+    }
+    return -1;
 }
 
 template <typename T, typename Allocation_Tag>
@@ -1056,7 +1059,7 @@ public:
     T* Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->size());
-        return _container->data() + _current * sizeof(T);
+        return scast<T*>(_container->data()) + _current;
     }
 
     void Increment() { _current++; }
