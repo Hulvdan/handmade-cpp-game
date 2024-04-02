@@ -1843,12 +1843,10 @@ BF_FORCE_INLINE void Update_Segments_Function(
         );
     }
 
-    if (humans_wo_segment_max_count > 0) {
+    if (humans_wo_segment_max_count > 0)
         Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
-    }
-    if (added_segments_count > 0) {
+    if (added_segments_count > 0)
         Deallocate_Array(trash_arena, Graph_Segment*, added_segments_count);
-    }
 }
 
 typedef ttuple<Direction, v2i16> Dir_v2i16;
