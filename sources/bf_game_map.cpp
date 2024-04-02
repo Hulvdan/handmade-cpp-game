@@ -429,7 +429,7 @@ struct Human_Moving_In_The_World_Controller {
                     game_map.terrain_tiles,
                     game_map.element_tiles,
                     human.moving.to.value_or(human.moving.pos),
-                    segment.graph.center,
+                    Assert_Deref(segment.graph.data).center,
                     true
                 );
 
@@ -523,7 +523,7 @@ struct Human_Moving_Inside_Segment {
                 game_map.terrain_tiles,
                 game_map.element_tiles,
                 human.moving.to.value_or(human.moving.pos),
-                human.segment->graph.center,
+                Assert_Deref(Assert_Deref(human.segment).graph.data).center,
                 true
             );
 
@@ -1173,6 +1173,22 @@ void Deinitialize_Game_Map(Game_State& state) {
 
         segment_ptr->linked_segments.clear();
         Deinit_Queue(segment_ptr->resources_to_transport);
+
+        auto& segment = *segment_ptr;
+        Assert(segment.graph.nodes != nullptr);
+        Assert(segment.graph.data != nullptr);
+
+        auto& data = *segment.graph.data;
+        Assert(data.dist != nullptr);
+        Assert(data.prev != nullptr);
+
+        data.node_index_2_pos.clear();
+        data.pos_2_node_index.clear();
+
+        auto u16_allocator = Game_Map_Allocator<u16>();
+        auto n = segment.graph.nodes_count;
+        u16_allocator.deallocate(data.dist, n * n);
+        u16_allocator.deallocate(data.prev, n * n);
     }
 
     Deinit_Bucket_Array(game_map.segments);
@@ -1463,6 +1479,126 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
+template <template <typename> typename _Allocator>
+void Calculate_Graph_Data(Graph& graph) {
+    auto n = graph.nodes_count;
+
+    graph.data = _Allocator<Calculated_Graph_Data>().allocate(1);
+    auto& data = *graph.data;
+    data.dist = _Allocator<u16>().allocate(n * n);
+    data.prev = _Allocator<u16>().allocate(n * n);
+
+    // var nodeIndex2Pos = new Dictionary<int, Vector2Int>();
+    // var pos2NodeIndex = new Dictionary<Vector2Int, int>();
+
+    // var nodeIndex = 0;
+    // for (var y = 0; y < height; y++) {
+    //     for (var x = 0; x < width; x++) {
+    //         var node = nodes[y][x];
+    //         if (node == 0) {
+    //             continue;
+    //         }
+    //
+    //         nodeIndex2Pos.Add(nodeIndex, new (x, y));
+    //         pos2NodeIndex.Add(new (x, y), nodeIndex);
+    //         nodeIndex += 1;
+    //     }
+    // }
+    //
+    // // NOTE: |V| = _nodesCount
+    // // > let dist be a |V| × |V| array of minimum distances initialized to ∞
+    // // (infinity) > let prev be a |V| × |V| array of minimum distances initialized
+    // to
+    // // null
+    // var dist = new int[_nodesCount][];
+    // var prev = new int[_nodesCount][];
+    // for (var y = 0; y < _nodesCount; y++) {
+    //     var distRow = new int[_nodesCount];
+    //     for (var x = 0; x < _nodesCount; x++) {
+    //         distRow[x] = int.MaxValue;
+    //     }
+    //
+    //     dist[y] = distRow;
+    //
+    //     var prevRow = new int[_nodesCount];
+    //     for (var x = 0; x < _nodesCount; x++) {
+    //         prevRow[x] = int.MinValue;
+    //     }
+    //
+    //     prev[y] = prevRow;
+    // }
+    //
+    // // NOTE: edge (u, v) = (nodeIndex, newNodeIndex)
+    // // > for each edge (u, v) do
+    // // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
+    // // >     prev[u][v] ← u
+    // nodeIndex = 0;
+    // for (var y = 0; y < height; y++) {
+    //     for (var x = 0; x < width; x++) {
+    //         var node = nodes[y][x];
+    //         if (node == 0) {
+    //             continue;
+    //         }
+    //
+    //         foreach (var dir in Utils.DIRECTIONS) {
+    //             if (!GraphNode.Has(node, dir)) {
+    //                 continue;
+    //             }
+    //
+    //             var newPos = new Vector2Int(x, y) + dir.AsOffset();
+    //             var newNodeIndex = pos2NodeIndex[newPos];
+    //             dist[nodeIndex][newNodeIndex] = 1;
+    //             prev[nodeIndex][newNodeIndex] = nodeIndex;
+    //         }
+    //
+    //         nodeIndex += 1;
+    //     }
+    // }
+    //
+    // // NOTE: vertex v = nodeIndex
+    // // > for each vertex v do
+    // // >     dist[v][v] ← 0
+    // // >     prev[v][v] ← v
+    // nodeIndex = 0;
+    // for (var y = 0; y < height; y++) {
+    //     for (var x = 0; x < width; x++) {
+    //         var node = nodes[y][x];
+    //         if (node == 0) {
+    //             continue;
+    //         }
+    //
+    //         dist[nodeIndex][nodeIndex] = 0;
+    //         prev[nodeIndex][nodeIndex] = nodeIndex;
+    //
+    //         nodeIndex += 1;
+    //     }
+    // }
+    //
+    // // Standard Floyd-Warshall
+    // // for k from 1 to |V|
+    // //     for i from 1 to |V|
+    // //         for j from 1 to |V|
+    // //             if dist[i][j] > dist[i][k] + dist[k][j] then
+    // //                 dist[i][j] ← dist[i][k] + dist[k][j]
+    // //                 prev[i][j] ← prev[k][j]
+    // for (var k = 0; k < _nodesCount; k++) {
+    //     for (var j = 0; j < _nodesCount; j++) {
+    //         for (var i = 0; i < _nodesCount; i++) {
+    //             var ij = dist[i][j];
+    //             var ik = dist[i][k];
+    //             var kj = dist[k][j];
+    //
+    //             if (ik != int.MaxValue && kj != int.MaxValue&& ij > ik + kj) {
+    //                 dist[i][j] = ik + kj;
+    //                 prev[i][j] = prev[k][j];
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // return new (dist, prev, nodeIndex2Pos, pos2NodeIndex);
+}
+
 void Add_And_Link_Segment(
     Bucket_Array<Graph_Segment>& segments,
     Graph_Segment& added_segment
@@ -1482,20 +1618,15 @@ void Add_And_Link_Segment(
         segment.graph.nodes = added_segment.graph.nodes;
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
-        segment.graph.data = nullptr;
+        Calculate_Graph_Data<Game_Map_Allocator>(segment.graph);
         segment.locator = locator;
         segment.assigned_human = nullptr;
 
-        // segment.linked_segments.max_count = 0;
-        // segment.linked_segments.count = 0;
-        // segment.linked_segments.base = nullptr;
         new (&segment.linked_segments) decltype(segment.linked_segments)();
 
         segment.resources_to_transport.max_count = 0;
         segment.resources_to_transport.count = 0;
         segment.resources_to_transport.base = nullptr;
-
-        // TODO: segment.graph.center = Find_Center();
     }
 
     for (auto segment2_ptr : Iter(&segments)) {

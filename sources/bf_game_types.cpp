@@ -23,6 +23,26 @@ struct Allocator_Functions {
     FREE__FUNCTION((*free));
 };
 
+template <typename T>
+using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
+
+template <typename Key, typename T>
+using custom_hash_map = tunordered_map<
+    Key,
+    T,
+    std::hash<Key>,
+    std::equal_to<Key>,
+    Game_Map_Allocator<std::pair<const Key, T>>>;
+
+template <>
+struct std::hash<v2i16> {
+    size_t operator()(const v2i16& o) const noexcept {
+        size_t h1 = std::hash<i16>{}(o.x);
+        size_t h2 = std::hash<i16>{}(o.y);
+        return h1 ^ (h2 << 1);
+    }
+};
+
 #define CHECK_CONTAINER_ALLOCATOR_FUNCTIONS                        \
     {                                                              \
         Assert(container.allocator_functions.allocate != nullptr); \
@@ -827,12 +847,14 @@ Direction Opposite(Direction dir) {
 
 using Graph_Nodes_Count = u16;
 
-struct Calculated_Graph_Path_Data {
+struct Calculated_Graph_Data {
     u16* dist;
     u16* prev;
 
-    tunordered_map<u16, v2i16> node_index_2_pos;
-    tunordered_map<v2i16, u16> pos_2_node_index;
+    custom_hash_map<u16, v2i16> node_index_2_pos;
+    custom_hash_map<v2i16, u16> pos_2_node_index;
+
+    v2i16 center;
 };
 
 struct Graph : public Non_Copyable {
@@ -842,10 +864,7 @@ struct Graph : public Non_Copyable {
     v2i16 size;
     v2i16 offset;
 
-    // TODO: Calculate it
-    v2i16 center;
-
-    Calculated_Graph_Path_Data* data;
+    Calculated_Graph_Data* data;
 };
 
 BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
@@ -878,17 +897,6 @@ struct Map_Resource_Booking {
     Building* building;
     i32 priority;
 };
-
-template <typename T>
-using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
-
-template <typename Key, typename T>
-using custom_hash_map = tunordered_map<
-    Key,
-    T,
-    std::hash<Key>,
-    std::equal_to<Key>,
-    Game_Map_Allocator<std::pair<Key, T>>>;
 
 struct Map_Resource {
     using ID = u32;
