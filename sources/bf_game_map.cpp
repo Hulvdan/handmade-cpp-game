@@ -1029,6 +1029,16 @@ void Update_Humans(Game_State& state, f32 dt, Human_Data& data, Building** city_
     Container_Reset(game_map.humans_to_add);
 
     Remove_Humans(state);
+
+    {
+        ImGui::Text("humans count %d", game_map.humans.count);
+        int i = 0;
+        for (auto human_ptr : Iter(&game_map.humans)) {
+            auto& human = *human_ptr;
+            ImGui::Text("human %d pos %d.%d", human.moving.pos.x, human.moving.pos.y);
+            i++;
+        }
+    }
 }
 
 void Update_Game_Map(Game_State& state, float dt) {
