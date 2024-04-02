@@ -1799,9 +1799,10 @@ BF_FORCE_INLINE void Update_Segments_Function(
     }
 
     Graph_Segment** added_calculated_segments = nullptr;
-    if (added_segments_count > 0)
+    if (added_segments_count > 0) {
         added_calculated_segments
             = Allocate_Array(trash_arena, Graph_Segment*, added_segments_count);
+    }
 
     FOR_RANGE(u32, i, added_segments_count) {
         *(added_calculated_segments + i)
