@@ -1503,25 +1503,25 @@ void Add_And_Link_Segment(
 
     {  // NOTE: Создание финального Graph_Segment,
        // который будет использоваться в игровой логике
-#if 1
+#ifdef SHIT_MEMORY_DEBUG
         memset(segment1_ptr, SHIT_BYTE_MASK, sizeof(Graph_Segment));
 #endif
 
-        // TODO: use move semantics?
-        segment1_ptr->vertices_count = added_segment.vertices_count;
-        segment1_ptr->vertices = added_segment.vertices;
-        segment1_ptr->graph.nodes_count = added_segment.graph.nodes_count;
-        segment1_ptr->graph.nodes = added_segment.graph.nodes;
-        segment1_ptr->graph.size = added_segment.graph.size;
-        segment1_ptr->graph.offset = added_segment.graph.offset;
-        segment1_ptr->locator = locator;
-        segment1_ptr->assigned_human = nullptr;
-        segment1_ptr->linked_segments.max_count = 0;
-        segment1_ptr->linked_segments.count = 0;
-        segment1_ptr->linked_segments.base = nullptr;
-        segment1_ptr->resources_to_transport.max_count = 0;
-        segment1_ptr->resources_to_transport.count = 0;
-        segment1_ptr->resources_to_transport.base = nullptr;
+        auto& segment = *segment1_ptr;
+        segment.vertices_count = added_segment.vertices_count;
+        segment.vertices = added_segment.vertices;
+        segment.graph.nodes_count = added_segment.graph.nodes_count;
+        segment.graph.nodes = added_segment.graph.nodes;
+        segment.graph.size = added_segment.graph.size;
+        segment.graph.offset = added_segment.graph.offset;
+        segment.locator = locator;
+        segment.assigned_human = nullptr;
+        segment.linked_segments.max_count = 0;
+        segment.linked_segments.count = 0;
+        segment.linked_segments.base = nullptr;
+        segment.resources_to_transport.max_count = 0;
+        segment.resources_to_transport.count = 0;
+        segment.resources_to_transport.base = nullptr;
     }
 
     for (auto segment2_ptr : Iter(&segments)) {
