@@ -1260,8 +1260,6 @@ TEST_CASE("Update_Tiles") {
 
 TEST_CASE("Queue") {
     Queue<int> queue = {};
-    queue.allocator_functions.allocate = heap_allocate;
-    queue.allocator_functions.free = heap_free;
 
     SUBCASE("Enqueue") {
         REQUIRE(queue.count == 0);

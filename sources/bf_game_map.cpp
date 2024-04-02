@@ -227,14 +227,11 @@ void Deinit_Bucket_Array(Bucket_Array<T>& container) {
     container.allocator_functions.free(container.unfull_buckets);
 }
 
-template <typename T>
-void Init_Queue(Queue<T>& container) {
+template <typename T, template <typename> typename _Allocator>
+void Init_Queue(Queue<T, _Allocator>& container) {
     container.count = 0;
     container.max_count = 0;
     container.base = nullptr;
-
-    container.allocator_functions.allocate = _aligned_malloc;
-    container.allocator_functions.free = _aligned_free;
 }
 
 template <typename T>
@@ -247,19 +244,22 @@ void Init_Vector(Vector<T>& container) {
     container.allocator_functions.free = _aligned_free;
 }
 
-template <typename T>
-void Deinit_Queue(Queue<T>& container) {
+template <typename T, template <typename> typename _Allocator>
+void Deinit_Queue(Queue<T, _Allocator>& container) {
+    auto allocator = _Allocator<T>();
+
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
-        container.allocator_functions.free(container.base);
+        allocator.deallocate(container.base, container.max_count);
         container.base = nullptr;
     }
+
     container.count = 0;
     container.max_count = 0;
 }
 
-template <typename T>
-void Deinit_Vector(Queue<T>& container) {
+template <typename T, template <typename> typename _Allocator>
+void Deinit_Vector(Queue<T, _Allocator>& container) {
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
         container.allocator_functions.free(container.base);

@@ -40,14 +40,11 @@ struct Fixed_Size_Queue {
 };
 
 // PERF: Переписать на ring buffer!
-template <typename T>
-    requires std::is_trivially_copyable_v<T>
+template <typename T, template <typename> typename _Allocator = std::allocator>
 struct Queue {
     u32 max_count;
     i32 count;
     T* base;
-
-    Allocator_Functions allocator_functions;
 };
 
 template <typename T>
@@ -117,58 +114,54 @@ T Dequeue(Fixed_Size_Queue<T>& container) {
     return res;
 }
 
-template <typename T>
-void* Queue_Allocate(Queue<T>& container, i32 bytes, i32 alignment) {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+template <typename T, template <typename> typename _Allocator>
+i32 Queue_Find(Queue<T, _Allocator>& container, T value) {
+    FOR_RANGE(i32, i, container.count) {
+        auto& v = *(container.base + i);
+        if (v == value)
+            return i;
+    }
 
-    auto result = rcast<T*>(container.allocator_functions.allocate(bytes, alignment));
-    return result;
+    return -1;
 }
 
-template <typename T>
-void Queue_Free(Queue<T>& container, void* ptr) {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
-
-    container.allocator_functions.free(ptr);
-}
-
-template <typename T>
-void Enqueue(Queue<T>& container, const T value)
+template <typename T, template <typename> typename _Allocator>
+void Enqueue(Queue<T, _Allocator>& container, const T value)
     requires std::is_trivially_copyable_v<T>
 {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+    auto allocator = _Allocator<T>();
 
     if (container.base == nullptr) {
         Assert(container.max_count == 0);
         Assert(container.count == 0);
         container.max_count = 8;
-        container.base = rcast<T*>(container.allocator_functions.allocate(
-            container.max_count * sizeof(T), alignof(T)
-        ));
+        container.base = allocator.allocate(container.max_count);
     }
     else if (container.max_count == container.count) {
         u32 doubled_max_count = container.max_count * 2;
-        Assert(container.max_count < doubled_max_count);
-        auto size = sizeof(T) * container.max_count;
-        auto old_ptr = container.base;
+        Assert(container.max_count < doubled_max_count);  // Ловим overflow
 
-        container.base
-            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
-        memcpy(container.base, old_ptr, size);
-        container.allocator_functions.free(old_ptr);
+        auto new_ptr = allocator.allocate(doubled_max_count);
+        memcpy(new_ptr, container.base, container.max_count * sizeof(T));
+        allocator.deallocate(container.base, container.max_count);
 
-        container.max_count *= 2;
+        container.base = new_ptr;
+        container.max_count = doubled_max_count;
     }
 
     *(container.base + container.count) = value;
     container.count++;
 }
 
-template <typename T>
-void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count)
+template <typename T, template <typename> typename _Allocator>
+void Bulk_Enqueue(
+    Queue<T, _Allocator>& container,
+    const T* values,
+    const u32 values_count
+)
     requires std::is_trivially_copyable_v<T>
 {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+    auto allocator = _Allocator<T>();
 
     // TODO: Test!
     if (container.base == nullptr) {
@@ -176,28 +169,18 @@ void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count)
         Assert(container.count == 0);
 
         container.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
-        size_t memory_size = container.max_count * sizeof(T);
-        Assert(memory_size / sizeof(T) == container.max_count);  // NOTE: Ловим overflow
-
-        container.base
-            = rcast<T*>(container.allocator_functions.allocate(memory_size, alignof(T)));
+        container.base = allocator.allocate(container.max_count);
     }
     else if (container.max_count < container.count + values_count) {
-        auto old_ptr = container.base;
         u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
-        size_t old_memory_size = sizeof(T) * container.max_count;
-        size_t new_memory_size = sizeof(T) * new_max_count;
 
-        // NOTE: Ловим overflow
-        Assert(container.max_count < new_max_count);
-        Assert(old_memory_size < new_memory_size);
+        Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        container.base = rcast<T*>(
-            container.allocator_functions.allocate(new_memory_size, alignof(T))
-        );
-        memcpy(container.base, old_ptr, sizeof(T) * container.count);
-        container.allocator_functions.free(old_ptr);
+        auto new_ptr = allocator.allocate(new_max_count);
+        memcpy(new_ptr, container.base, sizeof(T) * container.count);
+        allocator.deallocate(container.base, container.max_count);
 
+        container.base = new_ptr;
         container.max_count = new_max_count;
     }
 
@@ -206,8 +189,8 @@ void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count)
 }
 
 // PERF: Много memmove происходит
-template <typename T>
-T Dequeue(Queue<T>& container) {
+template <typename T, template <typename> typename _Allocator>
+T Dequeue(Queue<T, _Allocator>& container) {
     Assert(container.base != nullptr);
     Assert(container.count > 0);
 
@@ -220,7 +203,7 @@ T Dequeue(Queue<T>& container) {
 }
 
 template <typename T, template <typename> typename _Allocator>
-i32 Vector_Find(tvector<T, _Allocator<T>>& container, T value) {
+i32 Vector_Find(tvector<T, _Allocator>& container, T value) {
     i32 i = 0;
     for (auto& v : container) {
         if (v == value)
@@ -250,9 +233,9 @@ i32 Vector_Find_Ptr(Vector<T>& container, T* value_ptr) {
     return (value_ptr - container.base) / sizeof(T);
 }
 
-template <typename T>
+template <typename T, template <typename> typename _Allocator>
     requires std::is_trivially_copyable_v<T>
-void Queue_Remove_At(Queue<T>& container, i32 i) {
+void Queue_Remove_At(Queue<T, _Allocator>& container, i32 i) {
     Assert(i >= 0);
     Assert(i < container.count);
 
@@ -317,7 +300,7 @@ void Vector_Remove_At(Vector<T>& container, i32 i) {
 }
 
 template <typename T, template <typename> typename _Allocator>
-void Vector_Unordered_Remove_At(tvector<T, _Allocator<T>>& container, i32 i) {
+void Vector_Unordered_Remove_At(tvector<T, _Allocator>& container, i32 i) {
     Assert(i >= 0);
     Assert(i < container.size());
 
@@ -328,7 +311,7 @@ void Vector_Unordered_Remove_At(tvector<T, _Allocator<T>>& container, i32 i) {
 }
 
 // template <typename T, template <typename> typename _Allocator>
-// void Vector_Remove_At(tvector<T,_Allocator<T>>& container, i32 i) {
+// void Vector_Remove_At(tvector<T,_Allocator>& container, i32 i) {
 //     Assert(i >= 0);
 //     Assert(i < container.size());
 //
@@ -766,27 +749,27 @@ private:
 };
 
 template <typename T>
-auto Iter(Bucket_Array<T>* container) {
+BF_FORCE_INLINE auto Iter(Bucket_Array<T>* container) {
     return Bucket_Array_Iterator(container);
 }
 
 template <typename T, template <typename> typename _Allocator>
-auto Iter(tvector<T, _Allocator<T>>* container) {
+BF_FORCE_INLINE auto Iter(tvector<T, _Allocator<T>>* container) {
     return TVector_Iterator(container);
 }
 
 template <typename T>
-auto Iter_With_Locator(Bucket_Array<T>* arr) {
+BF_FORCE_INLINE auto Iter_With_Locator(Bucket_Array<T>* arr) {
     return Bucket_Array_With_Locator_Iterator(arr);
 }
 
-template <typename T>
-BF_FORCE_INLINE void Container_Reset(Queue<T>& container) {
+template <typename T, template <typename> typename _Allocator>
+BF_FORCE_INLINE void Container_Reset(Queue<T, _Allocator>& container) {
     container.count = 0;
 }
 
 template <typename T, template <typename> typename _Allocator>
-BF_FORCE_INLINE void Container_Reset(tvector<T, _Allocator<T>>& container) {
+BF_FORCE_INLINE void Container_Reset(tvector<T, _Allocator>& container) {
     container.clear();
 }
 
@@ -971,7 +954,7 @@ struct Graph_Segment : public Non_Copyable {
     Human* assigned_human;
     custom_tvector<Graph_Segment*> linked_segments;
 
-    Queue<Map_Resource> resources_to_transport;
+    Queue<Map_Resource, Game_Map_Allocator> resources_to_transport;
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -1059,7 +1042,7 @@ struct Human_Moving_Component {
 
     toptional<v2i16> to;
     struct Human_Moving_Component_Allocation_Tag {};
-    Queue<v2i16> path;
+    Queue<v2i16, Game_Map_Allocator> path;
 };
 
 enum class Moving_In_The_World_State {
@@ -1276,7 +1259,7 @@ struct Game_Map : public Non_Copyable {
     using Human_To_Remove = ttuple<Human_Removal_Reason, Human*, Bucket_Locator>;
     custom_tvector<Human_To_Remove> humans_to_remove;
 
-    Queue<Graph_Segment*> segments_that_need_humans;
+    Queue<Graph_Segment*, Game_Map_Allocator> segments_that_need_humans;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;
