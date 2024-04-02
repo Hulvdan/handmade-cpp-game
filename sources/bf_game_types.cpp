@@ -848,8 +848,8 @@ Direction Opposite(Direction dir) {
 using Graph_Nodes_Count = u16;
 
 struct Calculated_Graph_Data {
-    u16* dist;
-    u16* prev;
+    i16* dist;
+    i16* prev;
 
     custom_hash_map<u16, v2i16> node_index_2_pos;
     custom_hash_map<v2i16, u16> pos_2_node_index;
@@ -969,10 +969,10 @@ struct Graph_Segment_Precalculated_Data {
     // TODO: Reimplement `CalculatedGraphPathData` calculation from the old repo
 };
 
-[[nodiscard]] bool Graph_Node_Has(u8 node, Direction d) {
+[[nodiscard]] BF_FORCE_INLINE u8 Graph_Node_Has(u8 node, Direction d) {
     Assert((u8)d >= 0);
     Assert((u8)d < 4);
-    return node & (1 << (u8)d);
+    return node & (u8)((u8)1 << (u8)d);
 }
 
 [[nodiscard]] u8 Graph_Node_Mark(u8 node, Direction d, b32 value) {

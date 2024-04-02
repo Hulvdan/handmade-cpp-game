@@ -1185,10 +1185,9 @@ void Deinitialize_Game_Map(Game_State& state) {
         data.node_index_2_pos.clear();
         data.pos_2_node_index.clear();
 
-        auto u16_allocator = Game_Map_Allocator<u16>();
         auto n = segment.graph.nodes_count;
-        u16_allocator.deallocate(data.dist, n * n);
-        u16_allocator.deallocate(data.prev, n * n);
+        Game_Map_Allocator<i16>().deallocate(data.dist, n * n);
+        Game_Map_Allocator<i16>().deallocate(data.prev, n * n);
     }
 
     Deinit_Bucket_Array(game_map.segments);
@@ -1479,129 +1478,185 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
+#define PLACEMENT_INIT(value) new (&value) decltype(value)
+
+bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
+    auto gx = graph.size.x;
+    auto gy = graph.size.y;
+    u8 node = *(graph.nodes + y * gx + x);
+
+    FOR_DIRECTION(dir) {
+        if (!Graph_Node_Has(node, dir))
+            continue;
+
+        auto new_pos = v2i16(x, y) + As_Offset(dir);
+        if (!Pos_Is_In_Bounds(new_pos, graph.size))
+            return false;
+
+        u8 adjacent_node = *(graph.nodes + gx * new_pos.y + new_pos.x);
+        if (!Graph_Node_Has(adjacent_node, Opposite(dir)))
+            return false;
+    }
+
+    return true;
+}
+
+void Assert_Is_Undirected(Graph& graph) {
+    Assert(graph.size.x > 0);
+    Assert(graph.size.y > 0);
+
+    FOR_RANGE(i16, y, graph.size.y) {
+        FOR_RANGE(i16, x, graph.size.x) {
+            Assert(Adjacent_Tiles_Are_Connected(graph, x, y));
+        }
+    }
+}
+
 template <template <typename> typename _Allocator>
-void Calculate_Graph_Data(Graph& graph) {
+void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     auto n = graph.nodes_count;
 
     graph.data = _Allocator<Calculated_Graph_Data>().allocate(1);
     auto& data = *graph.data;
-    data.dist = _Allocator<u16>().allocate(n * n);
-    data.prev = _Allocator<u16>().allocate(n * n);
+    auto& dist = data.dist;
+    auto& prev = data.prev;
+    auto& node_index_2_pos = data.node_index_2_pos;
+    auto& pos_2_node_index = data.pos_2_node_index;
+    auto nodes = graph.nodes;
 
-    // var nodeIndex2Pos = new Dictionary<int, Vector2Int>();
-    // var pos2NodeIndex = new Dictionary<Vector2Int, int>();
+    auto size = graph.size;
 
-    // var nodeIndex = 0;
-    // for (var y = 0; y < height; y++) {
-    //     for (var x = 0; x < width; x++) {
-    //         var node = nodes[y][x];
-    //         if (node == 0) {
-    //             continue;
-    //         }
+    dist = _Allocator<i16>().allocate(n * n);
+    prev = _Allocator<i16>().allocate(n * n);
+
+    PLACEMENT_INIT(data.node_index_2_pos)();
+    PLACEMENT_INIT(data.pos_2_node_index)();
+
+    int node_index = 0;
+    FOR_RANGE(int, y, size.y) {
+        FOR_RANGE(int, x, size.x) {
+            auto node = *(nodes + y * size.x + x);
+            if (node == 0)
+                continue;
+
+            data.node_index_2_pos.insert({node_index, v2i16(x, y)});
+            data.pos_2_node_index.insert({v2i16(x, y), node_index});
+            node_index += 1;
+        }
+    }
+
+    // NOTE: |V| = _nodes_count
+    // > let dist be a |V| × |V| array of minimum distances initialized to ∞ (infinity)
+    // > let prev be a |V| × |V| array of minimum distances initialized to null
+    FOR_RANGE(int, y, size.y) {
+        FOR_RANGE(int, x, size.x) {
+            *(dist + y * size.x + x) = i16_max;
+            *(prev + y * size.x + x) = i16_min;
+        }
+    }
+
+    // NOTE: edge (u, v) = (node_index, new_node_index)
+    // > for each edge (u, v) do
+    // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
+    // >     prev[u][v] ← u
     //
-    //         nodeIndex2Pos.Add(nodeIndex, new (x, y));
-    //         pos2NodeIndex.Add(new (x, y), nodeIndex);
-    //         nodeIndex += 1;
-    //     }
-    // }
+    node_index = 0;
+    FOR_RANGE(int, y, size.y) {
+        FOR_RANGE(int, x, size.x) {
+            u8 node = *(nodes + y * size.x + x);
+            if (node == 0)
+                continue;
+
+            FOR_DIRECTION(dir) {
+                if (!Graph_Node_Has(node, dir))
+                    continue;
+
+                auto new_pos = v2i16(x, y) + As_Offset(dir);
+                auto new_node_index = pos_2_node_index[new_pos];
+                *(dist + node_index * size.x + new_node_index) = 1;
+                *(prev + node_index * size.x + new_node_index) = node_index;
+            }
+
+            node_index += 1;
+        }
+    }
+
+    // NOTE: vertex v = nodeIndex
+    // > for each vertex v do
+    // >     dist[v][v] ← 0
+    // >     prev[v][v] ← v
     //
-    // // NOTE: |V| = _nodesCount
-    // // > let dist be a |V| × |V| array of minimum distances initialized to ∞
-    // // (infinity) > let prev be a |V| × |V| array of minimum distances initialized
-    // to
-    // // null
-    // var dist = new int[_nodesCount][];
-    // var prev = new int[_nodesCount][];
-    // for (var y = 0; y < _nodesCount; y++) {
-    //     var distRow = new int[_nodesCount];
-    //     for (var x = 0; x < _nodesCount; x++) {
-    //         distRow[x] = int.MaxValue;
-    //     }
+    node_index = 0;
+    FOR_RANGE(int, y, size.y) {
+        FOR_RANGE(int, x, size.x) {
+            u8 node = *(nodes + y * size.x + x);
+            if (node == 0)
+                continue;
+
+            *(dist + node_index * size.x + node_index) = 0;
+            *(prev + node_index * size.x + node_index) = node_index;
+            node_index += 1;
+        }
+    }
+
+    // Standard Floyd-Warshall
+    // for k from 1 to |V|
+    //     for i from 1 to |V|
+    //         for j from 1 to |V|
+    //             if dist[i][j] > dist[i][k] + dist[k][j] then
+    //                 dist[i][j] ← dist[i][k] + dist[k][j]
+    //                 prev[i][j] ← prev[k][j]
     //
-    //     dist[y] = distRow;
-    //
-    //     var prevRow = new int[_nodesCount];
-    //     for (var x = 0; x < _nodesCount; x++) {
-    //         prevRow[x] = int.MinValue;
-    //     }
-    //
-    //     prev[y] = prevRow;
-    // }
-    //
-    // // NOTE: edge (u, v) = (nodeIndex, newNodeIndex)
-    // // > for each edge (u, v) do
-    // // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
-    // // >     prev[u][v] ← u
-    // nodeIndex = 0;
-    // for (var y = 0; y < height; y++) {
-    //     for (var x = 0; x < width; x++) {
-    //         var node = nodes[y][x];
-    //         if (node == 0) {
-    //             continue;
-    //         }
-    //
-    //         foreach (var dir in Utils.DIRECTIONS) {
-    //             if (!GraphNode.Has(node, dir)) {
-    //                 continue;
-    //             }
-    //
-    //             var newPos = new Vector2Int(x, y) + dir.AsOffset();
-    //             var newNodeIndex = pos2NodeIndex[newPos];
-    //             dist[nodeIndex][newNodeIndex] = 1;
-    //             prev[nodeIndex][newNodeIndex] = nodeIndex;
-    //         }
-    //
-    //         nodeIndex += 1;
-    //     }
-    // }
-    //
-    // // NOTE: vertex v = nodeIndex
-    // // > for each vertex v do
-    // // >     dist[v][v] ← 0
-    // // >     prev[v][v] ← v
-    // nodeIndex = 0;
-    // for (var y = 0; y < height; y++) {
-    //     for (var x = 0; x < width; x++) {
-    //         var node = nodes[y][x];
-    //         if (node == 0) {
-    //             continue;
-    //         }
-    //
-    //         dist[nodeIndex][nodeIndex] = 0;
-    //         prev[nodeIndex][nodeIndex] = nodeIndex;
-    //
-    //         nodeIndex += 1;
-    //     }
-    // }
-    //
-    // // Standard Floyd-Warshall
-    // // for k from 1 to |V|
-    // //     for i from 1 to |V|
-    // //         for j from 1 to |V|
-    // //             if dist[i][j] > dist[i][k] + dist[k][j] then
-    // //                 dist[i][j] ← dist[i][k] + dist[k][j]
-    // //                 prev[i][j] ← prev[k][j]
-    // for (var k = 0; k < _nodesCount; k++) {
-    //     for (var j = 0; j < _nodesCount; j++) {
-    //         for (var i = 0; i < _nodesCount; i++) {
-    //             var ij = dist[i][j];
-    //             var ik = dist[i][k];
-    //             var kj = dist[k][j];
-    //
-    //             if (ik != int.MaxValue && kj != int.MaxValue&& ij > ik + kj) {
-    //                 dist[i][j] = ik + kj;
-    //                 prev[i][j] = prev[k][j];
-    //             }
-    //         }
-    //     }
-    // }
-    //
-    // return new (dist, prev, nodeIndex2Pos, pos2NodeIndex);
+    FOR_RANGE(int, k, n) {
+        FOR_RANGE(int, j, n) {
+            FOR_RANGE(int, i, n) {
+                auto ij = *(dist + size.x * i + j);
+                auto ik = *(dist + size.x * i + k);
+                auto kj = *(dist + size.x * k + j);
+
+                if (ik != i16_max && kj != i16_max && ij > ik + kj) {
+                    *(dist + i * size.x + j) = ik + kj;
+                    *(prev + i * size.x + j) = *(prev + k * size.x + j);
+                }
+            }
+        }
+    }
+
+#ifdef ASSERT_SLOW
+    Assert_Is_Undirected(graph);
+#endif  // ASSERT_SLOW
+
+    // NOTE: Вычисление центра графа
+
+    // Counting values of eccentricity
+    i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
+    DEFER(Deallocate_Array(trash_arena, i16, n));
+    FOR_RANGE(i16, i, n) {
+        FOR_RANGE(i16, j, n) {
+            *(node_eccentricities + i)
+                = MAX(*(node_eccentricities + i), *(dist + n * i + j));
+        }
+    }
+
+    i16 rad = i16_max;
+    i16 diam = 0;
+    FOR_RANGE(i16, i, n) {
+        rad = MIN(rad, *(node_eccentricities + i));
+        diam = MAX(diam, *(node_eccentricities + i));
+    }
+
+    FOR_RANGE(i16, i, n) {
+        if (node_eccentricities[i] == rad) {
+            data.center = node_index_2_pos[i] + graph.offset;
+            break;
+        }
+    }
 }
 
 void Add_And_Link_Segment(
     Bucket_Array<Graph_Segment>& segments,
-    Graph_Segment& added_segment
+    Graph_Segment& added_segment,
+    Arena& trash_arena
 ) {
     auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
 
@@ -1618,7 +1673,7 @@ void Add_And_Link_Segment(
         segment.graph.nodes = added_segment.graph.nodes;
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
-        Calculate_Graph_Data<Game_Map_Allocator>(segment.graph);
+        Calculate_Graph_Data<Game_Map_Allocator>(segment.graph, trash_arena);
         segment.locator = locator;
         segment.assigned_human = nullptr;
 
@@ -1740,7 +1795,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     }
 
     FOR_RANGE(u32, i, added_segments_count) {
-        Add_And_Link_Segment(game_map.segments, *(added_segments + i));
+        Add_And_Link_Segment(game_map.segments, *(added_segments + i), trash_arena);
     }
 
     // TODO: _resourceTransportation.PathfindItemsInQueue();
@@ -2079,7 +2134,7 @@ void Build_Graph_Segments(
     Update_Segments_Lambda(0, nullptr, added_segments_count, added_segments);
 
     FOR_RANGE(u32, i, added_segments_count) {
-        Add_And_Link_Segment(segments, *(added_segments + i));
+        Add_And_Link_Segment(segments, *(added_segments + i), trash_arena);
     }
 }
 
