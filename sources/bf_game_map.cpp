@@ -1492,8 +1492,6 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
-typedef ttuple<Direction, v2i16> Dir_v2i16;
-
 void Add_And_Link_Segment(
     Bucket_Array<Graph_Segment>& segments,
     Graph_Segment& added_segment
@@ -1639,6 +1637,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
         Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
     }
 }
+
+typedef ttuple<Direction, v2i16> Dir_v2i16;
 
 #define QUEUES_SCALE 4
 
