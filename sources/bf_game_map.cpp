@@ -999,7 +999,7 @@ void Update_Human(
         Update_Human_Moving_Component(game_map, human, dt, data);
 
     if (humans_to_remove.size() > 0  //
-        && std::get<1>(humans_to_remove[humans_to_remove.size() - 1]) == human_ptr)
+        && humans_to_remove[humans_to_remove.size() - 1].human == human_ptr)
         return;
 
     Main_Update(human, data, dt);
@@ -1080,7 +1080,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
     game_map.data = Allocate_For(arena, Game_Map_Data);
-    game_map.data->human_moving_one_tile_duration = 1;
+    game_map.data->human_moving_one_tile_duration = 1.0f;
 
     {
         size_t toc_size = 1024;

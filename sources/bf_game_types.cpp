@@ -1264,7 +1264,11 @@ struct Game_Map : public Non_Copyable {
 
     Bucket_Array<Human> humans_to_add;
 
-    using Human_To_Remove = ttuple<Human_Removal_Reason, Human*, Bucket_Locator>;
+    struct Human_To_Remove {
+        Human_Removal_Reason reason;
+        Human* human;
+        Bucket_Locator locator;
+    };
     custom_tvector<Human_To_Remove> humans_to_remove;
 
     Queue<Graph_Segment*, Game_Map_Allocator> segments_wo_humans;
