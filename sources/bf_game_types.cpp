@@ -72,27 +72,7 @@ struct Vector {
 
 template <typename T, typename Allocation_Tag>
 // requires std::is_trivially_copyable_v<T>
-struct Static_Allocation_Vector {
-    T* base;
-    i32 count;
-    u32 max_count;
-
-    static Allocator_Functions allocator_functions;
-};
-
-template <typename T, typename Allocation_Tag>
-// requires std::is_trivially_copyable_v<T>
 Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functions = {};
-
-template <typename T, typename Allocation_Tag>
-// requires std::is_trivially_copyable_v<T>
-Allocator_Functions Static_Allocation_Vector<T, Allocation_Tag>::allocator_functions = {};
-
-// template <Hashable T, typename U, typename Allocation_Tag>
-// // requires std::is_trivially_copyable_v<T>
-// Allocator_Functions
-//     Static_Allocation_Hash_Table<T, U, Allocation_Tag>::allocator_functions
-//     = {};
 
 using Bucket_Index = u32;
 
@@ -375,17 +355,6 @@ i32 Queue_Find(Static_Allocation_Queue<T, Allocation_Tag>& container, T value) {
     return -1;
 }
 
-template <typename T, typename Allocation_Tag>
-i32 Vector_Find(Static_Allocation_Vector<T, Allocation_Tag>& container, T value) {
-    FOR_RANGE(i32, i, container.count) {
-        auto& v = *(container.base + i);
-        if (v == value)
-            return i;
-    }
-
-    return -1;
-}
-
 template <typename T, template <typename> typename _Allocator>
 i32 Vector_Find(tvector<T, _Allocator<T>>& container, T value) {
     i32 i = 0;
@@ -396,17 +365,6 @@ i32 Vector_Find(tvector<T, _Allocator<T>>& container, T value) {
         i++;
     }
     return -1;
-}
-
-template <typename T, typename Allocation_Tag>
-i32 Vector_Find_Ptr(
-    Static_Allocation_Vector<T, Allocation_Tag>& container,
-    T* value_ptr
-) {
-    Assert(container.base <= value_ptr);
-    Assert(value_ptr < container.base + container.count * sizeof(T));
-    Assert((value_ptr - container.base) % sizeof(T) == 0);
-    return (value_ptr - container.base) / sizeof(T);
 }
 
 template <typename T>
@@ -522,91 +480,6 @@ void Vector_Unordered_Remove_At(tvector<T, _Allocator<T>>& container, i32 i) {
 //
 //     container.count -= 1;
 // }
-
-template <typename T, typename Allocation_Tag>
-void Vector_Remove_At(Static_Allocation_Vector<T, Allocation_Tag>& container, i32 i) {
-    Assert(i >= 0);
-    Assert(i < container.count);
-
-    i32 delta_count = container.count - i - 1;
-    Assert(delta_count >= 0);
-
-    if (delta_count > 0) {
-        memmove(container.base + i, container.base + i + 1, sizeof(T) * delta_count);
-    }
-
-    container.count -= 1;
-}
-
-template <typename T, typename Allocation_Tag>
-i32 Vector_Add(Static_Allocation_Vector<T, Allocation_Tag>& container, T& value) {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
-
-    i32 locator = container.count;
-
-    if (container.base == nullptr) {
-        Assert(container.max_count == 0);
-        Assert(container.count == 0);
-
-        container.max_count = 8;
-        container.base = rcast<T*>(container.allocator_functions.allocate(
-            container.max_count * sizeof(T), alignof(T)
-        ));
-    }
-    else if (container.max_count == container.count) {
-        u32 doubled_max_count = container.max_count * 2;
-        Assert(container.max_count < doubled_max_count);  // NOTE: Ловим overflow
-        auto size = sizeof(T) * container.max_count;
-        auto old_ptr = container.base;
-
-        container.base
-            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
-        memcpy(container.base, old_ptr, size);
-        container.allocator_functions.free(old_ptr);
-
-        container.max_count *= 2;
-    }
-
-    *(container.base + container.count) = value;
-    container.count += 1;
-
-    return locator;
-}
-
-template <typename T, typename Allocation_Tag>
-i32 Vector_Add(Static_Allocation_Vector<T, Allocation_Tag>& container, T&& value) {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
-
-    i32 locator = container.count;
-
-    if (container.base == nullptr) {
-        Assert(container.max_count == 0);
-        Assert(container.count == 0);
-
-        container.max_count = 8;
-        container.base = rcast<T*>(container.allocator_functions.allocate(
-            container.max_count * sizeof(T), alignof(T)
-        ));
-    }
-    else if (container.max_count == container.count) {
-        u32 doubled_max_count = container.max_count * 2;
-        Assert(container.max_count < doubled_max_count);  // NOTE: Ловим overflow
-        auto size = sizeof(T) * container.max_count;
-        auto old_ptr = container.base;
-
-        container.base
-            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
-        memcpy(container.base, old_ptr, size);
-        container.allocator_functions.free(old_ptr);
-
-        container.max_count *= 2;
-    }
-
-    *(container.base + container.count) = value;
-    container.count += 1;
-
-    return locator;
-}
 
 template <typename T>
 T Vector_Pop(Vector<T>& vec) {
@@ -999,49 +872,6 @@ private:
     i32 _current = 0;
 };
 
-template <typename T, typename Allocation_Tag>
-class Static_Allocation_Vector_Iterator
-    : public Iterator_Facade<Static_Allocation_Vector_Iterator<T, Allocation_Tag>> {
-public:
-    Static_Allocation_Vector_Iterator() = delete;
-
-    Static_Allocation_Vector_Iterator(
-        Static_Allocation_Vector<T, Allocation_Tag>* container
-    )
-        : Static_Allocation_Vector_Iterator(container, 0) {}
-
-    Static_Allocation_Vector_Iterator(
-        Static_Allocation_Vector<T, Allocation_Tag>* container,
-        i32 current
-    )
-        : _current(current)
-        , _container(container)  //
-    {
-        Assert(container != nullptr);
-    }
-
-    Static_Allocation_Vector_Iterator begin() const { return {_container, _current}; }
-    Static_Allocation_Vector_Iterator end() const {
-        return {_container, _container->count};
-    }
-
-    T* Dereference() const {
-        Assert(_current >= 0);
-        Assert(_current < _container->count);
-        return _container->base + _current * sizeof(T);
-    }
-
-    void Increment() { _current++; }
-
-    bool Equal_To(const Static_Allocation_Vector_Iterator& o) const {
-        return _current == o._current;
-    }
-
-private:
-    Static_Allocation_Vector<T, Allocation_Tag>* _container;
-    i32 _current = 0;
-};
-
 template <typename T, template <typename> typename _Allocator>
 class TVector_Iterator : public Iterator_Facade<TVector_Iterator<T, _Allocator>> {
 public:
@@ -1081,11 +911,6 @@ auto Iter(tvector<T, _Allocator<T>>* container) {
     return TVector_Iterator(container);
 }
 
-template <typename T, typename Allocation_Tag>
-auto Iter(Static_Allocation_Vector<T, Allocation_Tag>* container) {
-    return Static_Allocation_Vector_Iterator(container);
-}
-
 template <typename T>
 auto Iter_With_Locator(Bucket_Array<T>* arr) {
     return Bucket_Array_With_Locator_Iterator(arr);
@@ -1110,13 +935,6 @@ BF_FORCE_INLINE void Container_Reset(  //
 
 template <typename T>
 BF_FORCE_INLINE void Container_Reset(Vector<T>& container) {
-    container.count = 0;
-}
-
-template <typename T, typename Allocation_Tag>
-BF_FORCE_INLINE void Container_Reset(
-    Static_Allocation_Vector<T, Allocation_Tag>& container
-) {
     container.count = 0;
 }
 
@@ -1168,27 +986,6 @@ Direction Opposite(Direction dir) {
 }
 
 using Graph_Nodes_Count = u16;
-
-// template <typename T>
-// concept Hashable<T> = requires(T a) {
-//     { Hash(a) } -> u32;
-// };
-//
-// template <Hashable T, typename U, typename Allocation_Tag>
-// struct Static_Allocation_Hash_Table {
-//     U* base;
-//     i32 count;
-//     i16 buckets_count;
-//     // NOTE: load factor = (f32) count / buckets_count
-//     Vector<U*>* buckets;
-//
-//     static Allocator_Functions allocator_functions;
-// };
-//
-// template <Hashable T, typename U, typename Allocation_Tag>
-// void Hash_Table_Add(Static_Allocation_Hash_Table<T, U, Allocation_Tag>& table) {
-//     //
-// }
 
 struct Calculated_Graph_Path_Data {
     u16* dist;
@@ -1244,6 +1041,14 @@ struct Map_Resource_Booking {
 
 template <typename T>
 using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
+
+template <typename Key, typename T>
+using custom_hash_map = tunordered_map<
+    Key,
+    T,
+    std::hash<Key>,
+    std::equal_to<Key>,
+    Game_Map_Allocator<std::pair<Key, T>>>;
 
 struct Map_Resource {
     using ID = u32;

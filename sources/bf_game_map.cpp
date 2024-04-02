@@ -254,14 +254,6 @@ void Init_Vector(Vector<T>& container) {
     container.allocator_functions.free = _aligned_free;
 }
 
-template <typename T, typename Allocation_Tag>
-void Init_Static_Allocation_Vector(Static_Allocation_Vector<T, Allocation_Tag>& container
-) {
-    container.count = 0;
-    container.max_count = 0;
-    container.base = nullptr;
-}
-
 template <typename T>
 void Deinit_Queue(Queue<T>& container) {
     if (container.base != nullptr) {
@@ -286,17 +278,6 @@ void Deinit_Queue(Static_Allocation_Queue<T, Allocation_Tag>& container) {
 
 template <typename T>
 void Deinit_Vector(Queue<T>& container) {
-    if (container.base != nullptr) {
-        Assert(container.max_count > 0);
-        container.allocator_functions.free(container.base);
-        container.base = nullptr;
-    }
-    container.count = 0;
-    container.max_count = 0;
-}
-
-template <typename T, typename Allocation_Tag>
-void Deinit_Vector(Static_Allocation_Vector<T, Allocation_Tag>& container) {
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
         container.allocator_functions.free(container.base);
@@ -1154,13 +1135,6 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.segments, 32, 128);
     Init_Bucket_Array(game_map.humans, 32, 128);
     Init_Bucket_Array(game_map.humans_to_add, 32, 128);
-
-    // {
-    //     Init_Static_Allocation_Vector(game_map.humans_to_remove);
-    //     using T = decltype(game_map.humans_to_remove);
-    //     T::allocator_functions.allocate = _aligned_malloc;
-    //     T::allocator_functions.free = _aligned_free;
-    // }
 
     {
         Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
