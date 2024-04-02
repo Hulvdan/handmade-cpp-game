@@ -1595,7 +1595,7 @@ void Update_Graphs(
     Fixed_Size_Queue<Dir_v2i16>& big_queue,
     Fixed_Size_Queue<Dir_v2i16>& queue,
     Arena& trash_arena,
-    u8* visited,
+    u8* const visited,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
     const bool full_graph_build
@@ -1886,7 +1886,7 @@ void Build_Graph_Segments(
 ttuple<int, int> Update_Tiles(
     v2i16 gsize,
     Element_Tile* element_tiles,
-    Bucket_Array<Graph_Segment>& segments,
+    Bucket_Array<Graph_Segment>* segments,
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
@@ -1909,7 +1909,7 @@ ttuple<int, int> Update_Tiles(
     );
     DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
 
-    for (auto segment_ptr : Iter(&segments)) {
+    for (auto segment_ptr : Iter(segments)) {
         auto& segment = *segment_ptr;
         if (!Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, segment))
             continue;
@@ -2065,12 +2065,12 @@ ttuple<int, int> Update_Tiles(
     );
 
 #ifdef ASSERT_SLOW
-    for (auto segment1_ptr : Iter(&segments)) {
+    for (auto segment1_ptr : Iter(segments)) {
         auto& segment1 = *segment1_ptr;
         auto& g1 = segment1.graph;
         v2i16 g1_offset = {g1.offset.x, g1.offset.y};
 
-        for (auto segment2_ptr : Iter(&segments)) {
+        for (auto segment2_ptr : Iter(segments)) {
             auto& segment2 = *segment2_ptr;
             if (segment1_ptr == segment2_ptr)
                 continue;
@@ -2109,7 +2109,7 @@ ttuple<int, int> Update_Tiles(
     Update_Tiles(                                                        \
         state.game_map.size,                                             \
         state.game_map.element_tiles,                                    \
-        state.game_map.segments,                                         \
+        &state.game_map.segments,                                        \
         trash_arena,                                                     \
         Assert_Deref(state.game_map.segment_vertices_allocator),         \
         Assert_Deref(state.game_map.graph_nodes_allocator),              \

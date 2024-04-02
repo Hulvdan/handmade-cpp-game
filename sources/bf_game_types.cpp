@@ -138,15 +138,15 @@ void Enqueue(Queue<T, _Allocator>& container, const T value)
         container.base = allocator.allocate(container.max_count);
     }
     else if (container.max_count == container.count) {
-        u32 doubled_max_count = container.max_count * 2;
-        Assert(container.max_count < doubled_max_count);  // Ловим overflow
+        u32 new_max_count = container.max_count * 2;
+        Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto new_ptr = allocator.allocate(doubled_max_count);
+        auto new_ptr = allocator.allocate(new_max_count);
         memcpy(new_ptr, container.base, container.max_count * sizeof(T));
         allocator.deallocate(container.base, container.max_count);
 
         container.base = new_ptr;
-        container.max_count = doubled_max_count;
+        container.max_count = new_max_count;
     }
 
     *(container.base + container.count) = value;
@@ -173,7 +173,6 @@ void Bulk_Enqueue(
     }
     else if (container.max_count < container.count + values_count) {
         u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
-
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
         auto new_ptr = allocator.allocate(new_max_count);
@@ -265,8 +264,9 @@ i32 Vector_Add(Vector<T>& container, T& value) {
         ));
     }
     else if (container.max_count == container.count) {
-        u32 doubled_max_count = container.max_count * 2;
-        Assert(container.max_count < doubled_max_count);  // NOTE: Ловим overflow
+        u32 new_max_count = container.max_count * 2;
+        Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
+
         auto size = sizeof(T) * container.max_count;
         auto old_ptr = container.base;
 
@@ -275,7 +275,7 @@ i32 Vector_Add(Vector<T>& container, T& value) {
         memcpy(container.base, old_ptr, size);
         container.allocator_functions.free(old_ptr);
 
-        container.max_count *= 2;
+        container.max_count = new_max_count;
     }
 
     *(container.base + container.count) = value;

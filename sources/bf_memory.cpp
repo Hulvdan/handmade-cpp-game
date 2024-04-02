@@ -246,6 +246,7 @@ struct Game_Map_Allocator {
 
     [[nodiscard]] T* allocate(size_t n) {
         Assert(n <= size_t_max / sizeof(T));
+        Assert((n * sizeof(T)) / sizeof(T) == n);
 
         auto p = scast<T*>(_aligned_malloc(n * sizeof(T), alignof(T)));
         Assert(p);

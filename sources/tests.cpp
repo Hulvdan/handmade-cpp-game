@@ -429,18 +429,35 @@ int Process_Segments(
         _strings                                   \
     );
 
-#define Update_Tiles_Macro(updated_tiles)                               \
-    REQUIRE(segments != nullptr);                                       \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles( \
-        gsize,                                                          \
-        element_tiles,                                                  \
-        *segments,                                                      \
-        trash_arena,                                                    \
-        segment_vertices_allocator,                                     \
-        graph_nodes_allocator,                                          \
-        pages,                                                          \
-        (updated_tiles),                                                \
-        [](...) {}                                                      \
+#define Update_Tiles_Macro(updated_tiles)                                      \
+    REQUIRE(segments != nullptr);                                              \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(        \
+        gsize,                                                                 \
+        element_tiles,                                                         \
+        segments,                                                              \
+        trash_arena,                                                           \
+        segment_vertices_allocator,                                            \
+        graph_nodes_allocator,                                                 \
+        pages,                                                                 \
+        (updated_tiles),                                                       \
+        [&segments, &segment_vertices_allocator, &graph_nodes_allocator](      \
+            u32 segments_to_be_deleted_count,                                  \
+            Graph_Segment** segments_to_be_deleted,                            \
+            u32 added_segments_count,                                          \
+            Graph_Segment* added_segments                                      \
+        ) {                                                                    \
+            FOR_RANGE(u32, i, segments_to_be_deleted_count) {                  \
+                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);    \
+                auto& segment = *segment_ptr;                                  \
+                Bucket_Array_Remove(*segments, segment.locator);               \
+                segment_vertices_allocator.Free(rcast<u8*>(segment.vertices)); \
+                graph_nodes_allocator.Free(segment.graph.nodes);               \
+            }                                                                  \
+                                                                               \
+            FOR_RANGE(u32, i, added_segments_count) {                          \
+                Add_And_Link_Segment(*segments, *(added_segments + i));        \
+            }                                                                  \
+        }                                                                      \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \
