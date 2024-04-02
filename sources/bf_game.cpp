@@ -421,12 +421,14 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             auto& b = Assert_Deref(state.scriptable_buildings + 0);
             b.name = "City Hall";
             b.type = Building_Type::City_Hall;
+            b.human_spawning_delay = 1;
             state.scriptable_building_city_hall = &b;
         }
         {
             auto& b = Assert_Deref(state.scriptable_buildings + 1);
             b.name = "Lumberjack's Hut";
             b.type = Building_Type::Harvest;
+            b.human_spawning_delay = 0;
             state.scriptable_building_lumberjacks_hut = &b;
         }
 

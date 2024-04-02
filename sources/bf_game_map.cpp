@@ -9,6 +9,14 @@
         Assert((array_count) <= (array_max_count));            \
     }
 
+template <typename T>
+BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
+    Assert(array_count > 0);
+    T result = *(array + array_count - 1);
+    array_count--;
+    return result;
+}
+
 #define Array_Reverse(array, count)                    \
     {                                                  \
         Assert(count >= 0);                            \
@@ -182,6 +190,7 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
 
     instance.pos = pos;
     instance.scriptable = scriptable;
+    instance.time_since_human_was_created = std::numeric_limits<f32>::infinity();
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
@@ -826,7 +835,7 @@ void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& 
 
 Human* Create_Human_Transporter(
     Game_Map& game_map,
-    Building& building,
+    Building* building,
     Graph_Segment* segment_ptr,
     Human_Data& data
 ) {
@@ -834,8 +843,20 @@ Human* Create_Human_Transporter(
 
     auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans_to_add);
     auto& human = *human_ptr;
-    human.moving.pos = building.pos;
+    human.player_id = 0;
+    human.moving.pos = building->pos;
+    human.moving.elapsed = 0;
+    human.moving.progress = 0;
+    human.moving.from = building->pos;
+    human.moving.to.reset();
+    human.moving.path.count = 0;
+    human.moving.path.max_count = 0;
+    human.moving.path.base = nullptr;
     human.segment = segment_ptr;
+    human.type = Human_Type::Transporter;
+    human.state = Human_Main_State::None;
+    human.state_moving_in_the_world = Moving_In_The_World_State::None;
+    human.building = building;
 
     Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
 
@@ -853,24 +874,24 @@ Human* Create_Human_Transporter(
 
 void Update_Building__Constructed(
     Game_Map& game_map,
-    Building& building,
+    Building* building,
     f32 dt,
     Human_Data& data
 ) {
-    auto& scriptable = *building.scriptable;
+    auto& scriptable = *building->scriptable;
 
     auto delay = scriptable.human_spawning_delay;
 
     if (scriptable.type == Building_Type::City_Hall) {
-        auto& since_created = building.time_since_human_was_created;
+        auto& since_created = building->time_since_human_was_created;
         since_created += dt;
         if (since_created > delay)
             since_created = delay;
 
-        if (game_map.segments_that_need_humans.count > 0) {
+        if (game_map.segments_wo_humans.count > 0) {
             if (since_created >= delay) {
                 since_created -= delay;
-                Graph_Segment* segment = Dequeue(game_map.segments_that_need_humans);
+                Graph_Segment* segment = Dequeue(game_map.segments_wo_humans);
                 Create_Human_Transporter(game_map, building, segment, data);
             }
         }
@@ -881,11 +902,10 @@ void Update_Building__Constructed(
 
 void Update_Buildings(Game_State& state, f32 dt, Human_Data& data) {
     for (auto building_ptr : Iter(&state.game_map.buildings)) {
-        auto& building = *building_ptr;
         // TODO: if (building.constructionProgress < 1) {
         //     Update_Building__Not_Constructed(building, dt);
         // } else {
-        Update_Building__Constructed(state.game_map, building, dt, data);
+        Update_Building__Constructed(state.game_map, building_ptr, dt, data);
         // }
     }
 }
@@ -1004,8 +1024,9 @@ void Update_Human(
     }
 }
 
-void Update_Humans(Game_State& state, f32 dt, Human_Data& data, Building** city_halls) {
+void Update_Humans(Game_State& state, f32 dt, Human_Data& data) {
     auto& game_map = state.game_map;
+    auto city_halls = data.city_halls;
 
     for (auto abobe : Iter(&game_map.humans_to_remove)) {
         auto [reason, _, _2] = *abobe;
@@ -1051,32 +1072,8 @@ void Update_Game_Map(Game_State& state, float dt) {
     ImGui::Text("last_added_segments_count %d", global_last_added_segments_count);
     ImGui::Text("segments count %d", game_map.segments.count);
 
-    int players_count = 1;
-    int city_halls_count = 0;
-    Building** city_halls = Allocate_Zeros_Array(trash_arena, Building*, players_count);
-
-    {  // NOTE: Доставание всех City Hall
-        for (auto building_ptr : Iter(&game_map.buildings)) {
-            auto& building = *building_ptr;
-            if (building.scriptable->type == Building_Type::City_Hall) {
-                *(city_halls + city_halls_count) = building_ptr;
-                city_halls_count++;
-            }
-
-            if (city_halls_count == players_count)
-                break;
-        }
-        Assert(city_halls_count == players_count);
-    }
-
-    Human_Data data;
-    data.max_player_id = players_count;
-    data.city_halls = city_halls;
-    data.game_map = &game_map;
-    data.trash_arena = &trash_arena;
-
-    Update_Buildings(state, dt, data);
-    Update_Humans(state, dt, data, city_halls);
+    Update_Buildings(state, dt, Assert_Deref(state.game_map.human_data));
+    Update_Humans(state, dt, Assert_Deref(state.game_map.human_data));
 }
 
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
@@ -1129,13 +1126,40 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.humans_to_add, 32, 128);
 
     {
-        auto& container = game_map.segments_that_need_humans;
+        auto& container = game_map.segments_wo_humans;
         container.count = 0;
         container.max_count = 0;
         container.base = nullptr;
     }
 
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
+
+    {
+        game_map.human_data = Allocate_For(arena, Human_Data);
+
+        int players_count = 1;
+        int city_halls_count = 0;
+        Building** city_halls = Allocate_Zeros_Array(arena, Building*, players_count);
+
+        {  // NOTE: Доставание всех City Hall
+            for (auto building_ptr : Iter(&game_map.buildings)) {
+                auto& building = *building_ptr;
+                if (building.scriptable->type == Building_Type::City_Hall) {
+                    *(city_halls + city_halls_count) = building_ptr;
+                    city_halls_count++;
+                }
+
+                if (city_halls_count == players_count)
+                    break;
+            }
+            Assert(city_halls_count == players_count);
+        }
+
+        game_map.human_data->max_player_id = players_count;
+        game_map.human_data->city_halls = city_halls;
+        game_map.human_data->game_map = &state.game_map;
+        game_map.human_data->trash_arena = &state.trash_arena;
+    }
 }
 
 void Deinitialize_Game_Map(Game_State& state) {
@@ -1156,7 +1180,7 @@ void Deinitialize_Game_Map(Game_State& state) {
     Deinit_Bucket_Array(game_map.humans_to_add);
 
     game_map.humans_to_remove.clear();
-    Deinit_Queue(game_map.segments_that_need_humans);
+    Deinit_Queue(game_map.segments_wo_humans);
 
     for (auto human_ptr : Iter(&game_map.humans)) {
         auto& human = *human_ptr;
@@ -1523,9 +1547,9 @@ BF_FORCE_INLINE void Update_Segments_Function(
     const i32 humans_wo_segment_max_count
         = segments_to_be_deleted_count + humans_moving_to_city_hall;
 
-    tttt* humans_that_need_new_segment = nullptr;
+    tttt* humans_wo_segment = nullptr;
     if (humans_wo_segment_max_count > 0) {
-        humans_that_need_new_segment
+        humans_wo_segment
             = Allocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
 
         i32 i = 0;
@@ -1533,7 +1557,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
             if (human_ptr->state_moving_in_the_world == state) {
                 Array_Push(
-                    humans_that_need_new_segment,
+                    humans_wo_segment,
                     humans_wo_segment_count,
                     humans_wo_segment_max_count,
                     tttt(nullptr, human_ptr)
@@ -1552,7 +1576,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             human_ptr->segment = nullptr;
             segment.assigned_human = nullptr;
             Array_Push(
-                humans_that_need_new_segment,
+                humans_wo_segment,
                 humans_wo_segment_count,
                 humans_wo_segment_max_count,
                 tttt(segment_ptr, human_ptr)
@@ -1574,7 +1598,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // _resource_transportation.OnSegmentDeleted(segment);
 
         // PERF: Много memmove происходит
-        auto& queue = game_map.segments_that_need_humans;
+        auto& queue = game_map.segments_wo_humans;
         auto index = Queue_Find(queue, segment_ptr);
         if (index != -1)
             Queue_Remove_At(queue, index);
@@ -1586,6 +1610,41 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     FOR_RANGE(u32, i, added_segments_count) {
         Add_And_Link_Segment(game_map.segments, *(added_segments + i));
+    }
+
+    // TODO: _resourceTransportation.PathfindItemsInQueue();
+    // Tracing.Log("_itemTransportationSystem.PathfindItemsInQueue()");
+
+    while (humans_wo_segment_count > 0 && game_map.segments_wo_humans.count > 0) {
+        auto segment_ptr = Dequeue(game_map.segments_wo_humans);
+        auto [old_segment, human_ptr]
+            = Array_Pop(humans_wo_segment, humans_wo_segment_count);
+
+        human_ptr->segment = segment_ptr;
+        segment_ptr->assigned_human = human_ptr;
+
+        Main_On_Human_Current_Segment_Changed(
+            *human_ptr, Assert_Deref(game_map.human_data), old_segment
+        );
+    }
+
+    FOR_RANGE(int, i, added_segments_count) {
+        auto segment_ptr = added_segments + i;
+
+        if (humans_wo_segment_count == 0) {
+            Enqueue(game_map.segments_wo_humans, segment_ptr);
+            continue;
+        }
+
+        auto [old_segment, human_ptr]
+            = Array_Pop(humans_wo_segment, humans_wo_segment_count);
+
+        human_ptr->segment = segment_ptr;
+        segment_ptr->assigned_human = human_ptr;
+
+        Main_On_Human_Current_Segment_Changed(
+            *human_ptr, Assert_Deref(game_map.human_data), old_segment
+        );
     }
 
     if (humans_wo_segment_max_count > 0) {

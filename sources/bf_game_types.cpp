@@ -1041,7 +1041,6 @@ struct Human_Moving_Component {
     v2f from;
 
     toptional<v2i16> to;
-    struct Human_Moving_Component_Allocation_Tag {};
     Queue<v2i16, Game_Map_Allocator> path;
 };
 
@@ -1118,7 +1117,7 @@ struct Human : public Non_Copyable {
     //
     // Employee_Behaviour_Set behaviour_set;
     // f32 processing_elapsed;
-    //
+
     Human(const Human&& o) {
         player_id = std::move(o.player_id);
         moving = std::move(o.moving);
@@ -1243,6 +1242,7 @@ enum class Human_Removal_Reason {
 struct Game_Map_Data {
     f32 human_moving_one_tile_duration;
 };
+struct Human_Data;
 
 struct Game_Map : public Non_Copyable {
     v2i16 size;
@@ -1259,12 +1259,13 @@ struct Game_Map : public Non_Copyable {
     using Human_To_Remove = ttuple<Human_Removal_Reason, Human*, Bucket_Locator>;
     custom_tvector<Human_To_Remove> humans_to_remove;
 
-    Queue<Graph_Segment*, Game_Map_Allocator> segments_that_need_humans;
+    Queue<Graph_Segment*, Game_Map_Allocator> segments_wo_humans;
 
     Allocator* segment_vertices_allocator;
     Allocator* graph_nodes_allocator;
 
     Game_Map_Data* data;
+    Human_Data* human_data;
 };
 
 template <typename T>
