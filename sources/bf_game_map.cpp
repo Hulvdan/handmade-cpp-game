@@ -869,8 +869,7 @@ Human* Create_Human_Transporter(
 ) {
     auto& segment = Assert_Deref(segment_ptr);
 
-    // TODO: !!! По-идее нужно добавлять в humans_to_add !!!
-    auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans);
+    auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans_to_add);
     auto& human = *human_ptr;
     human.moving.pos = building.pos;
     human.segment = segment_ptr;
@@ -1016,9 +1015,8 @@ void Update_Human(
     if (human.moving.to.has_value())
         Update_Human_Moving_Component(game_map, human, dt, data);
 
-    if (humans_to_remove.count > 0  //
-        && std::get<1>(*(humans_to_remove.base + humans_to_remove.count - 1))
-            == human_ptr)
+    if (humans_to_remove.size() > 0  //
+        && std::get<1>(humans_to_remove[humans_to_remove.size() - 1]) == human_ptr)
         return;
 
     Main_Update(human, data, dt);
@@ -1032,10 +1030,14 @@ void Update_Human(
         //     Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator
         // };
         // Vector_Add(humans_to_remove, std::move(rem));
-        Vector_Add(
-            humans_to_remove,
+        humans_to_remove.push_back(
             {Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator}
         );
+        // Vector_Add(
+        //     humans_to_remove,
+        //     {Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr,
+        //     locator}
+        // );
     }
 }
 
@@ -1153,12 +1155,12 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Init_Bucket_Array(game_map.humans, 32, 128);
     Init_Bucket_Array(game_map.humans_to_add, 32, 128);
 
-    {
-        Init_Static_Allocation_Vector(game_map.humans_to_remove);
-        using T = decltype(game_map.humans_to_remove);
-        T::allocator_functions.allocate = _aligned_malloc;
-        T::allocator_functions.free = _aligned_free;
-    }
+    // {
+    //     Init_Static_Allocation_Vector(game_map.humans_to_remove);
+    //     using T = decltype(game_map.humans_to_remove);
+    //     T::allocator_functions.allocate = _aligned_malloc;
+    //     T::allocator_functions.free = _aligned_free;
+    // }
 
     {
         Init_Static_Allocation_Queue(game_map.segments_that_need_humans);
@@ -1171,14 +1173,6 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         using T = Static_Allocation_Queue<
             v2i16,
             Human_Moving_Component::Human_Moving_Component_Allocation_Tag>;
-        T::allocator_functions.allocate = _aligned_malloc;
-        T::allocator_functions.free = _aligned_free;
-    }
-
-    {
-        using T = Static_Allocation_Vector<
-            Graph_Segment*,
-            Graph_Segment::Linked_Segments_Tag>;
         T::allocator_functions.allocate = _aligned_malloc;
         T::allocator_functions.free = _aligned_free;
     }
@@ -1203,7 +1197,7 @@ void Deinitialize_Game_Map(Game_State& state) {
         game_map.segment_vertices_allocator->Free(rcast<u8*>(segment_ptr->vertices));
         game_map.graph_nodes_allocator->Free(segment_ptr->graph.nodes);
 
-        Deinit_Vector(segment_ptr->linked_segments);
+        segment_ptr->linked_segments.clear();
         Deinit_Queue(segment_ptr->resources_to_transport);
     }
 
@@ -1211,7 +1205,7 @@ void Deinitialize_Game_Map(Game_State& state) {
     Deinit_Bucket_Array(game_map.humans);
     Deinit_Bucket_Array(game_map.humans_to_add);
 
-    Deinit_Vector(game_map.humans_to_remove);
+    game_map.humans_to_remove.clear();
     Deinit_Queue(game_map.segments_that_need_humans);
 
     for (auto human_ptr : Iter(&game_map.humans)) {
@@ -1514,14 +1508,20 @@ void Add_And_Link_Segment(
         segment.graph.nodes = added_segment.graph.nodes;
         segment.graph.size = added_segment.graph.size;
         segment.graph.offset = added_segment.graph.offset;
+        segment.graph.data = nullptr;
         segment.locator = locator;
         segment.assigned_human = nullptr;
-        segment.linked_segments.max_count = 0;
-        segment.linked_segments.count = 0;
-        segment.linked_segments.base = nullptr;
+
+        // segment.linked_segments.max_count = 0;
+        // segment.linked_segments.count = 0;
+        // segment.linked_segments.base = nullptr;
+        new (&segment.linked_segments) decltype(segment.linked_segments)();
+
         segment.resources_to_transport.max_count = 0;
         segment.resources_to_transport.count = 0;
         segment.resources_to_transport.base = nullptr;
+
+        // TODO: segment.graph.center = Find_Center();
     }
 
     for (auto segment2_ptr : Iter(&segments)) {
@@ -1534,10 +1534,10 @@ void Add_And_Link_Segment(
         auto& segment2 = *segment2_ptr;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
             if (Vector_Find(segment2.linked_segments, segment1_ptr) == -1)
-                Vector_Add(segment2.linked_segments, segment1_ptr);
+                segment2.linked_segments.push_back(segment1_ptr);
 
             if (Vector_Find(segment1.linked_segments, segment2_ptr) == -1)
-                Vector_Add(segment1.linked_segments, segment2_ptr);
+                segment1.linked_segments.push_back(segment2_ptr);
         }
     }
 }
@@ -1613,9 +1613,11 @@ BF_FORCE_INLINE void Update_Segments_Function(
         for (auto linked_segment_pptr : Iter(&segment.linked_segments)) {
             Graph_Segment* linked_segment_ptr = *linked_segment_pptr;
             Graph_Segment& linked_segment = *linked_segment_ptr;
+
             auto found_index = Vector_Find(linked_segment.linked_segments, segment_ptr);
-            if (found_index != -1)
-                Vector_Remove_At(linked_segment.linked_segments, found_index);
+            if (found_index != -1) {
+                Vector_Unordered_Remove_At(linked_segment.linked_segments, found_index);
+            }
         }
 
         // TODO:

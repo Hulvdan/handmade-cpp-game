@@ -233,3 +233,44 @@ struct Allocator : Non_Copyable {
 #else  // PROFILING
 #define Set_Allocator_Name_If_Profiling(arena_, allocator_, format_, ...)
 #endif  // PROFILING
+
+// NOTE: Стырено с https://en.cppreference.com/w/cpp/named_req/Allocator
+template <typename T>
+struct Game_Map_Allocator {
+    typedef T value_type;
+
+    Game_Map_Allocator() = default;
+
+    template <typename U>
+    constexpr Game_Map_Allocator(const Game_Map_Allocator<U>&) noexcept {};
+
+    [[nodiscard]] T* allocate(size_t n) {
+        Assert(n <= size_t_max / sizeof(T));
+
+        auto p = scast<T*>(_aligned_malloc(n * sizeof(T), alignof(T)));
+        Assert(p);
+
+        report(p, n);
+        return p;
+    }
+
+    void deallocate(T* p, size_t n) noexcept {
+        report(p, n, false);
+        _aligned_free(p);
+    }
+
+private:
+    void report(T* p, size_t n, bool allocated = true) const {
+        // NOTE: Здесь мы можем трекать операции аллокации / деаллокации
+    }
+};
+
+template <class T, class U>
+bool operator==(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
+    return true;
+}
+
+template <class T, class U>
+bool operator!=(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
+    return false;
+}

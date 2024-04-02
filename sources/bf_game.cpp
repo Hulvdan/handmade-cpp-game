@@ -23,6 +23,14 @@ using toptional = std::optional<T>;
 template <typename... Args>
 using ttuple = std::tuple<Args...>;
 
+#include <vector>
+template <typename... Args>
+using tvector = std::vector<Args...>;
+
+#include <unordered_map>
+template <typename... Args>
+using tunordered_map = std::unordered_map<Args...>;
+
 global OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 

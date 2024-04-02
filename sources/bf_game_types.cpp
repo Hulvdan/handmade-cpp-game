@@ -52,7 +52,7 @@ struct Queue {
 
 // PERF: Переписать на ring buffer!
 template <typename T, typename Allocation_Tag>
-    requires std::is_trivially_copyable_v<T>
+// requires std::is_trivially_copyable_v<T>
 struct Static_Allocation_Queue {
     u32 max_count;
     i32 count;
@@ -81,12 +81,18 @@ struct Static_Allocation_Vector {
 };
 
 template <typename T, typename Allocation_Tag>
-    requires std::is_trivially_copyable_v<T>
+// requires std::is_trivially_copyable_v<T>
 Allocator_Functions Static_Allocation_Queue<T, Allocation_Tag>::allocator_functions = {};
 
 template <typename T, typename Allocation_Tag>
 // requires std::is_trivially_copyable_v<T>
 Allocator_Functions Static_Allocation_Vector<T, Allocation_Tag>::allocator_functions = {};
+
+// template <Hashable T, typename U, typename Allocation_Tag>
+// // requires std::is_trivially_copyable_v<T>
+// Allocator_Functions
+//     Static_Allocation_Hash_Table<T, U, Allocation_Tag>::allocator_functions
+//     = {};
 
 using Bucket_Index = u32;
 
@@ -380,6 +386,15 @@ i32 Vector_Find(Static_Allocation_Vector<T, Allocation_Tag>& container, T value)
     return -1;
 }
 
+template <typename T, template <typename> typename _Allocator>
+i32 Vector_Find(tvector<T, _Allocator<T>>& container, T value) {
+    auto v = std::find(container.begin(), container.end(), value);
+    if (v == container.end())
+        return -1;
+
+    return (v - container.begin()) / sizeof(T);
+}
+
 template <typename T, typename Allocation_Tag>
 i32 Vector_Find_Ptr(
     Static_Allocation_Vector<T, Allocation_Tag>& container,
@@ -475,6 +490,35 @@ void Vector_Remove_At(Vector<T>& container, i32 i) {
 
     container.count -= 1;
 }
+
+template <typename T, template <typename> typename _Allocator>
+void Vector_Unordered_Remove_At(tvector<T, _Allocator<T>>& container, i32 i) {
+    Assert(i >= 0);
+    Assert(i < container.size());
+
+    if (i != container.size() - 1)
+        std::swap(container[i], container[container.size() - 1]);
+
+    container.pop_back();
+}
+
+// template <typename T, template <typename> typename _Allocator>
+// void Vector_Remove_At(tvector<T,_Allocator<T>>& container, i32 i) {
+//     Assert(i >= 0);
+//     Assert(i < container.size());
+//
+//     i32 delta_count = container.count - i - 1;
+//     Assert(delta_count >= 0);
+//
+//     if (container.size()
+//
+//     if (delta_count > 0) {
+//         memmove(container.base + i, container.base + i + 1, sizeof(T) * delta_count);
+//     }
+//
+//
+//     container.count -= 1;
+// }
 
 template <typename T, typename Allocation_Tag>
 void Vector_Remove_At(Static_Allocation_Vector<T, Allocation_Tag>& container, i32 i) {
@@ -940,7 +984,7 @@ public:
     T* Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
-        return _container->base + _container->count - 1;
+        return _container->base + _current * sizeof(T);
     }
 
     void Increment() { _current++; }
@@ -981,7 +1025,7 @@ public:
     T* Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
-        return _container->base + _container->count - 1;
+        return _container->base + _current * sizeof(T);
     }
 
     void Increment() { _current++; }
@@ -995,9 +1039,43 @@ private:
     i32 _current = 0;
 };
 
+template <typename T, template <typename> typename _Allocator>
+class TVector_Iterator : public Iterator_Facade<TVector_Iterator<T, _Allocator>> {
+public:
+    TVector_Iterator() = delete;
+    TVector_Iterator(tvector<T, _Allocator<T>>* container)
+        : TVector_Iterator(container, 0) {}
+    TVector_Iterator(tvector<T, _Allocator<T>>* container, u64 current)
+        : _current(current), _container(container) {
+        Assert(container != nullptr);
+    }
+
+    TVector_Iterator begin() const { return {_container, _current}; }
+    TVector_Iterator end() const { return {_container, scast<u64>(_container->size())}; }
+
+    T* Dereference() const {
+        Assert(_current >= 0);
+        Assert(_current < _container->size());
+        return _container->data() + _current * sizeof(T);
+    }
+
+    void Increment() { _current++; }
+
+    bool Equal_To(const TVector_Iterator& o) const { return _current == o._current; }
+
+private:
+    tvector<T, _Allocator<T>>* _container;
+    u64 _current = 0;
+};
+
 template <typename T>
-auto Iter(Bucket_Array<T>* arr) {
-    return Bucket_Array_Iterator(arr);
+auto Iter(Bucket_Array<T>* container) {
+    return Bucket_Array_Iterator(container);
+}
+
+template <typename T, template <typename> typename _Allocator>
+auto Iter(tvector<T, _Allocator<T>>* container) {
+    return TVector_Iterator(container);
 }
 
 template <typename T, typename Allocation_Tag>
@@ -1013,6 +1091,11 @@ auto Iter_With_Locator(Bucket_Array<T>* arr) {
 template <typename T>
 BF_FORCE_INLINE void Container_Reset(Queue<T>& container) {
     container.count = 0;
+}
+
+template <typename T, template <typename> typename _Allocator>
+BF_FORCE_INLINE void Container_Reset(tvector<T, _Allocator<T>>& container) {
+    container.clear();
 }
 
 template <typename T, typename Allocation_Tag>
@@ -1083,6 +1166,35 @@ Direction Opposite(Direction dir) {
 
 using Graph_Nodes_Count = u16;
 
+// template <typename T>
+// concept Hashable<T> = requires(T a) {
+//     { Hash(a) } -> u32;
+// };
+//
+// template <Hashable T, typename U, typename Allocation_Tag>
+// struct Static_Allocation_Hash_Table {
+//     U* base;
+//     i32 count;
+//     i16 buckets_count;
+//     // NOTE: load factor = (f32) count / buckets_count
+//     Vector<U*>* buckets;
+//
+//     static Allocator_Functions allocator_functions;
+// };
+//
+// template <Hashable T, typename U, typename Allocation_Tag>
+// void Hash_Table_Add(Static_Allocation_Hash_Table<T, U, Allocation_Tag>& table) {
+//     //
+// }
+
+struct Calculated_Graph_Path_Data {
+    u16* dist;
+    u16* prev;
+
+    tunordered_map<u16, v2i16> node_index_2_pos;
+    tunordered_map<v2i16, u16> pos_2_node_index;
+};
+
 struct Graph : public Non_Copyable {
     Graph_Nodes_Count nodes_count;
     u8* nodes;  // 0b0000DLUR
@@ -1092,6 +1204,8 @@ struct Graph : public Non_Copyable {
 
     // TODO: Calculate it
     v2i16 center;
+
+    Calculated_Graph_Path_Data* data;
 };
 
 BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
@@ -1125,6 +1239,9 @@ struct Map_Resource_Booking {
     i32 priority;
 };
 
+template <typename T>
+using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
+
 struct Map_Resource {
     using ID = u32;
 
@@ -1135,13 +1252,8 @@ struct Map_Resource {
 
     Map_Resource_Booking* booking;
 
-    struct Transportation_Segments_Allocation_Tag {};
-    Static_Allocation_Vector<Graph_Segment*, Transportation_Segments_Allocation_Tag>
-        transportation_segments;
-
-    struct Transportation_Vertices_Allocation_Tag {};
-    Static_Allocation_Vector<v2i16, Transportation_Vertices_Allocation_Tag>
-        transportation_vertices;
+    custom_tvector<Graph_Segment*> transportation_segments;
+    custom_tvector<v2i16> transportation_vertices;
 
     Human* targeted_human;
     Human* carrying_human;
@@ -1192,8 +1304,7 @@ struct Graph_Segment : public Non_Copyable {
     Bucket_Locator locator;
 
     Human* assigned_human;
-    struct Linked_Segments_Tag {};
-    Static_Allocation_Vector<Graph_Segment*, Linked_Segments_Tag> linked_segments;
+    custom_tvector<Graph_Segment*> linked_segments;
 
     struct Resources_To_Transport {};
     Static_Allocation_Queue<Map_Resource, Resources_To_Transport> resources_to_transport;
@@ -1499,8 +1610,7 @@ struct Game_Map : public Non_Copyable {
     Bucket_Array<Human> humans_to_add;
 
     using Human_To_Remove = ttuple<Human_Removal_Reason, Human*, Bucket_Locator>;
-    struct Human_To_Remove_Tag {};
-    Static_Allocation_Vector<Human_To_Remove, Human_To_Remove_Tag> humans_to_remove;
+    custom_tvector<Human_To_Remove> humans_to_remove;
 
     struct Segments_Queue_Tag {};
     Static_Allocation_Queue<Graph_Segment*, Segments_Queue_Tag> segments_that_need_humans;

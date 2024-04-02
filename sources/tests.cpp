@@ -1,10 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-#include <vector>
-template <typename... Args>
-using tvector = std::vector<Args...>;
-
 #include "bf_game.h"
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"
