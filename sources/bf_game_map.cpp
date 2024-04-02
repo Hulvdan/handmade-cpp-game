@@ -110,7 +110,7 @@ Path_Find_Result Find_Path(
     result.trash_allocation_size = queue.memory_size;
     Enqueue(queue, source);
 
-    bool* visited_mtx = Allocate_Array(trash_arena, bool, tiles_count);
+    bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
     DEFER(Deallocate_Array(trash_arena, bool, tiles_count));
     GRID_PTR_VALUE(visited_mtx, source) = true;
 
@@ -1572,6 +1572,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
                     continue;
 
                 auto new_pos = v2i16(x, y) + As_Offset(dir);
+                Assert(pos_2_node_index.contains(new_pos));
                 auto new_node_index = pos_2_node_index[new_pos];
                 *(dist + node_index * size.x + new_node_index) = 1;
                 *(prev + node_index * size.x + new_node_index) = node_index;
@@ -1646,14 +1647,15 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     }
 
     FOR_RANGE(i16, i, n) {
-        if (node_eccentricities[i] == rad) {
+        Assert(node_index_2_pos.contains(i));
+        if (*(node_eccentricities + i) == rad) {
             data.center = node_index_2_pos[i] + graph.offset;
             break;
         }
     }
 }
 
-void Add_And_Link_Segment(
+Graph_Segment* Add_And_Link_Segment(
     Bucket_Array<Graph_Segment>& segments,
     Graph_Segment& added_segment,
     Arena& trash_arena
@@ -1700,6 +1702,8 @@ void Add_And_Link_Segment(
                 segment1.linked_segments.push_back(segment2_ptr);
         }
     }
+
+    return segment1_ptr;
 }
 
 BF_FORCE_INLINE void Update_Segments_Function(
@@ -1771,8 +1775,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
         // NOTE: Удаляем данный вектор из привязанных
         for (auto linked_segment_pptr : Iter(&segment.linked_segments)) {
-            Graph_Segment* linked_segment_ptr = *linked_segment_pptr;
-            Graph_Segment& linked_segment = *linked_segment_ptr;
+            Graph_Segment& linked_segment
+                = Assert_Deref(Assert_Deref(linked_segment_pptr));
 
             auto found_index = Vector_Find(linked_segment.linked_segments, segment_ptr);
             if (found_index != -1) {
@@ -1794,8 +1798,14 @@ BF_FORCE_INLINE void Update_Segments_Function(
         graph_nodes_allocator.Free(segment.graph.nodes);
     }
 
+    Graph_Segment** added_calculated_segments = nullptr;
+    if (added_segments_count > 0)
+        added_calculated_segments
+            = Allocate_Array(trash_arena, Graph_Segment*, added_segments_count);
+
     FOR_RANGE(u32, i, added_segments_count) {
-        Add_And_Link_Segment(game_map.segments, *(added_segments + i), trash_arena);
+        *(added_calculated_segments + i)
+            = Add_And_Link_Segment(game_map.segments, *(added_segments + i), trash_arena);
     }
 
     // TODO: _resourceTransportation.PathfindItemsInQueue();
@@ -1815,18 +1825,18 @@ BF_FORCE_INLINE void Update_Segments_Function(
     }
 
     FOR_RANGE(int, i, added_segments_count) {
-        auto segment_ptr = added_segments + i;
+        auto segment_ptr = added_calculated_segments + i;
 
         if (humans_wo_segment_count == 0) {
-            Enqueue(game_map.segments_wo_humans, segment_ptr);
+            Enqueue(game_map.segments_wo_humans, *segment_ptr);
             continue;
         }
 
         auto [old_segment, human_ptr]
             = Array_Pop(humans_wo_segment, humans_wo_segment_count);
 
-        human_ptr->segment = segment_ptr;
-        segment_ptr->assigned_human = human_ptr;
+        human_ptr->segment = Assert_Deref(segment_ptr);
+        Assert_Deref(segment_ptr)->assigned_human = human_ptr;
 
         Main_On_Human_Current_Segment_Changed(
             *human_ptr, Assert_Deref(game_map.human_data), old_segment
@@ -1835,6 +1845,9 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     if (humans_wo_segment_max_count > 0) {
         Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
+    }
+    if (added_segments_count > 0) {
+        Deallocate_Array(trash_arena, Graph_Segment*, added_segments_count);
     }
 }
 
