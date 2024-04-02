@@ -1138,10 +1138,13 @@ void Render(Game_State& state, f32 dt) {
             segment_index = 0;
 
         // glUseProgram(0);
-        //
+
+        int rendered_segments = 0;
         for (auto segment_ptr : Iter(&game_map.segments)) {
             auto& segment = *segment_ptr;
             auto& graph = segment.graph;
+
+            rendered_segments++;
 
             FOR_RANGE(int, y, graph.size.y) {
                 FOR_RANGE(int, x, graph.size.x) {
@@ -1186,6 +1189,8 @@ void Render(Game_State& state, f32 dt) {
                 }
             }
         }
+
+        ImGui::Text("rendered segments %d", rendered_segments);
 
         glColor3fv((GLfloat*)(colors + 6));
     }

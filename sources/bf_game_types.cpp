@@ -803,9 +803,9 @@ public:
     }
 
     void Increment() {
-        FOR_RANGE(int, _GUARD_, 256) {
+        FOR_RANGE(int, _GUARD_, 512) {
             _current++;
-            if (_current >= _current_bucket_count) {
+            if (_current >= _arr->items_per_bucket) {
                 _current = 0;
                 _current_bucket++;
 

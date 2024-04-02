@@ -1200,6 +1200,9 @@ void Deinitialize_Game_Map(Game_State& state) {
     Deinit_Bucket_Array(game_map.buildings);
 
     for (auto segment_ptr : Iter(&game_map.segments)) {
+        game_map.segment_vertices_allocator->Free(rcast<u8*>(segment_ptr->vertices));
+        game_map.graph_nodes_allocator->Free(segment_ptr->graph.nodes);
+
         Deinit_Vector(segment_ptr->linked_segments);
         Deinit_Queue(segment_ptr->resources_to_transport);
     }
