@@ -866,7 +866,7 @@ Human* Create_Human_Transporter(
 ) {
     auto& segment = Assert_Deref(segment_ptr);
 
-    // TODO: По-идее нужно добавлять в humans_to_add
+    // TODO: !!! По-идее нужно добавлять в humans_to_add !!!
     auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans);
     auto& human = *human_ptr;
     human.moving.pos = building.pos;
@@ -1166,6 +1166,22 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         T::allocator_functions.free = _aligned_free;
     }
 
+    {
+        using T = Static_Allocation_Vector<
+            Graph_Segment*,
+            Graph_Segment::Linked_Segments_Tag>;
+        T::allocator_functions.allocate = _aligned_malloc;
+        T::allocator_functions.free = _aligned_free;
+    }
+
+    {
+        using T = Static_Allocation_Queue<
+            Map_Resource,
+            Graph_Segment::Resources_To_Transport>;
+        T::allocator_functions.allocate = _aligned_malloc;
+        T::allocator_functions.free = _aligned_free;
+    }
+
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 }
 
@@ -1173,6 +1189,12 @@ void Deinitialize_Game_Map(Game_State& state) {
     auto& game_map = state.game_map;
 
     Deinit_Bucket_Array(game_map.buildings);
+
+    for (auto segment_ptr : Iter(&game_map.segments)) {
+        Deinit_Vector(segment_ptr->linked_segments);
+        Deinit_Queue(segment_ptr->resources_to_transport);
+    }
+
     Deinit_Bucket_Array(game_map.segments);
     Deinit_Bucket_Array(game_map.humans);
     Deinit_Bucket_Array(game_map.humans_to_add);
@@ -1463,6 +1485,32 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
 
 typedef ttuple<Direction, v2i16> Dir_v2i16;
 
+void Construct_Graph_Segment(
+    Graph_Segment* segment,
+    Graph_Segment& added_segment,
+    Bucket_Locator locator
+) {
+#if 1
+    memset(segment, SHIT_BYTE_MASK, sizeof(Graph_Segment));
+#endif
+
+    // TODO: use move semantics?
+    segment->vertices_count = added_segment.vertices_count;
+    segment->vertices = added_segment.vertices;
+    segment->graph.nodes_count = added_segment.graph.nodes_count;
+    segment->graph.nodes = added_segment.graph.nodes;
+    segment->graph.size = added_segment.graph.size;
+    segment->graph.offset = added_segment.graph.offset;
+    segment->locator = locator;
+    segment->assigned_human = nullptr;
+    segment->linked_segments.max_count = 0;
+    segment->linked_segments.count = 0;
+    segment->linked_segments.base = nullptr;
+    segment->resources_to_transport.max_count = 0;
+    segment->resources_to_transport.count = 0;
+    segment->resources_to_transport.base = nullptr;
+}
+
 BF_FORCE_INLINE void Update_Segments_Function(
     Arena& trash_arena,
     Game_Map& game_map,
@@ -1532,7 +1580,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             Graph_Segment* linked_segment_ptr = *linked_segment_pptr;
             Graph_Segment& linked_segment = *linked_segment_ptr;
             auto found_index = Vector_Find(linked_segment.linked_segments, segment_ptr);
-            if (found_index == -1)
+            if (found_index != -1)
                 Vector_Remove_At(linked_segment.linked_segments, found_index);
         }
 
@@ -1542,9 +1590,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // PERF: Много memmove происходит
         auto& queue = game_map.segments_that_need_humans;
         auto index = Queue_Find(queue, segment_ptr);
-        if (index != -1) {
-            Remove_From_Queue_At(queue, index);
-        }
+        if (index != -1)
+            Queue_Remove_At(queue, index);
 
         Bucket_Array_Remove(segments, segment.locator);
         segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));
@@ -1553,18 +1600,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     FOR_RANGE(u32, i, added_segments_count) {
         auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
-        auto& segment1 = *segment1_ptr;
-        segment1.locator = locator;
-
-        auto& added_segment = *(added_segments + i);
-
-        // TODO: use move semantics?
-        segment1.vertices_count = added_segment.vertices_count;
-        segment1.vertices = added_segment.vertices;
-        segment1.graph.nodes_count = added_segment.graph.nodes_count;
-        segment1.graph.nodes = added_segment.graph.nodes;
-        segment1.graph.size = added_segment.graph.size;
-        segment1.graph.offset = added_segment.graph.offset;
+        Construct_Graph_Segment(segment1_ptr, *(added_segments + i), locator);
 
         for (auto segment2_ptr : Iter(&game_map.segments)) {
             if (segment2_ptr == segment1_ptr)
@@ -1572,6 +1608,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
             // PERF: Мб тут стоит что-то из разряда
             // AABB(graph1, graph2) для оптимизации заюзать
+            auto& segment1 = *segment1_ptr;
             auto& segment2 = *segment2_ptr;
             if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
                 if (Vector_Find(segment2.linked_segments, segment1_ptr) == -1)

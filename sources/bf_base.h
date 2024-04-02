@@ -75,6 +75,8 @@ using v3i = glm::ivec3;
 
 #include "bf_types.h"
 
+constexpr u8 SHIT_BYTE_MASK = (u8)0xBB;
+
 #ifdef TESTS
 #define Assert(expr) REQUIRE(expr)
 #define Assert_False(expr) REQUIRE_FALSE(expr)

@@ -412,7 +412,7 @@ i32 Vector_Find_Ptr(Vector<T>& container, T* value_ptr) {
 
 template <typename T, typename Allocation_Tag>
     requires std::is_trivially_copyable_v<T>
-void Remove_From_Queue_At(Static_Allocation_Queue<T, Allocation_Tag>& container, i32 i) {
+void Queue_Remove_At(Static_Allocation_Queue<T, Allocation_Tag>& container, i32 i) {
     Assert(i >= 0);
     Assert(i < container.count);
 
@@ -1124,8 +1124,6 @@ struct Map_Resource_Booking {
     Building* building;
     i32 priority;
 };
-
-struct Graph_Segment;
 
 struct Map_Resource {
     using ID = u32;
