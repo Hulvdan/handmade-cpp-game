@@ -401,8 +401,8 @@ struct Human_Moving_In_The_World_Controller {
             auto& segment = *human.segment;
             Assert(human.type == Human_Type::Transporter);
 
-            // NOTE: Human stepped on a tile of the segment.
-            // We don't need to keep the path anymore
+            // NOTE: Следующая клетка, на которую перейдёт (или уже находится) чувак,
+            // - это клетка его сегмента. Нам уже не нужно помнить его путь
             if (human.moving.to.has_value()
                 && Graph_Contains(segment.graph, human.moving.to.value())
                 && Graph_Node(segment.graph, human.moving.to.value()) != 0  //
@@ -411,8 +411,7 @@ struct Human_Moving_In_The_World_Controller {
                 return;
             }
 
-            // NOTE: Human stepped on a tile of the segment
-            // and finished moving. Starting Moving_Inside_Segment
+            // NOTE: Чувак перешёл на клетку сегмента. Переходим на Moving_Inside_Segment
             if (!(human.moving.to.has_value())  //
                 && Graph_Contains(segment.graph, human.moving.pos)  //
                 && Graph_Node(segment.graph, human.moving.pos) != 0  //
