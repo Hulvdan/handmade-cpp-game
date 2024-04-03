@@ -1481,7 +1481,7 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
-#define PLACEMENT_INIT(value) new (&value) decltype(value)
+#define PLACEMENT_INIT(value)
 
 bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     auto gx = graph.size.x;
@@ -1518,22 +1518,16 @@ void Assert_Is_Undirected(Graph& graph) {
 template <template <typename> typename _Allocator>
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     auto n = graph.nodes_count;
+    auto nodes = graph.nodes;
+    auto size = graph.size;
 
     graph.data = _Allocator<Calculated_Graph_Data>().allocate(1);
     auto& data = *graph.data;
-    auto& dist = data.dist;
-    auto& prev = data.prev;
+
     auto& node_index_2_pos = data.node_index_2_pos;
     auto& pos_2_node_index = data.pos_2_node_index;
-    auto nodes = graph.nodes;
-
-    auto size = graph.size;
-
-    dist = _Allocator<i16>().allocate(n * n);
-    prev = _Allocator<i16>().allocate(n * n);
-
-    PLACEMENT_INIT(data.node_index_2_pos)();
-    PLACEMENT_INIT(data.pos_2_node_index)();
+    new (&data.node_index_2_pos) decltype(data.node_index_2_pos);
+    new (&data.pos_2_node_index) decltype(data.pos_2_node_index);
 
     int node_index = 0;
     FOR_RANGE(int, y, size.y) {
@@ -1551,6 +1545,10 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     // NOTE: |V| = _nodes_count
     // > let dist be a |V| × |V| array of minimum distances initialized to ∞ (infinity)
     // > let prev be a |V| × |V| array of minimum distances initialized to null
+    auto& dist = data.dist;
+    auto& prev = data.prev;
+    dist = _Allocator<i16>().allocate(n * n);
+    prev = _Allocator<i16>().allocate(n * n);
     FOR_RANGE(int, y, size.y) {
         FOR_RANGE(int, x, size.x) {
             *(dist + y * size.x + x) = i16_max;
