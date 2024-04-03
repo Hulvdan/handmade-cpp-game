@@ -327,11 +327,15 @@ void Human_Moving_Component_Add_Path(
 ) {
     Container_Reset(moving.path);
 
-    if (moving.to.value_or(moving.pos) == *(path + 0)) {
-        path += 1;
-        path_count -= 1;
+    if (path_count != 0) {
+        Assert(path != nullptr);
+
+        if (moving.to.value_or(moving.pos) == *(path + 0)) {
+            path += 1;
+            path_count -= 1;
+        }
+        Bulk_Enqueue(moving.path, path, path_count);
     }
-    Bulk_Enqueue(moving.path, path, path_count);
 
     Advance_Moving_To(moving);
 }
@@ -551,7 +555,7 @@ struct Human_Moving_Inside_Segment {
             );
 
             Assert(success);
-            Assert(path_count > 0);
+            // Assert(path_count > 0);
 
             Human_Moving_Component_Add_Path(human.moving, path, path_count);
             if (trash_allocation_size > 0)
@@ -1515,11 +1519,18 @@ void Assert_Is_Undirected(Graph& graph) {
     }
 }
 
+#define VALIDATE_TRASH_ARENA                          \
+    auto trash_arena_initial_used = trash_arena.used; \
+    DEFER(Assert(trash_arena_initial_used == trash_arena.used));
+
 template <template <typename> typename _Allocator>
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
+    VALIDATE_TRASH_ARENA;
+
     auto n = graph.nodes_count;
     auto nodes = graph.nodes;
-    auto size = graph.size;
+    auto height = graph.size.y;
+    auto width = graph.size.x;
 
     graph.data = _Allocator<Calculated_Graph_Data>().allocate(1);
     auto& data = *graph.data;
@@ -1529,16 +1540,18 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     new (&data.node_index_2_pos) decltype(data.node_index_2_pos);
     new (&data.pos_2_node_index) decltype(data.pos_2_node_index);
 
-    int node_index = 0;
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
-            auto node = *(nodes + y * size.x + x);
-            if (node == 0)
-                continue;
+    {
+        int node_index = 0;
+        FOR_RANGE(int, y, height) {
+            FOR_RANGE(int, x, width) {
+                auto node = nodes[y * width + x];
+                if (node == 0)
+                    continue;
 
-            data.node_index_2_pos.insert({node_index, v2i16(x, y)});
-            data.pos_2_node_index.insert({v2i16(x, y), node_index});
-            node_index += 1;
+                data.node_index_2_pos.insert({node_index, v2i16(x, y)});
+                data.pos_2_node_index.insert({v2i16(x, y), node_index});
+                node_index += 1;
+            }
         }
     }
 
@@ -1549,10 +1562,10 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     auto& prev = data.prev;
     dist = _Allocator<i16>().allocate(n * n);
     prev = _Allocator<i16>().allocate(n * n);
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
-            *(dist + y * size.x + x) = i16_max;
-            *(prev + y * size.x + x) = i16_min;
+    FOR_RANGE(int, y, n) {
+        FOR_RANGE(int, x, n) {
+            dist[y * n + x] = i16_max;
+            prev[y * n + x] = i16_min;
         }
     }
 
@@ -1561,25 +1574,27 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
     // >     prev[u][v] ← u
     //
-    node_index = 0;
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
-            u8 node = *(nodes + y * size.x + x);
-            if (node == 0)
-                continue;
-
-            FOR_DIRECTION(dir) {
-                if (!Graph_Node_Has(node, dir))
+    {
+        int node_index = 0;
+        FOR_RANGE(int, y, height) {
+            FOR_RANGE(int, x, width) {
+                u8 node = nodes[y * width + x];
+                if (!node)
                     continue;
 
-                auto new_pos = v2i16(x, y) + As_Offset(dir);
-                Assert(pos_2_node_index.contains(new_pos));
-                auto new_node_index = pos_2_node_index[new_pos];
-                *(dist + node_index * size.x + new_node_index) = 1;
-                *(prev + node_index * size.x + new_node_index) = node_index;
-            }
+                FOR_DIRECTION(dir) {
+                    if (!Graph_Node_Has(node, dir))
+                        continue;
 
-            node_index += 1;
+                    auto new_pos = v2i16(x, y) + As_Offset(dir);
+                    Assert(pos_2_node_index.contains(new_pos));
+                    auto new_node_index = pos_2_node_index[new_pos];
+                    dist[node_index * n + new_node_index] = 1;
+                    prev[node_index * n + new_node_index] = node_index;
+                }
+
+                node_index += 1;
+            }
         }
     }
 
@@ -1588,16 +1603,18 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     // >     dist[v][v] ← 0
     // >     prev[v][v] ← v
     //
-    node_index = 0;
-    FOR_RANGE(int, y, size.y) {
-        FOR_RANGE(int, x, size.x) {
-            u8 node = *(nodes + y * size.x + x);
-            if (node == 0)
-                continue;
+    {
+        int node_index = 0;
+        FOR_RANGE(int, y, graph.size.y) {
+            FOR_RANGE(int, x, graph.size.x) {
+                u8 node = nodes[y * n + x];
+                if (!node)
+                    continue;
 
-            *(dist + node_index * size.x + node_index) = 0;
-            *(prev + node_index * size.x + node_index) = node_index;
-            node_index += 1;
+                dist[node_index * n + node_index] = 0;
+                prev[node_index * n + node_index] = node_index;
+                node_index += 1;
+            }
         }
     }
 
@@ -1612,13 +1629,16 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     FOR_RANGE(int, k, n) {
         FOR_RANGE(int, j, n) {
             FOR_RANGE(int, i, n) {
-                auto ij = *(dist + size.x * i + j);
-                auto ik = *(dist + size.x * i + k);
-                auto kj = *(dist + size.x * k + j);
+                auto ij = dist[n * i + j];
+                auto ik = dist[n * i + k];
+                auto kj = dist[n * k + j];
 
-                if (ik != i16_max && kj != i16_max && ij > ik + kj) {
-                    *(dist + i * size.x + j) = ik + kj;
-                    *(prev + i * size.x + j) = *(prev + k * size.x + j);
+                if ((ik != i16_max)  //
+                    && (kj != i16_max)  //
+                    && (ij > ik + kj)  //
+                ) {
+                    dist[i * n + j] = ik + kj;
+                    prev[i * n + j] = prev[k * n + j];
                 }
             }
         }
@@ -1629,27 +1649,24 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
 #endif  // ASSERT_SLOW
 
     // NOTE: Вычисление центра графа
-
-    // Counting values of eccentricity
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
     DEFER(Deallocate_Array(trash_arena, i16, n));
     FOR_RANGE(i16, i, n) {
         FOR_RANGE(i16, j, n) {
-            *(node_eccentricities + i)
-                = MAX(*(node_eccentricities + i), *(dist + n * i + j));
+            node_eccentricities[i] = MAX(node_eccentricities[i], dist[n * i + j]);
         }
     }
 
     i16 rad = i16_max;
     i16 diam = 0;
     FOR_RANGE(i16, i, n) {
-        rad = MIN(rad, *(node_eccentricities + i));
-        diam = MAX(diam, *(node_eccentricities + i));
+        rad = MIN(rad, node_eccentricities[i]);
+        diam = MAX(diam, node_eccentricities[i]);
     }
 
     FOR_RANGE(i16, i, n) {
         Assert(node_index_2_pos.contains(i));
-        if (*(node_eccentricities + i) == rad) {
+        if (node_eccentricities[i] == rad) {
             data.center = node_index_2_pos[i] + graph.offset;
             break;
         }
@@ -1661,13 +1678,15 @@ Graph_Segment* Add_And_Link_Segment(
     Graph_Segment& added_segment,
     Arena& trash_arena
 ) {
+    VALIDATE_TRASH_ARENA;
+
     auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
 
     {  // NOTE: Создание финального Graph_Segment,
        // который будет использоваться в игровой логике
 #ifdef SHIT_MEMORY_DEBUG
         memset(segment1_ptr, SHIT_BYTE_MASK, sizeof(Graph_Segment));
-#endif
+#endif  // SHIT_MEMORY_DEBUG
 
         auto& segment = *segment1_ptr;
         segment.vertices_count = added_segment.vertices_count;

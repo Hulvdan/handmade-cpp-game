@@ -1141,6 +1141,44 @@ void Render(Game_State& state, f32 dt) {
         }
     }
 
+#if 1
+    {
+        for (auto human_ptr : Iter(&game_map.humans)) {
+            auto& human = *human_ptr;
+
+            if (human.moving.path.count > 0) {
+                auto last_p = *(human.moving.path.base + human.moving.path.count - 1);
+                auto p = projection
+                    * v3f((v2f(last_p) + v2f_one / 2.0f) * (f32)cell_size, 1);
+
+                glPointSize(12);
+
+                glBlendFunc(GL_ONE, GL_ZERO);
+
+                glBegin(GL_POINTS);
+                glVertex2f(p.x, p.y);
+                glEnd();
+            }
+
+#if 0
+            if (human.moving.to.has_value()) {
+                auto p
+                    = projection * v3f(v2f(human.moving.to.value()) * (f32)cell_size, 1);
+
+                glPointSize(12);
+
+                glBlendFunc(GL_ONE, GL_ZERO);
+
+                glBegin(GL_POINTS);
+                glVertex2f(p.x, p.y);
+                glEnd();
+            }
+#endif
+        }
+    }
+#endif
+
+#if 0
     {
         const BF_Color colors[] = {
             {1, 0, 0},  //
@@ -1214,6 +1252,7 @@ void Render(Game_State& state, f32 dt) {
 
         glColor3fv((GLfloat*)(colors + 6));
     }
+#endif
 
     ImGui::Text(
         "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index
