@@ -58,13 +58,16 @@ ttuple<size_t, v2i16*, i32> Build_Path(
     toptional<v2i16>* bfs_parents_mtx,
     v2i16 destination
 ) {
-#if 1
+#if 0
     // NOTE: Двойной проход, но без RAM overhead-а на `trash_arena`
     i32 path_max_count = 1;
-    while (GRID_PTR_VALUE(bfs_parents_mtx, destination).has_value()) {
-        auto value = GRID_PTR_VALUE(bfs_parents_mtx, destination).value();
-        path_max_count++;
-        destination = value;
+    {
+        v2i16 dest = destination;
+        while (GRID_PTR_VALUE(bfs_parents_mtx, dest).has_value()) {
+            auto value = GRID_PTR_VALUE(bfs_parents_mtx, dest).value();
+            path_max_count++;
+            dest = value;
+        }
     }
 #else
     // NOTE: Одинарный проход. С RAM overhead-ом
@@ -75,6 +78,10 @@ ttuple<size_t, v2i16*, i32> Build_Path(
 
     i32 path_count = 0;
     v2i16* path = Allocate_Array(trash_arena, v2i16, path_max_count);
+
+#ifdef SHIT_MEMORY_DEBUG
+    memset(path, SHIT_BYTE_MASK, sizeof(v2i16) * path_max_count);
+#endif  // SHIT_MEMORY_DEBUG
 
     Array_Push(path, path_count, path_max_count, destination);
     while (GRID_PTR_VALUE(bfs_parents_mtx, destination).has_value()) {
@@ -117,6 +124,10 @@ Path_Find_Result Find_Path(
     toptional<v2i16>* bfs_parents_mtx
         = Allocate_Array(trash_arena, toptional<v2i16>, tiles_count);
     DEFER(Deallocate_Array(trash_arena, toptional<v2i16>, tiles_count));
+
+    FOR_RANGE(int, i, tiles_count) {
+        new (bfs_parents_mtx + i) toptional<v2i16>();
+    }
 
     while (queue.count > 0) {
         auto pos = Dequeue(queue);
@@ -1072,7 +1083,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
     game_map.data = Allocate_For(arena, Game_Map_Data);
-    game_map.data->human_moving_one_tile_duration = 1.0f;
+    game_map.data->human_moving_one_tile_duration = 0.3f;
 
     {
         size_t toc_size = 1024;
