@@ -190,7 +190,7 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
 
     instance.pos = pos;
     instance.scriptable = scriptable;
-    instance.time_since_human_was_created = std::numeric_limits<f32>::infinity();
+    instance.time_since_human_was_created = f32_inf;
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
@@ -298,6 +298,17 @@ struct Human_Data : public Non_Copyable {
 
 void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data);
 
+void Advance_Moving_To(Human_Moving_Component& moving) {
+    if (moving.path.count == 0) {
+        moving.elapsed = 0;
+        moving.progress = 0;
+        moving.to.reset();
+    }
+    else {
+        moving.to = Dequeue(moving.path);
+    }
+}
+
 void Human_Moving_Component_Add_Path(
     Human_Moving_Component& moving,
     v2i16* path,
@@ -310,6 +321,8 @@ void Human_Moving_Component_Add_Path(
         path_count -= 1;
     }
     Bulk_Enqueue(moving.path, path, path_count);
+
+    Advance_Moving_To(moving);
 }
 
 struct Human_Moving_In_The_World_Controller {
@@ -932,16 +945,6 @@ void Remove_Humans(Game_State& state) {
     Container_Reset(game_map.humans_to_remove);
 }
 
-void Advance_Moving_To(Human_Moving_Component& moving) {
-    if (moving.path.count == 0) {
-        moving.elapsed = 0;
-        moving.to.reset();
-    }
-    else {
-        moving.to = Dequeue(moving.path);
-    }
-}
-
 void Update_Human_Moving_Component(
     Game_Map& game_map,
     Human& human,
@@ -951,6 +954,7 @@ void Update_Human_Moving_Component(
     auto& game_map_data = Assert_Deref(game_map.data);
 
     auto& moving = human.moving;
+    const auto duration = game_map_data.human_moving_one_tile_duration;
     moving.elapsed += dt;
 
     constexpr int _GUARD_MAX_MOVING_TILES_PER_FRAME = 4;
@@ -958,14 +962,14 @@ void Update_Human_Moving_Component(
     auto iteration = 0;
     while (iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME  //
            && moving.to.has_value()  //
-           && moving.elapsed > game_map_data.human_moving_one_tile_duration  //
+           && moving.elapsed > duration  //
     ) {
         iteration++;
 
         // TODO: using var _ = Tracing.Scope();
         // Tracing.Log("Human reached the next tile");
 
-        moving.elapsed -= game_map_data.human_moving_one_tile_duration;
+        moving.elapsed -= duration;
 
         moving.pos = moving.to.value();
         moving.from = moving.pos;
@@ -980,8 +984,7 @@ void Update_Human_Moving_Component(
         // TODO: Debug.Log_Warning("WTF?");
     }
 
-    moving.progress
-        = MIN(1.0f, moving.elapsed / game_map_data.human_moving_one_tile_duration);
+    moving.progress = MIN(1.0f, moving.elapsed / duration);
 }
 
 void Update_Human(
@@ -1050,16 +1053,6 @@ void Update_Humans(Game_State& state, f32 dt, Human_Data& data) {
     Container_Reset(game_map.humans_to_add);
 
     Remove_Humans(state);
-
-    {
-        ImGui::Text("humans count %d", game_map.humans.count);
-        int i = 0;
-        for (auto human_ptr : Iter(&game_map.humans)) {
-            auto& human = *human_ptr;
-            ImGui::Text("human %d pos %d.%d", human.moving.pos.x, human.moving.pos.y);
-            i++;
-        }
-    }
 }
 
 void Update_Game_Map(Game_State& state, float dt) {

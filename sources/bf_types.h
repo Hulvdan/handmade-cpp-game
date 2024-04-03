@@ -30,3 +30,5 @@ constexpr i8 i8_min = std::numeric_limits<i8>::min();
 constexpr i16 i16_min = std::numeric_limits<i16>::min();
 constexpr i32 i32_min = std::numeric_limits<i32>::min();
 constexpr i64 i64_min = std::numeric_limits<i64>::min();
+
+constexpr f32 f32_inf = std::numeric_limits<f32>::infinity();

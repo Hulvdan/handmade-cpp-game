@@ -1011,23 +1011,37 @@ void Render(Game_State& state, f32 dt) {
         glEnd();
     }
 
-    for (auto human_ptr : Iter(&game_map.humans)) {
-        auto& human = *human_ptr;
-        auto tex_id = rstate.human_texture.id;
-        glBindTexture(GL_TEXTURE_2D, tex_id);
+    {
+        ImGui::Text("humans count %d", game_map.humans.count);
+        for (auto human_ptr : Iter(&game_map.humans)) {
+            auto& human = *human_ptr;
+        }
+    }
 
-        v2f pos = human.moving.pos;
-        if (human.moving.to.has_value()) {
-            auto t = human.moving.progress;
-            pos = v2f(human.moving.to.value()) * t + v2f(human.moving.from) * (1 - t);
+    {
+        int i = 0;
+        for (auto human_ptr : Iter(&game_map.humans)) {
+            auto& human = *human_ptr;
+            auto tex_id = rstate.human_texture.id;
+            glBindTexture(GL_TEXTURE_2D, tex_id);
+
+            v2f pos = human.moving.pos;
+            if (human.moving.to.has_value()) {
+                auto t = human.moving.progress;
+                pos = v2f(human.moving.to.value()) * t + v2f(human.moving.from) * (1 - t);
+            }
+
+            ImGui::Text("human %d pos %f.%f", i, pos.x, pos.y);
+
+            auto sprite_pos = pos * v2f(cell_size);
+            auto sprite_size = v2i(1, 1) * cell_size;
+
+            glBegin(GL_TRIANGLES);
+            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+            glEnd();
         }
 
-        auto sprite_pos = pos * v2f(cell_size);
-        auto sprite_size = v2i(1, 1) * cell_size;
-
-        glBegin(GL_TRIANGLES);
-        Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-        glEnd();
+        i++;
     }
 
     glDeleteTextures(1, (GLuint*)&texture_name);
