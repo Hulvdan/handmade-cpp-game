@@ -774,6 +774,7 @@ void Render(Game_State& state, f32 dt) {
     ZoneScoped;
 
     Arena& trash_arena = state.trash_arena;
+    VALIDATE_TRASH_ARENA;
 
     auto& rstate = Assert_Deref(state.renderer_state);
     auto& game_map = state.game_map;
@@ -1011,27 +1012,22 @@ void Render(Game_State& state, f32 dt) {
         glEnd();
     }
 
-    {
-        ImGui::Text("humans count %d", game_map.humans.count);
-        for (auto human_ptr : Iter(&game_map.humans)) {
-            auto& human = *human_ptr;
-        }
-    }
+    // ImGui::Text("humans count %d", game_map.humans.count);
 
     {
-        int i = 0;
+        i32 i = 0;
         for (auto human_ptr : Iter(&game_map.humans)) {
-            auto& human = *human_ptr;
+            auto& human = Assert_Deref(human_ptr);
             auto tex_id = rstate.human_texture.id;
             glBindTexture(GL_TEXTURE_2D, tex_id);
 
             v2f pos = human.moving.pos;
             if (human.moving.to.has_value()) {
-                auto t = human.moving.progress;
-                pos = v2f(human.moving.to.value()) * t + v2f(human.moving.from) * (1 - t);
+                f32 t = human.moving.progress;
+                pos = v2f(human.moving.to.value()) * t + v2f(human.moving.pos) * (1 - t);
             }
 
-            ImGui::Text("human %d pos %f.%f", i, pos.x, pos.y);
+            // ImGui::Text("human %d pos %f.%f", i, pos.x, pos.y);
 
             auto sprite_pos = pos * v2f(cell_size);
             auto sprite_size = v2i(1, 1) * cell_size;
@@ -1141,11 +1137,11 @@ void Render(Game_State& state, f32 dt) {
         }
     }
 
-#if 1
     {
         for (auto human_ptr : Iter(&game_map.humans)) {
-            auto& human = *human_ptr;
+            auto& human = Assert_Deref(human_ptr);
 
+#if 0
             if (human.moving.path.count > 0) {
                 auto last_p = *(human.moving.path.base + human.moving.path.count - 1);
                 auto p = projection
@@ -1159,6 +1155,7 @@ void Render(Game_State& state, f32 dt) {
                 glVertex2f(p.x, p.y);
                 glEnd();
             }
+#endif
 
 #if 0
             if (human.moving.to.has_value()) {
@@ -1176,7 +1173,6 @@ void Render(Game_State& state, f32 dt) {
 #endif
         }
     }
-#endif
 
 #if 0
     {

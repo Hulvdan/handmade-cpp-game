@@ -126,7 +126,7 @@ Path_Find_Result Find_Path(
     DEFER(Deallocate_Array(trash_arena, toptional<v2i16>, tiles_count));
 
     FOR_RANGE(int, i, tiles_count) {
-        new (bfs_parents_mtx + i) toptional<v2i16>();
+        std::construct_at(bfs_parents_mtx + i);
     }
 
     while (queue.count > 0) {
@@ -305,6 +305,17 @@ struct Human_Data : public Non_Copyable {
     Building** city_halls;
     Game_Map* game_map;
     Arena* trash_arena;
+
+    Human_Data(
+        Player_ID a_max_player_id,
+        Building** a_city_halls,
+        Game_Map* a_game_map,
+        Arena* a_trash_arena
+    )
+        : max_player_id(a_max_player_id)
+        , city_halls(a_city_halls)
+        , game_map(a_game_map)
+        , trash_arena(a_trash_arena) {}
 };
 
 void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data);
@@ -1086,24 +1097,28 @@ void Update_Game_Map(Game_State& state, float dt) {
 void Initialize_Game_Map(Game_State& state, Arena& arena) {
     auto& game_map = state.game_map;
 
-    game_map.data = Allocate_For(arena, Game_Map_Data);
-    game_map.data->human_moving_one_tile_duration = 0.3f;
+    game_map.data = std::construct_at(
+        Allocate_For(arena, Game_Map_Data),  //
+        0.3f
+    );
 
     {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        auto buf = Allocate_Zeros_For(arena, Allocator);
-        new (buf) Allocator(
+        game_map.segment_vertices_allocator = std::construct_at(
+            Allocate_For(arena, Allocator),
             toc_size,
             Allocate_Zeros_Array(arena, u8, toc_size),
             data_size,
             Allocate_Array(arena, u8, data_size)
         );
 
-        game_map.segment_vertices_allocator = buf;
         Set_Allocator_Name_If_Profiling(
-            arena, *buf, "segment_vertices_allocator_%d", state.dll_reloads_count
+            arena,
+            *game_map.segment_vertices_allocator,
+            "segment_vertices_allocator_%d",
+            state.dll_reloads_count
         );
     }
 
@@ -1111,17 +1126,19 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         size_t toc_size = 1024;
         size_t data_size = 4096;
 
-        auto buf = Allocate_Zeros_For(arena, Allocator);
-        new (buf) Allocator(
+        game_map.graph_nodes_allocator = std::construct_at(
+            Allocate_For(arena, Allocator),
             toc_size,
             Allocate_Zeros_Array(arena, u8, toc_size),
             data_size,
             Allocate_Array(arena, u8, data_size)
         );
 
-        game_map.graph_nodes_allocator = buf;
         Set_Allocator_Name_If_Profiling(
-            arena, *buf, "graph_nodes_allocator_%d", state.dll_reloads_count
+            arena,
+            *game_map.graph_nodes_allocator,
+            "graph_nodes_allocator_%d",
+            state.dll_reloads_count
         );
     }
 
@@ -1142,19 +1159,15 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall);
 
     {
-        game_map.human_data = Allocate_For(arena, Human_Data);
-
         int players_count = 1;
         int city_halls_count = 0;
-        Building** city_halls = Allocate_Zeros_Array(arena, Building*, players_count);
+        Building** city_halls = Allocate_Array(arena, Building*, players_count);
 
         {  // NOTE: Доставание всех City Hall
             for (auto building_ptr : Iter(&game_map.buildings)) {
                 auto& building = *building_ptr;
-                if (building.scriptable->type == Building_Type::City_Hall) {
-                    *(city_halls + city_halls_count) = building_ptr;
-                    city_halls_count++;
-                }
+                if (building.scriptable->type == Building_Type::City_Hall)
+                    Array_Push(city_halls, city_halls_count, players_count, building_ptr);
 
                 if (city_halls_count == players_count)
                     break;
@@ -1162,10 +1175,13 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
             Assert(city_halls_count == players_count);
         }
 
-        game_map.human_data->max_player_id = players_count;
-        game_map.human_data->city_halls = city_halls;
-        game_map.human_data->game_map = &state.game_map;
-        game_map.human_data->trash_arena = &state.trash_arena;
+        game_map.human_data = std::construct_at(
+            Allocate_For(arena, Human_Data),
+            players_count,
+            city_halls,
+            &state.game_map,
+            &state.trash_arena
+        );
     }
 }
 
@@ -1485,8 +1501,6 @@ void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     }
 }
 
-#define PLACEMENT_INIT(value)
-
 bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     auto gx = graph.size.x;
     auto gy = graph.size.y;
@@ -1535,10 +1549,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     graph.data = _Allocator<Calculated_Graph_Data>().allocate(1);
     auto& data = *graph.data;
 
-    auto& node_index_2_pos = data.node_index_2_pos;
-    auto& pos_2_node_index = data.pos_2_node_index;
-    new (&data.node_index_2_pos) decltype(data.node_index_2_pos);
-    new (&data.pos_2_node_index) decltype(data.pos_2_node_index);
+    auto& node_index_2_pos = *std::construct_at(&data.node_index_2_pos);
+    auto& pos_2_node_index = *std::construct_at(&data.pos_2_node_index);
 
     {
         int node_index = 0;
@@ -1699,7 +1711,7 @@ Graph_Segment* Add_And_Link_Segment(
         segment.locator = locator;
         segment.assigned_human = nullptr;
 
-        new (&segment.linked_segments) decltype(segment.linked_segments)();
+        std::construct_at(&segment.linked_segments);
 
         segment.resources_to_transport.max_count = 0;
         segment.resources_to_transport.count = 0;

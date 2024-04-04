@@ -235,6 +235,13 @@ struct Allocator : Non_Copyable {
 #endif  // PROFILING
 
 // NOTE: Стырено с https://en.cppreference.com/w/cpp/named_req/Allocator
+#ifdef SHIT_MEMORY_DEBUG
+static std::vector<std::tuple<void*, size_t>> bf_debug_allocations = {};
+#endif  // SHIT_MEMORY_DEBUG
+
+template <typename T, template <typename> typename _Allocator>
+void Vector_Unordered_Remove_At(std::vector<T, _Allocator>& container, i32 i);
+
 template <typename T>
 struct Game_Map_Allocator {
     typedef T value_type;
@@ -249,6 +256,12 @@ struct Game_Map_Allocator {
         Assert((n * sizeof(T)) / sizeof(T) == n);
 
         auto p = scast<T*>(_aligned_malloc(n * sizeof(T), alignof(T)));
+        // auto p = scast<T*>(malloc(n * sizeof(T)));
+
+#ifdef SHIT_MEMORY_DEBUG
+        bf_debug_allocations.push_back({p, n});
+#endif  // SHIT_MEMORY_DEBUG
+
         Assert(p);
 
         report(p, n);
@@ -256,8 +269,30 @@ struct Game_Map_Allocator {
     }
 
     void deallocate(T* p, size_t n) noexcept {
+#ifdef SHIT_MEMORY_DEBUG
+        {
+            bool found = false;
+            size_t existing_n = 0;
+
+            i32 i = 0;
+            for (auto& [pp, nn] : bf_debug_allocations) {
+                if (p == pp) {
+                    found = true;
+                    existing_n = nn;
+                    break;
+                }
+                i++;
+            }
+            Assert(found);
+            Assert(existing_n == n);
+            Vector_Unordered_Remove_At(bf_debug_allocations, i);
+        }
+#endif  // SHIT_MEMORY_DEBUG
+
         report(p, n, false);
+
         _aligned_free(p);
+        // free(p);
     }
 
 private:

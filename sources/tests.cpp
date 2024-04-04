@@ -537,23 +537,21 @@ TEST_CASE("Update_Tiles") {
     trash_arena.size = trash_size;
     trash_arena.base = new u8[trash_size];
 
-    auto segment_vertices_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
-    new (segment_vertices_allocator_buf) Allocator(
+    auto& segment_vertices_allocator = *std::construct_at(
+        Allocate_Zeros_For(trash_arena, Allocator),
         1024,
         Allocate_Zeros_Array(trash_arena, u8, 1024),
         4096,
         Allocate_Zeros_Array(trash_arena, u8, 4096)
     );
-    auto& segment_vertices_allocator = *segment_vertices_allocator_buf;
 
-    auto graph_nodes_allocator_buf = Allocate_Zeros_For(trash_arena, Allocator);
-    new (graph_nodes_allocator_buf) Allocator(
+    auto& graph_nodes_allocator = *std::construct_at(
+        Allocate_Zeros_For(trash_arena, Allocator),
         1024,
         Allocate_Zeros_Array(trash_arena, u8, 1024),
         4096,
         Allocate_Zeros_Array(trash_arena, u8, 4096)
     );
-    auto& graph_nodes_allocator = *graph_nodes_allocator_buf;
 
     Pages pages = {};
     {
