@@ -2108,7 +2108,6 @@ void Build_Graph_Segments(
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
-    Pages& pages,
     std::invocable<u32, Graph_Segment**, u32, Graph_Segment*> auto&&
         Update_Segments_Lambda
 ) {
@@ -2190,7 +2189,6 @@ ttuple<int, int> Update_Tiles(
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
-    Pages& pages,
     const Updated_Tiles& updated_tiles,
     std::invocable<u32, Graph_Segment**, u32, Graph_Segment*> auto&&
         Update_Segments_Lambda
@@ -2415,7 +2413,6 @@ ttuple<int, int> Update_Tiles(
         trash_arena,                                                     \
         Assert_Deref(state.game_map.segment_vertices_allocator),         \
         Assert_Deref(state.game_map.graph_nodes_allocator),              \
-        state.pages,                                                     \
         updated_tiles,                                                   \
         [&game_map, &trash_arena, &state](                               \
             u32 segments_to_be_deleted_count,                            \

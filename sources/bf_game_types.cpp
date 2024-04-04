@@ -1476,33 +1476,3 @@ struct Game_Renderer_State : public Non_Copyable {
     GLint ui_shader_program;
 };
 #endif  // BF_CLIENT
-
-u8* Book_Single_Page(Pages& pages) {
-    // NOTE: If there exists allocated page that is not in use -> return it
-    FOR_RANGE (u32, i, pages.allocated_count) {
-        bool& in_use = *(pages.in_use + i);
-        if (!in_use) {
-            in_use = true;
-            return (pages.base + i)->base;
-        }
-    }
-
-    // NOTE: Allocating more pages and mapping them
-    Assert(pages.allocated_count < pages.total_count_cap);
-
-    auto pages_to_allocate = OS_DATA.min_pages_per_allocation;
-    auto allocation_address = OS_DATA.Allocate_Pages(pages_to_allocate);
-
-    FOR_RANGE (u32, i, pages_to_allocate) {
-        auto& page = *(pages.base + pages.allocated_count + i);
-        page.base = allocation_address + (ptrd)i * OS_DATA.page_size;
-    }
-
-    // NOTE: Booking the first page that we allocated and returning it
-    Page* result = pages.base + (ptrd)pages.allocated_count;
-
-    *(pages.in_use + pages.allocated_count) = true;
-    pages.allocated_count += pages_to_allocate;
-
-    return result->base;
-}

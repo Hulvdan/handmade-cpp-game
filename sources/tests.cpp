@@ -321,7 +321,6 @@ int Process_Segments(
     Arena& trash_arena,
     Allocator& segment_vertices_allocator,
     Allocator& graph_nodes_allocator,
-    Pages& pages,
     Building*& building_sawmill,
     tvector<const char*> strings  //
 ) {
@@ -404,7 +403,6 @@ int Process_Segments(
         trash_arena,
         segment_vertices_allocator,
         graph_nodes_allocator,
-        pages,
         [](...) {}
     );
 
@@ -424,7 +422,6 @@ int Process_Segments(
         trash_arena,                               \
         segment_vertices_allocator,                \
         graph_nodes_allocator,                     \
-        pages,                                     \
         building_sawmill,                          \
         _strings                                   \
     );
@@ -438,7 +435,6 @@ int Process_Segments(
         trash_arena,                                                                    \
         segment_vertices_allocator,                                                     \
         graph_nodes_allocator,                                                          \
-        pages,                                                                          \
         (updated_tiles),                                                                \
         [&segments, &segment_vertices_allocator, &graph_nodes_allocator, &trash_arena]( \
             u32 segments_to_be_deleted_count,                                           \
