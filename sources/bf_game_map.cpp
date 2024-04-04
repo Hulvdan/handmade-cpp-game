@@ -20,7 +20,7 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
 #define Array_Reverse(array, count)                    \
     {                                                  \
         Assert(count >= 0);                            \
-        FOR_RANGE(i32, i, count / 2) {                 \
+        FOR_RANGE (i32, i, count / 2) {                \
             auto t = *(array + i);                     \
             *(array + i) = *(array + (count - i - 1)); \
             *(array + (count - i - 1)) = t;            \
@@ -28,10 +28,10 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
     }
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
-    FOR_RANGE(i32, i1, s1.vertices_count) {
+    FOR_RANGE (i32, i1, s1.vertices_count) {
         auto& v1 = *(s1.vertices + i1);
 
-        FOR_RANGE(i32, i2, s2.vertices_count) {
+        FOR_RANGE (i32, i2, s2.vertices_count) {
             auto& v2 = *(s2.vertices + i2);
 
             if (v1 == v2)
@@ -118,20 +118,20 @@ Path_Find_Result Find_Path(
     Enqueue(queue, source);
 
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
-    DEFER(Deallocate_Array(trash_arena, bool, tiles_count));
+    defer { Deallocate_Array(trash_arena, bool, tiles_count); };
     GRID_PTR_VALUE(visited_mtx, source) = true;
 
     toptional<v2i16>* bfs_parents_mtx
         = Allocate_Array(trash_arena, toptional<v2i16>, tiles_count);
-    DEFER(Deallocate_Array(trash_arena, toptional<v2i16>, tiles_count));
+    defer { Deallocate_Array(trash_arena, toptional<v2i16>, tiles_count); };
 
-    FOR_RANGE(int, i, tiles_count) {
+    FOR_RANGE (int, i, tiles_count) {
         std::construct_at(bfs_parents_mtx + i);
     }
 
     while (queue.count > 0) {
         auto pos = Dequeue(queue);
-        FOR_DIRECTION(dir) {
+        FOR_DIRECTION (dir) {
             auto offset = As_Offset(dir);
             auto new_pos = pos + offset;
             if (!Pos_Is_In_Bounds(new_pos, gsize))
@@ -1240,7 +1240,8 @@ void Regenerate_Terrain_Tiles(
     auto output_size = noise_pitch * noise_pitch;
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
-    DEFER(Deallocate_Array(trash_arena, u16, output_size));
+    defer { Deallocate_Array(trash_arena, u16, output_size); };
+
     Fill_Perlin_2D(
         terrain_perlin,
         sizeof(u16) * output_size,
@@ -1251,7 +1252,7 @@ void Regenerate_Terrain_Tiles(
     );
 
     auto forest_perlin = Allocate_Array(trash_arena, u16, output_size);
-    DEFER(Deallocate_Array(trash_arena, u16, output_size));
+    defer { Deallocate_Array(trash_arena, u16, output_size); };
     Fill_Perlin_2D(
         forest_perlin,
         sizeof(u16) * output_size,
@@ -1261,8 +1262,8 @@ void Regenerate_Terrain_Tiles(
         noise_pitch
     );
 
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::Grass;
             auto noise = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
@@ -1276,8 +1277,8 @@ void Regenerate_Terrain_Tiles(
     // NOTE: Removing one-tile-high grass blocks because they'd look ugly
     while (true) {
         bool changed = false;
-        FOR_RANGE(int, y, gsize.y) {
-            FOR_RANGE(int, x, gsize.x) {
+        FOR_RANGE (int, y, gsize.y) {
+            FOR_RANGE (int, x, gsize.x) {
                 auto& tile = Get_Terrain_Tile(game_map, {x, y});
 
                 int height_above = 0;
@@ -1301,8 +1302,8 @@ void Regenerate_Terrain_Tiles(
             break;
     }
 
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             if (tile.is_cliff)
                 continue;
@@ -1312,8 +1313,8 @@ void Regenerate_Terrain_Tiles(
         }
     }
 
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
@@ -1384,8 +1385,8 @@ void Regenerate_Element_Tiles(
         Assert(tile.building == nullptr);
     }
 
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             Element_Tile& tile = *(game_map.element_tiles + y * gsize.x + x);
             Validate_Element_Tile(tile);
         }
@@ -1404,7 +1405,7 @@ bool Should_Segment_Be_Deleted(
     const Updated_Tiles& updated_tiles,
     const Graph_Segment& segment
 ) {
-    FOR_RANGE(u16, i, updated_tiles.count) {
+    FOR_RANGE (u16, i, updated_tiles.count) {
         auto& tile_pos = *(updated_tiles.pos + i);
         auto& updated_type = *(updated_tiles.type + i);
 
@@ -1472,7 +1473,7 @@ bool Should_Segment_Be_Deleted(
         Assert((max_count_) >= (count_));                           \
                                                                     \
         auto found = false;                                         \
-        FOR_RANGE(int, i, (count_)) {                               \
+        FOR_RANGE (int, i, (count_)) {                              \
             auto existing = *((array_) + i);                        \
             if (existing == (value_)) {                             \
                 found = true;                                       \
@@ -1496,7 +1497,7 @@ u8* Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
 }
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
-    FOR_RANGE(int, i, rows) {
+    FOR_RANGE (int, i, rows) {
         memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
     }
 }
@@ -1506,7 +1507,7 @@ bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     auto gy = graph.size.y;
     u8 node = *(graph.nodes + y * gx + x);
 
-    FOR_DIRECTION(dir) {
+    FOR_DIRECTION (dir) {
         if (!Graph_Node_Has(node, dir))
             continue;
 
@@ -1526,8 +1527,8 @@ void Assert_Is_Undirected(Graph& graph) {
     Assert(graph.size.x > 0);
     Assert(graph.size.y > 0);
 
-    FOR_RANGE(i16, y, graph.size.y) {
-        FOR_RANGE(i16, x, graph.size.x) {
+    FOR_RANGE (i16, y, graph.size.y) {
+        FOR_RANGE (i16, x, graph.size.x) {
             Assert(Adjacent_Tiles_Are_Connected(graph, x, y));
         }
     }
@@ -1535,7 +1536,7 @@ void Assert_Is_Undirected(Graph& graph) {
 
 #define VALIDATE_TRASH_ARENA                          \
     auto trash_arena_initial_used = trash_arena.used; \
-    DEFER(Assert(trash_arena_initial_used == trash_arena.used));
+    defer { Assert(trash_arena_initial_used == trash_arena.used); };
 
 template <template <typename> typename _Allocator>
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
@@ -1554,8 +1555,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
 
     {
         int node_index = 0;
-        FOR_RANGE(int, y, height) {
-            FOR_RANGE(int, x, width) {
+        FOR_RANGE (int, y, height) {
+            FOR_RANGE (int, x, width) {
                 auto node = nodes[y * width + x];
                 if (node == 0)
                     continue;
@@ -1574,8 +1575,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     auto& prev = data.prev;
     dist = _Allocator<i16>().allocate(n * n);
     prev = _Allocator<i16>().allocate(n * n);
-    FOR_RANGE(int, y, n) {
-        FOR_RANGE(int, x, n) {
+    FOR_RANGE (int, y, n) {
+        FOR_RANGE (int, x, n) {
             dist[y * n + x] = i16_max;
             prev[y * n + x] = i16_min;
         }
@@ -1588,13 +1589,13 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     //
     {
         int node_index = 0;
-        FOR_RANGE(int, y, height) {
-            FOR_RANGE(int, x, width) {
+        FOR_RANGE (int, y, height) {
+            FOR_RANGE (int, x, width) {
                 u8 node = nodes[y * width + x];
                 if (!node)
                     continue;
 
-                FOR_DIRECTION(dir) {
+                FOR_DIRECTION (dir) {
                     if (!Graph_Node_Has(node, dir))
                         continue;
 
@@ -1617,8 +1618,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     //
     {
         int node_index = 0;
-        FOR_RANGE(int, y, graph.size.y) {
-            FOR_RANGE(int, x, graph.size.x) {
+        FOR_RANGE (int, y, graph.size.y) {
+            FOR_RANGE (int, x, graph.size.x) {
                 u8 node = nodes[y * n + x];
                 if (!node)
                     continue;
@@ -1638,9 +1639,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
     //                 dist[i][j] ← dist[i][k] + dist[k][j]
     //                 prev[i][j] ← prev[k][j]
     //
-    FOR_RANGE(int, k, n) {
-        FOR_RANGE(int, j, n) {
-            FOR_RANGE(int, i, n) {
+    FOR_RANGE (int, k, n) {
+        FOR_RANGE (int, j, n) {
+            FOR_RANGE (int, i, n) {
                 auto ij = dist[n * i + j];
                 auto ik = dist[n * i + k];
                 auto kj = dist[n * k + j];
@@ -1662,21 +1663,21 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
 
     // NOTE: Вычисление центра графа
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
-    DEFER(Deallocate_Array(trash_arena, i16, n));
-    FOR_RANGE(i16, i, n) {
-        FOR_RANGE(i16, j, n) {
+    defer { Deallocate_Array(trash_arena, i16, n); };
+    FOR_RANGE (i16, i, n) {
+        FOR_RANGE (i16, j, n) {
             node_eccentricities[i] = MAX(node_eccentricities[i], dist[n * i + j]);
         }
     }
 
     i16 rad = i16_max;
     i16 diam = 0;
-    FOR_RANGE(i16, i, n) {
+    FOR_RANGE (i16, i, n) {
         rad = MIN(rad, node_eccentricities[i]);
         diam = MAX(diam, node_eccentricities[i]);
     }
 
-    FOR_RANGE(i16, i, n) {
+    FOR_RANGE (i16, i, n) {
         Assert(node_index_2_pos.contains(i));
         if (node_eccentricities[i] == rad) {
             data.center = node_index_2_pos[i] + graph.offset;
@@ -1789,7 +1790,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         }
     }
 
-    FOR_RANGE(u32, i, segments_to_be_deleted_count) {
+    FOR_RANGE (u32, i, segments_to_be_deleted_count) {
         Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);
         auto& segment = *segment_ptr;
 
@@ -1836,7 +1837,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             = Allocate_Array(trash_arena, Graph_Segment*, added_segments_count);
     }
 
-    FOR_RANGE(u32, i, added_segments_count) {
+    FOR_RANGE (u32, i, added_segments_count) {
         *(added_calculated_segments + i)
             = Add_And_Link_Segment(game_map.segments, *(added_segments + i), trash_arena);
     }
@@ -1857,7 +1858,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         );
     }
 
-    FOR_RANGE(int, i, added_segments_count) {
+    FOR_RANGE (int, i, added_segments_count) {
         auto segment_ptr = added_calculated_segments + i;
 
         if (humans_wo_segment_count == 0) {
@@ -1918,10 +1919,10 @@ void Update_Graphs(
             GRID_PTR_VALUE(vis, p_pos) = true;
 
         v2i16* vertices = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-        DEFER(Deallocate_Array(trash_arena, v2i16, tiles_count));
+        defer { Deallocate_Array(trash_arena, v2i16, tiles_count); };
 
         v2i16* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-        DEFER(Deallocate_Array(trash_arena, v2i16, tiles_count));
+        defer { Deallocate_Array(trash_arena, v2i16, tiles_count); };
 
         int vertices_count = 0;
         int segment_tiles_count = 1;
@@ -1929,7 +1930,7 @@ void Update_Graphs(
 
         Graph temp_graph = {};
         temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
-        DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
+        defer { Deallocate_Array(trash_arena, u8, tiles_count); };
         temp_graph.size.x = gsize.x;
         temp_graph.size.y = gsize.y;
 
@@ -1947,7 +1948,7 @@ void Update_Graphs(
             if (is_vertex)
                 Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
 
-            FOR_DIRECTION(dir_index) {
+            FOR_DIRECTION (dir_index) {
                 if (is_vertex && dir_index != dir)
                     continue;
 
@@ -1980,7 +1981,7 @@ void Update_Graphs(
                         new_visited_value = Graph_Node_Mark(
                             new_visited_value, opposite_dir_index, true
                         );
-                        FOR_DIRECTION(new_dir_index) {
+                        FOR_DIRECTION (new_dir_index) {
                             if (!Graph_Node_Has(new_visited_value, new_dir_index))
                                 Enqueue(big_queue, {new_dir_index, new_pos});
                         }
@@ -1995,7 +1996,7 @@ void Update_Graphs(
                 Graph_Update(temp_graph, new_pos, opposite_dir_index, true);
 
                 if (full_graph_build && new_is_vertex) {
-                    FOR_DIRECTION(new_dir_index) {
+                    FOR_DIRECTION (new_dir_index) {
                         if (!Graph_Node_Has(new_visited_value, new_dir_index))
                             Enqueue(big_queue, {new_dir_index, new_pos});
                     }
@@ -2018,8 +2019,8 @@ void Update_Graphs(
 
         // NOTE: Поиск островов графа
         if (full_graph_build && !big_queue.count) {
-            FOR_RANGE(int, y, gsize.y) {
-                FOR_RANGE(int, x, gsize.x) {
+            FOR_RANGE (int, y, gsize.y) {
+                FOR_RANGE (int, x, gsize.x) {
                     auto pos = v2i16(x, y);
                     auto& tile = GRID_PTR_VALUE(element_tiles, pos);
                     u8& v1 = GRID_PTR_VALUE(visited, pos);
@@ -2030,7 +2031,7 @@ void Update_Graphs(
                     bool is_vertex = is_building || is_flag;
 
                     if (is_vertex && !v1 && !v2) {
-                        FOR_DIRECTION(dir_index) {
+                        FOR_DIRECTION (dir_index) {
                             Enqueue(big_queue, {dir_index, pos});
                         }
                     }
@@ -2061,8 +2062,8 @@ void Update_Graphs(
         offset.x = gsize.x - 1;
         offset.y = gsize.y - 1;
 
-        FOR_RANGE(int, y, gsize.y) {
-            FOR_RANGE(int, x, gsize.x) {
+        FOR_RANGE (int, y, gsize.y) {
+            FOR_RANGE (int, x, gsize.x) {
                 auto& node = *(temp_graph.nodes + y * gsize.x + x);
                 if (node) {
                     gr_size.x = MAX(gr_size.x, x);
@@ -2120,12 +2121,12 @@ void Build_Graph_Segments(
     u32 added_segments_count = 0;
     Graph_Segment* added_segments
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
-    DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
+    defer { Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate); };
 
     v2i16 pos = -v2i16_one;
     bool found = false;
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(element_tiles + y * gsize.x + x);
 
             if (tile.type == Element_Tile_Type::Flag
@@ -2146,19 +2147,19 @@ void Build_Graph_Segments(
     Fixed_Size_Queue<Dir_v2i16> big_queue = {};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
-    DEFER(Deallocate_Array(trash_arena, u8, big_queue.memory_size));
+    defer { Deallocate_Array(trash_arena, u8, big_queue.memory_size); };
 
-    FOR_DIRECTION(dir) {
+    FOR_DIRECTION (dir) {
         Enqueue(big_queue, {dir, pos});
     }
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};
     queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    DEFER(Deallocate_Array(trash_arena, u8, queue.memory_size));
+    defer { Deallocate_Array(trash_arena, u8, queue.memory_size); };
 
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
-    DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
+    defer { Deallocate_Array(trash_arena, u8, tiles_count); };
 
     bool full_graph_build = true;
     Update_Graphs(
@@ -2177,7 +2178,7 @@ void Build_Graph_Segments(
 
     Update_Segments_Lambda(0, nullptr, added_segments_count, added_segments);
 
-    FOR_RANGE(u32, i, added_segments_count) {
+    FOR_RANGE (u32, i, added_segments_count) {
         Add_And_Link_Segment(segments, *(added_segments + i), trash_arena);
     }
 }
@@ -2206,7 +2207,9 @@ ttuple<int, int> Update_Tiles(
     Graph_Segment** segments_to_be_deleted = Allocate_Zeros_Array(
         trash_arena, Graph_Segment*, segments_to_be_deleted_allocate
     );
-    DEFER(Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate));
+    defer {
+        Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
+    };
 
     for (auto segment_ptr : Iter(segments)) {
         auto& segment = *segment_ptr;
@@ -2223,20 +2226,20 @@ ttuple<int, int> Update_Tiles(
     u32 added_segments_count = 0;
     Graph_Segment* added_segments
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
-    DEFER(Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate));
+    defer { Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate); };
 
     Fixed_Size_Queue<Dir_v2i16> big_queue = {};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
-    DEFER(Deallocate_Array(trash_arena, u8, big_queue.memory_size));
+    defer { Deallocate_Array(trash_arena, u8, big_queue.memory_size); };
 
-    FOR_RANGE(auto, i, updated_tiles.count) {
+    FOR_RANGE (auto, i, updated_tiles.count) {
         const auto& updated_type = *(updated_tiles.type + i);
         const auto& pos = *(updated_tiles.pos + i);
 
         switch (updated_type) {
         case Tile_Updated_Type::Road_Placed: {
-            FOR_DIRECTION(dir) {
+            FOR_DIRECTION (dir) {
                 auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
@@ -2250,7 +2253,7 @@ ttuple<int, int> Update_Tiles(
         } break;
 
         case Tile_Updated_Type::Flag_Placed: {
-            FOR_DIRECTION(dir) {
+            FOR_DIRECTION (dir) {
                 auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
@@ -2262,7 +2265,7 @@ ttuple<int, int> Update_Tiles(
         } break;
 
         case Tile_Updated_Type::Flag_Removed: {
-            FOR_DIRECTION(dir) {
+            FOR_DIRECTION (dir) {
                 auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
@@ -2274,7 +2277,7 @@ ttuple<int, int> Update_Tiles(
         } break;
 
         case Tile_Updated_Type::Road_Removed: {
-            FOR_DIRECTION(dir) {
+            FOR_DIRECTION (dir) {
                 auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
@@ -2283,14 +2286,14 @@ ttuple<int, int> Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
-                FOR_DIRECTION(dir) {
+                FOR_DIRECTION (dir) {
                     Enqueue(big_queue, {dir, new_pos});
                 }
             }
         } break;
 
         case Tile_Updated_Type::Building_Placed: {
-            FOR_DIRECTION(dir) {
+            FOR_DIRECTION (dir) {
                 auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
@@ -2305,21 +2308,21 @@ ttuple<int, int> Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::Flag)
                     continue;
 
-                FOR_DIRECTION(dir) {
+                FOR_DIRECTION (dir) {
                     Enqueue(big_queue, {dir, new_pos});
                 }
             }
         } break;
 
         case Tile_Updated_Type::Building_Removed: {
-            FOR_DIRECTION(dir) {
+            FOR_DIRECTION (dir) {
                 auto new_pos = pos + As_Offset(dir);
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road) {
-                    FOR_DIRECTION(new_dir) {
+                    FOR_DIRECTION (new_dir) {
                         Enqueue(big_queue, {new_dir, new_pos});
                     }
                 }
@@ -2334,12 +2337,12 @@ ttuple<int, int> Update_Tiles(
     // NOTE: Each byte here contains differently bit-shifted values of
     // `Direction`
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
-    DEFER(Deallocate_Array(trash_arena, u8, tiles_count));
+    defer { Deallocate_Array(trash_arena, u8, tiles_count); };
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};
     queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    DEFER(Deallocate_Array(trash_arena, u8, queue.memory_size));
+    defer { Deallocate_Array(trash_arena, u8, queue.memory_size); };
 
     bool full_graph_build = false;
     Update_Graphs(

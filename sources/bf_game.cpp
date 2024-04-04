@@ -107,7 +107,7 @@ bool UI_Clicked(Game_State& state) {
 
         // Aligning items in a column
         // justify-content: center
-        FOR_RANGE(i8, i, placeholders) {
+        FOR_RANGE (i8, i, placeholders) {
             v3f drawing_point = origin;
             drawing_point.y -= (f32)(placeholders - 1) * (psize.y + placeholders_gap) / 2;
             drawing_point.y += (f32)i * (placeholders_gap + psize.y);
@@ -473,8 +473,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     const auto player_radius = 24;
 
-    FOR_RANGE(i32, y, bitmap.height) {
-        FOR_RANGE(i32, x, bitmap.width) {
+    FOR_RANGE (i32, y, bitmap.height) {
+        FOR_RANGE (i32, x, bitmap.width) {
             // u32 red  = 0;
             u32 red = (u8)(x + offset_x);
             // u32 red  = (u8)(y + offset_y);

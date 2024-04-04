@@ -136,7 +136,7 @@ T Dequeue(Fixed_Size_Queue<T>& container) {
 
 template <typename T, template <typename> typename _Allocator>
 i32 Queue_Find(Queue<T, _Allocator>& container, T value) {
-    FOR_RANGE(i32, i, container.count) {
+    FOR_RANGE (i32, i, container.count) {
         auto& v = *(container.base + i);
         if (v == value)
             return i;
@@ -235,7 +235,7 @@ i32 Vector_Find(tvector<T, _Allocator>& container, T value) {
 
 template <typename T>
 i32 Vector_Find(Vector<T>& container, T value) {
-    FOR_RANGE(i32, i, container.count) {
+    FOR_RANGE (i32, i, container.count) {
         auto& v = *(container.base + i);
         if (v == value)
             return i;
@@ -362,7 +362,7 @@ T Vector_Pop(Vector<T>& vec) {
 
 template <typename T>
 i32 Array_Find(T* values, u32 n, T& value) {
-    FOR_RANGE(u32, i, n) {
+    FOR_RANGE (u32, i, n) {
         auto& v = *(values + n);
         if (v == value)
             return true;
@@ -470,7 +470,7 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     auto bucket_ptr = arr.buckets + bucket_index;
 
     int index = -1;
-    FOR_RANGE(int, i, arr.items_per_bucket) {
+    FOR_RANGE (int, i, arr.items_per_bucket) {
         // PERF: We can record the first non-empty index in the occupied list?
         u8 occupied = Bucket_Occupied(*bucket_ptr, i);
         if (!occupied) {
@@ -590,7 +590,7 @@ public:
     }
 
     void Increment() {
-        FOR_RANGE(int, _GUARD_, 512) {
+        FOR_RANGE (int, _GUARD_, 512) {
             _current++;
             if (_current >= _arr->items_per_bucket) {
                 _current = 0;
@@ -674,7 +674,7 @@ public:
     }
 
     void Increment() {
-        FOR_RANGE(int, _GUARD_, 256) {
+        FOR_RANGE (int, _GUARD_, 256) {
             _current++;
             if (_current >= _current_bucket_count) {
                 _current = 0;
@@ -803,12 +803,12 @@ BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
     container.count = 0;
     container.unfull_buckets_count = container.used_buckets_count;
 
-    FOR_RANGE(Bucket_Index, i, container.unfull_buckets_count) {
+    FOR_RANGE (Bucket_Index, i, container.unfull_buckets_count) {
         *(container.unfull_buckets + i) = i;
     }
 
     auto occupied_bytes_count = Ceil_Division(container.items_per_bucket, 8);
-    FOR_RANGE(Bucket_Index, i, container.used_buckets_count) {
+    FOR_RANGE (Bucket_Index, i, container.used_buckets_count) {
         auto& bucket = *(container.buckets + i);
 
         if (bucket.count > 0) {
@@ -1290,7 +1290,7 @@ struct Observer : public Non_Copyable {
 //     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
 #define INVOKE_OBSERVER(observer, code)                 \
     {                                                   \
-        FOR_RANGE(size_t, i, observer.count) {          \
+        FOR_RANGE (size_t, i, observer.count) {         \
             auto& function = *(observer.functions + i); \
             function code;                              \
         }                                               \
@@ -1479,7 +1479,7 @@ struct Game_Renderer_State : public Non_Copyable {
 
 u8* Book_Single_Page(Pages& pages) {
     // NOTE: If there exists allocated page that is not in use -> return it
-    FOR_RANGE(u32, i, pages.allocated_count) {
+    FOR_RANGE (u32, i, pages.allocated_count) {
         bool& in_use = *(pages.in_use + i);
         if (!in_use) {
             in_use = true;
@@ -1493,7 +1493,7 @@ u8* Book_Single_Page(Pages& pages) {
     auto pages_to_allocate = OS_DATA.min_pages_per_allocation;
     auto allocation_address = OS_DATA.Allocate_Pages(pages_to_allocate);
 
-    FOR_RANGE(u32, i, pages_to_allocate) {
+    FOR_RANGE (u32, i, pages_to_allocate) {
         auto& page = *(pages.base + pages.allocated_count + i);
         page.base = allocation_address + (ptrd)i * OS_DATA.page_size;
     }

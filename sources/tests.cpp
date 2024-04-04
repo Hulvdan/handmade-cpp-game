@@ -6,15 +6,15 @@
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-TEST_CASE("Hash32, EmptyIsCorrect") {
+TEST_CASE ("Hash32, EmptyIsCorrect") {
     CHECK(Hash32((u8*)"", 0) == 2166136261);
 }
 
-TEST_CASE("Hash32, TestValue") {
+TEST_CASE ("Hash32, TestValue") {
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE("Load_Smart_Tile_Rules, ItWorks") {
+TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
     constexpr u64 size = 512;
     u8 output[size] = {};
 
@@ -37,7 +37,7 @@ TEST_CASE("Load_Smart_Tile_Rules, ItWorks") {
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
+TEST_CASE ("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
     constexpr u64 size = 512;
     u8 output[size] = {};
 
@@ -60,7 +60,7 @@ TEST_CASE("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE("ProtoTest, Proto") {
+TEST_CASE ("ProtoTest, Proto") {
     CHECK(0xFF == 255);
     CHECK(0x00FF == 255);
     CHECK(0xFF00 == 65280);
@@ -70,7 +70,7 @@ TEST_CASE("ProtoTest, Proto") {
     CHECK(0b1111111100000000 == 65280);
 }
 
-TEST_CASE("frand, interval") {
+TEST_CASE ("frand, interval") {
     for (int i = 0; i < 10000; i++) {
         auto value = frand();
         CHECK(value >= 0);
@@ -78,14 +78,14 @@ TEST_CASE("frand, interval") {
     }
 }
 
-TEST_CASE("Move_Towards") {
+TEST_CASE ("Move_Towards") {
     CHECK(Move_Towards(0, 1, 0.4f) == 0.4f);
     CHECK(Move_Towards(0, -1, 0.4f) == -0.4f);
     CHECK(Move_Towards(1, 1, 0.4f) == 1);
     CHECK(Move_Towards(-1, -1, 0.4f) == -1);
 }
 
-TEST_CASE("Ceil_To_Power_Of_2") {
+TEST_CASE ("Ceil_To_Power_Of_2") {
     CHECK(Ceil_To_Power_Of_2(1) == 1);
     CHECK(Ceil_To_Power_Of_2(2) == 2);
     CHECK(Ceil_To_Power_Of_2(3) == 4);
@@ -136,7 +136,7 @@ struct Test_Node {
 
 #define Allocator_Free_Macro(allocator_, key_) (allocator_).Free((key_));
 
-TEST_CASE("Align_Forward") {
+TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);
     CHECK(Align_Forward((u8*)(2UL), 16) == (u8*)16UL);
     CHECK(Align_Forward((u8*)(4UL), 16) == (u8*)16UL);
@@ -144,7 +144,7 @@ TEST_CASE("Align_Forward") {
     CHECK(Align_Forward((u8*)(8UL), 8) == (u8*)8UL);
 }
 
-TEST_CASE("Allocator") {
+TEST_CASE ("Allocator") {
     u8* toc_buffer = new u8[1024];
     u8* data_buffer = new u8[1024];
     memset(toc_buffer, 0, 1024);
@@ -238,21 +238,21 @@ TEST_CASE("Allocator") {
     }
 }
 
-TEST_CASE("Opposite") {
+TEST_CASE ("Opposite") {
     CHECK(Opposite(Direction::Right) == Direction::Left);
     CHECK(Opposite(Direction::Up) == Direction::Down);
     CHECK(Opposite(Direction::Left) == Direction::Right);
     CHECK(Opposite(Direction::Down) == Direction::Up);
 }
 
-TEST_CASE("Opposite") {
+TEST_CASE ("Opposite") {
     CHECK(Opposite(Direction::Right) == Direction::Left);
     CHECK(Opposite(Direction::Up) == Direction::Down);
     CHECK(Opposite(Direction::Left) == Direction::Right);
     CHECK(Opposite(Direction::Down) == Direction::Up);
 }
 
-TEST_CASE("As_Offset") {
+TEST_CASE ("As_Offset") {
     CHECK(As_Offset(Direction::Right) == v2i16(1, 0));
     CHECK(As_Offset(Direction::Up) == v2i16(0, 1));
     CHECK(As_Offset(Direction::Left) == v2i16(-1, 0));
@@ -347,8 +347,8 @@ int Process_Segments(
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
     };
 
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(element_tiles + y * gsize.x + x);
             v2i pos = {x, y};
 
@@ -446,7 +446,7 @@ int Process_Segments(
             u32 added_segments_count,                                                   \
             Graph_Segment* added_segments                                               \
         ) {                                                                             \
-            FOR_RANGE(u32, i, segments_to_be_deleted_count) {                           \
+            FOR_RANGE (u32, i, segments_to_be_deleted_count) {                          \
                 Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);             \
                 auto& segment = *segment_ptr;                                           \
                 Bucket_Array_Remove(*segments, segment.locator);                        \
@@ -454,7 +454,7 @@ int Process_Segments(
                 graph_nodes_allocator.Free(segment.graph.nodes);                        \
             }                                                                           \
                                                                                         \
-            FOR_RANGE(u32, i, added_segments_count) {                                   \
+            FOR_RANGE (u32, i, added_segments_count) {                                  \
                 Add_And_Link_Segment(*segments, *(added_segments + i), trash_arena);    \
             }                                                                           \
         }                                                                               \
@@ -467,7 +467,7 @@ int Process_Segments(
         updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i16, data.size()); \
         updated_tiles.type                                                         \
             = Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
-        FOR_RANGE(int, i, data.size()) {                                           \
+        FOR_RANGE (int, i, data.size()) {                                          \
             auto& [pos, type] = data[i];                                           \
             *(updated_tiles.pos + i) = pos;                                        \
             *(updated_tiles.type + i) = type;                                      \
@@ -475,7 +475,7 @@ int Process_Segments(
         updated_tiles.count = data.size();                                         \
     }
 
-TEST_CASE("Bit operations") {
+TEST_CASE ("Bit operations") {
     {
         tvector<ttuple<u8, u8, u8>> marks = {
             {0b00000000, 0, 0b00000001},
@@ -522,7 +522,7 @@ TEST_CASE("Bit operations") {
     }
 }
 
-TEST_CASE("Update_Tiles") {
+TEST_CASE ("Update_Tiles") {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     OS_Data os_data = {};
@@ -1273,7 +1273,7 @@ TEST_CASE("Update_Tiles") {
     //     Deinitialize_Bucket_Array(*segments);
 }
 
-TEST_CASE("Queue") {
+TEST_CASE ("Queue") {
     Queue<int> queue = {};
 
     SUBCASE("Enqueue") {
@@ -1362,7 +1362,7 @@ TEST_CASE("Queue") {
     Free_Allocations();
 }
 
-TEST_CASE("Array functions") {
+TEST_CASE ("Array functions") {
     const auto max_count = 10;
     int arr_arr[max_count];
 
@@ -1384,7 +1384,7 @@ TEST_CASE("Array functions") {
     CHECK(*(arr + 4) == 5);
 }
 
-TEST_CASE("Longest_Meaningful_Path") {
+TEST_CASE ("Longest_Meaningful_Path") {
     CHECK(Longest_Meaningful_Path({1, 1}) == 1);
     CHECK(Longest_Meaningful_Path({2, 2}) == 3);
     CHECK(Longest_Meaningful_Path({3, 2}) == 5);

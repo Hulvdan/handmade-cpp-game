@@ -1,9 +1,7 @@
 #pragma once
 
 // [0; 1]
-f32 frand() {
-    return (f32)rand() / RAND_MAX;
-}
+f32 frand() { return (f32)rand() / RAND_MAX; }
 
 // Usage:
 //     -1 -> false
@@ -63,7 +61,7 @@ void Fill_Perlin_1D(
     f32* accumulator = cover + sx;
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx) {
+    FOR_RANGE (size_t, i, sx) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -75,7 +73,7 @@ void Fill_Perlin_1D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(u8, _, octaves) {
+    FOR_RANGE (u8, _, octaves) {
         sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
@@ -83,7 +81,7 @@ void Fill_Perlin_1D(
         f32 r = *(cover + rindex);
 
         u16 it = 0;
-        FOR_RANGE(u16, i, sx) {
+        FOR_RANGE (u16, i, sx) {
             if (it == offset) {
                 l = r;
                 rindex = (rindex + offset) % sx;
@@ -100,7 +98,7 @@ void Fill_Perlin_1D(
         octave_c /= scaling_bias;
     }
 
-    FOR_RANGE(u16, x, sx) {
+    FOR_RANGE (u16, x, sx) {
         auto t = (*(accumulator + x)) / sum_of_division;
         Assert(t <= 1.0f);
         Assert(t >= 0);
@@ -137,7 +135,7 @@ void Perlin_1D(
     f32* accumulator = cover + sx;
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx) {
+    FOR_RANGE (size_t, i, sx) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -149,7 +147,7 @@ void Perlin_1D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves) {
+    FOR_RANGE (int, _, octaves) {
         sum_of_division += octave_c;
 
         f32 l = *(cover + 0);
@@ -157,7 +155,7 @@ void Perlin_1D(
         f32 r = *(cover + rindex);
 
         u16 it = 0;
-        FOR_RANGE(u16, i, sx) {
+        FOR_RANGE (u16, i, sx) {
             if (it == offset) {
                 l = r;
                 rindex = (rindex + offset) % sx;
@@ -175,8 +173,8 @@ void Perlin_1D(
     }
 
     auto pixel = (u32*)texture.base;
-    FOR_RANGE(int, y, sy) {
-        FOR_RANGE(int, x, sx) {
+    FOR_RANGE (int, y, sy) {
+        FOR_RANGE (int, x, sx) {
             auto t = (*(accumulator + x)) / sum_of_division;
             Assert(t <= 1.0f);
             Assert(t >= 0);
@@ -215,10 +213,10 @@ void Fill_Perlin_2D(
     auto total_pixels = (size_t)sx * sy;
     f32* cover = Allocate_Array(trash_arena, f32, total_pixels);
     f32* accumulator = Allocate_Array(trash_arena, f32, total_pixels);
-    DEFER(Deallocate_Array(trash_arena, f32, 2 * total_pixels));
+    defer { Deallocate_Array(trash_arena, f32, 2 * total_pixels); };
 
     srand(params.seed);
-    FOR_RANGE(size_t, i, total_pixels) {
+    FOR_RANGE (size_t, i, total_pixels) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -229,7 +227,7 @@ void Fill_Perlin_2D(
     u16 offset = sx;
 
     auto octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves) {
+    FOR_RANGE (int, _, octaves) {
         sum_of_division += octave_c;
 
         u16 x0_index = 0;
@@ -239,11 +237,11 @@ void Fill_Perlin_2D(
 
         u16 yit = 0;
         u16 xit = 0;
-        FOR_RANGE(u16, y, sy) {
+        FOR_RANGE (u16, y, sy) {
             auto y0s = sx * y0_index;
             auto y1s = sx * y1_index;
 
-            FOR_RANGE(u16, x, sx) {
+            FOR_RANGE (u16, x, sx) {
                 if (xit == offset) {
                     x0_index = x1_index;
                     x1_index = (x1_index + offset) % sx;
@@ -277,8 +275,8 @@ void Fill_Perlin_2D(
         octave_c /= params.scaling_bias;
     }
 
-    FOR_RANGE(int, y, sy) {
-        FOR_RANGE(int, x, sx) {
+    FOR_RANGE (int, y, sy) {
+        FOR_RANGE (int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;
             Assert(t <= 1.0f);
             Assert(t >= 0);
@@ -316,7 +314,7 @@ void Perlin_2D(
     f32* accumulator = cover + sx * sy;
 
     srand(seed);
-    FOR_RANGE(size_t, i, sx * sy) {
+    FOR_RANGE (size_t, i, sx * sy) {
         *(cover + i) = frand();
         *(accumulator + i) = 0;
     }
@@ -328,7 +326,7 @@ void Perlin_2D(
     u16 offset = sx;
 
     f32 octave_c = 1.0f;
-    FOR_RANGE(int, _, octaves) {
+    FOR_RANGE (int, _, octaves) {
         sum_of_division += octave_c;
 
         u16 x0_index = 0;
@@ -338,11 +336,11 @@ void Perlin_2D(
 
         u16 yit = 0;
         u16 xit = 0;
-        FOR_RANGE(u16, y, sy) {
+        FOR_RANGE (u16, y, sy) {
             auto y0s = sx * y0_index;
             auto y1s = sx * y1_index;
 
-            FOR_RANGE(u16, x, sx) {
+            FOR_RANGE (u16, x, sx) {
                 if (xit == offset) {
                     x0_index = x1_index;
                     x1_index = (x1_index + offset) % sx;
@@ -377,8 +375,8 @@ void Perlin_2D(
     }
 
     auto pixel = (u32*)texture.base;
-    FOR_RANGE(int, y, sy) {
-        FOR_RANGE(int, x, sx) {
+    FOR_RANGE (int, y, sy) {
+        FOR_RANGE (int, x, sx) {
             auto t = (*(accumulator + y * sy + x)) / sum_of_division;
             Assert(t <= 1.0f);
             Assert(t >= 0);

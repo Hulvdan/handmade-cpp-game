@@ -102,7 +102,7 @@ void DEBUG_Load_Texture(
     {
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
         Assert(load_result.success);
-        DEFER(Deallocate_Array(trash_arena, u8, load_result.size));
+        defer { Deallocate_Array(trash_arena, u8, load_result.size); };
 
         bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
         Assert(bmp_result.success);
@@ -121,7 +121,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
     bool tile_is_building = tile.type == Element_Tile_Type::Building;
 
     int road_texture_number = 0;
-    FOR_RANGE(int, i, 4) {
+    FOR_RANGE (int, i, 4) {
         auto new_pos = pos + v2i16_adjacent_offsets[i];
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
@@ -147,7 +147,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
 #define Debug_Load_File_And_Defer_Deallocate(variable_name_, filepath_, arena_) \
     auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_));     \
     Assert((variable_name_).success);                                           \
-    DEFER(Deallocate_Array((arena_), u8, (variable_name_).size));
+    defer { Deallocate_Array((arena_), u8, (variable_name_).size); };
 
 void Debug_Print_Shader_Info_Log(
     GLuint shader_id,
@@ -230,7 +230,7 @@ void main() {
 )Shader";
 
         auto vertex = glCreateShader(GL_VERTEX_SHADER);
-        DEFER(glDeleteShader(vertex));
+        defer { glDeleteShader(vertex); };
 
         glShaderSource(vertex, 1, &vertex_code, nullptr);
         glCompileShader(vertex);
@@ -253,7 +253,7 @@ void main() {
 )Shader";
 
         auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        DEFER(glDeleteShader(fragment));
+        defer { glDeleteShader(fragment); };
 
         glShaderSource(fragment, 1, &fragment_code, nullptr);
         glCompileShader(fragment);
@@ -309,28 +309,28 @@ void main() {
         );
 
         char texture_name[512] = {};
-        FOR_RANGE(int, i, 17) {
+        FOR_RANGE (int, i, 17) {
             sprintf(texture_name, "tiles/grass_%d", i);
             DEBUG_Load_Texture(
                 non_persistent_arena, trash_arena, texture_name, rstate.grass_textures[i]
             );
         }
 
-        FOR_RANGE(int, i, 3) {
+        FOR_RANGE (int, i, 3) {
             sprintf(texture_name, "tiles/forest_%d", i);
             DEBUG_Load_Texture(
                 non_persistent_arena, trash_arena, texture_name, rstate.forest_textures[i]
             );
         }
 
-        FOR_RANGE(int, i, 16) {
+        FOR_RANGE (int, i, 16) {
             sprintf(texture_name, "tiles/road_%d", i);
             DEBUG_Load_Texture(
                 non_persistent_arena, trash_arena, texture_name, rstate.road_textures[i]
             );
         }
 
-        FOR_RANGE(int, i, 4) {
+        FOR_RANGE (int, i, 4) {
             sprintf(texture_name, "tiles/flag_%d", i);
             DEBUG_Load_Texture(
                 non_persistent_arena, trash_arena, texture_name, rstate.flag_textures[i]
@@ -365,8 +365,8 @@ void main() {
     }
 
     i32 max_height = 0;
-    FOR_RANGE(i32, y, gsize.y) {
-        FOR_RANGE(i32, x, gsize.x) {
+    FOR_RANGE (i32, y, gsize.y) {
+        FOR_RANGE (i32, x, gsize.x) {
             auto& terrain_tile = *(game_map.terrain_tiles + y * gsize.x + x);
             max_height = MAX(max_height, terrain_tile.height);
         }
@@ -394,12 +394,12 @@ void main() {
     rstate.tilemaps
         = Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
-    FOR_RANGE(i32, h, rstate.tilemaps_count) {
+    FOR_RANGE (i32, h, rstate.tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
         tilemap.tiles = Allocate_Array(non_persistent_arena, Tile_ID, gsize.x * gsize.y);
 
-        FOR_RANGE(i32, y, gsize.y) {
-            FOR_RANGE(i32, x, gsize.x) {
+        FOR_RANGE (i32, y, gsize.y) {
+            FOR_RANGE (i32, x, gsize.x) {
                 auto& tile = *(game_map.terrain_tiles + y * gsize.x + x);
                 auto& tilemap_tile = *(tilemap.tiles + y * gsize.x + x);
 
@@ -411,9 +411,9 @@ void main() {
 
     auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
     auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
-    FOR_RANGE(i32, y, gsize.y) {
+    FOR_RANGE (i32, y, gsize.y) {
         auto is_last_row = y == gsize.y - 1;
-        FOR_RANGE(i32, x, gsize.x) {
+        FOR_RANGE (i32, x, gsize.x) {
             auto& resource = *(game_map.terrain_resources + y * gsize.x + x);
 
             auto& tile = *(resources_tilemap.tiles + y * gsize.x + x);
@@ -439,8 +439,8 @@ void main() {
 
     // --- Element Tiles ---
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
-    FOR_RANGE(i32, y, gsize.y) {
-        FOR_RANGE(i32, x, gsize.x) {
+    FOR_RANGE (i32, y, gsize.y) {
+        FOR_RANGE (i32, x, gsize.x) {
             Element_Tile& element_tile = *(game_map.element_tiles + y * gsize.x + x);
             if (element_tile.type != Element_Tile_Type::Road)
                 continue;
@@ -705,13 +705,13 @@ void Draw_Stretchable_Sprite(
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id);
 
-    FOR_RANGE(int, y, 3) {
+    FOR_RANGE (int, y, 3) {
         auto tex_y0 = texture_vertices_y[2 - y];
         auto tex_y1 = texture_vertices_y[3 - y];
         auto sprite_y0 = points[2 - y].y;
         auto sy = points[3 - y].y - points[2 - y].y;
 
-        FOR_RANGE(int, x, 3) {
+        FOR_RANGE (int, x, 3) {
             auto tex_x0 = texture_vertices_x[x];
             auto tex_x1 = texture_vertices_x[x + 1];
             auto sprite_x0 = points[x].x;
@@ -751,7 +751,7 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
 
     Assert(state.scriptable_buildings_count == 2);
 
-    FOR_RANGE(int, i, ui_state.buildables_count) {
+    FOR_RANGE (int, i, ui_state.buildables_count) {
         auto& buildable = *(ui_state.buildables + i);
         switch (buildable.type) {
         case Item_To_Build_Type::Road: {
@@ -874,11 +874,11 @@ void Render(Game_State& state, f32 dt) {
     // projection = glm::scale(projection, v2f(2, 2) / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    FOR_RANGE(i32, h, rstate.terrain_tilemaps_count) {
+    FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
 
-        FOR_RANGE(int, y, gsize.y) {
-            FOR_RANGE(int, x, gsize.x) {
+        FOR_RANGE (int, y, gsize.y) {
+            FOR_RANGE (int, x, gsize.x) {
                 auto& tile = Get_Terrain_Tile(game_map, {x, y});
                 if (tile.terrain != Terrain::Grass)
                     continue;
@@ -906,8 +906,8 @@ void Render(Game_State& state, f32 dt) {
 
     // --- Drawing Resoures ---
     auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(resources_tilemap.tiles + y * gsize.x + x);
             if (tile == 0)
                 continue;
@@ -932,8 +932,8 @@ void Render(Game_State& state, f32 dt) {
     }
 
     auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(resources_tilemap2.tiles + y * gsize.x + x);
             if (tile == 0)
                 continue;
@@ -957,8 +957,8 @@ void Render(Game_State& state, f32 dt) {
     // --- Drawing Element Tiles ---
     auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
     auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(element_tilemap.tiles + y * gsize.x + x);
             if (tile < global_road_starting_tile_id)
                 continue;
@@ -978,8 +978,8 @@ void Render(Game_State& state, f32 dt) {
         }
     }
 
-    FOR_RANGE(int, y, gsize.y) {
-        FOR_RANGE(int, x, gsize.x) {
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(element_tilemap_2.tiles + y * gsize.x + x);
             if (tile < global_flag_starting_tile_id)
                 continue;
@@ -1102,7 +1102,7 @@ void Render(Game_State& state, f32 dt) {
             glBindTexture(GL_TEXTURE_2D, ui_state.buildables_placeholder_background.id);
             // Aligning items in a column
             // justify-content: center
-            FOR_RANGE(int, i, placeholders) {
+            FOR_RANGE (int, i, placeholders) {
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
                 drawing_point.y += i * (placeholders_gap + psize.y);
@@ -1116,11 +1116,12 @@ void Render(Game_State& state, f32 dt) {
             }
 
             auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
-            DEFER(Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size)
-            );
+            defer {
+                Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size);
+            };
 
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
-            FOR_RANGE(int, i, placeholders) {
+            FOR_RANGE (int, i, placeholders) {
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
                 drawing_point.y += i * (placeholders_gap + psize.y);

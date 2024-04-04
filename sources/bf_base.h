@@ -114,19 +114,37 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 //                             Defer                             //
 // ============================================================= //
 template <typename F>
-struct _privDefer {
+struct _Defer {
+    _Defer(F f) : f(f) {}
+    ~_Defer() { f(); }
     F f;
-    _privDefer(F f) : f(f) {}
-    ~_privDefer() { f(); }
 };
+
 template <typename F>
-_privDefer<F> _defer_func(F f) {
-    return _privDefer<F>(f);
+_Defer<F> _makeDefer(F f) {
+    return _Defer<F>(f);
+};
+
+#define __defer(counter) defer_##counter
+#define _defer(counter) __defer(counter)
+
+struct _defer_dummy {};
+template <typename F>
+_Defer<F> operator+(_defer_dummy, F&& f) {
+    return _makeDefer<F>(std::forward<F>(f));
 }
-#define _DEFER_1(x, y) x##y
-#define _DEFER_2(x, y) _DEFER_1(x, y)
-#define _DEFER_3(x) _DEFER_2(x, __COUNTER__)
-#define DEFER(code) auto _DEFER_3(_defer_) = _defer_func([&]() { code; })
+
+// Usage:
+//     {
+//         defer { printf("Deferred\n"); };
+//         printf("Normal\n");
+//     }
+//
+// Output:
+//     Normal
+//     Deferred
+//
+#define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
 
 // ============================================================= //
 //                             Other                             //

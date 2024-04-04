@@ -115,7 +115,7 @@ struct Allocator : Non_Copyable {
         , current_allocations_count(0)
         , first_allocation_index(0)
         , max_toc_entries(a_toc_buffer_size / sizeof(Allocation)) {
-        FOR_RANGE(size_t, i, a_toc_buffer_size) {
+        FOR_RANGE (size_t, i, a_toc_buffer_size) {
             Assert(*(a_toc_buffer + i) == 0);
         }
     }
@@ -145,7 +145,7 @@ struct Allocator : Non_Copyable {
         Allocation* next_node = nullptr;
         u8* base_ptr = Align_Forward(data_buffer, alignment);
 
-        FOR_RANGE(size_t, i, current_allocations_count) {
+        FOR_RANGE (size_t, i, current_allocations_count) {
             next_node = nodes + next_node_index;
             Assert(A_Active(next_node));
 
@@ -166,7 +166,7 @@ struct Allocator : Non_Copyable {
         size_t new_free_node_index = size_t_max;
         Allocation* new_free_node = nullptr;
         {
-            FOR_RANGE(size_t, i, current_allocations_count + 1) {
+            FOR_RANGE (size_t, i, current_allocations_count + 1) {
                 Allocation* n = nodes + i;
                 if (A_Active(n))
                     continue;
@@ -201,7 +201,7 @@ struct Allocator : Non_Copyable {
         Allocation* previous_node = nullptr;
         auto current_index = first_allocation_index;
 
-        FOR_RANGE(size_t, i, current_allocations_count) {
+        FOR_RANGE (size_t, i, current_allocations_count) {
             auto node = nodes + current_index;
             if (node->base == ptr) {
                 if (previous_node != nullptr)
