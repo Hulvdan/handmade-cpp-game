@@ -36,8 +36,8 @@ global OS_Data* global_os_data = nullptr;
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
-#include "bf_memory.cpp"
 #include "bf_math.cpp"
+#include "bf_memory.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"

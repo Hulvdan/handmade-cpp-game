@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bf_base.h"
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
 #define Array_Push(array, array_count, array_max_count, value) \
@@ -17,14 +18,14 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
     return result;
 }
 
-#define Array_Reverse(array, count)                    \
-    {                                                  \
-        Assert(count >= 0);                            \
-        FOR_RANGE (i32, i, count / 2) {                \
-            auto t = *(array + i);                     \
-            *(array + i) = *(array + (count - i - 1)); \
-            *(array + (count - i - 1)) = t;            \
-        }                                              \
+#define Array_Reverse(array, count)                        \
+    {                                                      \
+        Assert((count) >= 0);                              \
+        FOR_RANGE (i32, i, (count) / 2) {                  \
+            auto t = *((array) + i);                       \
+            *((array) + i) = *((array) + ((count)-i - 1)); \
+            *((array) + ((count)-i - 1)) = t;              \
+        }                                                  \
     }
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
@@ -393,7 +394,7 @@ struct Human_Moving_In_The_World_Controller {
         Update_States(human, data, old_segment, nullptr);
     }
 
-    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data) {
         if (human.type == Human_Type::Constructor  //
             && human.building != nullptr  //
             && human.moving.pos == human.building->pos  //
@@ -1209,8 +1210,8 @@ void Deinitialize_Game_Map(Game_State& state) {
         data.pos_2_node_index.clear();
 
         auto n = segment.graph.nodes_count;
-        Game_Map_Allocator<i16>().deallocate(data.dist, n * n);
-        Game_Map_Allocator<i16>().deallocate(data.prev, n * n);
+        Game_Map_Allocator().deallocate(data.dist, n * n);
+        Game_Map_Allocator().deallocate(data.prev, n * n);
     }
 
     Deinit_Bucket_Array(game_map.segments);
