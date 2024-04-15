@@ -50,10 +50,9 @@ struct Path_Find_Result {
     bool   success;
     v2i16* path;
     i32    path_count;
-    size_t trash_allocation_size;
 };
 
-ttuple<size_t, v2i16*, i32> Build_Path(
+ttuple<v2i16*, i32> Build_Path(
     Arena&            trash_arena,
     v2i16             gsize,
     toptional<v2i16>* bfs_parents_mtx,
@@ -75,8 +74,6 @@ ttuple<size_t, v2i16*, i32> Build_Path(
     i32 path_max_count = Longest_Meaningful_Path(gsize);
 #endif
 
-    size_t trash_allocation_size = sizeof(v2i16) * path_max_count;
-
     i32    path_count = 0;
     v2i16* path       = Allocate_Array(trash_arena, v2i16, path_max_count);
 
@@ -93,7 +90,7 @@ ttuple<size_t, v2i16*, i32> Build_Path(
 
     Array_Reverse(path, path_count);
 
-    return {trash_allocation_size, path, path_count};
+    return {path, path_count};
 }
 
 // NOTE: Не забывать деаллоцировать trash_allocation_size
@@ -109,22 +106,20 @@ Path_Find_Result Find_Path(
     if (source == destination)
         return {true, {}, 0};
 
+    TEMPORARY_USAGE(trash_arena);
     i32 tiles_count = gsize.x * gsize.y;
 
     Path_Find_Result        result = {};
     Fixed_Size_Queue<v2i16> queue  = {};
     queue.memory_size              = sizeof(v2i16) * tiles_count;
     queue.base = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    result.trash_allocation_size = queue.memory_size;
     Enqueue(queue, source);
 
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
-    defer { Deallocate_Array(trash_arena, bool, tiles_count); };
     GRID_PTR_VALUE(visited_mtx, source) = true;
 
     toptional<v2i16>* bfs_parents_mtx
         = Allocate_Array(trash_arena, toptional<v2i16>, tiles_count);
-    defer { Deallocate_Array(trash_arena, toptional<v2i16>, tiles_count); };
 
     FOR_RANGE (int, i, tiles_count) {
         std::construct_at(bfs_parents_mtx + i);
@@ -155,9 +150,8 @@ Path_Find_Result Find_Path(
 
             if (new_pos == destination) {
                 result.success = true;
-                auto [trash_allocation_size, path, path_count]
+                auto [path, path_count]
                     = Build_Path(trash_arena, gsize, bfs_parents_mtx, new_pos);
-                result.trash_allocation_size += trash_allocation_size;
                 result.path       = path;
                 result.path_count = path_count;
                 return result;
@@ -167,9 +161,7 @@ Path_Find_Result Find_Path(
         }
     }
 
-    result.success               = false;
-    result.trash_allocation_size = 0;
-    Deallocate_Array(trash_arena, u8, queue.memory_size);
+    result.success = false;
     return result;
 }
 
@@ -248,26 +240,44 @@ void Deinit_Bucket_Array(Bucket_Array<T>& container) {
     container.allocator_functions.free(container.unfull_buckets);
 }
 
-template <typename T, template <typename> typename _Allocator>
-void Init_Queue(Queue<T, _Allocator>& container) {
+#define CONTAINER_ALLOCATOR                                       \
+    Allocator__Function((*allocator)) = container.allocator;      \
+    void* allocator_data              = container.allocator_data; \
+    {                                                             \
+        if (allocator == nullptr) {                               \
+            Assert(allocator_data == nullptr);                    \
+            allocator      = ctx.allocator;                       \
+            allocator_data = ctx.allocator_data;                  \
+        }                                                         \
+    }
+
+#define CTX_ALLOCATOR                      \
+    auto& allocator      = ctx->allocator; \
+    auto& allocator_data = ctx->allocator_data;
+
+template <typename T>
+void Init_Queue(Queue<T>& container, MCTX) {
     container.count     = 0;
     container.max_count = 0;
     container.base      = nullptr;
+
+    container.allocator      = ctx->allocator;
+    container.allocator_data = ctx->allocator_data;
 }
 
 template <typename T>
-void Init_Vector(Vector<T>& container) {
+void Init_Vector(Vector<T>& container, MCTX) {
     container.count     = 0;
     container.max_count = 0;
     container.base      = nullptr;
 
-    container.allocator_functions.allocate = _aligned_malloc;
-    container.allocator_functions.free     = _aligned_free;
+    container.allocator      = ctx->allocator;
+    container.allocator_data = ctx->allocator_data;
 }
 
-template <typename T, template <typename> typename _Allocator>
-void Deinit_Queue(Queue<T, _Allocator>& container) {
-    auto allocator = _Allocator<T>();
+template <typename T>
+void Deinit_Queue(Queue<T>& container, MCTX) {
+    CONTAINER_ALLOCATOR;
 
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
@@ -279,8 +289,8 @@ void Deinit_Queue(Queue<T, _Allocator>& container) {
     container.max_count = 0;
 }
 
-template <typename T, template <typename> typename _Allocator>
-void Deinit_Vector(Queue<T, _Allocator>& container) {
+template <typename T>
+void Deinit_Vector(Vector<T>& container, MCTX) {
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
         container.allocator_functions.free(container.base);
@@ -325,7 +335,7 @@ void Main_Set_Human_State(
     const Human_Data& data
 );
 
-void Advance_Moving_To(Human_Moving_Component& moving) {
+void Advance_Moving_To(Human_Moving_Component& moving, MCTX) {
     if (moving.path.count == 0) {
         moving.elapsed  = 0;
         moving.progress = 0;
@@ -465,8 +475,11 @@ struct Human_Moving_In_The_World_Controller {
                     = Moving_In_The_World_State::Moving_To_Destination;
 
                 Assert(data.trash_arena != nullptr);
-                auto& game_map                                          = *data.game_map;
-                auto [success, path, path_count, trash_allocation_size] = Find_Path(
+
+                auto& game_map = *data.game_map;
+
+                TEMPORARY_USAGE(*data.trash_arena);
+                auto [success, path, path_count] = Find_Path(
                     *data.trash_arena,
                     game_map.size,
                     game_map.terrain_tiles,
@@ -480,8 +493,6 @@ struct Human_Moving_In_The_World_Controller {
                 Assert(path_count > 0);
 
                 Human_Moving_Component_Add_Path(human.moving, path, path_count);
-                if (trash_allocation_size > 0)
-                    Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
             }
         }
         else if (human.building != nullptr) {
@@ -501,8 +512,10 @@ struct Human_Moving_In_The_World_Controller {
 
             if (old_building != human.building) {
                 Assert(data.trash_arena != nullptr);
-                auto& game_map                                          = *data.game_map;
-                auto [success, path, path_count, trash_allocation_size] = Find_Path(
+                auto& game_map = *data.game_map;
+
+                TEMPORARY_USAGE(*data.trash_arena);
+                auto [success, path, path_count] = Find_Path(
                     *data.trash_arena,
                     game_map.size,
                     game_map.terrain_tiles,
@@ -516,8 +529,6 @@ struct Human_Moving_In_The_World_Controller {
                 Assert(path_count > 0);
 
                 Human_Moving_Component_Add_Path(human.moving, path, path_count);
-                if (trash_allocation_size > 0)
-                    Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
             }
         }
         else if (
@@ -530,7 +541,8 @@ struct Human_Moving_In_The_World_Controller {
 
             Building& city_hall = Assert_Deref(*(data.city_halls + human.player_id));
 
-            auto [success, path, path_count, trash_allocation_size] = Find_Path(
+            TEMPORARY_USAGE(*data.trash_arena);
+            auto [success, path, path_count] = Find_Path(
                 *data.trash_arena,
                 game_map.size,
                 game_map.terrain_tiles,
@@ -544,8 +556,6 @@ struct Human_Moving_In_The_World_Controller {
             Assert(path_count > 0);
 
             Human_Moving_Component_Add_Path(human.moving, path, path_count);
-            if (trash_allocation_size > 0)
-                Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
         }
     }
 };
@@ -559,8 +569,9 @@ struct Human_Moving_Inside_Segment {
         auto& game_map = *data.game_map;
 
         if (human.segment->resources_to_transport.count == 0) {
+            TEMPORARY_USAGE(*data.trash_arena);
             // TODO: Tracing.Log("Setting path to center");
-            auto [success, path, path_count, trash_allocation_size] = Find_Path(
+            auto [success, path, path_count] = Find_Path(
                 *data.trash_arena,
                 game_map.size,
                 game_map.terrain_tiles,
@@ -571,11 +582,8 @@ struct Human_Moving_Inside_Segment {
             );
 
             Assert(success);
-            // Assert(path_count > 0);
 
             Human_Moving_Component_Add_Path(human.moving, path, path_count);
-            if (trash_allocation_size > 0)
-                Deallocate_Array(*data.trash_arena, u8, trash_allocation_size);
         }
     }
 
@@ -1248,10 +1256,9 @@ void Regenerate_Terrain_Tiles(
 
     auto noise_pitch = Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
     auto output_size = noise_pitch * noise_pitch;
+    TEMPORARY_USAGE(trash_arena);
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
-    defer { Deallocate_Array(trash_arena, u16, output_size); };
-
     Fill_Perlin_2D(
         terrain_perlin,
         sizeof(u16) * output_size,
@@ -1262,7 +1269,6 @@ void Regenerate_Terrain_Tiles(
     );
 
     auto forest_perlin = Allocate_Array(trash_arena, u16, output_size);
-    defer { Deallocate_Array(trash_arena, u16, output_size); };
     Fill_Perlin_2D(
         forest_perlin,
         sizeof(u16) * output_size,
@@ -1544,20 +1550,21 @@ void Assert_Is_Undirected(Graph& graph) {
     }
 }
 
-#define VALIDATE_TRASH_ARENA                          \
-    auto trash_arena_initial_used = trash_arena.used; \
-    defer { Assert(trash_arena_initial_used == trash_arena.used); };
+#define _Anon_Variable(name, counter) name##counter
+#define Anon_Variable(name, counter) _Anon_Variable(name, counter)
 
-template <template <typename> typename _Allocator>
-void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
-    VALIDATE_TRASH_ARENA;
+// NOTE: Жрёт trash arena
+void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
+    TEMPORARY_USAGE(trash_arena);
+
+    CTX_ALLOCATOR;
 
     auto n      = graph.nodes_count;
     auto nodes  = graph.nodes;
     auto height = graph.size.y;
     auto width  = graph.size.x;
 
-    graph.data = _Allocator<Calculated_Graph_Data>().allocate(1);
+    graph.data = (Calculated_Graph_Data*)ALLOC(sizeof(Calculated_Graph_Data));
     auto& data = *graph.data;
 
     auto& node_index_2_pos = *std::construct_at(&data.node_index_2_pos);
@@ -1672,8 +1679,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena) {
 #endif  // ASSERT_SLOW
 
     // NOTE: Вычисление центра графа
+    TEMPORARY_USAGE(trash_arena);
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
-    defer { Deallocate_Array(trash_arena, i16, n); };
     FOR_RANGE (i16, i, n) {
         FOR_RANGE (i16, j, n) {
             node_eccentricities[i] = MAX(node_eccentricities[i], dist[n * i + j]);
@@ -1701,8 +1708,6 @@ Graph_Segment* Add_And_Link_Segment(
     Graph_Segment&               added_segment,
     Arena&                       trash_arena
 ) {
-    VALIDATE_TRASH_ARENA;
-
     auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments);
 
     {  // NOTE: Создание финального Graph_Segment,
@@ -1718,7 +1723,7 @@ Graph_Segment* Add_And_Link_Segment(
         segment.graph.nodes       = added_segment.graph.nodes;
         segment.graph.size        = added_segment.graph.size;
         segment.graph.offset      = added_segment.graph.offset;
-        Calculate_Graph_Data<Game_Map_Allocator>(segment.graph, trash_arena);
+        Calculate_Graph_Data(segment.graph, trash_arena, ctx);
         segment.locator        = locator;
         segment.assigned_human = nullptr;
 
@@ -1759,6 +1764,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
     Allocator&      segment_vertices_allocator,
     Allocator&      graph_nodes_allocator
 ) {
+    TEMPORARY_USAGE(trash_arena);
+
     auto& segments = game_map.segments;
 
     global_last_segments_to_be_deleted_count = segments_to_be_deleted_count;
@@ -1886,11 +1893,6 @@ BF_FORCE_INLINE void Update_Segments_Function(
             *human_ptr, Assert_Deref(game_map.human_data), old_segment
         );
     }
-
-    if (humans_wo_segment_max_count > 0)
-        Deallocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
-    if (added_segments_count > 0)
-        Deallocate_Array(trash_arena, Graph_Segment*, added_segments_count);
 }
 
 typedef ttuple<Direction, v2i16> Dir_v2i16;
@@ -1910,17 +1912,17 @@ void Update_Graphs(
     Allocator&                   graph_nodes_allocator,
     const bool                   full_graph_build
 ) {
+    TEMPORARY_USAGE(trash_arena);
+
     auto tiles_count = gsize.x * gsize.y;
 
-    size_t deallocation_size = 0;
-
     bool* vis = nullptr;
-    if (full_graph_build) {
+    if (full_graph_build)
         vis = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
-        deallocation_size += sizeof(bool) * tiles_count;
-    }
 
     while (big_queue.count) {
+        TEMPORARY_USAGE(trash_arena);
+
         auto p = Dequeue(big_queue);
         Enqueue(queue, p);
 
@@ -1928,19 +1930,15 @@ void Update_Graphs(
         if (full_graph_build)
             GRID_PTR_VALUE(vis, p_pos) = true;
 
-        v2i16* vertices = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-        defer { Deallocate_Array(trash_arena, v2i16, tiles_count); };
-
+        v2i16* vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
         v2i16* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-        defer { Deallocate_Array(trash_arena, v2i16, tiles_count); };
 
         int vertices_count      = 0;
         int segment_tiles_count = 1;
         *(segment_tiles + 0)    = p_pos;
 
-        Graph temp_graph = {};
-        temp_graph.nodes = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
-        defer { Deallocate_Array(trash_arena, u8, tiles_count); };
+        Graph temp_graph  = {};
+        temp_graph.nodes  = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
         temp_graph.size.x = gsize.x;
         temp_graph.size.y = gsize.y;
 
@@ -2106,9 +2104,6 @@ void Update_Graphs(
         auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
         Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
     }
-
-    if (full_graph_build && deallocation_size)
-        Deallocate_Array(trash_arena, u8, deallocation_size);
 }
 
 void Build_Graph_Segments(
@@ -2122,6 +2117,7 @@ void Build_Graph_Segments(
         Update_Segments_Lambda
 ) {
     Assert(segments.used_buckets_count == 0);
+    TEMPORARY_USAGE(trash_arena);
 
     auto tiles_count = gsize.x * gsize.y;
 
@@ -2130,7 +2126,6 @@ void Build_Graph_Segments(
     u32            added_segments_count    = 0;
     Graph_Segment* added_segments
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
-    defer { Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate); };
 
     v2i16 pos   = -v2i16_one;
     bool  found = false;
@@ -2156,7 +2151,6 @@ void Build_Graph_Segments(
     Fixed_Size_Queue<Dir_v2i16> big_queue = {};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
-    defer { Deallocate_Array(trash_arena, u8, big_queue.memory_size); };
 
     FOR_DIRECTION (dir) {
         Enqueue(big_queue, {dir, pos});
@@ -2165,10 +2159,8 @@ void Build_Graph_Segments(
     Fixed_Size_Queue<Dir_v2i16> queue = {};
     queue.memory_size                 = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    defer { Deallocate_Array(trash_arena, u8, queue.memory_size); };
 
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
-    defer { Deallocate_Array(trash_arena, u8, tiles_count); };
 
     bool full_graph_build = true;
     Update_Graphs(
@@ -2207,6 +2199,8 @@ ttuple<int, int> Update_Tiles(
     if (!updated_tiles.count)
         return {0, 0};
 
+    TEMPORARY_USAGE(trash_arena);
+
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE: Ищем сегменты для удаления
@@ -2215,9 +2209,6 @@ ttuple<int, int> Update_Tiles(
     Graph_Segment** segments_to_be_deleted          = Allocate_Zeros_Array(
         trash_arena, Graph_Segment*, segments_to_be_deleted_allocate
     );
-    defer {
-        Deallocate_Array(trash_arena, Graph_Segment*, segments_to_be_deleted_allocate);
-    };
 
     for (auto segment_ptr : Iter(segments)) {
         auto& segment = *segment_ptr;
@@ -2234,12 +2225,10 @@ ttuple<int, int> Update_Tiles(
     u32            added_segments_count    = 0;
     Graph_Segment* added_segments
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
-    defer { Deallocate_Array(trash_arena, Graph_Segment, added_segments_allocate); };
 
     Fixed_Size_Queue<Dir_v2i16> big_queue = {};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
-    defer { Deallocate_Array(trash_arena, u8, big_queue.memory_size); };
 
     FOR_RANGE (auto, i, updated_tiles.count) {
         const auto& updated_type = *(updated_tiles.type + i);
@@ -2345,12 +2334,10 @@ ttuple<int, int> Update_Tiles(
     // NOTE: Each byte here contains differently bit-shifted values of
     // `Direction`
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
-    defer { Deallocate_Array(trash_arena, u8, tiles_count); };
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};
     queue.memory_size                 = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    defer { Deallocate_Array(trash_arena, u8, queue.memory_size); };
 
     bool full_graph_build = false;
     Update_Graphs(

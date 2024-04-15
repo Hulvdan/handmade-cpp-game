@@ -1,3 +1,6 @@
+// ============================== //
+//             Arena              //
+// ============================== //
 struct Arena : public Non_Copyable {
     size_t      used;
     size_t      size;
@@ -70,6 +73,13 @@ void Deallocate_(Arena& arena, size_t size) {
 #endif
 }
 
+#define TEMPORARY_USAGE(arena)                            \
+    auto Anon_Variable(used, __COUNTER__) = (arena).used; \
+    defer{arena.used = Anon_Variable(used, __COUTNER__ - 1)};
+
+// ============================== //
+//             Other              //
+// ============================== //
 [[nodiscard]] BF_FORCE_INLINE u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
     const auto addr         = rcast<size_t>(ptr);
     const auto aligned_addr = (addr + (alignment - 1)) & -alignment;
@@ -101,42 +111,28 @@ enum class Allocator_Mode {
 
 using Allocator_Function_Type = Allocator__Function((*));
 
-#define Alloc(allocator_function, n) \
-    (allocator_function)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
+// NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
+#define ALLOC(n) allocate(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
 
-#define Free(allocator_function, ptr, n) \
-    (allocator_function)(Allocator_Mode::Free, (n), 1, 0, (ptr), allocator_data, 0)
+#define FREE(ptr, n) allocate(Allocator_Mode::Free, (n), 1, 0, (ptr), allocator_data, 0)
 
-#define Free_All(allocator_function, n) \
-    (allocator_function)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
-
-// Aligned versions
-
-#define Aligned_Alloc(allocator_function, n, alignment)                     \
-    (allocator_function)(                                                   \
-        Allocator_Mode::Allocate, (n), (alignment), 0, 0, allocator_data, 0 \
-    )
-
-#define Aligned_Free(allocator_function, ptr, n, alignment)                 \
-    (allocator_function)(                                                   \
-        Allocator_Mode::Free, (n), (alignment), 0, (ptr), allocator_data, 0 \
-    )
-
-#define Aligned_Free_All(allocator_function, n, alignment) \
-    (allocator_function)(Allocator_Mode::Free, (n), (alignment), 0, 0, allocator_data, 0)
+#define FREE_ALL(allocator_function, n) \
+    allocate(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
 
 struct Context {
     u32 thread_index;
 
     Allocator_Function_Type allocator;
     void*                   allocator_data;
+
+    // NOTE: Сюда можно ещё пихнуть и другие данные,
+    // например, что-нибудь для логирования
 };
 
-#define mctx Context* ctx
-#define Allocator_Get(allocator_function)
+#define MCTX Context* ctx
 
-template <typename T, template <typename> typename _Allocator>
-void Vector_Unordered_Remove_At(std::vector<T, _Allocator>& container, i32 i);
+template <typename T>
+void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
 
 // template <typename T>
 // struct Game_Map_Allocator {
@@ -811,6 +807,14 @@ private:
 //             Cascading_Allocator<  //
 //                 Bitmapped_Allocator<Malloc_Allocator, 128>>>,
 //         Malloc_Allocator>>;
+
+#define TEMPORARY_USAGE_VARIABLE(name, counter) name_##counter
+#define TEMPORARY_USAGE(arena)                                                    \
+    auto TEMPORARY_USAGE_VARIABLE(_arena_used, __COUNTER__) = (arena).used;       \
+    defer {                                                                       \
+        Assert(arena.used >= TEMPORARY_USAGE_VARIABLE(_arena_used, __COUNTER__)); \
+        arena.used = TEMPORARY_USAGE_VARIABLE(_arena_used, __COUNTER__);          \
+    };
 
 using Game_Map_Allocator = Affix_Allocator<Malloc_Allocator>;
 

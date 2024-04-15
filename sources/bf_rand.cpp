@@ -199,6 +199,8 @@ void Fill_Perlin_2D(
     u16           sx,
     u16           sy  //
 ) {
+    TEMPORARY_USAGE(trash_arena);
+
     auto octaves = params.octaves;
 
     u8 sx_power;
@@ -214,7 +216,6 @@ void Fill_Perlin_2D(
     auto total_pixels = (size_t)sx * sy;
     f32* cover        = Allocate_Array(trash_arena, f32, total_pixels);
     f32* accumulator  = Allocate_Array(trash_arena, f32, total_pixels);
-    defer { Deallocate_Array(trash_arena, f32, 2 * total_pixels); };
 
     srand(params.seed);
     FOR_RANGE (size_t, i, total_pixels) {

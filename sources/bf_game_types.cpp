@@ -43,12 +43,6 @@ struct std::hash<v2i16> {
     }
 };
 
-#define CHECK_CONTAINER_ALLOCATOR_FUNCTIONS                        \
-    {                                                              \
-        Assert(container.allocator_functions.allocate != nullptr); \
-        Assert(container.allocator_functions.free != nullptr);     \
-    }
-
 // ----- Queues -----
 
 // PERF: Переписать на ring buffer!
@@ -60,11 +54,14 @@ struct Fixed_Size_Queue {
 };
 
 // PERF: Переписать на ring buffer!
-template <typename T, template <typename> typename _Allocator = std::allocator>
+template <typename T>
 struct Queue {
     u32 max_count;
     i32 count;
     T*  base;
+
+    Allocator__Function((*allocator));
+    void* allocator_data;
 };
 
 template <typename T>
@@ -97,7 +94,8 @@ struct Bucket_Locator {
 // 1) Нужно ли реализовать expandable количество бакетов?
 template <typename T>
 struct Bucket_Array : Non_Copyable {
-    Allocator_Functions allocator_functions;
+    Allocator__Function((*allocator));
+    void* allocator_data;
 
     Bucket<T>*    buckets;
     Bucket_Index* unfull_buckets;
@@ -135,8 +133,8 @@ T Dequeue(Fixed_Size_Queue<T>& container) {
     return res;
 }
 
-template <typename T, template <typename> typename _Allocator>
-i32 Queue_Find(Queue<T, _Allocator>& container, T value) {
+template <typename T>
+i32 Queue_Find(Queue<T>& container, T value) {
     FOR_RANGE (i32, i, container.count) {
         auto& v = *(container.base + i);
         if (v == value)
@@ -146,25 +144,25 @@ i32 Queue_Find(Queue<T, _Allocator>& container, T value) {
     return -1;
 }
 
-template <typename T, template <typename> typename _Allocator>
-void Enqueue(Queue<T, _Allocator>& container, const T value, mctx)
+template <typename T>
+void Enqueue(Queue<T>& container, const T value, MCTX)
     requires std::is_trivially_copyable_v<T>
 {
-    auto allocator = _Allocator<T>();
+    CONTAINER_ALLOCATOR;
 
     if (container.base == nullptr) {
         Assert(container.max_count == 0);
         Assert(container.count == 0);
         container.max_count = 8;
-        container.base      = allocator.allocate(container.max_count);
+        container.base      = (u8*)ALLOC(container.max_count);
     }
     else if (container.max_count == container.count) {
         u32 new_max_count = container.max_count * 2;
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto new_ptr = allocator.allocate(new_max_count);
+        auto new_ptr = (u8*)ALLOC(new_max_count);
         memcpy(new_ptr, container.base, container.max_count * sizeof(T));
-        allocator.deallocate(container.base, container.max_count);
+        FREE(container.base, container.max_count * sizeof(T));
 
         container.base      = new_ptr;
         container.max_count = new_max_count;
@@ -174,15 +172,11 @@ void Enqueue(Queue<T, _Allocator>& container, const T value, mctx)
     container.count++;
 }
 
-template <typename T, template <typename> typename _Allocator>
-void Bulk_Enqueue(
-    Queue<T, _Allocator>& container,
-    const T*              values,
-    const u32             values_count
-)
+template <typename T>
+void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count, MCTX)
     requires std::is_trivially_copyable_v<T>
 {
-    auto allocator = _Allocator<T>();
+    CONTAINER_ALLOCATOR;
 
     // TODO: Test!
     if (container.base == nullptr) {
@@ -190,15 +184,15 @@ void Bulk_Enqueue(
         Assert(container.count == 0);
 
         container.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
-        container.base      = allocator.allocate(container.max_count);
+        container.base      = (u8*)ALLOC(container.max_count);
     }
     else if (container.max_count < container.count + values_count) {
         u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto new_ptr = allocator.allocate(new_max_count);
+        auto new_ptr = (u8*)ALLOC(new_max_count);
         memcpy(new_ptr, container.base, sizeof(T) * container.count);
-        allocator.deallocate(container.base, container.max_count);
+        FREE(container.base, sizeof(T) * container.max_count);
 
         container.base      = new_ptr;
         container.max_count = new_max_count;
@@ -209,8 +203,8 @@ void Bulk_Enqueue(
 }
 
 // PERF: Много memmove происходит
-template <typename T, template <typename> typename _Allocator>
-T Dequeue(Queue<T, _Allocator>& container) {
+template <typename T>
+T Dequeue(Queue<T>& container) {
     Assert(container.base != nullptr);
     Assert(container.count > 0);
 
@@ -222,8 +216,8 @@ T Dequeue(Queue<T, _Allocator>& container) {
     return res;
 }
 
-template <typename T, template <typename> typename _Allocator>
-i32 Vector_Find(tvector<T, _Allocator>& container, T value) {
+template <typename T>
+i32 Vector_Find(tvector<T>& container, T value) {
     i32 i = 0;
     for (auto& v : container) {
         if (v == value)
@@ -253,9 +247,9 @@ i32 Vector_Find_Ptr(Vector<T>& container, T* value_ptr) {
     return (value_ptr - container.base) / sizeof(T);
 }
 
-template <typename T, template <typename> typename _Allocator>
+template <typename T>
     requires std::is_trivially_copyable_v<T>
-void Queue_Remove_At(Queue<T, _Allocator>& container, i32 i) {
+void Queue_Remove_At(Queue<T>& container, i32 i) {
     Assert(i >= 0);
     Assert(i < container.count);
 
@@ -270,38 +264,28 @@ void Queue_Remove_At(Queue<T, _Allocator>& container, i32 i) {
 }
 
 template <typename T>
-i32 Vector_Add(Vector<T>& container, T& value, mctx) {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
+    CONTAINER_ALLOCATOR;
 
     i32 locator = container.count;
-
-    Allocator__Function((*allocator)) = container.allocator;
-    void* allocator_data              = container.allocator_data;
-    if (allocator == nullptr) {
-        Assert(allocator_data == nullptr);
-        allocator      = ctx.allocator;
-        allocator_data = ctx.allocator_data;
-    }
 
     if (container.base == nullptr) {
         Assert(container.max_count == 0);
         Assert(container.count == 0);
 
         container.max_count = 8;
-        container.base
-            = rcast<T*>(allocator(container.max_count * sizeof(T), alignof(T)));
+        container.base      = rcast<T*>(ALLOC(container.max_count * sizeof(T)));
     }
     else if (container.max_count == container.count) {
         u32 new_max_count = container.max_count * 2;
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto size    = sizeof(T) * container.max_count;
-        auto old_ptr = container.base;
+        auto old_size = sizeof(T) * container.max_count;
+        auto old_ptr  = container.base;
 
-        container.base
-            = rcast<T*>(container.allocator_functions.allocate(size * 2, alignof(T)));
-        memcpy(container.base, old_ptr, size);
-        container.allocator_functions.free(old_ptr);
+        container.base = rcast<T*>(ALLOC(old_size * 2));
+        memcpy(container.base, old_ptr, old_size);
+        FREE(old_ptr, old_size);
 
         container.max_count = new_max_count;
     }
@@ -327,8 +311,8 @@ void Vector_Remove_At(Vector<T>& container, i32 i) {
     container.count -= 1;
 }
 
-template <typename T, template <typename> typename _Allocator>
-void Vector_Unordered_Remove_At(tvector<T, _Allocator>& container, i32 i) {
+template <typename T>
+void Vector_Unordered_Remove_At(tvector<T>& container, i32 i) {
     Assert(i >= 0);
     Assert(i < container.size());
 
@@ -337,24 +321,6 @@ void Vector_Unordered_Remove_At(tvector<T, _Allocator>& container, i32 i) {
 
     container.pop_back();
 }
-
-// template <typename T, template <typename> typename _Allocator>
-// void Vector_Remove_At(tvector<T,_Allocator>& container, i32 i) {
-//     Assert(i >= 0);
-//     Assert(i < container.size());
-//
-//     i32 delta_count = container.count - i - 1;
-//     Assert(delta_count >= 0);
-//
-//     if (container.size()
-//
-//     if (delta_count > 0) {
-//         memmove(container.base + i, container.base + i + 1, sizeof(T) * delta_count);
-//     }
-//
-//
-//     container.count -= 1;
-// }
 
 template <typename T>
 T Vector_Pop(Vector<T>& vec) {
@@ -396,8 +362,8 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
 #endif
 
 template <typename T>
-Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
-    CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
+Bucket<T>* Add_Bucket(Bucket_Array<T>& container, MCTX) {
+    CONTAINER_ALLOCATOR;
 
     Assert(container.unfull_buckets_count == 0);
     Assert(container.items_per_bucket > 0);
@@ -414,18 +380,14 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
         constexpr auto align      = alignof(arr_type*);
         auto           alloc_size = container.buckets_count * sizeof(arr_type);
 
-        container.buckets
-            = rcast<Bucket<T>*>(container.allocator_functions.allocate(alloc_size, align)
-            );
+        container.buckets = rcast<Bucket<T>*>(ALLOC(alloc_size));
         if (container.buckets == nullptr) {
             Assert(false);
             return nullptr;
         }
 
         container.unfull_buckets
-            = rcast<Bucket_Index*>(container.allocator_functions.allocate(
-                container.buckets_count * sizeof(Bucket_Index), alignof(Bucket_Index)
-            ));
+            = rcast<Bucket_Index*>(ALLOC(container.buckets_count * sizeof(Bucket_Index)));
         if (container.unfull_buckets == nullptr) {
             Assert(false);
             return nullptr;
@@ -440,17 +402,14 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
     new_bucket->count        = 0;
 
     auto occupied_bytes_count = Ceil_Division(container.items_per_bucket, 8);
-    auto occupied
-        = rcast<u8*>(container.allocator_functions.allocate(occupied_bytes_count, 1));
+    auto occupied             = rcast<u8*>(ALLOC(occupied_bytes_count));
     if (occupied == nullptr) {
         Assert(false);
         return nullptr;
     }
     memset(occupied, 0, occupied_bytes_count);
 
-    auto data = rcast<u8*>(container.allocator_functions.allocate(
-        sizeof(T) * container.items_per_bucket, alignof(T)
-    ));
+    auto data = rcast<u8*>(ALLOC(sizeof(T) * container.items_per_bucket));
     if (data == nullptr) {
         Assert(false);
         return nullptr;
@@ -747,13 +706,12 @@ private:
     i32        _current = 0;
 };
 
-template <typename T, template <typename> typename _Allocator>
-class TVector_Iterator : public Iterator_Facade<TVector_Iterator<T, _Allocator>> {
+template <typename T>
+class TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
 public:
     TVector_Iterator() = delete;
-    TVector_Iterator(tvector<T, _Allocator<T>>* container)
-        : TVector_Iterator(container, 0) {}
-    TVector_Iterator(tvector<T, _Allocator<T>>* container, u64 current)
+    TVector_Iterator(tvector<T>* container) : TVector_Iterator(container, 0) {}
+    TVector_Iterator(tvector<T>* container, u64 current)
         : _current(current), _container(container) {
         Assert(container != nullptr);
     }
@@ -772,8 +730,8 @@ public:
     bool Equal_To(const TVector_Iterator& o) const { return _current == o._current; }
 
 private:
-    tvector<T, _Allocator<T>>* _container;
-    u64                        _current = 0;
+    tvector<T>* _container;
+    u64         _current = 0;
 };
 
 template <typename T>
@@ -781,8 +739,8 @@ BF_FORCE_INLINE auto Iter(Bucket_Array<T>* container) {
     return Bucket_Array_Iterator(container);
 }
 
-template <typename T, template <typename> typename _Allocator>
-BF_FORCE_INLINE auto Iter(tvector<T, _Allocator<T>>* container) {
+template <typename T>
+BF_FORCE_INLINE auto Iter(tvector<T>* container) {
     return TVector_Iterator(container);
 }
 
@@ -791,13 +749,13 @@ BF_FORCE_INLINE auto Iter_With_Locator(Bucket_Array<T>* arr) {
     return Bucket_Array_With_Locator_Iterator(arr);
 }
 
-template <typename T, template <typename> typename _Allocator>
-BF_FORCE_INLINE void Container_Reset(Queue<T, _Allocator>& container) {
+template <typename T>
+BF_FORCE_INLINE void Container_Reset(Queue<T>& container) {
     container.count = 0;
 }
 
-template <typename T, template <typename> typename _Allocator>
-BF_FORCE_INLINE void Container_Reset(tvector<T, _Allocator>& container) {
+template <typename T>
+BF_FORCE_INLINE void Container_Reset(tvector<T>& container) {
     container.clear();
 }
 

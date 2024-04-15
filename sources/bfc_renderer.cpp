@@ -100,9 +100,9 @@ void DEBUG_Load_Texture(
 
     Load_BMP_RGBA_Result bmp_result = {};
     {
+        TEMPORARY_USAGE(trash_arena);
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
         Assert(load_result.success);
-        defer { Deallocate_Array(trash_arena, u8, load_result.size); };
 
         bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
         Assert(bmp_result.success);
@@ -144,16 +144,17 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
     return road_texture_number;
 }
 
-#define Debug_Load_File_And_Defer_Deallocate(variable_name_, filepath_, arena_) \
-    auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_));     \
-    Assert((variable_name_).success);                                           \
-    defer { Deallocate_Array((arena_), u8, (variable_name_).size); };
+#define Debug_Load_File(variable_name_, filepath_, arena_)                  \
+    auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_)); \
+    Assert((variable_name_).success);
 
 void Debug_Print_Shader_Info_Log(
     GLuint      shader_id,
     Arena&      trash_arena,
     const char* aboba
 ) {
+    TEMPORARY_USAGE(trash_arena);
+
     GLint succeeded;
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
 
@@ -162,6 +163,7 @@ void Debug_Print_Shader_Info_Log(
 
     GLchar  zero     = GLchar(0);
     GLchar* info_log = &zero;
+
     if (log_length) {
         info_log = Allocate_Array(trash_arena, GLchar, log_length);
         glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
@@ -171,9 +173,6 @@ void Debug_Print_Shader_Info_Log(
         DEBUG_Print("INFO:\t%s succeeded: %s\n", aboba, info_log);
     else
         DEBUG_Error("ERROR:\t%s failed: %s\n", aboba, info_log);
-
-    if (log_length)
-        Deallocate_Array(trash_arena, GLchar, log_length);
 }
 
 void Initialize_Renderer(
@@ -261,6 +260,8 @@ void main() {
         Debug_Print_Shader_Info_Log(fragment, trash_arena, "Fragment shader compilation");
 
         if (fragment_success && vertex_success) {
+            TEMPORARY_USAGE(trash_arena);
+
             // shader Program
             auto program_id = glCreateProgram();
             glAttachShader(program_id, vertex);
@@ -282,9 +283,6 @@ void main() {
                 DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
             else
                 DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
-
-            if (log_length)
-                Deallocate_Array(trash_arena, GLchar, log_length);
 
             if (rstate.ui_shader_program)
                 glDeleteProgram(rstate.ui_shader_program);
@@ -338,8 +336,10 @@ void main() {
         }
 
         {
+            TEMPORARY_USAGE(trash_arena);
+
             auto path = "assets/art/tiles/tilerule_grass.txt";
-            Debug_Load_File_And_Defer_Deallocate(load_result, path, trash_arena);
+            Debug_Load_File(load_result, path, trash_arena);
 
             auto rule_loading_result = Load_Smart_Tile_Rules(
                 rstate.grass_smart_tile,
@@ -351,8 +351,10 @@ void main() {
         }
 
         {
+            TEMPORARY_USAGE(trash_arena);
+
             auto path = "assets/art/tiles/tilerule_forest.txt";
-            Debug_Load_File_And_Defer_Deallocate(load_result, path, trash_arena);
+            Debug_Load_File(load_result, path, trash_arena);
 
             auto rule_loading_result = Load_Smart_Tile_Rules(
                 rstate.forest_smart_tile,
@@ -774,7 +776,7 @@ void Render(Game_State& state, f32 dt) {
     ZoneScoped;
 
     Arena& trash_arena = state.trash_arena;
-    VALIDATE_TRASH_ARENA;
+    TEMPORARY_USAGE(trash_arena);
 
     auto&        rstate   = Assert_Deref(state.renderer_state);
     auto&        game_map = state.game_map;
@@ -1116,9 +1118,6 @@ void Render(Game_State& state, f32 dt) {
             }
 
             auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
-            defer {
-                Deallocate_Array(trash_arena, u8, buildable_textures.deallocation_size);
-            };
 
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE (int, i, placeholders) {
