@@ -319,7 +319,11 @@ struct Human_Data : public Non_Copyable {
         , trash_arena(a_trash_arena) {}
 };
 
-void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data);
+void Main_Set_Human_State(
+    Human& human,
+    Human_Main_State new_state,
+    const Human_Data& data
+);
 
 void Advance_Moving_To(Human_Moving_Component& moving) {
     if (moving.path.count == 0) {
@@ -353,7 +357,7 @@ void Human_Moving_Component_Add_Path(
 }
 
 struct Human_Moving_In_The_World_Controller {
-    static void On_Enter(Human& human, Human_Data& data) {
+    static void On_Enter(Human& human, const Human_Data& data) {
         // TODO:
         // if (human.segment != nullptr) {
         //     TRACELOG(
@@ -366,7 +370,7 @@ struct Human_Moving_In_The_World_Controller {
         Update_States(human, data, nullptr, nullptr);
     }
 
-    static void On_Exit(Human& human, Human_Data& data) {
+    static void On_Exit(Human& human, const Human_Data& data) {
         // TODO: TRACELOG_SCOPE;
 
         human.state_moving_in_the_world = Moving_In_The_World_State::None;
@@ -380,13 +384,13 @@ struct Human_Moving_In_The_World_Controller {
         }
     }
 
-    static void Update(Human& human, Human_Data& data, f32 dt) {
+    static void Update(Human& human, const Human_Data& data, f32 dt) {
         Update_States(human, data, human.segment, human.building);
     }
 
     static void On_Human_Current_Segment_Changed(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment
     ) {
         // TODO: TRACELOG_SCOPE;
@@ -417,7 +421,7 @@ struct Human_Moving_In_The_World_Controller {
 
     static void Update_States(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment,
         Building* old_building
     ) {
@@ -547,7 +551,7 @@ struct Human_Moving_In_The_World_Controller {
 };
 
 struct Human_Moving_Inside_Segment {
-    static void On_Enter(Human& human, Human_Data& data) {
+    static void On_Enter(Human& human, const Human_Data& data) {
         Assert(human.segment != nullptr);
         Assert(!human.moving.to.has_value());
         Assert(human.moving.path.count == 0);
@@ -575,18 +579,18 @@ struct Human_Moving_Inside_Segment {
         }
     }
 
-    static void On_Exit(Human& human, Human_Data& data) {
+    static void On_Exit(Human& human, const Human_Data& data) {
         // TODO: using var _ = Tracing.Scope();
         Container_Reset(human.moving.path);
     }
 
-    static void Update(Human& human, Human_Data& data, f32 dt) {
+    static void Update(Human& human, const Human_Data& data, f32 dt) {
         Update_States(human, data, nullptr, nullptr);
     }
 
     static void On_Human_Current_Segment_Changed(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment
     ) {
         // TODO: using var _ = Tracing.Scope();
@@ -594,13 +598,13 @@ struct Human_Moving_Inside_Segment {
         Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data);
     }
 
-    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data) {
         // NOTE: Intentionally left blank
     }
 
     static void Update_States(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment,
         Building* old_building
     ) {
@@ -625,33 +629,33 @@ struct Human_Moving_Inside_Segment {
 };
 
 struct Human_Moving_Resources {
-    static void On_Enter(Human& human, Human_Data& data) {
+    static void On_Enter(Human& human, const Human_Data& data) {
         // TODO:
     }
 
-    static void On_Exit(Human& human, Human_Data& data) {
+    static void On_Exit(Human& human, const Human_Data& data) {
         // TODO:
     }
 
-    static void Update(Human& human, Human_Data& data, f32 dt) {
+    static void Update(Human& human, const Human_Data& data, f32 dt) {
         // TODO:
     }
 
     static void On_Human_Current_Segment_Changed(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment
     ) {
         // TODO:
     }
 
-    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data) {
         // TODO:
     }
 
     static void Update_States(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment,
         Building* old_building
     ) {
@@ -660,33 +664,33 @@ struct Human_Moving_Resources {
 };
 
 struct Human_Construction_Controller {
-    static void On_Enter(Human& human, Human_Data& data) {
+    static void On_Enter(Human& human, const Human_Data& data) {
         // TODO:
     }
 
-    static void On_Exit(Human& human, Human_Data& data) {
+    static void On_Exit(Human& human, const Human_Data& data) {
         // TODO:
     }
 
-    static void Update(Human& human, Human_Data& data, f32 dt) {
+    static void Update(Human& human, const Human_Data& data, f32 dt) {
         // TODO:
     }
 
     static void On_Human_Current_Segment_Changed(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment
     ) {
         // TODO:
     }
 
-    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data) {
         // TODO:
     }
 
     static void Update_States(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment,
         Building* old_building
     ) {
@@ -695,33 +699,33 @@ struct Human_Construction_Controller {
 };
 
 struct Human_Employee_Controller {
-    static void On_Enter(Human& human, Human_Data& data) {
+    static void On_Enter(Human& human, const Human_Data& data) {
         // TODO:
     }
 
-    static void On_Exit(Human& human, Human_Data& data) {
+    static void On_Exit(Human& human, const Human_Data& data) {
         // TODO:
     }
 
-    static void Update(Human& human, Human_Data& data, f32 dt) {
+    static void Update(Human& human, const Human_Data& data, f32 dt) {
         // TODO:
     }
 
     static void On_Human_Current_Segment_Changed(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment
     ) {
         // TODO:
     }
 
-    static void On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+    static void On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data) {
         // TODO:
     }
 
     static void Update_States(
         Human& human,
-        Human_Data& data,
+        const Human_Data& data,
         Graph_Segment* old_segment,
         Building* old_building
     ) {
@@ -729,7 +733,7 @@ struct Human_Employee_Controller {
     }
 };
 
-void Main_Update(Human& human, Human_Data& data, f32 dt) {
+void Main_Update(Human& human, const Human_Data& data, f32 dt) {
     switch (human.state) {
     case Human_Main_State::Moving_In_The_World:
         Human_Moving_In_The_World_Controller::Update(human, data, dt);
@@ -758,7 +762,7 @@ void Main_Update(Human& human, Human_Data& data, f32 dt) {
 
 void Main_On_Human_Current_Segment_Changed(
     Human& human,
-    Human_Data& data,
+    const Human_Data& data,
     Graph_Segment* old_segment
 ) {
     switch (human.state) {
@@ -786,7 +790,7 @@ void Main_On_Human_Current_Segment_Changed(
     }
 }
 
-void Main_On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
+void Main_On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data) {
     switch (human.state) {
     case Human_Main_State::Moving_In_The_World:
         Human_Moving_In_The_World_Controller::On_Human_Moved_To_The_Next_Tile(
@@ -812,7 +816,11 @@ void Main_On_Human_Moved_To_The_Next_Tile(Human& human, Human_Data& data) {
     }
 }
 
-void Main_Set_Human_State(Human& human, Human_Main_State new_state, Human_Data& data) {
+void Main_Set_Human_State(
+    Human& human,
+    Human_Main_State new_state,
+    const Human_Data& data
+) {
     // TODO: TRACELOG_SCOPE;
     // TRACELOG("Set_Human_State");
     auto old_state = human.state;
@@ -876,7 +884,7 @@ Human* Create_Human_Transporter(
     Game_Map& game_map,
     Building* building,
     Graph_Segment* segment_ptr,
-    Human_Data& data
+    const Human_Data& data
 ) {
     auto& segment = Assert_Deref(segment_ptr);
 
@@ -915,7 +923,7 @@ void Update_Building__Constructed(
     Game_Map& game_map,
     Building* building,
     f32 dt,
-    Human_Data& data
+    const Human_Data& data
 ) {
     auto& scriptable = *building->scriptable;
 
@@ -939,7 +947,7 @@ void Update_Building__Constructed(
     // TODO: _building_controller.Update(building, dt);
 }
 
-void Update_Buildings(Game_State& state, f32 dt, Human_Data& data) {
+void Update_Buildings(Game_State& state, f32 dt, const Human_Data& data) {
     for (auto building_ptr : Iter(&state.game_map.buildings)) {
         // TODO: if (building.constructionProgress < 1) {
         //     Update_Building__Not_Constructed(building, dt);
@@ -975,7 +983,7 @@ void Update_Human_Moving_Component(
     Game_Map& game_map,
     Human& human,
     float dt,
-    Human_Data& data
+    const Human_Data& data
 ) {
     auto& game_map_data = Assert_Deref(game_map.data);
 
@@ -1019,7 +1027,7 @@ void Update_Human(
     Bucket_Locator locator,
     float dt,
     Building** city_halls,
-    Human_Data& data
+    const Human_Data& data
 ) {
     auto& human = *human_ptr;
     auto& humans_to_remove = game_map.humans_to_remove;
@@ -1053,7 +1061,7 @@ void Update_Human(
     }
 }
 
-void Update_Humans(Game_State& state, f32 dt, Human_Data& data) {
+void Update_Humans(Game_State& state, f32 dt, const Human_Data& data) {
     auto& game_map = state.game_map;
     auto city_halls = data.city_halls;
 
@@ -1103,45 +1111,45 @@ void Initialize_Game_Map(Game_State& state, Arena& arena) {
         0.3f
     );
 
-    {
-        size_t toc_size = 1024;
-        size_t data_size = 4096;
-
-        game_map.segment_vertices_allocator = std::construct_at(
-            Allocate_For(arena, Allocator),
-            toc_size,
-            Allocate_Zeros_Array(arena, u8, toc_size),
-            data_size,
-            Allocate_Array(arena, u8, data_size)
-        );
-
-        Set_Allocator_Name_If_Profiling(
-            arena,
-            *game_map.segment_vertices_allocator,
-            "segment_vertices_allocator_%d",
-            state.dll_reloads_count
-        );
-    }
-
-    {
-        size_t toc_size = 1024;
-        size_t data_size = 4096;
-
-        game_map.graph_nodes_allocator = std::construct_at(
-            Allocate_For(arena, Allocator),
-            toc_size,
-            Allocate_Zeros_Array(arena, u8, toc_size),
-            data_size,
-            Allocate_Array(arena, u8, data_size)
-        );
-
-        Set_Allocator_Name_If_Profiling(
-            arena,
-            *game_map.graph_nodes_allocator,
-            "graph_nodes_allocator_%d",
-            state.dll_reloads_count
-        );
-    }
+    // {
+    //     size_t toc_size = 1024;
+    //     size_t data_size = 4096;
+    //
+    //     game_map.segment_vertices_allocator = std::construct_at(
+    //         Allocate_For(arena, Allocator),
+    //         toc_size,
+    //         Allocate_Zeros_Array(arena, u8, toc_size),
+    //         data_size,
+    //         Allocate_Array(arena, u8, data_size)
+    //     );
+    //
+    //     Set_Allocator_Name_If_Profiling(
+    //         arena,
+    //         *game_map.segment_vertices_allocator,
+    //         "segment_vertices_allocator_%d",
+    //         state.dll_reloads_count
+    //     );
+    // }
+    //
+    // {
+    //     size_t toc_size = 1024;
+    //     size_t data_size = 4096;
+    //
+    //     game_map.graph_nodes_allocator = std::construct_at(
+    //         Allocate_For(arena, Allocator),
+    //         toc_size,
+    //         Allocate_Zeros_Array(arena, u8, toc_size),
+    //         data_size,
+    //         Allocate_Array(arena, u8, data_size)
+    //     );
+    //
+    //     Set_Allocator_Name_If_Profiling(
+    //         arena,
+    //         *game_map.graph_nodes_allocator,
+    //         "graph_nodes_allocator_%d",
+    //         state.dll_reloads_count
+    //     );
+    // }
 
     auto tiles_count = game_map.size.x * game_map.size.y;
 
@@ -1192,6 +1200,7 @@ void Deinitialize_Game_Map(Game_State& state) {
     Deinit_Bucket_Array(game_map.buildings);
 
     for (auto segment_ptr : Iter(&game_map.segments)) {
+        game_map.allocator;
         game_map.segment_vertices_allocator->Free(rcast<u8*>(segment_ptr->vertices));
         game_map.graph_nodes_allocator->Free(segment_ptr->graph.nodes);
 
@@ -1210,8 +1219,8 @@ void Deinitialize_Game_Map(Game_State& state) {
         data.pos_2_node_index.clear();
 
         auto n = segment.graph.nodes_count;
-        Game_Map_Allocator().deallocate(data.dist, n * n);
-        Game_Map_Allocator().deallocate(data.prev, n * n);
+        Game_Map_Allocator().Deallocate(data.dist, n * n);
+        Game_Map_Allocator().Deallocate(data.prev, n * n);
     }
 
     Deinit_Bucket_Array(game_map.segments);

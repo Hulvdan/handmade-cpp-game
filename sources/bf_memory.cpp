@@ -26,9 +26,11 @@ struct Pages : public Non_Copyable {
 
 #define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))
 
+//
 // TODO: Introduce the notion of `alignment` here!
 // NOTE: Refer to Casey's memory allocation functions
 // https://youtu.be/MvDUe2evkHg?list=PLEMXAbCVnmY6Azbmzj3BiC3QRYHE9QoG7&t=2121
+//
 u8* Allocate_(Arena& arena, size_t size) {
     Assert(size > 0);
     Assert(arena.size >= size);
@@ -239,77 +241,131 @@ void Deallocate_(Arena& arena, size_t size) {
 static std::vector<std::tuple<void*, size_t>> bf_debug_allocations = {};
 #endif  // SHIT_MEMORY_DEBUG
 
+enum class Allocator_Mode {
+    Allocate = 0,
+    Resize,
+    Free,
+    Free_All,
+};
+
+#define Allocator__Function(name_) \
+    void name_(                    \
+        Allocator_Mode mode,       \
+        size_t size,               \
+        size_t alignment,          \
+        size_t old_size,           \
+        void* old_memory_ptr,      \
+        void* allocator_data,      \
+        u64 options                \
+    )
+
+using Allocator_Function_Type = Allocator__Function((*));
+
+#define Alloc(allocator_function, n) \
+    (allocator_function)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
+
+#define Free(allocator_function, ptr, n) \
+    (allocator_function)(Allocator_Mode::Free, (n), 1, 0, (ptr), allocator_data, 0)
+
+#define Free_All(allocator_function, n) \
+    (allocator_function)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
+
+// Aligned versions
+
+#define Aligned_Alloc(allocator_function, n, alignment)                     \
+    (allocator_function)(                                                   \
+        Allocator_Mode::Allocate, (n), (alignment), 0, 0, allocator_data, 0 \
+    )
+
+#define Aligned_Free(allocator_function, ptr, n, alignment)                 \
+    (allocator_function)(                                                   \
+        Allocator_Mode::Free, (n), (alignment), 0, (ptr), allocator_data, 0 \
+    )
+
+#define Aligned_Free_All(allocator_function, n, alignment) \
+    (allocator_function)(Allocator_Mode::Free, (n), (alignment), 0, 0, allocator_data, 0)
+
+struct Context {
+    u32 thread_index;
+
+    Allocator_Function_Type allocator;
+    void* allocator_data;
+};
+
+#define mctx Context* ctx
+#define Allocator_Get(allocator_function)
+
 template <typename T, template <typename> typename _Allocator>
 void Vector_Unordered_Remove_At(std::vector<T, _Allocator>& container, i32 i);
 
-template <typename T>
-struct Game_Map_Allocator {
-    typedef T value_type;
-
-    Game_Map_Allocator() = default;
-
-    template <typename U>
-    constexpr Game_Map_Allocator(const Game_Map_Allocator<U>&) noexcept {};
-
-    [[nodiscard]] T* allocate(size_t n) {
-        Assert(n <= size_t_max / sizeof(T));
-        Assert((n * sizeof(T)) / sizeof(T) == n);
-
-        auto p = scast<T*>(_aligned_malloc(n * sizeof(T), alignof(T)));
-        // auto p = scast<T*>(malloc(n * sizeof(T)));
-
-#ifdef SHIT_MEMORY_DEBUG
-        bf_debug_allocations.push_back({p, n});
-#endif  // SHIT_MEMORY_DEBUG
-
-        Assert(p);
-
-        report(p, n);
-        return p;
-    }
-
-    void deallocate(T* p, size_t n) noexcept {
-#ifdef SHIT_MEMORY_DEBUG
-        {
-            bool found = false;
-            size_t existing_n = 0;
-
-            i32 i = 0;
-            for (auto& [pp, nn] : bf_debug_allocations) {
-                if (p == pp) {
-                    found = true;
-                    existing_n = nn;
-                    break;
-                }
-                i++;
-            }
-            Assert(found);
-            Assert(existing_n == n);
-            Vector_Unordered_Remove_At(bf_debug_allocations, i);
-        }
-#endif  // SHIT_MEMORY_DEBUG
-
-        report(p, n, false);
-
-        _aligned_free(p);
-        // free(p);
-    }
-
-private:
-    void report(T* p, size_t n, bool allocated = true) const {
-        // NOTE: Здесь мы можем трекать операции аллокации / деаллокации
-    }
-};
-
-template <class T, class U>
-bool operator==(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
-    return true;
-}
-
-template <class T, class U>
-bool operator!=(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
-    return false;
-}
+// template <typename T>
+// struct Game_Map_Allocator {
+//     typedef T value_type;
+//
+//     Game_Map_Allocator() = default;
+//
+//     template <typename U>
+//     constexpr Game_Map_Allocator(const Game_Map_Allocator<U>&) noexcept {};
+//
+//     [[nodiscard]] T* allocate(size_t n) {
+//         Assert(n <= size_t_max / sizeof(T));
+//         Assert((n * sizeof(T)) / sizeof(T) == n);
+//
+//         auto p = scast<T*>(_aligned_malloc(n * sizeof(T), alignof(T)));
+//         // auto p = scast<T*>(malloc(n * sizeof(T)));
+//
+// #ifdef SHIT_MEMORY_DEBUG
+//         bf_debug_allocations.push_back({p, n});
+// #endif  // SHIT_MEMORY_DEBUG
+//
+//         Assert(p);
+//
+//         report(p, n);
+//         return p;
+//     }
+//
+//     void deallocate(T* p, size_t n) noexcept {
+// #ifdef SHIT_MEMORY_DEBUG
+//         {
+//             bool found = false;
+//             size_t existing_n = 0;
+//
+//             i32 i = 0;
+//             for (auto& [pp, nn] : bf_debug_allocations) {
+//                 if (p == pp) {
+//                     found = true;
+//                     existing_n = nn;
+//                     break;
+//                 }
+//                 i++;
+//             }
+//             Assert(found);
+//             Assert(existing_n == n);
+//             Vector_Unordered_Remove_At(bf_debug_allocations, i);
+//         }
+// #endif  // SHIT_MEMORY_DEBUG
+//
+//         report(p, n, false);
+//
+//         _aligned_free(p);
+//         // free(p);
+//     }
+//
+// private:
+//     void report(T* p, size_t n, bool allocated = true) const {
+//         // NOTE: Здесь мы можем трекать операции аллокации / деаллокации
+//     }
+// };
+//
+// template <class T, class U>
+// bool operator==(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
+//     return true;
+// }
+//
+// template <class T, class U>
+// bool operator!=(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
+//     return false;
+// }
 
 // ==============================
 
@@ -328,29 +384,37 @@ struct Blk {
 
 // NOTE: COMPLETED
 template <class P, class F>
-struct Fallback_Allocator
-    : private P
-    , private F {
+struct Fallback_Allocator {
     Blk Allocate(size_t n) {
-        Blk r = P::Allocate(n);
+        Blk r = _p.Allocate(n);
         if (!r.ptr)
-            r = F::Allocate(n);
+            r = _f.Allocate(n);
         return r;
     }
 
     void Deallocate(Blk b) {
-        if (P::Owns(b))
-            P::Deallocate(b);
+        // if (P::Owns(b))
+        //     P::Deallocate(b);
+        // else
+        //     F::Deallocate(b);
+        if (_p.Owns(b))
+            _p.Deallocate(b);
         else
-            F::Deallocate(b);
+            _f.Deallocate(b);
     }
 
     bool Owns(Blk b) {
         // NOTE: Используется MDFINAE (method definition is not an error).
         // Не будет ошибки компиляции, если не будет вызываться
         // `owns` для F, у которого не определён этот метод
-        return P::Owns(b) || F::Owns(b);
+        return _p.Owns(b) || _f.Owns(b);
     }
+
+    bool Sanity_Check() { return _p.Sanity_Check() && _f.Sanity_Check(); }
+
+private:
+    P _p;
+    F _f;
 };
 
 // ===== Good citizenry =====
@@ -363,13 +427,15 @@ struct Null_Allocator {
 
     bool Owns(Blk b) { return b.ptr == nullptr; }
 
-    bool Check_Integrity() { return true; }
+    bool Sanity_Check() { return true; }
 };
 
 // ===== Suddenly =====
 
 template <size_t s>
 struct Stack_Allocator {
+    Stack_Allocator() : _buffer(), _current(_buffer) {}
+
     Blk Allocate(size_t n) {
         Blk result(_current, n);
         _current += n;
@@ -389,7 +455,11 @@ struct Stack_Allocator {
 
     void Deallocate_All() { _current = _buffer; }
 
-    bool Check_Integrity() { return _buffer != nullptr; }
+    bool Sanity_Check() {
+        bool sane = _buffer != nullptr && _current != nullptr;
+        Assert(sane);
+        return sane;
+    }
 
 private:
     u8 _buffer[s];
@@ -407,6 +477,8 @@ struct Malloc_Allocator {
         Assert(b.length > 0);
         free(b.ptr);
     }
+
+    bool Sanity_Check() { return true; }
 };
 // using Localloc = Fallback_Allocator<Stack_Allocator<16384>, Malloc_Allocator>;
 
@@ -493,6 +565,8 @@ struct Freelist {
         _parent.Deallocate(b);
     }
 
+    bool Sanity_Check() { return _parent.Sanity_Check(); }
+
 private:
     A _parent;
     struct Node {
@@ -566,6 +640,13 @@ struct Affix_Allocator {
         _parent.Deallocate(b);
     }
 
+    bool Sanity_Check() {
+        // TODO: Прикрутить трекинг аллокаций для тестов.
+        // Проверять вокруг них целостность аффиксов.
+
+        return _parent.Sanity_Check();
+    }
+
 private:
     A _parent;
 };
@@ -604,7 +685,6 @@ constexpr bool Is_Power_Of_2(const size_t number) {
 //
 template <class A, size_t block_size>
 class Bitmapped_Allocator {
-    // TODO: Я хз, как Andrei Alexandrescu бы это реализовывал
     // Andrei Alexandrescu:
     // - Organized by constant-size blocks
     // - Tremendously simpler than malloc's heap
@@ -612,6 +692,8 @@ class Bitmapped_Allocator {
     // - Layered on top of any memory hunk
     // - 1 bit/block sole overhead (!)
     // - Multithreading tenuous (needs full interlocking for >1 block)
+    //
+    // TODO: Я хз, как Andrei Alexandrescu бы это реализовывал
     //
     // TODO: Зачекать paper https://arxiv.org/pdf/2110.10357.pdf
     // "Fast Bitmap Fit: A CPU Cache Line friendly
@@ -633,8 +715,7 @@ class Bitmapped_Allocator {
         while (location <= Total_Blocks_Count() - required_blocks) {
             size_t available = 0;
             FOR_RANGE (size_t, i, required_blocks) {
-                u8 occupied = QUERY_BIT(*(_occupied + i / 8), i % 8);
-                if (occupied)
+                if (QUERY_BIT(_occupied, i))
                     break;
 
                 available++;
@@ -643,14 +724,12 @@ class Bitmapped_Allocator {
             if (available == required_blocks) {
                 void* ptr = (void*)_blocks + block_size * location;
 
-                u8& byte = *(_allocation_bits + location / 8);
-                Assert(!QUERY_BIT(byte, location % 8));
-                MARK_BIT(byte, location % 8);
+                Assert(!QUERY_BIT(_allocation_bits, location));
+                MARK_BIT(_allocation_bits, location);
 
                 FOR_RANGE (size_t, i, required_blocks) {
-                    u8& byte = *(_occupied + (location + i) / 8);
-                    Assert(!QUERY_BIT(byte, (location + i) % 8));
-                    MARK_BIT(byte, (location + i) % 8);
+                    Assert(!QUERY_BIT(_occupied, location + i));
+                    MARK_BIT(_occupied, location + i);
                 }
 
                 return Blk(ptr, n);
@@ -677,30 +756,26 @@ class Bitmapped_Allocator {
 
         // Ensure this is the start of the allocation
         Assert(b.ptr % block_size == 0);
-        u8& byte = *(_allocation_bits + block / 8);
-        Assert(QUERY_BIT(byte, block % 8));
+        Assert(QUERY_BIT(_allocation_bits, block));
 
         // Unmarking allocation bit
-        UNMARK_BIT(byte, block % 8);
+        UNMARK_BIT(_allocation_bits, block);
 
         // Unmarking occupied bits
         FOR_RANGE (size_t, i, Ceil_Division(b.length, block_size)) {
-            u8& byte = *(_occupied + (block + i) / 8);
-            Assert(QUERY_BIT(byte, (block + i) % 8));
-            UNMARK_BIT(byte, (block + i) % 8);
+            Assert(QUERY_BIT(_occupied, block + i));
+            UNMARK_BIT(_occupied, block + i);
 
-            u8 allocation_byte = *(_allocation_bits + (block + i) / 8);
-            Assert(!QUERY_BIT(allocation_byte, (block + i) % 8));
+            Assert(!QUERY_BIT(_allocation_bits, block + i));
         }
     }
 
-    bool Check_Integrity() {
+    bool Sanity_Check() {
+        // NOTE: У блоков, отмеченных в качестве начальных для аллокаций,
+        // обязательно должно стоять значение в _occupied бите.
         FOR_RANGE (size_t, i, Total_Blocks_Count()) {
-            u8 occupied_byte = *(_occupied + i / 8);
-            u8 allocation_byte = *(_allocation_bits + i / 8);
-
-            if (QUERY_BIT(allocation_byte, i % 8)) {
-                Assert(QUERY_BIT(occupied_byte, i % 8));
+            if (QUERY_BIT(_allocation_bits, i)) {
+                Assert(QUERY_BIT(_occupied, i));
                 return false;
             }
         }
@@ -756,7 +831,17 @@ struct Cascading_Allocator {
         Assert(false);
     }
 
+    bool Sanity_Check() {
+        for (auto& allocator : _allocators) {
+            if (!allocator.Sanity_Check())
+                return false;
+        }
+        return true;
+    }
+
 private:
+    // TODO: убрать vector. Добавить новый аллокатор-параметр шаблона,
+    // который будет аллоцировать и реаллоцировать массив
     tvector<A> _allocators;
 };
 
@@ -791,6 +876,16 @@ struct Segregator {
             return _parent2.Deallocate(b);
     }
 
+    bool Sanity_Check() {
+        if (!_parent1.Sanity_Check())
+            return false;
+
+        if (!_parent2.Sanity_Check())
+            return false;
+
+        return true;
+    }
+
 private:
     A1 _parent1;
     A2 _parent2;
@@ -807,20 +902,19 @@ private:
 
 // ===== Bucketizer: Size Classes =====
 
-// NOTE: COMPLETED
-template <class Allocator, size_t min, size_t max, size_t step>
-struct Bucketizer {
-    // Linear Buckets:
-    //     [min + 0 * step, min + 1 * step),
-    //     [min + 1 * step, min + 2 * step),
-    //     [min + 2 * step, min + 3 * step)...
-    // Exponential Buckets:
-    //     [min * pow(step, 0), min * pow(step, 1)),
-    //     [min * pow(step, 1), min * pow(step, 2)],
-    //     [min * pow(step, 2), min * pow(step, 3)]...
-    //
-    // Within a bucket allocates the maximum size
-};
+// template <class Allocator, size_t min, size_t max, size_t step>
+// struct Bucketizer {
+//     // Linear Buckets:
+//     //     [min + 0 * step, min + 1 * step),
+//     //     [min + 1 * step, min + 2 * step),
+//     //     [min + 2 * step, min + 3 * step)...
+//     // Exponential Buckets:
+//     //     [min * pow(step, 0), min * pow(step, 1)),
+//     //     [min * pow(step, 1), min * pow(step, 2)],
+//     //     [min * pow(step, 2), min * pow(step, 3)]...
+//     //
+//     // Within a bucket allocates the maximum size
+// };
 
 // ===== We're done! =====
 // Most major allocation tropes covered
@@ -864,18 +958,21 @@ struct Bucketizer {
 
 // ========================
 
-using FList = Freelist<Malloc_Allocator, 0, size_t_max>;
+// template <class A>
+// using FList = Freelist<A, 0, size_t_max>;
+//
+// using Game_Map_Allocator = Segregator<
+//     8,
+//     FList<  //
+//         Cascading_Allocator<  //
+//             Bitmapped_Allocator<Malloc_Allocator, 32>>>,
+//     Fallback_Allocator<  //
+//         FList<  //
+//             Cascading_Allocator<  //
+//                 Bitmapped_Allocator<Malloc_Allocator, 128>>>,
+//         Malloc_Allocator>>;
 
-using Game_Map_Allocator = Segregator<
-    8,
-    FList<  //
-        Cascading_Allocator<  //
-            Bitmapped_Allocator<Malloc_Allocator, 32>>>,
-    Fallback_Allocator<  //
-        FList<  //
-            Cascading_Allocator<  //
-                Bitmapped_Allocator<Malloc_Allocator, 128>>>,
-        Malloc_Allocator>>;
+using Game_Map_Allocator = Affix_Allocator<Malloc_Allocator>;
 
 // ========================
 
@@ -887,8 +984,9 @@ using Game_Map_Allocator = Segregator<
 // Blk Allocate(size_t);
 // bool Expand(Blk&, size_t delta);
 // void Reallocate(Blk&, size_t);
-// bool Owns(Blk);
+// bool Owns(Blk); // optional
 // void Deallocate(Blk);
+// bool Sanity_Check();
 // // aligned versions:
 // // - Aligned_Malloc_Allocator
 // // - `posix_memalign` on Posix
@@ -901,8 +999,6 @@ using Game_Map_Allocator = Segregator<
 // Blk Allocate_All();
 // void Deallocate_All();
 //
-// // NOTE: Валидации целостности
-// bool Check_Integrity();
 //
 // }  // namespace
 

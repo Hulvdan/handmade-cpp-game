@@ -23,16 +23,16 @@ struct Allocator_Functions {
     FREE__FUNCTION((*free));
 };
 
-template <typename T>
-using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
-
-template <typename Key, typename T>
-using custom_hash_map = tunordered_map<
-    Key,
-    T,
-    std::hash<Key>,
-    std::equal_to<Key>,
-    Game_Map_Allocator<std::pair<const Key, T>>>;
+// template <typename T>
+// using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
+//
+// template <typename Key, typename T>
+// using custom_hash_map = tunordered_map<
+//     Key,
+//     T,
+//     std::hash<Key>,
+//     std::equal_to<Key>,
+//     Game_Map_Allocator<std::pair<const Key, T>>>;
 
 template <>
 struct std::hash<v2i16> {
@@ -73,7 +73,8 @@ struct Vector {
     i32 count;
     u32 max_count;
 
-    Allocator_Functions allocator_functions;
+    Allocator__Function((*allocator));
+    void* allocator_data;
 };
 
 using Bucket_Index = u32;
@@ -146,7 +147,7 @@ i32 Queue_Find(Queue<T, _Allocator>& container, T value) {
 }
 
 template <typename T, template <typename> typename _Allocator>
-void Enqueue(Queue<T, _Allocator>& container, const T value)
+void Enqueue(Queue<T, _Allocator>& container, const T value, mctx)
     requires std::is_trivially_copyable_v<T>
 {
     auto allocator = _Allocator<T>();
@@ -269,19 +270,26 @@ void Queue_Remove_At(Queue<T, _Allocator>& container, i32 i) {
 }
 
 template <typename T>
-i32 Vector_Add(Vector<T>& container, T& value) {
+i32 Vector_Add(Vector<T>& container, T& value, mctx) {
     CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
 
     i32 locator = container.count;
+
+    Allocator__Function((*allocator)) = container.allocator;
+    void* allocator_data = container.allocator_data;
+    if (allocator == nullptr) {
+        Assert(allocator_data == nullptr);
+        allocator = ctx.allocator;
+        allocator_data = ctx.allocator_data;
+    }
 
     if (container.base == nullptr) {
         Assert(container.max_count == 0);
         Assert(container.count == 0);
 
         container.max_count = 8;
-        container.base = rcast<T*>(container.allocator_functions.allocate(
-            container.max_count * sizeof(T), alignof(T)
-        ));
+        container.base
+            = rcast<T*>(allocator(container.max_count * sizeof(T), alignof(T)));
     }
     else if (container.max_count == container.count) {
         u32 new_max_count = container.max_count * 2;
@@ -388,7 +396,7 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
 #endif
 
 template <typename T>
-Bucket<T>* Add_Bucket(Bucket_Array<T>& container) {
+Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
     CHECK_CONTAINER_ALLOCATOR_FUNCTIONS;
 
     Assert(container.unfull_buckets_count == 0);
@@ -851,8 +859,8 @@ struct Calculated_Graph_Data {
     i16* dist;
     i16* prev;
 
-    custom_hash_map<u16, v2i16> node_index_2_pos;
-    custom_hash_map<v2i16, u16> pos_2_node_index;
+    std::unordered_map<u16, v2i16> node_index_2_pos;
+    std::unordered_map<v2i16, u16> pos_2_node_index;
 
     v2i16 center;
 };
@@ -908,8 +916,8 @@ struct Map_Resource {
 
     Map_Resource_Booking* booking;
 
-    custom_tvector<Graph_Segment*> transportation_segments;
-    custom_tvector<v2i16> transportation_vertices;
+    std::vector<Graph_Segment*> transportation_segments;
+    std::vector<v2i16> transportation_vertices;
 
     Human* targeted_human;
     Human* carrying_human;
@@ -960,9 +968,9 @@ struct Graph_Segment : public Non_Copyable {
     Bucket_Locator locator;
 
     Human* assigned_human;
-    custom_tvector<Graph_Segment*> linked_segments;
+    std::vector<Graph_Segment*> linked_segments;
 
-    Queue<Map_Resource, Game_Map_Allocator> resources_to_transport;
+    Queue<Map_Resource> resources_to_transport;
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -1049,7 +1057,7 @@ struct Human_Moving_Component {
     v2f from;
 
     toptional<v2i16> to;
-    Queue<v2i16, Game_Map_Allocator> path;
+    Queue<v2i16> path;
 };
 
 enum class Moving_In_The_World_State {
@@ -1269,12 +1277,11 @@ struct Game_Map : public Non_Copyable {
         Human* human;
         Bucket_Locator locator;
     };
-    custom_tvector<Human_To_Remove> humans_to_remove;
+    std::vector<Human_To_Remove> humans_to_remove;
 
-    Queue<Graph_Segment*, Game_Map_Allocator> segments_wo_humans;
+    Game_Map_Allocator* allocator;
 
-    Allocator* segment_vertices_allocator;
-    Allocator* graph_nodes_allocator;
+    Queue<Graph_Segment*> segments_wo_humans;
 
     Game_Map_Data* data;
     Human_Data* human_data;
