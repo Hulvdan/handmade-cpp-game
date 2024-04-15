@@ -73,7 +73,7 @@ void Deallocate_(Arena& arena, size_t size) {
 #endif
 }
 
-#define TEMPORARY_USAGE(arena)                            \
+#define TEMP_USAGE(arena)                            \
     auto Anon_Variable(used, __COUNTER__) = (arena).used; \
     defer{arena.used = Anon_Variable(used, __COUTNER__ - 1)};
 
@@ -808,12 +808,12 @@ private:
 //                 Bitmapped_Allocator<Malloc_Allocator, 128>>>,
 //         Malloc_Allocator>>;
 
-#define TEMPORARY_USAGE_VARIABLE(name, counter) name_##counter
-#define TEMPORARY_USAGE(arena)                                                    \
-    auto TEMPORARY_USAGE_VARIABLE(_arena_used, __COUNTER__) = (arena).used;       \
+#define TEMP_USAGE_VARIABLE(name, counter) name_##counter
+#define TEMP_USAGE(arena)                                                    \
+    auto TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__) = (arena).used;       \
     defer {                                                                       \
-        Assert(arena.used >= TEMPORARY_USAGE_VARIABLE(_arena_used, __COUNTER__)); \
-        arena.used = TEMPORARY_USAGE_VARIABLE(_arena_used, __COUNTER__);          \
+        Assert(arena.used >= TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__)); \
+        arena.used = TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__);          \
     };
 
 using Game_Map_Allocator = Affix_Allocator<Malloc_Allocator>;

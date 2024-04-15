@@ -199,7 +199,7 @@ void Fill_Perlin_2D(
     u16           sx,
     u16           sy  //
 ) {
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto octaves = params.octaves;
 

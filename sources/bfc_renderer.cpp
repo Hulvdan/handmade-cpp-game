@@ -100,7 +100,7 @@ void DEBUG_Load_Texture(
 
     Load_BMP_RGBA_Result bmp_result = {};
     {
-        TEMPORARY_USAGE(trash_arena);
+        TEMP_USAGE(trash_arena);
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
         Assert(load_result.success);
 
@@ -153,7 +153,7 @@ void Debug_Print_Shader_Info_Log(
     Arena&      trash_arena,
     const char* aboba
 ) {
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     GLint succeeded;
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
@@ -260,7 +260,7 @@ void main() {
         Debug_Print_Shader_Info_Log(fragment, trash_arena, "Fragment shader compilation");
 
         if (fragment_success && vertex_success) {
-            TEMPORARY_USAGE(trash_arena);
+            TEMP_USAGE(trash_arena);
 
             // shader Program
             auto program_id = glCreateProgram();
@@ -336,7 +336,7 @@ void main() {
         }
 
         {
-            TEMPORARY_USAGE(trash_arena);
+            TEMP_USAGE(trash_arena);
 
             auto path = "assets/art/tiles/tilerule_grass.txt";
             Debug_Load_File(load_result, path, trash_arena);
@@ -351,7 +351,7 @@ void main() {
         }
 
         {
-            TEMPORARY_USAGE(trash_arena);
+            TEMP_USAGE(trash_arena);
 
             auto path = "assets/art/tiles/tilerule_forest.txt";
             Debug_Load_File(load_result, path, trash_arena);
@@ -776,7 +776,7 @@ void Render(Game_State& state, f32 dt) {
     ZoneScoped;
 
     Arena& trash_arena = state.trash_arena;
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto&        rstate   = Assert_Deref(state.renderer_state);
     auto&        game_map = state.game_map;

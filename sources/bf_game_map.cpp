@@ -106,7 +106,7 @@ Path_Find_Result Find_Path(
     if (source == destination)
         return {true, {}, 0};
 
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
     i32 tiles_count = gsize.x * gsize.y;
 
     Path_Find_Result        result = {};
@@ -478,7 +478,7 @@ struct Human_Moving_In_The_World_Controller {
 
                 auto& game_map = *data.game_map;
 
-                TEMPORARY_USAGE(*data.trash_arena);
+                TEMP_USAGE(*data.trash_arena);
                 auto [success, path, path_count] = Find_Path(
                     *data.trash_arena,
                     game_map.size,
@@ -514,7 +514,7 @@ struct Human_Moving_In_The_World_Controller {
                 Assert(data.trash_arena != nullptr);
                 auto& game_map = *data.game_map;
 
-                TEMPORARY_USAGE(*data.trash_arena);
+                TEMP_USAGE(*data.trash_arena);
                 auto [success, path, path_count] = Find_Path(
                     *data.trash_arena,
                     game_map.size,
@@ -541,7 +541,7 @@ struct Human_Moving_In_The_World_Controller {
 
             Building& city_hall = Assert_Deref(*(data.city_halls + human.player_id));
 
-            TEMPORARY_USAGE(*data.trash_arena);
+            TEMP_USAGE(*data.trash_arena);
             auto [success, path, path_count] = Find_Path(
                 *data.trash_arena,
                 game_map.size,
@@ -569,7 +569,7 @@ struct Human_Moving_Inside_Segment {
         auto& game_map = *data.game_map;
 
         if (human.segment->resources_to_transport.count == 0) {
-            TEMPORARY_USAGE(*data.trash_arena);
+            TEMP_USAGE(*data.trash_arena);
             // TODO: Tracing.Log("Setting path to center");
             auto [success, path, path_count] = Find_Path(
                 *data.trash_arena,
@@ -1256,7 +1256,7 @@ void Regenerate_Terrain_Tiles(
 
     auto noise_pitch = Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
     auto output_size = noise_pitch * noise_pitch;
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
     Fill_Perlin_2D(
@@ -1555,7 +1555,7 @@ void Assert_Is_Undirected(Graph& graph) {
 
 // NOTE: Жрёт trash arena
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     CTX_ALLOCATOR;
 
@@ -1679,7 +1679,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 #endif  // ASSERT_SLOW
 
     // NOTE: Вычисление центра графа
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
     FOR_RANGE (i16, i, n) {
         FOR_RANGE (i16, j, n) {
@@ -1764,7 +1764,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     Allocator&      segment_vertices_allocator,
     Allocator&      graph_nodes_allocator
 ) {
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto& segments = game_map.segments;
 
@@ -1912,7 +1912,7 @@ void Update_Graphs(
     Allocator&                   graph_nodes_allocator,
     const bool                   full_graph_build
 ) {
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto tiles_count = gsize.x * gsize.y;
 
@@ -1921,7 +1921,7 @@ void Update_Graphs(
         vis = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
 
     while (big_queue.count) {
-        TEMPORARY_USAGE(trash_arena);
+        TEMP_USAGE(trash_arena);
 
         auto p = Dequeue(big_queue);
         Enqueue(queue, p);
@@ -2117,7 +2117,7 @@ void Build_Graph_Segments(
         Update_Segments_Lambda
 ) {
     Assert(segments.used_buckets_count == 0);
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto tiles_count = gsize.x * gsize.y;
 
@@ -2199,7 +2199,7 @@ ttuple<int, int> Update_Tiles(
     if (!updated_tiles.count)
         return {0, 0};
 
-    TEMPORARY_USAGE(trash_arena);
+    TEMP_USAGE(trash_arena);
 
     auto tiles_count = gsize.x * gsize.y;
 
