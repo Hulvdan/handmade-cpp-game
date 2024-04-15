@@ -46,25 +46,25 @@ const v2i16 v2i16_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 const v2i16 v2i16_adjacent_offsets_including_0[5]
     = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
-constexpr v2i v2i_zero = v2i(0, 0);
-constexpr v2i v2i_one = v2i(1, 1);
-constexpr v2i v2i_right = v2i(1, 0);
-constexpr v2i v2i_up = v2i(0, 1);
-constexpr v2i v2i_left = v2i(-1, 0);
+constexpr v2i v2i_zero   = v2i(0, 0);
+constexpr v2i v2i_one    = v2i(1, 1);
+constexpr v2i v2i_right  = v2i(1, 0);
+constexpr v2i v2i_up     = v2i(0, 1);
+constexpr v2i v2i_left   = v2i(-1, 0);
 constexpr v2i v2i_bottom = v2i(0, -1);
 
-constexpr v2i16 v2i16_zero = v2i16(0, 0);
-constexpr v2i16 v2i16_one = v2i16(1, 1);
-constexpr v2i16 v2i16_right = v2i16(1, 0);
-constexpr v2i16 v2i16_up = v2i16(0, 1);
-constexpr v2i16 v2i16_left = v2i16(-1, 0);
+constexpr v2i16 v2i16_zero   = v2i16(0, 0);
+constexpr v2i16 v2i16_one    = v2i16(1, 1);
+constexpr v2i16 v2i16_right  = v2i16(1, 0);
+constexpr v2i16 v2i16_up     = v2i16(0, 1);
+constexpr v2i16 v2i16_left   = v2i16(-1, 0);
 constexpr v2i16 v2i16_bottom = v2i16(0, -1);
 
-constexpr v2f v2f_zero = v2f(0, 0);
-constexpr v2f v2f_one = v2f(1, 1);
-constexpr v2f v2f_right = v2f(1, 0);
-constexpr v2f v2f_up = v2f(0, 1);
-constexpr v2f v2f_left = v2f(-1, 0);
+constexpr v2f v2f_zero   = v2f(0, 0);
+constexpr v2f v2f_one    = v2f(1, 1);
+constexpr v2f v2f_right  = v2f(1, 0);
+constexpr v2f v2f_up     = v2f(0, 1);
+constexpr v2f v2f_left   = v2f(-1, 0);
 constexpr v2f v2f_bottom = v2f(0, -1);
 
 using v3f = glm::vec3;
@@ -98,7 +98,7 @@ T& Assert_Deref(T* value) {
 #define scast static_cast
 #define rcast reinterpret_cast
 
-static constexpr f32 BF_PI = 3.14159265359f;
+static constexpr f32 BF_PI  = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -150,8 +150,8 @@ _Defer<F> operator+(_defer_dummy, F&& f) {
 //                             Other                             //
 // ============================================================= //
 struct Non_Copyable {
-    Non_Copyable() = default;
-    Non_Copyable(const Non_Copyable&) = delete;
+    Non_Copyable()                               = default;
+    Non_Copyable(const Non_Copyable&)            = delete;
     Non_Copyable& operator=(const Non_Copyable&) = delete;
 };
 
@@ -168,7 +168,7 @@ void Initialize_As_Zeros(T& value) {
 // https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
 template <class Reference>
 struct Arrow_Proxy {
-    Reference r;
+    Reference  r;
     Reference* operator->() { return &r; }
 };
 
@@ -178,7 +178,7 @@ protected:
     using Self_Type = Derived;
 
 private:
-    Self_Type& _self() { return scast<Self_Type&>(*this); }
+    Self_Type&       _self() { return scast<Self_Type&>(*this); }
     const Self_Type& _self() const { return scast<const Self_Type&>(*this); }
 
 public:

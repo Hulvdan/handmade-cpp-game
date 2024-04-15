@@ -31,7 +31,7 @@ global OS_Data os_data;
 struct BF_Bitmap {
     Game_Bitmap bitmap;
 
-    HBITMAP handle;
+    HBITMAP    handle;
     BITMAPINFO info;
 };
 // -- RENDERING STUFF END
@@ -40,11 +40,11 @@ struct BF_Bitmap {
 global bool hot_reloaded = false;
 
 global Editor_Data editor_data;
-global HMODULE game_lib = nullptr;
-global size_t initial_game_memory_size;
-global void* initial_game_memory = nullptr;
+global HMODULE     game_lib = nullptr;
+global size_t      initial_game_memory_size;
+global void*       initial_game_memory = nullptr;
 
-global size_t events_count = 0;
+global size_t events_count    = 0;
 global std::vector<u8> events = {};
 
 // TODO: Is there any way to restrict T
@@ -70,7 +70,7 @@ void push_event(T& event) {
 global FILETIME last_game_dll_write_time;
 
 struct Peek_Filetime_Result {
-    bool success;
+    bool     success;
     FILETIME filetime;
 };
 
@@ -78,10 +78,10 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
     Peek_Filetime_Result res = {};
 
     WIN32_FIND_DATAA find_data;
-    auto handle = FindFirstFileA(filename, &find_data);
+    auto             handle = FindFirstFileA(filename, &find_data);
 
     if (handle != INVALID_HANDLE_VALUE) {
-        res.success = true;
+        res.success  = true;
         res.filetime = find_data.ftLastWriteTime;
         Assert(FindClose(handle));
     }
@@ -130,8 +130,8 @@ void Load_Or_Update_Game_Dll() {
             INVALID_PATH;
         }
 
-        hot_reloaded = true;
-        game_lib = nullptr;
+        hot_reloaded            = true;
+        game_lib                = nullptr;
         Game_Update_And_Render_ = nullptr;
     }
 
@@ -158,12 +158,12 @@ void Load_Or_Update_Game_Dll() {
 
 #if BF_INTERNAL
     editor_data.game_context_set = false;
-    editor_data.changed = true;
-    last_game_dll_write_time = filetime.filetime;
+    editor_data.changed          = true;
+    last_game_dll_write_time     = filetime.filetime;
     editor_data.dll_reloads_count++;
 #endif  // BF_INTERNAL
 
-    game_lib = lib;
+    game_lib                = lib;
     Game_Update_And_Render_ = loaded_Game_Update_And_Render;
 }
 // -- GAME STUFF END
@@ -180,9 +180,9 @@ DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
 
-bool controller_support_loaded = false;
-XInputGetStateType XInputGetState_ = XInputGetStateStub;
-XInputSetStateType XInputSetState_ = XInputSetStateStub;
+bool               controller_support_loaded = false;
+XInputGetStateType XInputGetState_           = XInputGetStateStub;
+XInputSetStateType XInputSetState_           = XInputSetStateStub;
 
 void Load_XInput_Dll() {
     auto library = LoadLibraryA("xinput1_4.dll");
@@ -199,15 +199,15 @@ void Load_XInput_Dll() {
 // -- CONTROLLER STUFF END
 
 // -- XAUDIO STUFF
-const u32 SAMPLES_HZ = 48000;
-bool audio_support_loaded = false;
+const u32 SAMPLES_HZ           = 48000;
+bool      audio_support_loaded = false;
 
 using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
 
 HRESULT
 XAudio2CreateStub(
-    IXAudio2** ppXAudio2,
-    UINT32 Flags,
+    IXAudio2**        ppXAudio2,
+    UINT32            Flags,
     XAUDIO2_PROCESSOR XAudio2Processor
 ) {
     // TODO: Diagnostic
@@ -233,11 +233,11 @@ void Load_XAudio_Dll() {
 
 f32 FillSamples(
     i16* samples,
-    i32 samples_count_per_second,
-    i32 samples_count_per_channel,
-    i8 channels,
-    f32 frequency,
-    f32 last_angle
+    i32  samples_count_per_second,
+    i32  samples_count_per_channel,
+    i8   channels,
+    f32  frequency,
+    f32  last_angle
 ) {
     Assert(samples_count_per_second > 0);
     Assert(samples_count_per_channel > 0);
@@ -252,14 +252,14 @@ f32 FillSamples(
 #endif
 
     f32 samples_per_oscillation = (f32)samples_count_per_second / frequency;
-    f32 angle_step = BF_2PI / samples_per_oscillation;
+    f32 angle_step              = BF_2PI / samples_per_oscillation;
 
     for (int i = 0; i < samples_count_per_channel; i++) {
         last_angle += angle_step;
 
         // TODO: Implement our own sin function
         for (int k = 0; k < channels; k++) {
-            auto val = volume * sinf(last_angle * (f32)(k + 1));
+            auto val                  = volume * sinf(last_angle * (f32)(k + 1));
             samples[i * channels + k] = (i16)val;
         }
     }
@@ -272,7 +272,7 @@ f32 FillSamples(
 
 struct CreateBufferRes {
     XAUDIO2_BUFFER* buffer;
-    u8* samples;
+    u8*             samples;
 };
 
 CreateBufferRes
@@ -280,21 +280,21 @@ CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
     Assert(channels > 0);
     Assert(bytes_per_sample > 0);
 
-    auto b = new XAUDIO2_BUFFER();
+    auto  b      = new XAUDIO2_BUFFER();
     auto& buffer = *b;
 
-    i64 total_bytes = (i64)samples_per_channel * channels * bytes_per_sample;
-    auto samples = new u8[total_bytes]();
+    i64  total_bytes = (i64)samples_per_channel * channels * bytes_per_sample;
+    auto samples     = new u8[total_bytes]();
 
-    buffer.Flags = XAUDIO2_END_OF_STREAM;
+    buffer.Flags      = XAUDIO2_END_OF_STREAM;
     buffer.AudioBytes = total_bytes;
     buffer.pAudioData = samples;
-    buffer.PlayBegin = 0;
+    buffer.PlayBegin  = 0;
     buffer.PlayLength = samples_per_channel;
-    buffer.LoopBegin = 0;
+    buffer.LoopBegin  = 0;
     buffer.LoopLength = 0;
-    buffer.LoopCount = 0;
-    buffer.pContext = nullptr;
+    buffer.LoopCount  = 0;
+    buffer.pContext   = nullptr;
 
     return {b, samples};
 }
@@ -302,26 +302,26 @@ CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
 
 global bool running = false;
 
-global bool should_recreate_bitmap_after_client_area_resize;
+global bool      should_recreate_bitmap_after_client_area_resize;
 global BF_Bitmap screen_bitmap;
 
-global int client_width = -1;
+global int client_width  = -1;
 global int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context) {
     Assert(client_width >= 0);
     Assert(client_height >= 0);
 
-    auto& game_bitmap = screen_bitmap.bitmap;
-    game_bitmap.width = client_width;
+    auto& game_bitmap  = screen_bitmap.bitmap;
+    game_bitmap.width  = client_width;
     game_bitmap.height = client_height;
 
-    game_bitmap.bits_per_pixel = 32;
-    screen_bitmap.info.bmiHeader.biSize = sizeof(screen_bitmap.info.bmiHeader);
-    screen_bitmap.info.bmiHeader.biWidth = client_width;
-    screen_bitmap.info.bmiHeader.biHeight = -client_height;
-    screen_bitmap.info.bmiHeader.biPlanes = 1;
-    screen_bitmap.info.bmiHeader.biBitCount = game_bitmap.bits_per_pixel;
+    game_bitmap.bits_per_pixel                 = 32;
+    screen_bitmap.info.bmiHeader.biSize        = sizeof(screen_bitmap.info.bmiHeader);
+    screen_bitmap.info.bmiHeader.biWidth       = client_width;
+    screen_bitmap.info.bmiHeader.biHeight      = -client_height;
+    screen_bitmap.info.bmiHeader.biPlanes      = 1;
+    screen_bitmap.info.bmiHeader.biBitCount    = game_bitmap.bits_per_pixel;
     screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
 
     if (game_bitmap.memory)
@@ -423,8 +423,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     } break;
 
     case WM_SIZE: {
-        client_width = LOWORD(lParam);
-        client_height = HIWORD(lParam);
+        client_width                                    = LOWORD(lParam);
+        client_height                                   = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
         Win32GLResize();
     } break;
@@ -432,7 +432,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_LBUTTONDOWN: {
         if (!mouse_captured) {
             Mouse_Pressed event = {};
-            event.type = Mouse_Button_Type::Left;
+            event.type          = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -441,7 +441,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_LBUTTONUP: {
         if (!mouse_captured) {
             Mouse_Released event = {};
-            event.type = Mouse_Button_Type::Left;
+            event.type           = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -450,7 +450,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_RBUTTONDOWN: {
         if (!mouse_captured) {
             Mouse_Pressed event = {};
-            event.type = Mouse_Button_Type::Right;
+            event.type          = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -459,7 +459,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_RBUTTONUP: {
         if (!mouse_captured) {
             Mouse_Released event = {};
-            event.type = Mouse_Button_Type::Right;
+            event.type           = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -468,7 +468,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_MBUTTONDOWN: {
         if (!mouse_captured) {
             Mouse_Pressed event = {};
-            event.type = Mouse_Button_Type::Middle;
+            event.type          = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -477,7 +477,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_MBUTTONUP: {
         if (!mouse_captured) {
             Mouse_Released event = {};
-            event.type = Mouse_Button_Type::Middle;
+            event.type           = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -485,9 +485,9 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MOUSEWHEEL: {
         if (!mouse_captured) {
-            Mouse_Scrolled event = {};
-            i16 scroll = (short)HIWORD(wParam);
-            event.value = scroll;
+            Mouse_Scrolled event  = {};
+            i16            scroll = (short)HIWORD(wParam);
+            event.value           = scroll;
             push_event(event);
         }
     } break;
@@ -505,9 +505,9 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_SYSKEYDOWN:
     case WM_SYSKEYUP: {
         bool previous_was_down = lParam & (1 << 30);
-        bool is_up = lParam & (1 << 31);
-        bool alt_is_down = lParam & (1 << 29);
-        u32 vk_code = wParam;
+        bool is_up             = lParam & (1 << 31);
+        bool alt_is_down       = lParam & (1 << 29);
+        u32  vk_code           = wParam;
 
         if (is_up != previous_was_down)
             return 0;
@@ -518,7 +518,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         // } else if (vk_code == 'D') {
         // } else
         if (vk_code == VK_ESCAPE  //
-            || vk_code == 'Q'  //
+            || vk_code == 'Q'     //
             || vk_code == VK_F4 && alt_is_down) {
             running = false;
         }
@@ -540,14 +540,14 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 class BFVoiceCallback  // NOLINT(cppcoreguidelines-virtual-class-destructor)
     : public IXAudio2VoiceCallback {
 public:
-    f32 frequency = -1;
+    f32 frequency                 = -1;
     i32 samples_count_per_channel = -1;
-    i8 channels = -1;
+    i8  channels                  = -1;
 
     XAUDIO2_BUFFER* b1 = nullptr;
     XAUDIO2_BUFFER* b2 = nullptr;
-    u8* s1 = nullptr;
-    u8* s2 = nullptr;
+    u8*             s1 = nullptr;
+    u8*             s2 = nullptr;
 
     IXAudio2SourceVoice* voice = nullptr;
 
@@ -555,7 +555,7 @@ public:
         Validate();
 
         auto& samples = s1;
-        auto& buffer = b1;
+        auto& buffer  = b1;
 
         last_angle = FillSamples(
             (i16*)samples,
@@ -632,8 +632,8 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
 static int WinMain(
     HINSTANCE application_handle,
     HINSTANCE previous_window_instance_handle,
-    LPSTR command_line,
-    int show_command
+    LPSTR     command_line,
+    int       show_command
 ) {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
@@ -649,7 +649,7 @@ static int WinMain(
     events.reserve(Kilobytes(64LL));
 
     initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
-    initial_game_memory = VirtualAlloc(
+    initial_game_memory      = VirtualAlloc(
         nullptr,
         initial_game_memory_size,
         MEM_RESERVE | MEM_COMMIT,
@@ -664,39 +664,39 @@ static int WinMain(
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
     // --- XAudio stuff ---
-    IXAudio2* xaudio = nullptr;
+    IXAudio2*               xaudio       = nullptr;
     IXAudio2MasteringVoice* master_voice = nullptr;
-    IXAudio2SourceVoice* source_voice = nullptr;
+    IXAudio2SourceVoice*    source_voice = nullptr;
 
-    const u32 duration_msec = 20;
+    const u32 duration_msec    = 20;
     const u32 bytes_per_sample = 2;
-    const u32 channels = 2;
+    const u32 channels         = 2;
 
     const f32 starting_frequency = 523.25f / 2;
 
-    BFVoiceCallback voice_callback = {};
-    voice_callback.frequency = starting_frequency;
+    BFVoiceCallback voice_callback           = {};
+    voice_callback.frequency                 = starting_frequency;
     voice_callback.samples_count_per_channel = -1;
-    voice_callback.channels = channels;
+    voice_callback.channels                  = channels;
 
-    XAUDIO2_BUFFER* buffer1 = nullptr;
-    XAUDIO2_BUFFER* buffer2 = nullptr;
-    u8* samples1 = nullptr;
-    u8* samples2 = nullptr;
+    XAUDIO2_BUFFER* buffer1  = nullptr;
+    XAUDIO2_BUFFER* buffer2  = nullptr;
+    u8*             samples1 = nullptr;
+    u8*             samples2 = nullptr;
 
     // TODO: Am I supposed to dynamically load xaudio2.dll?
     // What about targeting different versions of xaudio on different OS?
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                WAVEFORMATEX voice_struct = {};
-                voice_struct.wFormatTag = WAVE_FORMAT_PCM;
-                voice_struct.nChannels = channels;
-                voice_struct.nSamplesPerSec = SAMPLES_HZ;
+                WAVEFORMATEX voice_struct    = {};
+                voice_struct.wFormatTag      = WAVE_FORMAT_PCM;
+                voice_struct.nChannels       = channels;
+                voice_struct.nSamplesPerSec  = SAMPLES_HZ;
                 voice_struct.nAvgBytesPerSec = channels * SAMPLES_HZ * bytes_per_sample;
-                voice_struct.nBlockAlign = channels * bytes_per_sample;
-                voice_struct.wBitsPerSample = bytes_per_sample * 8;
-                voice_struct.cbSize = 0;
+                voice_struct.nBlockAlign     = channels * bytes_per_sample;
+                voice_struct.wBitsPerSample  = bytes_per_sample * 8;
+                voice_struct.cbSize          = 0;
 
                 auto res = xaudio->CreateSourceVoice(
                     &source_voice,
@@ -723,16 +723,16 @@ static int WinMain(
                         samples_count_per_channel, channels, bytes_per_sample
                     );
 
-                    buffer1 = r1.buffer;
+                    buffer1  = r1.buffer;
                     samples1 = r1.samples;
-                    buffer2 = r2.buffer;
+                    buffer2  = r2.buffer;
                     samples2 = r2.samples;
 
-                    voice_callback.b1 = buffer1;
-                    voice_callback.b2 = buffer2;
-                    voice_callback.s1 = samples1;
-                    voice_callback.s2 = samples2;
-                    voice_callback.voice = source_voice;
+                    voice_callback.b1                        = buffer1;
+                    voice_callback.b2                        = buffer2;
+                    voice_callback.s1                        = samples1;
+                    voice_callback.s2                        = samples2;
+                    voice_callback.voice                     = source_voice;
                     voice_callback.samples_count_per_channel = samples_count_per_channel;
 
                     voice_callback.RecalculateAndSwap();
@@ -784,9 +784,9 @@ static int WinMain(
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     // windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-    windowClass.lpfnWndProc = *WindowEventsHandler;
+    windowClass.lpfnWndProc   = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
-    windowClass.hInstance = application_handle;
+    windowClass.hInstance     = application_handle;
 
     // TODO: Icon!
     // HICON     hIcon;
@@ -811,10 +811,10 @@ static int WinMain(
         CW_USEDEFAULT,
         640,
         480,
-        nullptr,  // [in, optional] HWND      hWndParent,
-        nullptr,  // [in, optional] HMENU     hMenu,
+        nullptr,             // [in, optional] HWND      hWndParent,
+        nullptr,             // [in, optional] HMENU     hMenu,
         application_handle,  // [in, optional] HINSTANCE hInstance,
-        nullptr  // [in, optional] LPVOID    lpParam
+        nullptr              // [in, optional] LPVOID    lpParam
     );
 
     if (!window_handle) {
@@ -834,13 +834,13 @@ static int WinMain(
 
         // --- Setting up pixel format start ---
         PIXELFORMATDESCRIPTOR pfd = {};
-        pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-        pfd.nVersion = 1;
-        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.nSize                 = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion              = 1;
+        pfd.dwFlags     = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
         pfd.dwLayerMask = PFD_MAIN_PLANE;
-        pfd.iPixelType = PFD_TYPE_RGBA;
-        pfd.cColorBits = 24;
-        pfd.cAlphaBits = 8;
+        pfd.iPixelType  = PFD_TYPE_RGBA;
+        pfd.cColorBits  = 24;
+        pfd.cAlphaBits  = 8;
         // pfd.cDepthBits = 0;
         // pfd.cAccumBits = 0;
         // pfd.cStencilBits = 0;
@@ -900,7 +900,7 @@ static int WinMain(
 
     ImGui::StyleColorsDark();
 
-    editor_data = Default_Editor_Data();
+    editor_data         = Default_Editor_Data();
     editor_data.context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
@@ -912,14 +912,14 @@ static int WinMain(
 
     running = true;
 
-    u64 perf_counter_current = Win32Clock();
+    u64 perf_counter_current   = Win32Clock();
     u64 perf_counter_frequency = Win32Frequency();
 
-    f32 last_frame_dt = 0;
-    const f32 MAX_FRAME_DT = 1.0f / 10.0f;
+    f32       last_frame_dt = 0;
+    const f32 MAX_FRAME_DT  = 1.0f / 10.0f;
     // TODO: Use DirectX / OpenGL to calculate refresh_rate and rework this whole
     // mess
-    f32 REFRESH_RATE = 60.0f;
+    f32 REFRESH_RATE       = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
 
     while (running) {
@@ -948,16 +948,16 @@ static int WinMain(
 
             if (dwResult == ERROR_SUCCESS) {
                 // Controller is connected
-                const f32 scale = 32768;
-                f32 stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
-                f32 stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
+                const f32 scale              = 32768;
+                f32       stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
+                f32       stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
                 Controller_Axis_Changed event = {};
-                event.axis = 0;
-                event.value = stick_x_normalized;
+                event.axis                    = 0;
+                event.value                   = stick_x_normalized;
                 push_event(event);
 
-                event.axis = 1;
+                event.axis  = 1;
                 event.value = stick_y_normalized;
                 push_event(event);
 
@@ -979,8 +979,8 @@ static int WinMain(
         FrameMark;
 
         u64 perf_counter_new = Win32Clock();
-        last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
-            / (f32)perf_counter_frequency;
+        last_frame_dt        = (f32)(perf_counter_new - perf_counter_current)
+                        / (f32)perf_counter_frequency;
         Assert(last_frame_dt >= 0);
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
@@ -1002,7 +1002,7 @@ static int WinMain(
         }
 
         last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
-            / (f32)perf_counter_frequency;
+                        / (f32)perf_counter_frequency;
         perf_counter_current = perf_counter_new;
     }
 

@@ -55,8 +55,8 @@ struct std::hash<v2i16> {
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size;
-    i32 count;
-    T* base;
+    i32    count;
+    T*     base;
 };
 
 // PERF: Переписать на ring buffer!
@@ -64,12 +64,12 @@ template <typename T, template <typename> typename _Allocator = std::allocator>
 struct Queue {
     u32 max_count;
     i32 count;
-    T* base;
+    T*  base;
 };
 
 template <typename T>
 struct Vector {
-    T* base;
+    T*  base;
     i32 count;
     u32 max_count;
 
@@ -84,13 +84,13 @@ struct Bucket {
     void* occupied;
     void* data;
 
-    i32 count;
+    i32          count;
     Bucket_Index bucket_index;
 };
 
 struct Bucket_Locator {
     Bucket_Index bucket_index;
-    u32 slot_index;
+    u32          slot_index;
 };
 
 // TODO:
@@ -99,7 +99,7 @@ template <typename T>
 struct Bucket_Array : Non_Copyable {
     Allocator_Functions allocator_functions;
 
-    Bucket<T>* buckets;
+    Bucket<T>*    buckets;
     Bucket_Index* unfull_buckets;
 
     i64 count;
@@ -156,7 +156,7 @@ void Enqueue(Queue<T, _Allocator>& container, const T value, mctx)
         Assert(container.max_count == 0);
         Assert(container.count == 0);
         container.max_count = 8;
-        container.base = allocator.allocate(container.max_count);
+        container.base      = allocator.allocate(container.max_count);
     }
     else if (container.max_count == container.count) {
         u32 new_max_count = container.max_count * 2;
@@ -166,7 +166,7 @@ void Enqueue(Queue<T, _Allocator>& container, const T value, mctx)
         memcpy(new_ptr, container.base, container.max_count * sizeof(T));
         allocator.deallocate(container.base, container.max_count);
 
-        container.base = new_ptr;
+        container.base      = new_ptr;
         container.max_count = new_max_count;
     }
 
@@ -177,8 +177,8 @@ void Enqueue(Queue<T, _Allocator>& container, const T value, mctx)
 template <typename T, template <typename> typename _Allocator>
 void Bulk_Enqueue(
     Queue<T, _Allocator>& container,
-    const T* values,
-    const u32 values_count
+    const T*              values,
+    const u32             values_count
 )
     requires std::is_trivially_copyable_v<T>
 {
@@ -190,7 +190,7 @@ void Bulk_Enqueue(
         Assert(container.count == 0);
 
         container.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
-        container.base = allocator.allocate(container.max_count);
+        container.base      = allocator.allocate(container.max_count);
     }
     else if (container.max_count < container.count + values_count) {
         u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
@@ -200,7 +200,7 @@ void Bulk_Enqueue(
         memcpy(new_ptr, container.base, sizeof(T) * container.count);
         allocator.deallocate(container.base, container.max_count);
 
-        container.base = new_ptr;
+        container.base      = new_ptr;
         container.max_count = new_max_count;
     }
 
@@ -276,10 +276,10 @@ i32 Vector_Add(Vector<T>& container, T& value, mctx) {
     i32 locator = container.count;
 
     Allocator__Function((*allocator)) = container.allocator;
-    void* allocator_data = container.allocator_data;
+    void* allocator_data              = container.allocator_data;
     if (allocator == nullptr) {
         Assert(allocator_data == nullptr);
-        allocator = ctx.allocator;
+        allocator      = ctx.allocator;
         allocator_data = ctx.allocator_data;
     }
 
@@ -295,7 +295,7 @@ i32 Vector_Add(Vector<T>& container, T& value, mctx) {
         u32 new_max_count = container.max_count * 2;
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto size = sizeof(T) * container.max_count;
+        auto size    = sizeof(T) * container.max_count;
         auto old_ptr = container.base;
 
         container.base
@@ -411,8 +411,8 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
 
         typedef Bucket<T> arr_type;
 
-        constexpr auto align = alignof(arr_type*);
-        auto alloc_size = container.buckets_count * sizeof(arr_type);
+        constexpr auto align      = alignof(arr_type*);
+        auto           alloc_size = container.buckets_count * sizeof(arr_type);
 
         container.buckets
             = rcast<Bucket<T>*>(container.allocator_functions.allocate(alloc_size, align)
@@ -435,9 +435,9 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
     Assert(container.buckets != nullptr);
     Assert(container.unfull_buckets != nullptr);
 
-    auto new_bucket = container.buckets + container.used_buckets_count;
+    auto new_bucket          = container.buckets + container.used_buckets_count;
     new_bucket->bucket_index = container.used_buckets_count;
-    new_bucket->count = 0;
+    new_bucket->count        = 0;
 
     auto occupied_bytes_count = Ceil_Division(container.items_per_bucket, 8);
     auto occupied
@@ -457,7 +457,7 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, mctx) {
     }
 
     new_bucket->occupied = occupied;
-    new_bucket->data = data;
+    new_bucket->data     = data;
 
     *(container.unfull_buckets + container.unfull_buckets_count)
         = container.used_buckets_count;
@@ -475,7 +475,7 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     Assert(arr.unfull_buckets_count > 0);
 
     Bucket_Index bucket_index = *(arr.unfull_buckets + 0);
-    auto bucket_ptr = arr.buckets + bucket_index;
+    auto         bucket_ptr   = arr.buckets + bucket_index;
 
     int index = -1;
     FOR_RANGE (int, i, arr.items_per_bucket) {
@@ -510,8 +510,8 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
     }
 
     Bucket_Locator locator = {};
-    locator.bucket_index = bucket_ptr->bucket_index;
-    locator.slot_index = index;
+    locator.bucket_index   = bucket_ptr->bucket_index;
+    locator.slot_index     = index;
 
     return {locator, scast<T*>(bucket_ptr->data) + index};
 }
@@ -519,7 +519,7 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
 template <typename T>
 Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item) {
     auto [locator, ptr] = Find_And_Occupy_Empty_Slot(arr);
-    *ptr = item;
+    *ptr                = item;
     return locator;
 }
 
@@ -563,8 +563,8 @@ public:
 
     Bucket_Array_Iterator(
         Bucket_Array<T>* arr,
-        i32 current,
-        Bucket_Index current_bucket  //
+        i32              current,
+        Bucket_Index     current_bucket  //
     )
         : _current(current)
         , _current_bucket(current_bucket)
@@ -628,9 +628,9 @@ private:
     }
 
     Bucket_Array<T>* _arr;
-    i32 _current = 0;
-    Bucket_Index _current_bucket = 0;
-    u16 _current_bucket_count = 0;
+    i32              _current              = 0;
+    Bucket_Index     _current_bucket       = 0;
+    u16              _current_bucket_count = 0;
 };
 
 template <typename T>
@@ -644,8 +644,8 @@ public:
 
     Bucket_Array_With_Locator_Iterator(
         Bucket_Array<T>* arr,
-        i32 current,
-        Bucket_Index current_bucket  //
+        i32              current,
+        Bucket_Index     current_bucket  //
     )
         : _current(current)
         , _current_bucket(current_bucket)
@@ -712,9 +712,9 @@ private:
     }
 
     Bucket_Array<T>* _arr;
-    i32 _current = 0;
-    Bucket_Index _current_bucket = 0;
-    u16 _current_bucket_count = 0;
+    i32              _current              = 0;
+    Bucket_Index     _current_bucket       = 0;
+    u16              _current_bucket_count = 0;
 };
 
 template <typename T>
@@ -744,7 +744,7 @@ public:
 
 private:
     Vector<T>* _container;
-    i32 _current = 0;
+    i32        _current = 0;
 };
 
 template <typename T, template <typename> typename _Allocator>
@@ -773,7 +773,7 @@ public:
 
 private:
     tvector<T, _Allocator<T>>* _container;
-    u64 _current = 0;
+    u64                        _current = 0;
 };
 
 template <typename T>
@@ -808,7 +808,7 @@ BF_FORCE_INLINE void Container_Reset(Vector<T>& container) {
 
 template <typename T>
 BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
-    container.count = 0;
+    container.count                = 0;
     container.unfull_buckets_count = container.used_buckets_count;
 
     FOR_RANGE (Bucket_Index, i, container.unfull_buckets_count) {
@@ -832,14 +832,14 @@ BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
 // ============================================================= //
 enum class Direction {
     Right = 0,
-    Up = 1,
-    Left = 2,
-    Down = 3,
+    Up    = 1,
+    Left  = 2,
+    Down  = 3,
 };
 
 #define FOR_DIRECTION(var_name)                             \
     for (auto var_name = (Direction)0; (int)(var_name) < 4; \
-         var_name = (Direction)((int)(var_name) + 1))
+         var_name      = (Direction)((int)(var_name) + 1))
 
 v2i16 As_Offset(Direction dir) {
     Assert((u8)dir >= 0);
@@ -867,7 +867,7 @@ struct Calculated_Graph_Data {
 
 struct Graph : public Non_Copyable {
     Graph_Nodes_Count nodes_count;
-    u8* nodes;  // 0b0000DLUR
+    u8*               nodes;  // 0b0000DLUR
 
     v2i16 size;
     v2i16 offset;
@@ -876,7 +876,7 @@ struct Graph : public Non_Copyable {
 };
 
 BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
-    auto off = pos - graph.offset;
+    auto off    = pos - graph.offset;
     bool result = Pos_Is_In_Bounds(off, graph.size);
     return result;
 }
@@ -886,7 +886,7 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
     Assert(Pos_Is_In_Bounds(off, graph.size));
 
     u8* node_ptr = graph.nodes + off.y * graph.size.x + off.x;
-    u8 result = *node_ptr;
+    u8  result   = *node_ptr;
     return result;
 }
 
@@ -902,14 +902,14 @@ enum class Map_Resource_Booking_Type {
 
 struct Map_Resource_Booking {
     Map_Resource_Booking_Type type;
-    Building* building;
-    i32 priority;
+    Building*                 building;
+    i32                       priority;
 };
 
 struct Map_Resource {
     using ID = u32;
 
-    ID id;
+    ID                   id;
     Scriptable_Resource* scriptable;
 
     v2i16 pos;
@@ -917,7 +917,7 @@ struct Map_Resource {
     Map_Resource_Booking* booking;
 
     std::vector<Graph_Segment*> transportation_segments;
-    std::vector<v2i16> transportation_vertices;
+    std::vector<v2i16>          transportation_vertices;
 
     Human* targeted_human;
     Human* carrying_human;
@@ -964,10 +964,10 @@ struct Graph_Segment : public Non_Copyable {
     Graph_Nodes_Count vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
 
-    Graph graph;
+    Graph          graph;
     Bucket_Locator locator;
 
-    Human* assigned_human;
+    Human*                      assigned_human;
     std::vector<Graph_Segment*> linked_segments;
 
     Queue<Map_Resource> resources_to_transport;
@@ -1016,12 +1016,12 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
     node = Graph_Node_Mark(node, dir, value);
 }
 
-using Scriptable_Resource_ID = u16;
+using Scriptable_Resource_ID                            = u16;
 global Scriptable_Resource_ID global_forest_resource_id = 1;
 
-using Player_ID = u8;
+using Player_ID   = u8;
 using Building_ID = u32;
-using Human_ID = u32;
+using Human_ID    = u32;
 
 enum class Building_Type {
     City_Hall,
@@ -1032,7 +1032,7 @@ enum class Building_Type {
 };
 
 struct Scriptable_Building : public Non_Copyable {
-    const char* name;
+    const char*   name;
     Building_Type type;
 
 #ifdef BF_CLIENT
@@ -1052,12 +1052,12 @@ enum class Human_Type {
 
 struct Human_Moving_Component {
     v2i16 pos;
-    f32 elapsed;
-    f32 progress;
-    v2f from;
+    f32   elapsed;
+    f32   progress;
+    v2f   from;
 
     toptional<v2i16> to;
-    Queue<v2i16> path;
+    Queue<v2i16>     path;
 };
 
 enum class Moving_In_The_World_State {
@@ -1085,7 +1085,7 @@ struct Main_Controller;
 
 struct Moving_In_The_World {
     Moving_In_The_World_State state;
-    Main_Controller* controller;
+    Main_Controller*          controller;
 };
 
 enum class Human_Main_State {
@@ -1108,13 +1108,13 @@ enum class Human_Main_State {
 struct Building;
 
 struct Human : public Non_Copyable {
-    Player_ID player_id;
+    Player_ID              player_id;
     Human_Moving_Component moving;
 
     Graph_Segment* segment;
-    Human_Type type;
+    Human_Type     type;
 
-    Human_Main_State state;
+    Human_Main_State          state;
     Moving_In_The_World_State state_moving_in_the_world;
 
     // Human_ID id;
@@ -1135,30 +1135,30 @@ struct Human : public Non_Copyable {
     // f32 processing_elapsed;
 
     Human(const Human&& o) {
-        player_id = std::move(o.player_id);
-        moving = std::move(o.moving);
-        segment = std::move(o.segment);
-        type = std::move(o.type);
-        state = std::move(o.state);
+        player_id                 = std::move(o.player_id);
+        moving                    = std::move(o.moving);
+        segment                   = std::move(o.segment);
+        type                      = std::move(o.type);
+        state                     = std::move(o.state);
         state_moving_in_the_world = std::move(o.state_moving_in_the_world);
-        building = std::move(o.building);
+        building                  = std::move(o.building);
     }
 
     Human& operator=(Human&& o) {
-        player_id = std::move(o.player_id);
-        moving = std::move(o.moving);
-        segment = std::move(o.segment);
-        type = std::move(o.type);
-        state = std::move(o.state);
+        player_id                 = std::move(o.player_id);
+        moving                    = std::move(o.moving);
+        segment                   = std::move(o.segment);
+        type                      = std::move(o.type);
+        state                     = std::move(o.state);
         state_moving_in_the_world = std::move(o.state_moving_in_the_world);
-        building = std::move(o.building);
+        building                  = std::move(o.building);
         return *this;
     }
 };
 
 struct Resource_To_Book : public Non_Copyable {
     Scriptable_Resource_ID scriptable_id;
-    u8 amount;
+    u8                     amount;
 };
 
 struct Building : public Non_Copyable {
@@ -1169,12 +1169,12 @@ struct Building : public Non_Copyable {
 
     Scriptable_Building* scriptable;
 
-    size_t resources_to_book_count;
+    size_t            resources_to_book_count;
     Resource_To_Book* resources_to_book;
-    v2i16 pos;
+    v2i16             pos;
 
     Building_ID id;
-    f32 time_since_human_was_created;
+    f32         time_since_human_was_created;
 
     bool employee_is_inside;
     bool is_constructed;
@@ -1191,7 +1191,7 @@ enum class Terrain {
 struct Terrain_Tile : public Non_Copyable {
     Terrain terrain;
     // NOTE: Height starts at 0
-    int height;
+    int  height;
     bool is_cliff;
 
     i16 resource_amount;
@@ -1199,16 +1199,16 @@ struct Terrain_Tile : public Non_Copyable {
 
 // NOTE: Upon editing ensure `Validate_Element_Tile` remains correct
 enum class Element_Tile_Type {
-    None = 0,
-    Road = 1,
+    None     = 0,
+    Road     = 1,
     Building = 2,
-    Flag = 3,
+    Flag     = 3,
 };
 
 struct Element_Tile : public Non_Copyable {
     Element_Tile_Type type;
-    Building* building;
-    Player_ID player_id;
+    Building*         building;
+    Player_ID         player_id;
 };
 
 void Validate_Element_Tile(Element_Tile& tile) {
@@ -1240,7 +1240,7 @@ enum class Item_To_Build_Type {
 };
 
 struct Item_To_Build : public Non_Copyable {
-    Item_To_Build_Type type;
+    Item_To_Build_Type   type;
     Scriptable_Building* scriptable_building;
 
     Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building* a_scriptable_building)
@@ -1261,21 +1261,21 @@ struct Game_Map_Data {
 struct Human_Data;
 
 struct Game_Map : public Non_Copyable {
-    v2i16 size;
-    Terrain_Tile* terrain_tiles;
+    v2i16             size;
+    Terrain_Tile*     terrain_tiles;
     Terrain_Resource* terrain_resources;
-    Element_Tile* element_tiles;
+    Element_Tile*     element_tiles;
 
-    Bucket_Array<Building> buildings;
+    Bucket_Array<Building>      buildings;
     Bucket_Array<Graph_Segment> segments;
-    Bucket_Array<Human> humans;
+    Bucket_Array<Human>         humans;
 
     Bucket_Array<Human> humans_to_add;
 
     struct Human_To_Remove {
         Human_Removal_Reason reason;
-        Human* human;
-        Bucket_Locator locator;
+        Human*               human;
+        Bucket_Locator       locator;
     };
     std::vector<Human_To_Remove> humans_to_remove;
 
@@ -1284,23 +1284,23 @@ struct Game_Map : public Non_Copyable {
     Queue<Graph_Segment*> segments_wo_humans;
 
     Game_Map_Data* data;
-    Human_Data* human_data;
+    Human_Data*    human_data;
 };
 
 template <typename T>
 struct Observer : public Non_Copyable {
     size_t count;
-    T* functions;
+    T*     functions;
 };
 
 // Usage:
 //     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
-#define INVOKE_OBSERVER(observer, code)                 \
-    {                                                   \
-        FOR_RANGE (size_t, i, observer.count) {         \
-            auto& function = *(observer.functions + i); \
-            function code;                              \
-        }                                               \
+#define INVOKE_OBSERVER(observer, code)                    \
+    {                                                      \
+        FOR_RANGE (size_t, i, observer.count) {            \
+            auto&    function = *(observer.functions + i); \
+            function code;                                 \
+        }                                                  \
     }
 
 // Usage:
@@ -1321,17 +1321,17 @@ struct Observer : public Non_Copyable {
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;
-    u16 dll_reloads_count;
+    u16  dll_reloads_count;
 
     f32 offset_x;
     f32 offset_y;
 
-    v2f player_pos;
+    v2f      player_pos;
     Game_Map game_map;
 
-    size_t scriptable_resources_count;
+    size_t               scriptable_resources_count;
     Scriptable_Resource* scriptable_resources;
-    size_t scriptable_buildings_count;
+    size_t               scriptable_buildings_count;
     Scriptable_Building* scriptable_buildings;
 
     Scriptable_Building* scriptable_building_city_hall;
@@ -1339,7 +1339,7 @@ struct Game_State : public Non_Copyable {
 
     Arena arena;
     Arena non_persistent_arena;  // Gets flushed on DLL reloads
-    Arena trash_arena;  // Use for transient calculations
+    Arena trash_arena;           // Use for transient calculations
 
     Pages pages;
 
@@ -1351,7 +1351,7 @@ struct Game_State : public Non_Copyable {
 };
 
 struct Game_Memory : public Non_Copyable {
-    bool is_initialized;
+    bool       is_initialized;
     Game_State state;
 };
 
@@ -1372,8 +1372,8 @@ using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
     BF_Texture_ID id;
-    v2i size;
-    u8* base;
+    v2i           size;
+    u8*           base;
 };
 
 using Tile_ID = u32;
@@ -1385,15 +1385,15 @@ enum class Tile_State_Check {
 };
 
 struct Tile_Rule {
-    BF_Texture_ID texture_id;
+    BF_Texture_ID    texture_id;
     Tile_State_Check states[8];
 };
 
 struct Smart_Tile {
-    Tile_ID id;
+    Tile_ID       id;
     BF_Texture_ID fallback_texture_id;
 
-    int rules_count;
+    int        rules_count;
     Tile_Rule* rules;
 };
 
@@ -1407,8 +1407,8 @@ struct Tilemap {
 
 struct UI_Sprite_Params {
     bool smart_stretchable;
-    v2i stretch_paddings_h;
-    v2i stretch_paddings_v;
+    v2i  stretch_paddings_h;
+    v2i  stretch_paddings_v;
 };
 
 struct BF_Color {
@@ -1417,43 +1417,43 @@ struct BF_Color {
     f32 b;
 };
 
-static constexpr BF_Color BF_Color_White = {1, 1, 1};
-static constexpr BF_Color BF_Color_Black = {0, 0, 0};
-static constexpr BF_Color BF_Color_Red = {1, 0, 0};
-static constexpr BF_Color BF_Color_Green = {0, 1, 0};
-static constexpr BF_Color BF_Color_Blue = {0, 0, 1};
-static constexpr BF_Color BF_Color_Yellow = {1, 1, 0};
-static constexpr BF_Color BF_Color_Cyan = {0, 1, 1};
+static constexpr BF_Color BF_Color_White   = {1, 1, 1};
+static constexpr BF_Color BF_Color_Black   = {0, 0, 0};
+static constexpr BF_Color BF_Color_Red     = {1, 0, 0};
+static constexpr BF_Color BF_Color_Green   = {0, 1, 0};
+static constexpr BF_Color BF_Color_Blue    = {0, 0, 1};
+static constexpr BF_Color BF_Color_Yellow  = {1, 1, 0};
+static constexpr BF_Color BF_Color_Cyan    = {0, 1, 1};
 static constexpr BF_Color BF_Color_Magenta = {1, 0, 1};
 
 struct Game_UI_State : public Non_Copyable {
     UI_Sprite_Params buildables_panel_params;
-    Loaded_Texture buildables_panel_background;
-    Loaded_Texture buildables_placeholder_background;
+    Loaded_Texture   buildables_panel_background;
+    Loaded_Texture   buildables_placeholder_background;
 
-    u16 buildables_count;
+    u16            buildables_count;
     Item_To_Build* buildables;
 
-    i8 selected_buildable_index;
+    i8       selected_buildable_index;
     BF_Color selected_buildable_color;
     BF_Color not_selected_buildable_color;
-    v2f buildables_panel_sprite_anchor;
-    v2f buildables_panel_container_anchor;
-    f32 buildables_panel_in_scale;
-    f32 scale;
+    v2f      buildables_panel_sprite_anchor;
+    v2f      buildables_panel_container_anchor;
+    f32      buildables_panel_in_scale;
+    f32      scale;
 
     v2i padding;
-    i8 placeholders;
+    i8  placeholders;
     i16 placeholders_gap;
 };
 
 struct Game_Renderer_State : public Non_Copyable {
     Game_UI_State* ui_state;
-    Game_Bitmap* bitmap;
+    Game_Bitmap*   bitmap;
 
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
-    Tile_ID forest_top_tile_id;
+    Tile_ID    forest_top_tile_id;
 
     Loaded_Texture human_texture;
     Loaded_Texture grass_textures[17];
@@ -1461,7 +1461,7 @@ struct Game_Renderer_State : public Non_Copyable {
     Loaded_Texture road_textures[16];
     Loaded_Texture flag_textures[4];
 
-    int tilemaps_count;
+    int      tilemaps_count;
     Tilemap* tilemaps;
 
     u8 terrain_tilemaps_count;
@@ -1471,15 +1471,15 @@ struct Game_Renderer_State : public Non_Copyable {
     v2i mouse_pos;
 
     bool panning;
-    v2f pan_pos;
-    v2f pan_offset;
-    v2i pan_start_pos;
-    f32 zoom_target;
-    f32 zoom;
+    v2f  pan_pos;
+    v2f  pan_offset;
+    v2i  pan_start_pos;
+    f32  zoom_target;
+    f32  zoom;
 
     f32 cell_size;
 
-    bool shaders_compilation_failed;
+    bool  shaders_compilation_failed;
     GLint ui_shader_program;
 };
 #endif  // BF_CLIENT

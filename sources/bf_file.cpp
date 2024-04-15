@@ -2,8 +2,8 @@
 
 struct Debug_Load_File_Result {
     bool success;
-    u8* output;
-    u32 size;
+    u8*  output;
+    u32  size;
 };
 
 Debug_Load_File_Result
@@ -19,8 +19,8 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
     }
 #endif  // WIN32
 
-    FILE* file = 0;
-    auto failed = fopen_s(&file, absolute_file_path, "r");
+    FILE* file   = 0;
+    auto  failed = fopen_s(&file, absolute_file_path, "r");
     Assert(!failed);
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);
@@ -28,8 +28,8 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
     Debug_Load_File_Result res = {};
     if (feof(file)) {
         res.success = true;
-        res.output = output;
-        res.size = read_bytes;
+        res.output  = output;
+        res.size    = read_bytes;
     }
 
     Assert(fclose(file) == 0);

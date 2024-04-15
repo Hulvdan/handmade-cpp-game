@@ -15,17 +15,17 @@ TEST_CASE ("Hash32, TestValue") {
 }
 
 TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
-    constexpr u64 size = 512;
-    u8 output[size] = {};
+    constexpr u64 size         = 512;
+    u8            output[size] = {};
 
     Arena arena = {};
-    arena.size = size;
-    arena.base = output;
+    arena.size  = size;
+    arena.base  = output;
 
     auto rules_data
         = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
-    i32 rules_data_size = 0;
-    auto p = rules_data;
+    i32  rules_data_size = 0;
+    auto p               = rules_data;
     while (*p++)
         rules_data_size++;
 
@@ -38,17 +38,17 @@ TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
 }
 
 TEST_CASE ("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
-    constexpr u64 size = 512;
-    u8 output[size] = {};
+    constexpr u64 size         = 512;
+    u8            output[size] = {};
 
     Arena arena = {};
-    arena.size = size;
-    arena.base = output;
+    arena.size  = size;
+    arena.base  = output;
 
     auto rules_data
         = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
-    i32 rules_data_size = 0;
-    auto p = rules_data;
+    i32  rules_data_size = 0;
+    auto p               = rules_data;
     while (*p++)
         rules_data_size++;
 
@@ -100,8 +100,8 @@ TEST_CASE ("Ceil_To_Power_Of_2") {
 
 struct Test_Node {
     size_t next;
-    u32 id;
-    bool active;
+    u32    id;
+    bool   active;
 
     Test_Node() : id(0), next(0), active(false) {}
     Test_Node(u32 a_id) : id(a_id), next(0), active(false) {}
@@ -145,12 +145,12 @@ TEST_CASE ("Align_Forward") {
 }
 
 TEST_CASE ("Allocator") {
-    u8* toc_buffer = new u8[1024];
+    u8* toc_buffer  = new u8[1024];
     u8* data_buffer = new u8[1024];
     memset(toc_buffer, 0, 1024);
 
     auto allocator = Allocator(1024, toc_buffer, 1024, data_buffer);
-    auto alloc = rcast<Allocation*>(toc_buffer);
+    auto alloc     = rcast<Allocation*>(toc_buffer);
 
     // Tests
     {
@@ -277,7 +277,7 @@ void heap_free(void* ptr) {
 
 Allocate_Pages__Function(Win32_Allocate_Pages) {
     Assert(count % OS_DATA.min_pages_per_allocation == 0);
-    auto size = OS_DATA.page_size * count;
+    auto size   = OS_DATA.page_size * count;
     auto result = (u8*)VirtualAlloc(
         nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
     );
@@ -303,26 +303,26 @@ void Free_Allocations() {
 
 Building* Global_Make_Building(
     Element_Tile*& element_tiles,
-    Arena& trash_arena,
-    Building_Type type,
-    v2i pos  //
+    Arena&         trash_arena,
+    Building_Type  type,
+    v2i            pos  //
 ) {
-    auto sb = Allocate_Zeros_For(trash_arena, Scriptable_Building);
-    sb->type = type;
-    auto building = Allocate_Zeros_For(trash_arena, Building);
+    auto sb              = Allocate_Zeros_For(trash_arena, Scriptable_Building);
+    sb->type             = type;
+    auto building        = Allocate_Zeros_For(trash_arena, Building);
     building->scriptable = sb;
     return building;
 }
 
 int Process_Segments(
-    v2i& gsize,
-    Element_Tile*& element_tiles,
+    v2i&                          gsize,
+    Element_Tile*&                element_tiles,
     Bucket_Array<Graph_Segment>*& segments,
-    Arena& trash_arena,
-    Allocator& segment_vertices_allocator,
-    Allocator& graph_nodes_allocator,
-    Building*& building_sawmill,
-    tvector<const char*> strings  //
+    Arena&                        trash_arena,
+    Allocator&                    segment_vertices_allocator,
+    Allocator&                    graph_nodes_allocator,
+    Building*&                    building_sawmill,
+    tvector<const char*>          strings  //
 ) {
     // NOTE: Creating `element_tiles`
     gsize.y = strings.size();
@@ -332,16 +332,16 @@ int Process_Segments(
         REQUIRE(strlen(string_ptr) == gsize.x);
 
     auto tiles_count = gsize.x * gsize.y;
-    element_tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
+    element_tiles    = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
 
     {
         segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
         Init_Bucket_Array(*segments, 32, 128);
         segments->allocator_functions.allocate = heap_allocate;
-        segments->allocator_functions.free = heap_free;
+        segments->allocator_functions.free     = heap_free;
     }
 
-    auto tiles = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
+    auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
     };
@@ -349,20 +349,20 @@ int Process_Segments(
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(element_tiles + y * gsize.x + x);
-            v2i pos = {x, y};
+            v2i   pos  = {x, y};
 
             const char symbol = *(strings[gsize.y - y - 1] + x);
             switch (symbol) {
             case 'C': {
                 auto building = Make_Building(Building_Type::City_Hall, pos);
                 // new (tile) Element_Tile(Element_Tile_Type::Building, building);
-                tile.type = Element_Tile_Type::Building;
+                tile.type     = Element_Tile_Type::Building;
                 tile.building = building;
             } break;
 
             case 'B': {
                 auto building = Make_Building(Building_Type::Produce, pos);
-                tile.type = Element_Tile_Type::Building;
+                tile.type     = Element_Tile_Type::Building;
                 tile.building = building;
             } break;
 
@@ -370,22 +370,22 @@ int Process_Segments(
                 if (building_sawmill == nullptr)
                     building_sawmill = Make_Building(Building_Type::Produce, pos);
 
-                tile.type = Element_Tile_Type::Building;
+                tile.type     = Element_Tile_Type::Building;
                 tile.building = building_sawmill;
             } break;
 
             case 'r': {
-                tile.type = Element_Tile_Type::Road;
+                tile.type     = Element_Tile_Type::Road;
                 tile.building = nullptr;
             } break;
 
             case 'F': {
-                tile.type = Element_Tile_Type::Flag;
+                tile.type     = Element_Tile_Type::Flag;
                 tile.building = nullptr;
             } break;
 
             case '.': {
-                tile.type = Element_Tile_Type::None;
+                tile.type     = Element_Tile_Type::None;
                 tile.building = nullptr;
             } break;
 
@@ -413,17 +413,17 @@ int Process_Segments(
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                \
-    tvector<const char*> _strings = {__VA_ARGS__}; \
-    auto(segments_count) = Process_Segments(       \
-        gsize,                                     \
-        element_tiles,                             \
-        segments,                                  \
-        trash_arena,                               \
-        segment_vertices_allocator,                \
-        graph_nodes_allocator,                     \
-        building_sawmill,                          \
-        _strings                                   \
+#define Process_Segments_Macro(...)                   \
+    tvector<const char*> _strings = {__VA_ARGS__};    \
+    auto(segments_count)          = Process_Segments( \
+        gsize,                               \
+        element_tiles,                       \
+        segments,                            \
+        trash_arena,                         \
+        segment_vertices_allocator,          \
+        graph_nodes_allocator,               \
+        building_sawmill,                    \
+        _strings                             \
     );
 
 #define Update_Tiles_Macro(updated_tiles)                                               \
@@ -437,14 +437,14 @@ int Process_Segments(
         graph_nodes_allocator,                                                          \
         (updated_tiles),                                                                \
         [&segments, &segment_vertices_allocator, &graph_nodes_allocator, &trash_arena]( \
-            u32 segments_to_be_deleted_count,                                           \
+            u32             segments_to_be_deleted_count,                               \
             Graph_Segment** segments_to_be_deleted,                                     \
-            u32 added_segments_count,                                                   \
-            Graph_Segment* added_segments                                               \
+            u32             added_segments_count,                                       \
+            Graph_Segment*  added_segments                                              \
         ) {                                                                             \
             FOR_RANGE (u32, i, segments_to_be_deleted_count) {                          \
                 Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);             \
-                auto& segment = *segment_ptr;                                           \
+                auto&          segment     = *segment_ptr;                              \
                 Bucket_Array_Remove(*segments, segment.locator);                        \
                 segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));          \
                 graph_nodes_allocator.Free(segment.graph.nodes);                        \
@@ -464,8 +464,8 @@ int Process_Segments(
         updated_tiles.type                                                         \
             = Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
         FOR_RANGE (int, i, data.size()) {                                          \
-            auto& [pos, type] = data[i];                                           \
-            *(updated_tiles.pos + i) = pos;                                        \
+            auto& [pos, type]         = data[i];                                   \
+            *(updated_tiles.pos + i)  = pos;                                       \
             *(updated_tiles.type + i) = type;                                      \
         }                                                                          \
         updated_tiles.count = data.size();                                         \
@@ -480,7 +480,7 @@ TEST_CASE ("Bit operations") {
             {0b00000000, 7, 0b10000000},
         };
         for (auto& [initial_value, index, after_value] : marks) {
-            u8 byte = initial_value;
+            u8  byte  = initial_value;
             u8* bytes = &byte;
             MARK_BIT(bytes, index);
             CHECK(byte == after_value);
@@ -497,7 +497,7 @@ TEST_CASE ("Bit operations") {
             {0b11111111, 7, 0b01111111},
         };
         for (auto& [initial_value, index, after_value] : unmarks) {
-            u8 byte = initial_value;
+            u8  byte  = initial_value;
             u8* bytes = &byte;
             UNMARK_BIT(bytes, index);
             CHECK(byte == after_value);
@@ -521,17 +521,17 @@ TEST_CASE ("Bit operations") {
 TEST_CASE ("Update_Tiles") {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
-    OS_Data os_data = {};
+    OS_Data os_data   = {};
     os_data.page_size = system_info.dwPageSize;
     os_data.min_pages_per_allocation
         = system_info.dwAllocationGranularity / os_data.page_size;
     os_data.Allocate_Pages = Win32_Allocate_Pages;
-    global_os_data = &os_data;
+    global_os_data         = &os_data;
 
     Arena trash_arena = {};
-    auto trash_size = Megabytes((size_t)2);
-    trash_arena.size = trash_size;
-    trash_arena.base = new u8[trash_size];
+    auto  trash_size  = Megabytes((size_t)2);
+    trash_arena.size  = trash_size;
+    trash_arena.base  = new u8[trash_size];
 
     auto& segment_vertices_allocator = *std::construct_at(
         Allocate_Zeros_For(trash_arena, Allocator),
@@ -551,16 +551,16 @@ TEST_CASE ("Update_Tiles") {
 
     Pages pages = {};
     {
-        auto pages_count = Megabytes((size_t)1) / OS_DATA.page_size;
-        pages.base = Allocate_Zeros_Array(trash_arena, Page, pages_count);
-        pages.in_use = Allocate_Zeros_Array(trash_arena, bool, pages_count);
+        auto pages_count      = Megabytes((size_t)1) / OS_DATA.page_size;
+        pages.base            = Allocate_Zeros_Array(trash_arena, Page, pages_count);
+        pages.in_use          = Allocate_Zeros_Array(trash_arena, bool, pages_count);
         pages.total_count_cap = pages_count;
     }
 
-    Building* building_sawmill = nullptr;
-    v2i gsize = -v2i_one;
-    Element_Tile* element_tiles = nullptr;
-    Bucket_Array<Graph_Segment>* segments = nullptr;
+    Building*                    building_sawmill = nullptr;
+    v2i                          gsize            = -v2i_one;
+    Element_Tile*                element_tiles    = nullptr;
+    Bucket_Array<Graph_Segment>* segments         = nullptr;
 
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
@@ -576,7 +576,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_2Buildings_1Road_1Segment") {
         Process_Segments_Macro(
             ".B",  //
-            "Cr"  //
+            "Cr"   //
         );
         CHECK(segments_count == 1);
     }
@@ -584,7 +584,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_1Building_1Road_0Segments") {
         Process_Segments_Macro(
             "..",  //
-            "Cr"  //
+            "Cr"   //
         );
         CHECK(segments_count == 0);
     }
@@ -592,7 +592,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_2AdjacentBuildings_0Segments") {
         Process_Segments_Macro(
             "..",  //
-            "CB"  //
+            "CB"   //
         );
         CHECK(segments_count == 0);
     }
@@ -600,7 +600,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_4AdjacentBuildings_0Segments") {
         Process_Segments_Macro(
             "BB",  //
-            "CB"  //
+            "CB"   //
         );
         CHECK(segments_count == 0);
     }
@@ -608,7 +608,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_2Buildings_1Flag_0Segments") {
         Process_Segments_Macro(
             ".B",  //
-            "CF"  //
+            "CF"   //
         );
         CHECK(segments_count == 0);
     }
@@ -616,7 +616,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_2Buildings_1Flag_1Road_1Segment") {
         Process_Segments_Macro(
             "FB",  //
-            "Cr"  //
+            "Cr"   //
         );
         CHECK(segments_count == 1);
     }
@@ -624,7 +624,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_2Buildings_2Flags_0Segments") {
         Process_Segments_Macro(
             "FF",  //
-            "CB"  //
+            "CB"   //
         );
         CHECK(segments_count == 0);
     }
@@ -632,7 +632,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_2Buildings_2Flags_0Segments") {
         Process_Segments_Macro(
             "FB",  //
-            "CF"  //
+            "CF"   //
         );
         CHECK(segments_count == 0);
     }
@@ -650,7 +650,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_Complex3") {
         Process_Segments_Macro(
             "rrrrrr",  //
-            "CrrrrB"  //
+            "CrrrrB"   //
         );
         CHECK(segments_count == 1);
     }
@@ -661,7 +661,7 @@ TEST_CASE ("Update_Tiles") {
             "..rrr.",  //
             "BrrCrB",  //
             "...r..",  //
-            "...B.."  //
+            "...B.."   //
         );
         CHECK(segments_count == 2);
     }
@@ -672,7 +672,7 @@ TEST_CASE ("Update_Tiles") {
             "..rFr.",  //
             "BrrCrB",  //
             "...r..",  //
-            "...B.."  //
+            "...B.."   //
         );
         CHECK(segments_count == 3);
     }
@@ -681,7 +681,7 @@ TEST_CASE ("Update_Tiles") {
         Process_Segments_Macro(
             "...B..",  //
             "..rrr.",  //
-            "CrrFrB"  //
+            "CrrFrB"   //
         );
         CHECK(segments_count == 1);
     }
@@ -692,7 +692,7 @@ TEST_CASE ("Update_Tiles") {
             "..rrr.",  //
             "CrrFrB",  //
             "...r..",  //
-            "...B.."  //
+            "...B.."   //
         );
         CHECK(segments_count == 2);
     }
@@ -703,7 +703,7 @@ TEST_CASE ("Update_Tiles") {
             "...r..",  //
             "BrrCrB",  //
             "...r..",  //
-            "...B.."  //
+            "...B.."   //
         );
         CHECK(segments_count == 4);
     }
@@ -714,7 +714,7 @@ TEST_CASE ("Update_Tiles") {
             "..rrr.",  //
             "BrrCrB",  //
             "..rrr.",  //
-            "...B.."  //
+            "...B.."   //
         );
         CHECK(segments_count == 1);
     }
@@ -725,7 +725,7 @@ TEST_CASE ("Update_Tiles") {
             "..rrr.",  //
             "BrrCrB",  //
             "..rr..",  //
-            "...B.."  //
+            "...B.."   //
         );
         CHECK(segments_count == 1);
     }
@@ -735,7 +735,7 @@ TEST_CASE ("Update_Tiles") {
             "...B...",  //
             "..rrrr.",  //
             "CrrSSrB",  //
-            "....rr."  //
+            "....rr."   //
         );
         CHECK(segments_count == 1);
     }
@@ -745,7 +745,7 @@ TEST_CASE ("Update_Tiles") {
             "...B...",  //
             "..rFrr.",  //
             "CrrSSrB",  //
-            "....rr."  //
+            "....rr."   //
         );
         CHECK(segments_count == 2);
     }
@@ -755,7 +755,7 @@ TEST_CASE ("Update_Tiles") {
             "...B...",  //
             "..rFFr.",  //
             "CrrSSrB",  //
-            "....rr."  //
+            "....rr."   //
         );
         CHECK(segments_count == 2);
     }
@@ -765,7 +765,7 @@ TEST_CASE ("Update_Tiles") {
             "...B...",  //
             "..rrFr.",  //
             "CrrSSrB",  //
-            "....rr."  //
+            "....rr."   //
         );
         CHECK(segments_count == 2);
     }
@@ -773,7 +773,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_Complex15") {
         Process_Segments_Macro(
             "CrF",  //
-            ".rB"  //
+            ".rB"   //
         );
         CHECK(segments_count == 1);
     }
@@ -781,7 +781,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_Complex16") {
         Process_Segments_Macro(
             "CrFr",  //
-            ".rSS"  //
+            ".rSS"   //
         );
         CHECK(segments_count == 2);
     }
@@ -789,7 +789,7 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_Complex17") {
         Process_Segments_Macro(
             "Crrr",  //
-            ".rSS"  //
+            ".rSS"   //
         );
         CHECK(segments_count == 1);
     }
@@ -798,7 +798,7 @@ TEST_CASE ("Update_Tiles") {
         Process_Segments_Macro(
             ".B.",  //
             "CFB",  //
-            ".B."  //
+            ".B."   //
         );
         CHECK(segments_count == 0);
     }
@@ -807,7 +807,7 @@ TEST_CASE ("Update_Tiles") {
         Process_Segments_Macro(
             ".B.",  //
             "CrB",  //
-            ".B."  //
+            ".B."   //
         );
         CHECK(segments_count == 1);
     }
@@ -818,7 +818,7 @@ TEST_CASE ("Update_Tiles") {
             "..r..",  //
             "CrFrB",  //
             "..r..",  //
-            "..B.."  //
+            "..B.."   //
         );
         CHECK(segments_count == 4);
     }
@@ -832,7 +832,7 @@ TEST_CASE ("Update_Tiles") {
         Process_Segments_Macro(
             "B.B",  //
             "r.r",  //
-            "B.B"  //
+            "B.B"   //
         );
         CHECK(segments_count == 2);
     }
@@ -841,7 +841,7 @@ TEST_CASE ("Update_Tiles") {
         Process_Segments_Macro(
             "BrB",  //
             "...",  //
-            "BrB"  //
+            "BrB"   //
         );
         CHECK(segments_count == 2);
     }
@@ -928,7 +928,7 @@ TEST_CASE ("Update_Tiles") {
         );
 
         {
-            auto pos = v2i(1, 0);
+            auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -939,7 +939,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(2, 1);
+            auto pos                                = v2i(2, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -950,7 +950,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(0, 1);
+            auto pos                                = v2i(0, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
@@ -968,7 +968,7 @@ TEST_CASE ("Update_Tiles") {
             "Cr"
         );
 
-        auto pos = v2i(1, 1);
+        auto pos                                = v2i(1, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -986,7 +986,7 @@ TEST_CASE ("Update_Tiles") {
         );
         CHECK(segments_count == 1);
 
-        auto pos = v2i(1, 1);
+        auto pos                                = v2i(1, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1002,7 +1002,7 @@ TEST_CASE ("Update_Tiles") {
             "CF"
         );
 
-        auto pos = v2i(0, 1);
+        auto pos                                = v2i(0, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1016,7 +1016,7 @@ TEST_CASE ("Update_Tiles") {
         Process_Segments_Macro("CrrrB");
         CHECK(segments_count == 1);
 
-        auto pos = v2i(2, 0);
+        auto pos                                = v2i(2, 0);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1032,9 +1032,9 @@ TEST_CASE ("Update_Tiles") {
             "CF"
         );
 
-        auto pos = v2i(0, 1);
+        auto pos      = v2i(0, 1);
         auto building = Make_Building(Building_Type::Produce, pos);
-        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
+        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::Building;
         GRID_PTR_VALUE(element_tiles, pos).building = building;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
@@ -1051,9 +1051,9 @@ TEST_CASE ("Update_Tiles") {
         );
         CHECK(segments_count == 0);
 
-        auto pos = v2i(1, 1);
+        auto pos      = v2i(1, 1);
         auto building = Make_Building(Building_Type::Produce, pos);
-        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
+        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::Building;
         GRID_PTR_VALUE(element_tiles, pos).building = building;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
@@ -1070,9 +1070,9 @@ TEST_CASE ("Update_Tiles") {
         );
         CHECK(segments_count == 0);
 
-        auto pos = v2i(1, 1);
+        auto pos      = v2i(1, 1);
         auto building = Make_Building(Building_Type::Produce, pos);
-        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Building;
+        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::Building;
         GRID_PTR_VALUE(element_tiles, pos).building = building;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
@@ -1085,12 +1085,12 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_BuildingRemoved_1") {
         Process_Segments_Macro(
             ".B",  //
-            "Cr"  //
+            "Cr"   //
         );
         CHECK(segments_count == 1);
 
-        auto pos = v2i(1, 1);
-        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::None;
+        auto pos                                    = v2i(1, 1);
+        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::None;
         GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Removed});
@@ -1103,12 +1103,12 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Test_BuildingRemoved_2") {
         Process_Segments_Macro(
             ".B.",  //
-            "CrB"  //
+            "CrB"   //
         );
         CHECK(segments_count == 1);
 
-        auto pos = v2i(1, 1);
-        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::None;
+        auto pos                                    = v2i(1, 1);
+        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::None;
         GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Removed});
@@ -1126,7 +1126,7 @@ TEST_CASE ("Update_Tiles") {
         CHECK(segments_count == 0);
 
         {
-            auto pos = v2i(0, 0);
+            auto pos                                = v2i(0, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
@@ -1137,7 +1137,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(1, 0);
+            auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
@@ -1148,7 +1148,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(2, 0);
+            auto pos                                = v2i(2, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
@@ -1159,7 +1159,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(0, 1);
+            auto pos                                = v2i(0, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
@@ -1170,7 +1170,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(1, 1);
+            auto pos                                = v2i(1, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
@@ -1181,7 +1181,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(0, 0);
+            auto pos                                = v2i(0, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1192,7 +1192,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(1, 1);
+            auto pos                                = v2i(1, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1203,7 +1203,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(2, 0);
+            auto pos                                = v2i(2, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1214,7 +1214,7 @@ TEST_CASE ("Update_Tiles") {
         }
 
         {
-            auto pos = v2i(1, 0);
+            auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1228,12 +1228,12 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Shit_Test2") {
         Process_Segments_Macro(
             "rF.",  //
-            "FrF"  //
+            "FrF"   //
         );
         CHECK(segments_count == 2);
 
         {
-            auto pos = v2i(1, 0);
+            auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
@@ -1247,12 +1247,12 @@ TEST_CASE ("Update_Tiles") {
     SUBCASE("Shit_Test3") {
         Process_Segments_Macro(
             ".F.",  //
-            "FFF"  //
+            "FFF"   //
         );
         CHECK(segments_count == 0);
 
         {
-            auto pos = v2i(1, 0);
+            auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Removed});
@@ -1324,9 +1324,9 @@ TEST_CASE ("Queue") {
 
     SUBCASE("Bulk_Enqueue") {
         REQUIRE(queue.count == 0);
-        int numbers_[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        constexpr auto n = sizeof(numbers_) / sizeof(numbers_[0]);
-        int* numbers = numbers_;
+        int            numbers_[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        constexpr auto n          = sizeof(numbers_) / sizeof(numbers_[0]);
+        int*           numbers    = numbers_;
         REQUIRE(n == 10);
         Bulk_Enqueue(queue, numbers, 10);
         REQUIRE(queue.count == 10);
@@ -1360,10 +1360,10 @@ TEST_CASE ("Queue") {
 
 TEST_CASE ("Array functions") {
     const auto max_count = 10;
-    int arr_arr[max_count];
+    int        arr_arr[max_count];
 
-    i32 count = 0;
-    int* arr = arr_arr;
+    i32  count = 0;
+    int* arr   = arr_arr;
     Array_Push(arr, count, max_count, 5);
     CHECK(*(arr + 0) == 5);
     Array_Push(arr, count, max_count, 4);

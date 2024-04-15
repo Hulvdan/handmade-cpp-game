@@ -23,7 +23,7 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
 #define MARK_BIT(bytes_ptr, bit_index)                      \
     {                                                       \
         u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
-        byte = byte | (1 << ((bit_index) % 8));             \
+        byte     = byte | (1 << ((bit_index) % 8));         \
     }
 
 #define UNMARK_BIT(bytes_ptr, bit_index)                    \

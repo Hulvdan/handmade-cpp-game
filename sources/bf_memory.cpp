@@ -1,7 +1,7 @@
 struct Arena : public Non_Copyable {
-    size_t used;
-    size_t size;
-    u8* base;
+    size_t      used;
+    size_t      size;
+    u8*         base;
     const char* name;
 };
 
@@ -12,8 +12,8 @@ struct Page : public Non_Copyable {
 struct Pages : public Non_Copyable {
     size_t total_count_cap;
     size_t allocated_count;
-    Page* base;
-    bool* in_use;
+    Page*  base;
+    bool*  in_use;
 };
 
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
@@ -71,7 +71,7 @@ void Deallocate_(Arena& arena, size_t size) {
 }
 
 [[nodiscard]] BF_FORCE_INLINE u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
-    const auto addr = rcast<size_t>(ptr);
+    const auto addr         = rcast<size_t>(ptr);
     const auto aligned_addr = (addr + (alignment - 1)) & -alignment;
     return rcast<u8*>(aligned_addr);
 }
@@ -248,15 +248,15 @@ enum class Allocator_Mode {
     Free_All,
 };
 
-#define Allocator__Function(name_) \
-    void name_(                    \
-        Allocator_Mode mode,       \
-        size_t size,               \
-        size_t alignment,          \
-        size_t old_size,           \
-        void* old_memory_ptr,      \
-        void* allocator_data,      \
-        u64 options                \
+#define Allocator__Function(name_)     \
+    void name_(                        \
+        Allocator_Mode mode,           \
+        size_t         size,           \
+        size_t         alignment,      \
+        size_t         old_size,       \
+        void*          old_memory_ptr, \
+        void*          allocator_data, \
+        u64            options         \
     )
 
 using Allocator_Function_Type = Allocator__Function((*));
@@ -289,7 +289,7 @@ struct Context {
     u32 thread_index;
 
     Allocator_Function_Type allocator;
-    void* allocator_data;
+    void*                   allocator_data;
 };
 
 #define mctx Context* ctx
@@ -370,7 +370,7 @@ void Vector_Unordered_Remove_At(std::vector<T, _Allocator>& container, i32 i);
 // ==============================
 
 struct Blk {
-    void* ptr;
+    void*  ptr;
     size_t length;
 
     Blk(void* a_ptr, size_t a_length) : ptr(a_ptr), length(a_length) {}
@@ -462,7 +462,7 @@ struct Stack_Allocator {
     }
 
 private:
-    u8 _buffer[s];
+    u8  _buffer[s];
     u8* _current;
 };
 
@@ -536,7 +536,7 @@ struct Freelist {
                     break;
 
                 p->next = _root;
-                _root = p;
+                _root   = p;
                 _remembered++;
             }
         }
@@ -554,9 +554,9 @@ struct Freelist {
         // NOTE: Если не заполнен список freelist-а, а также это наш размер,
         // тогда не вызываем free аллокатора, а добавляем в freelist.
         if (_remembered < top && min <= b.length && b.length <= max) {
-            auto p = (Node*)b.ptr;
+            auto p  = (Node*)b.ptr;
             p->next = _root;
-            _root = p;
+            _root   = p;
 
             _remembered -= 1;
             return;
@@ -703,8 +703,8 @@ class Bitmapped_Allocator {
         static_assert(Is_Power_Of_2(block_size));
 
         if (_blocks == nullptr) {
-            _blocks = _parent.Allocate(Total_Blocks_Count());
-            _occupied = _blocks + Last_Block_Offset();
+            _blocks          = _parent.Allocate(Total_Blocks_Count());
+            _occupied        = _blocks + Last_Block_Offset();
             _allocation_bits = _occupied + block_size / 2;
             memset(_occupied, 0, block_size);
         }
@@ -809,7 +809,7 @@ struct Cascading_Allocator {
         }
 
         auto& allocator = _allocators.emplace_back();
-        auto result = allocator.Allocate(n);
+        auto  result    = allocator.Allocate(n);
         return result;
     }
 
