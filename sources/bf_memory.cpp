@@ -73,10 +73,6 @@ void Deallocate_(Arena& arena, size_t size) {
 #endif
 }
 
-#define TEMP_USAGE(arena)                            \
-    auto Anon_Variable(used, __COUNTER__) = (arena).used; \
-    defer{arena.used = Anon_Variable(used, __COUTNER__ - 1)};
-
 // ============================== //
 //             Other              //
 // ============================== //
@@ -86,10 +82,26 @@ void Deallocate_(Arena& arena, size_t size) {
     return rcast<u8*>(aligned_addr);
 }
 
-// NOTE: Стырено с https://en.cppreference.com/w/cpp/named_req/Allocator
-#ifdef SHIT_MEMORY_DEBUG
-static std::vector<std::tuple<void*, size_t>> bf_debug_allocations = {};
-#endif  // SHIT_MEMORY_DEBUG
+// #define _TEMP_USAGE_VARIABLE(name, counter) name##counter
+// #define TEMP_USAGE_VARIABLE(name, counter) _TEMP_USAGE_VARIABLE(name, counter)
+// #define TEMP_USAGE(arena)                                                          \
+//     auto TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__) = (arena).used;             \
+//     defer {                                                                        \
+//         Assert((arena).used >= TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__ - 1)); \
+//         (arena).used = TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__ - 2);          \
+//     };
+
+#define TEMP_USAGE(arena)                     \
+    auto _arena_used_ = (arena).used;         \
+    defer {                                   \
+        Assert((arena).used >= _arena_used_); \
+        (arena).used = _arena_used_;          \
+    };
+
+// // NOTE: Стырено с https://en.cppreference.com/w/cpp/named_req/Allocator
+// #ifdef SHIT_MEMORY_DEBUG
+// static std::vector<std::tuple<void*, size_t>> bf_debug_allocations = {};
+// #endif  // SHIT_MEMORY_DEBUG
 
 enum class Allocator_Mode {
     Allocate = 0,
@@ -99,7 +111,7 @@ enum class Allocator_Mode {
 };
 
 #define Allocator__Function(name_)     \
-    void name_(                        \
+    void* name_(                       \
         Allocator_Mode mode,           \
         size_t         size,           \
         size_t         alignment,      \
@@ -112,12 +124,16 @@ enum class Allocator_Mode {
 using Allocator_Function_Type = Allocator__Function((*));
 
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
-#define ALLOC(n) allocate(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
+#define ALLOC(n) \
+    Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
 
-#define FREE(ptr, n) allocate(Allocator_Mode::Free, (n), 1, 0, (ptr), allocator_data, 0)
+#define FREE(ptr, n)                                                             \
+    Assert_Not_Null(allocator)(                                                  \
+        Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
+    )
 
 #define FREE_ALL(allocator_function, n) \
-    allocate(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
+    Assert_Not_Null(allocator)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
 
 struct Context {
     u32 thread_index;
@@ -130,6 +146,12 @@ struct Context {
 };
 
 #define MCTX Context* ctx
+
+#define PUSH_CONTEXT(new_ctx, code) \
+    {                               \
+        auto ctx = (new_ctx);       \
+        (code);                     \
+    }
 
 template <typename T>
 void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
@@ -807,14 +829,6 @@ private:
 //             Cascading_Allocator<  //
 //                 Bitmapped_Allocator<Malloc_Allocator, 128>>>,
 //         Malloc_Allocator>>;
-
-#define TEMP_USAGE_VARIABLE(name, counter) name_##counter
-#define TEMP_USAGE(arena)                                                    \
-    auto TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__) = (arena).used;       \
-    defer {                                                                       \
-        Assert(arena.used >= TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__)); \
-        arena.used = TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__);          \
-    };
 
 using Game_Map_Allocator = Affix_Allocator<Malloc_Allocator>;
 

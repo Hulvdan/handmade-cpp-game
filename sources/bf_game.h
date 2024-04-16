@@ -211,8 +211,7 @@ struct Controller_Axis_Changed {
         size_t       input_events_count,        \
         Editor_Data& editor_data,               \
         OS_Data&     os_data,                   \
-        bool         hot_reloaded,              \
-        MCTX                                    \
+        bool         hot_reloaded               \
     )
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render);

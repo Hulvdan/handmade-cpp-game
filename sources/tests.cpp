@@ -144,99 +144,99 @@ TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward((u8*)(8UL), 8) == (u8*)8UL);
 }
 
-TEST_CASE ("Allocator") {
-    u8* toc_buffer  = new u8[1024];
-    u8* data_buffer = new u8[1024];
-    memset(toc_buffer, 0, 1024);
-
-    auto allocator = Allocator(1024, toc_buffer, 1024, data_buffer);
-    auto alloc     = rcast<Allocation*>(toc_buffer);
-
-    // Tests
-    {
-        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 1);
-        CHECK(ptr == data_buffer);
-
-        CHECK((alloc + 0)->next == size_t_max);
-    }
-    {
-        auto ptr = Allocator_Allocate_Macro(allocator, 36, 1UL);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 2);
-        CHECK(ptr == data_buffer + 12);
-
-        CHECK((alloc + 0)->next == 1);
-        CHECK((alloc + 1)->next == size_t_max);
-    }
-    {
-        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 3);
-        CHECK(ptr == data_buffer + 48);
-
-        CHECK((alloc + 0)->next == 1);
-        CHECK((alloc + 1)->next == 2);
-        CHECK((alloc + 2)->next == size_t_max);
-    }
-    {
-        Allocator_Free_Macro(allocator, data_buffer + 48);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 2);
-        CHECK((alloc + 0)->next == 1);
-        CHECK((alloc + 1)->next == size_t_max);
-        CHECK((alloc + 1)->active == true);
-        CHECK((alloc + 2)->active == false);
-    }
-    {
-        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 3);
-        CHECK(ptr == data_buffer + 48);
-    }
-    {
-        Allocator_Free_Macro(allocator, data_buffer + 0);
-        CHECK(allocator.first_allocation_index == 1);
-        CHECK(allocator.current_allocations_count == 2);
-        CHECK((alloc + 0)->active == false);
-        CHECK((alloc + 1)->next == 2);
-        CHECK((alloc + 1)->active == true);
-        CHECK((alloc + 2)->active == true);
-    }
-    {
-        Allocator_Free_Macro(allocator, data_buffer + 12);
-        CHECK(allocator.first_allocation_index == 2);
-        CHECK(allocator.current_allocations_count == 1);
-        CHECK((alloc + 0)->active == false);
-        CHECK((alloc + 1)->active == false);
-        CHECK((alloc + 0)->active == false);
-        CHECK((alloc + 1)->active == false);
-        CHECK((alloc + 2)->active == true);
-    }
-    {
-        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 2);
-        CHECK(ptr == data_buffer + 0);
-        CHECK((alloc + 0)->active == true);
-        CHECK((alloc + 2)->active == true);
-        CHECK((alloc + 0)->next == 2);
-        CHECK((alloc + 2)->next == size_t_max);
-    }
-    {
-        auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-        CHECK(allocator.first_allocation_index == 0);
-        CHECK(allocator.current_allocations_count == 3);
-        CHECK(ptr == data_buffer + 12);
-        CHECK((alloc + 0)->active == true);
-        CHECK((alloc + 1)->active == true);
-        CHECK((alloc + 2)->active == true);
-        CHECK((alloc + 0)->next == 1);
-        CHECK((alloc + 1)->next == 2);
-        CHECK((alloc + 2)->next == size_t_max);
-    }
-}
+// TEST_CASE ("Allocator") {
+//     u8* toc_buffer  = new u8[1024];
+//     u8* data_buffer = new u8[1024];
+//     memset(toc_buffer, 0, 1024);
+//
+//     auto allocator = Allocator(1024, toc_buffer, 1024, data_buffer);
+//     auto alloc     = rcast<Allocation*>(toc_buffer);
+//
+//     // Tests
+//     {
+//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 1);
+//         CHECK(ptr == data_buffer);
+//
+//         CHECK((alloc + 0)->next == size_t_max);
+//     }
+//     {
+//         auto ptr = Allocator_Allocate_Macro(allocator, 36, 1UL);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 2);
+//         CHECK(ptr == data_buffer + 12);
+//
+//         CHECK((alloc + 0)->next == 1);
+//         CHECK((alloc + 1)->next == size_t_max);
+//     }
+//     {
+//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 3);
+//         CHECK(ptr == data_buffer + 48);
+//
+//         CHECK((alloc + 0)->next == 1);
+//         CHECK((alloc + 1)->next == 2);
+//         CHECK((alloc + 2)->next == size_t_max);
+//     }
+//     {
+//         Allocator_Free_Macro(allocator, data_buffer + 48);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 2);
+//         CHECK((alloc + 0)->next == 1);
+//         CHECK((alloc + 1)->next == size_t_max);
+//         CHECK((alloc + 1)->active == true);
+//         CHECK((alloc + 2)->active == false);
+//     }
+//     {
+//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 3);
+//         CHECK(ptr == data_buffer + 48);
+//     }
+//     {
+//         Allocator_Free_Macro(allocator, data_buffer + 0);
+//         CHECK(allocator.first_allocation_index == 1);
+//         CHECK(allocator.current_allocations_count == 2);
+//         CHECK((alloc + 0)->active == false);
+//         CHECK((alloc + 1)->next == 2);
+//         CHECK((alloc + 1)->active == true);
+//         CHECK((alloc + 2)->active == true);
+//     }
+//     {
+//         Allocator_Free_Macro(allocator, data_buffer + 12);
+//         CHECK(allocator.first_allocation_index == 2);
+//         CHECK(allocator.current_allocations_count == 1);
+//         CHECK((alloc + 0)->active == false);
+//         CHECK((alloc + 1)->active == false);
+//         CHECK((alloc + 0)->active == false);
+//         CHECK((alloc + 1)->active == false);
+//         CHECK((alloc + 2)->active == true);
+//     }
+//     {
+//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 2);
+//         CHECK(ptr == data_buffer + 0);
+//         CHECK((alloc + 0)->active == true);
+//         CHECK((alloc + 2)->active == true);
+//         CHECK((alloc + 0)->next == 2);
+//         CHECK((alloc + 2)->next == size_t_max);
+//     }
+//     {
+//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
+//         CHECK(allocator.first_allocation_index == 0);
+//         CHECK(allocator.current_allocations_count == 3);
+//         CHECK(ptr == data_buffer + 12);
+//         CHECK((alloc + 0)->active == true);
+//         CHECK((alloc + 1)->active == true);
+//         CHECK((alloc + 2)->active == true);
+//         CHECK((alloc + 0)->next == 1);
+//         CHECK((alloc + 1)->next == 2);
+//         CHECK((alloc + 2)->next == size_t_max);
+//     }
+// }
 
 TEST_CASE ("Opposite") {
     CHECK(Opposite(Direction::Right) == Direction::Left);
@@ -319,10 +319,9 @@ int Process_Segments(
     Element_Tile*&                element_tiles,
     Bucket_Array<Graph_Segment>*& segments,
     Arena&                        trash_arena,
-    Allocator&                    segment_vertices_allocator,
-    Allocator&                    graph_nodes_allocator,
     Building*&                    building_sawmill,
-    tvector<const char*>          strings  //
+    tvector<const char*>          strings,
+    MCTX
 ) {
     // NOTE: Creating `element_tiles`
     gsize.y = strings.size();
@@ -337,8 +336,6 @@ int Process_Segments(
     {
         segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
         Init_Bucket_Array(*segments, 32, 128);
-        segments->allocator_functions.allocate = heap_allocate;
-        segments->allocator_functions.free     = heap_free;
     }
 
     auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -397,13 +394,7 @@ int Process_Segments(
 
     // NOTE: Counting segments
     Build_Graph_Segments(
-        gsize,
-        element_tiles,
-        *segments,
-        trash_arena,
-        segment_vertices_allocator,
-        graph_nodes_allocator,
-        [](...) {}
+        gsize, element_tiles, *segments, trash_arena, [](...) {}, ctx
     );
 
     int segments_count = 0;
@@ -413,47 +404,44 @@ int Process_Segments(
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                   \
-    tvector<const char*> _strings = {__VA_ARGS__};    \
-    auto(segments_count)          = Process_Segments( \
-        gsize,                               \
-        element_tiles,                       \
-        segments,                            \
-        trash_arena,                         \
-        segment_vertices_allocator,          \
-        graph_nodes_allocator,               \
-        building_sawmill,                    \
-        _strings                             \
+#define Process_Segments_Macro(...)                                                           \
+    tvector<const char*> _strings = {__VA_ARGS__};                                            \
+    auto(segments_count)          = Process_Segments(                                         \
+        gsize, element_tiles, segments, trash_arena, building_sawmill, _strings, ctx \
     );
 
-#define Update_Tiles_Macro(updated_tiles)                                               \
-    REQUIRE(segments != nullptr);                                                       \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles(                 \
-        gsize,                                                                          \
-        element_tiles,                                                                  \
-        segments,                                                                       \
-        trash_arena,                                                                    \
-        segment_vertices_allocator,                                                     \
-        graph_nodes_allocator,                                                          \
-        (updated_tiles),                                                                \
-        [&segments, &segment_vertices_allocator, &graph_nodes_allocator, &trash_arena]( \
-            u32             segments_to_be_deleted_count,                               \
-            Graph_Segment** segments_to_be_deleted,                                     \
-            u32             added_segments_count,                                       \
-            Graph_Segment*  added_segments                                              \
-        ) {                                                                             \
-            FOR_RANGE (u32, i, segments_to_be_deleted_count) {                          \
-                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);             \
-                auto&          segment     = *segment_ptr;                              \
-                Bucket_Array_Remove(*segments, segment.locator);                        \
-                segment_vertices_allocator.Free(rcast<u8*>(segment.vertices));          \
-                graph_nodes_allocator.Free(segment.graph.nodes);                        \
-            }                                                                           \
-                                                                                        \
-            FOR_RANGE (u32, i, added_segments_count) {                                  \
-                Add_And_Link_Segment(*segments, *(added_segments + i), trash_arena);    \
-            }                                                                           \
-        }                                                                               \
+#define Update_Tiles_Macro(updated_tiles)                                   \
+    REQUIRE(segments != nullptr);                                           \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(     \
+        gsize,                                                              \
+        element_tiles,                                                      \
+        segments,                                                           \
+        trash_arena,                                                        \
+        (updated_tiles),                                                    \
+        [&segments, &trash_arena](                                          \
+            u32             segments_to_be_deleted_count,                   \
+            Graph_Segment** segments_to_be_deleted,                         \
+            u32             added_segments_count,                           \
+            Graph_Segment*  added_segments,                                 \
+            MCTX                                                            \
+        ) {                                                                 \
+            CTX_ALLOCATOR;                                                  \
+                                                                            \
+            FOR_RANGE (u32, i, segments_to_be_deleted_count) {              \
+                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i); \
+                auto&          segment     = *segment_ptr;                  \
+                Bucket_Array_Remove(*segments, segment.locator);            \
+                FREE(segment.vertices, segment.vertices_count);             \
+                FREE(segment.graph.nodes, segment.graph.nodes_count);       \
+            }                                                               \
+                                                                            \
+            FOR_RANGE (u32, i, added_segments_count) {                      \
+                Add_And_Link_Segment(                                       \
+                    *segments, *(added_segments + i), trash_arena, ctx      \
+                );                                                          \
+            }                                                               \
+        },                                                                  \
+        ctx                                                                 \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \
@@ -518,7 +506,14 @@ TEST_CASE ("Bit operations") {
     }
 }
 
+global Context _ctx;
+
 TEST_CASE ("Update_Tiles") {
+    auto ctx            = &_ctx;
+    _ctx.thread_index   = 0;
+    _ctx.allocator      = nullptr;
+    _ctx.allocator_data = nullptr;
+
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     OS_Data os_data   = {};
@@ -532,22 +527,6 @@ TEST_CASE ("Update_Tiles") {
     auto  trash_size  = Megabytes((size_t)2);
     trash_arena.size  = trash_size;
     trash_arena.base  = new u8[trash_size];
-
-    auto& segment_vertices_allocator = *std::construct_at(
-        Allocate_Zeros_For(trash_arena, Allocator),
-        1024,
-        Allocate_Zeros_Array(trash_arena, u8, 1024),
-        4096,
-        Allocate_Zeros_Array(trash_arena, u8, 4096)
-    );
-
-    auto& graph_nodes_allocator = *std::construct_at(
-        Allocate_Zeros_For(trash_arena, Allocator),
-        1024,
-        Allocate_Zeros_Array(trash_arena, u8, 1024),
-        4096,
-        Allocate_Zeros_Array(trash_arena, u8, 4096)
-    );
 
     Pages pages = {};
     {
@@ -1270,35 +1249,40 @@ TEST_CASE ("Update_Tiles") {
 }
 
 TEST_CASE ("Queue") {
+    auto ctx            = &_ctx;
+    _ctx.thread_index   = 0;
+    _ctx.allocator      = nullptr;
+    _ctx.allocator_data = nullptr;
+
     Queue<int> queue = {};
 
     SUBCASE("Enqueue") {
         REQUIRE(queue.count == 0);
-        Enqueue(queue, 10);
+        Enqueue(queue, 10, ctx);
         REQUIRE(queue.count == 1);
         auto val = Dequeue(queue);
         CHECK(val == 10);
         REQUIRE(queue.count == 0);
 
         REQUIRE(queue.max_count == 8);
-        Enqueue(queue, 1);
+        Enqueue(queue, 1, ctx);
         REQUIRE(queue.count == 1);
-        Enqueue(queue, 2);
+        Enqueue(queue, 2, ctx);
         REQUIRE(queue.count == 2);
-        Enqueue(queue, 3);
+        Enqueue(queue, 3, ctx);
         REQUIRE(queue.count == 3);
-        Enqueue(queue, 4);
+        Enqueue(queue, 4, ctx);
         REQUIRE(queue.count == 4);
-        Enqueue(queue, 5);
+        Enqueue(queue, 5, ctx);
         REQUIRE(queue.count == 5);
-        Enqueue(queue, 6);
+        Enqueue(queue, 6, ctx);
         REQUIRE(queue.count == 6);
-        Enqueue(queue, 7);
+        Enqueue(queue, 7, ctx);
         REQUIRE(queue.count == 7);
-        Enqueue(queue, 8);
+        Enqueue(queue, 8, ctx);
         REQUIRE(queue.count == 8);
         REQUIRE(queue.max_count == 8);
-        Enqueue(queue, 9);
+        Enqueue(queue, 9, ctx);
         REQUIRE(queue.max_count == 16);
         REQUIRE(queue.count == 9);
 
@@ -1328,7 +1312,7 @@ TEST_CASE ("Queue") {
         constexpr auto n          = sizeof(numbers_) / sizeof(numbers_[0]);
         int*           numbers    = numbers_;
         REQUIRE(n == 10);
-        Bulk_Enqueue(queue, numbers, 10);
+        Bulk_Enqueue(queue, numbers, 10, ctx);
         REQUIRE(queue.count == 10);
         REQUIRE(queue.max_count == 16);
 

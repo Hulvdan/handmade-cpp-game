@@ -772,7 +772,7 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     return res;
 }
 
-void Render(Game_State& state, f32 dt) {
+void Render(Game_State& state, f32 dt, MCTX) {
     ZoneScoped;
 
     Arena& trash_arena = state.trash_arena;

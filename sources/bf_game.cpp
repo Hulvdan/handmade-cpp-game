@@ -138,7 +138,8 @@ void Process_Events(
     Game_State& state,
     const u8*   events,
     size_t      input_events_count,
-    float       dt
+    float       dt,
+    MCTX
 ) {
     auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
@@ -168,16 +169,16 @@ void Process_Events(
                         if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
                             switch (selected_buildable.type) {
                             case Item_To_Build_Type::Road: {
-                                Try_Build(state, tile_pos, Item_To_Build_Flag);
-                                Try_Build(state, tile_pos, Item_To_Build_Road);
+                                Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
+                                Try_Build(state, tile_pos, Item_To_Build_Road, ctx);
                             } break;
 
                             case Item_To_Build_Type::Flag: {
-                                Try_Build(state, tile_pos, Item_To_Build_Flag);
+                                Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
                             } break;
 
                             case Item_To_Build_Type::Building: {
-                                Try_Build(state, tile_pos, selected_buildable);
+                                Try_Build(state, tile_pos, selected_buildable, ctx);
                             } break;
 
                             default:
@@ -353,6 +354,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     }
     // --- IMGUI END ---
 
+    Context _ctx;
+    _ctx.thread_index   = 0;
+    _ctx.allocator      = nullptr;
+    _ctx.allocator_data = nullptr;
+    auto ctx            = &_ctx;
+
     if (!first_time_initializing && state.hot_reloaded) {
         Deinitialize_Game_Map(state, ctx);
     }
@@ -432,12 +439,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.scriptable_building_lumberjacks_hut = &b;
         }
 
-        Initialize_Game_Map(state, non_persistent_arena);
+        Initialize_Game_Map(state, non_persistent_arena, ctx);
         Regenerate_Terrain_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data
+            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
         Regenerate_Element_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data
+            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
         On_Item_Built__Function((*callbacks[])) = {
@@ -501,7 +508,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     auto& trash_arena = state.trash_arena;
     TEMP_USAGE(trash_arena);
 
-    Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt);
-    Update_Game_Map(state, dt);
-    Render(state, dt);
+    Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);
+    Update_Game_Map(state, dt, ctx);
+    Render(state, dt, ctx);
 }

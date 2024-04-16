@@ -45,6 +45,17 @@ struct std::hash<v2i16> {
 
 // ----- Queues -----
 
+#define CONTAINER_ALLOCATOR                          \
+    auto  allocator      = container.allocator;      \
+    void* allocator_data = container.allocator_data; \
+    {                                                \
+        if (allocator == nullptr) {                  \
+            Assert(allocator_data == nullptr);       \
+            allocator      = ctx->allocator;         \
+            allocator_data = ctx->allocator_data;    \
+        }                                            \
+    }
+
 // PERF: Переписать на ring buffer!
 template <typename T>
 struct Fixed_Size_Queue {
@@ -154,15 +165,15 @@ void Enqueue(Queue<T>& container, const T value, MCTX)
         Assert(container.max_count == 0);
         Assert(container.count == 0);
         container.max_count = 8;
-        container.base      = (u8*)ALLOC(container.max_count);
+        container.base      = (T*)ALLOC(sizeof(T) * container.max_count);
     }
     else if (container.max_count == container.count) {
         u32 new_max_count = container.max_count * 2;
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto new_ptr = (u8*)ALLOC(new_max_count);
+        auto new_ptr = (T*)ALLOC(sizeof(T) * new_max_count);
         memcpy(new_ptr, container.base, container.max_count * sizeof(T));
-        FREE(container.base, container.max_count * sizeof(T));
+        FREE(container.base, container.max_count);
 
         container.base      = new_ptr;
         container.max_count = new_max_count;
@@ -184,15 +195,15 @@ void Bulk_Enqueue(Queue<T>& container, const T* values, const u32 values_count, 
         Assert(container.count == 0);
 
         container.max_count = MAX(Ceil_To_Power_Of_2(values_count), 8);
-        container.base      = (u8*)ALLOC(container.max_count);
+        container.base      = (T*)ALLOC(sizeof(T) * container.max_count);
     }
     else if (container.max_count < container.count + values_count) {
         u32 new_max_count = Ceil_To_Power_Of_2(container.max_count + values_count);
         Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto new_ptr = (u8*)ALLOC(new_max_count);
+        auto new_ptr = (T*)ALLOC(sizeof(T) * new_max_count);
         memcpy(new_ptr, container.base, sizeof(T) * container.count);
-        FREE(container.base, sizeof(T) * container.max_count);
+        FREE(container.base, container.max_count);
 
         container.base      = new_ptr;
         container.max_count = new_max_count;
@@ -274,7 +285,7 @@ i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
         Assert(container.count == 0);
 
         container.max_count = 8;
-        container.base      = rcast<T*>(ALLOC(container.max_count * sizeof(T)));
+        container.base      = (T*)ALLOC(sizeof(T) * container.max_count);
     }
     else if (container.max_count == container.count) {
         u32 new_max_count = container.max_count * 2;
@@ -285,7 +296,7 @@ i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
 
         container.base = rcast<T*>(ALLOC(old_size * 2));
         memcpy(container.base, old_ptr, old_size);
-        FREE(old_ptr, old_size);
+        FREE(old_ptr, container.max_count);
 
         container.max_count = new_max_count;
     }
@@ -427,9 +438,9 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, MCTX) {
 }
 
 template <typename T>
-ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
+ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr, MCTX) {
     if (arr.unfull_buckets_count == 0)
-        Add_Bucket(arr);
+        Add_Bucket(arr, ctx);
     // TODO: Some kind of error handling!
     Assert(arr.unfull_buckets_count > 0);
 
@@ -476,8 +487,8 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr) {
 }
 
 template <typename T>
-Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item) {
-    auto [locator, ptr] = Find_And_Occupy_Empty_Slot(arr);
+Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item, MCTX) {
+    auto [locator, ptr] = Find_And_Occupy_Empty_Slot(arr, ctx);
     *ptr                = item;
     return locator;
 }

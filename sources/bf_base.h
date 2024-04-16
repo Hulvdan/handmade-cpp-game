@@ -38,6 +38,36 @@ void DEBUG_Print(const char* text, ...) {
 #define DEBUG_Print(text_, ...)
 #endif  // BF_INTERNAL
 
+// ============================================================= //
+//                            INLINE                             //
+// ============================================================= //
+// NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
+#if BF_NO_INLINE_HINTS /* disable inlining hints */
+#if defined(__GNUC__) || defined(__clang__)
+#define BF_FORCE_INLINE static __attribute__((unused))
+#else
+#define BF_FORCE_INLINE static
+#endif
+#define BF_NO_INLINE static
+/* enable inlining hints */
+#elif defined(__GNUC__) || defined(__clang__)
+#define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
+#define BF_NO_INLINE static __attribute__((noinline))
+#elif defined(_MSC_VER) /* Visual Studio */
+#define BF_FORCE_INLINE static __forceinline
+#define BF_NO_INLINE static __declspec(noinline)
+#elif defined(__cplusplus) \
+    || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
+#define BF_FORCE_INLINE static inline
+#define BF_NO_INLINE static
+#else
+#define BF_FORCE_INLINE static
+#define BF_NO_INLINE static
+#endif
+
+// ============================================================= //
+//                          OTHER SHIT                           //
+// ============================================================= //
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
 typedef glm::vec<2, int16_t, glm::defaultp> v2i16;
@@ -87,9 +117,15 @@ constexpr u8 SHIT_BYTE_MASK = (u8)0xCC;
 #endif  // TESTS
 
 template <typename T>
-T& Assert_Deref(T* value) {
+BF_FORCE_INLINE T& Assert_Deref(T* value) {
     Assert(value != nullptr);
     return *value;
+}
+
+template <typename T>
+BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
+    Assert(value != nullptr);
+    return value;
 }
 
 #define INVALID_PATH Assert(false)
@@ -156,7 +192,7 @@ struct Non_Copyable {
 };
 
 template <typename T>
-void Initialize_As_Zeros(T& value) {
+BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
 
@@ -211,30 +247,3 @@ public:
         return copy;
     }
 };
-
-// ============================================================= //
-//                            INLINE                             //
-// ============================================================= //
-// NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
-#if BF_NO_INLINE_HINTS /* disable inlining hints */
-#if defined(__GNUC__) || defined(__clang__)
-#define BF_FORCE_INLINE static __attribute__((unused))
-#else
-#define BF_FORCE_INLINE static
-#endif
-#define BF_NO_INLINE static
-/* enable inlining hints */
-#elif defined(__GNUC__) || defined(__clang__)
-#define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
-#define BF_NO_INLINE static __attribute__((noinline))
-#elif defined(_MSC_VER) /* Visual Studio */
-#define BF_FORCE_INLINE static __forceinline
-#define BF_NO_INLINE static __declspec(noinline)
-#elif defined(__cplusplus) \
-    || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
-#define BF_FORCE_INLINE static inline
-#define BF_NO_INLINE static
-#else
-#define BF_FORCE_INLINE static
-#define BF_NO_INLINE static
-#endif
