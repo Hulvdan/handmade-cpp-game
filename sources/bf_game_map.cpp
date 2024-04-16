@@ -1964,6 +1964,8 @@ void Update_Graphs(
         temp_graph.size.y = gsize.y;
 
         while (queue.count) {
+            SANITIZE;
+
             auto [dir, pos] = Dequeue(queue);
             if (full_graph_build)
                 GRID_PTR_VALUE(vis, pos) = true;
@@ -2078,9 +2080,8 @@ void Update_Graphs(
         segment.vertices_count = vertices_count;
         added_segments_count++;
 
-        auto verticesss  = (v2i16*)ALLOC(sizeof(v2i16) * vertices_count);
-        segment.vertices = verticesss;
-        memcpy(segment.vertices, vertices, sizeof(v2i16) * vertices_count);
+        segment.vertices = (v2i16*)ALLOC(sizeof(*segment.vertices) * vertices_count);
+        memcpy(segment.vertices, vertices, sizeof(*segment.vertices) * vertices_count);
 
         segment.graph.nodes_count = temp_graph.nodes_count;
 
@@ -2116,7 +2117,7 @@ void Update_Graphs(
         // NOTE: Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto all_nodes_count = gr_size.x * gr_size.y;
-        segment.graph.nodes  = (u8*)ALLOC(sizeof(*segment.graph.nodes) * vertices_count);
+        segment.graph.nodes  = (u8*)ALLOC(sizeof(*segment.graph.nodes) * all_nodes_count);
 
         auto rows          = gr_size.y;
         auto stride        = gsize.x;

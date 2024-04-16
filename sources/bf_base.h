@@ -122,14 +122,19 @@ BF_FORCE_INLINE T& Assert_Deref(T* value) {
     return *value;
 }
 
+#if 1
 template <typename T>
 BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
     Assert(value != nullptr);
     return value;
 }
+#else
+#define Assert_Not_Null(value) value
+#endif
 
 #define INVALID_PATH Assert(false)
 #define NOT_IMPLEMENTED Assert(false)
+#define NOT_SUPPORTED Assert(false)
 
 #define scast static_cast
 #define rcast reinterpret_cast

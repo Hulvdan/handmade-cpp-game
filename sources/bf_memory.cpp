@@ -108,6 +108,7 @@ enum class Allocator_Mode {
     Resize,
     Free,
     Free_All,
+    Sanity,
 };
 
 #define Allocator__Function(name_)     \
@@ -135,11 +136,14 @@ using Allocator_Function_Type = Allocator__Function((*));
 #define FREE_ALL(allocator_function, n) \
     Assert_Not_Null(allocator)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
 
-struct Context {
-    u32 thread_index;
+#define SANITIZE \
+    Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
 
+struct Context {
     Allocator_Function_Type allocator;
     void*                   allocator_data;
+
+    u32 thread_index;
 
     // NOTE: Сюда можно ещё пихнуть и другие данные,
     // например, что-нибудь для логирования
@@ -232,6 +236,10 @@ struct Blk {
     size_t length;
 
     Blk(void* a_ptr, size_t a_length) : ptr(a_ptr), length(a_length) {}
+
+    friend bool operator==(const Blk& a, const Blk& b) {
+        return a.ptr == b.ptr && a.length == b.length;
+    }
 };
 
 // Blk Custom_Malloc(size_t size);
@@ -450,20 +458,22 @@ struct Affix_Allocator {
         if (!std::is_void_v<Suffix>)
             to_allocate += sizeof(Suffix);
 
-        void* ptr = _parent.Allocate(to_allocate);
+        auto blk = _parent.Allocate(to_allocate);
+        auto ptr = (u8*)blk.ptr;
+
         if (ptr == nullptr)
             return Blk(nullptr, 0);
 
         if (!std::is_void_v<Prefix>) {
-            std::construct_at<Prefix>(ptr, n);
+            std::construct_at<Prefix>((Prefix*)ptr, n);
             ptr += sizeof(Prefix);
         }
 
-        if (!std::is_void_v<Suffix>)
-            std::construct_at<Suffix>(ptr + n, n);
+        if (!std::is_void_v<Suffix>) {
+            std::construct_at<Suffix>((Suffix*)(ptr + n), n);
+        }
 
-        Blk result(ptr, n);
-        return result;
+        return Blk((void*)ptr, n);
     }
 
     bool Owns(Blk b) {
@@ -483,30 +493,53 @@ struct Affix_Allocator {
     }
 
     void Deallocate(Blk b) {
-        if (b.ptr == nullptr) {
+        auto ptr = (u8*)b.ptr;
+
+        if (ptr == nullptr) {
             Assert(b.length == 0);
             return _parent.Deallocate(b);
         }
 
         if (!std::is_void_v<Prefix>) {
-            b.ptr -= sizeof(Prefix);
+            ptr -= sizeof(Prefix);
             b.length += sizeof(Prefix);
         }
         if (!std::is_void_v<Suffix>)
             b.length += sizeof(Suffix);
 
+        b.ptr = ptr;
+
+        auto& v = _allocations;
+        v.erase(std::remove(v.begin(), v.end(), b), v.end());
+
         _parent.Deallocate(b);
     }
 
     bool Sanity_Check() {
-        // TODO: Прикрутить трекинг аллокаций для тестов.
-        // Проверять вокруг них целостность аффиксов.
+        for (auto blk : _allocations) {
+            auto ptr = (u8*)blk.ptr;
+
+            if (!std::is_void_v<Prefix>) {
+                auto affix = (Prefix*)ptr;
+                Assert(affix->Validate());
+                ptr += sizeof(Prefix);
+            }
+
+            ptr += blk.length;
+
+            if (!std::is_void_v<Suffix>) {
+                auto affix = (Suffix*)ptr;
+                Assert(affix->Validate());
+            }
+        }
 
         return _parent.Sanity_Check();
     }
 
 private:
     A _parent;
+
+    std::vector<Blk> _allocations;
 };
 
 // template <class A, u32 flags>

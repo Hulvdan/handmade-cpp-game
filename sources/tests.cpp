@@ -6,6 +6,149 @@
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
+// ============================================================= //
+//                         Memory Setup                          //
+// ============================================================= //
+global Context _ctx;
+
+struct Tests_Affix {
+    char data[2048];
+
+    Tests_Affix(size_t n) {
+        FOR_RANGE (int, i, 2048 / 4) {
+            data[i + 0] = 124;
+            data[i + 1] = 125;
+            data[i + 2] = 126;
+            data[i + 3] = 127;
+        }
+    }
+
+    bool Validate() {
+        FOR_RANGE (int, i, 2048 / 4) {
+            auto a1 = data[i + 0] == 124;
+            auto a2 = data[i + 1] == 125;
+            auto a3 = data[i + 2] == 126;
+            auto a4 = data[i + 3] == 127;
+
+            Assert(a1);
+            Assert(a2);
+            Assert(a3);
+            Assert(a4);
+
+            if (!(a1 && a2 && a3 && a4))
+                return false;
+        }
+        return true;
+    }
+};
+
+using Tests_Allocator_Type = Affix_Allocator<Malloc_Allocator, Tests_Affix, Tests_Affix>;
+global Tests_Allocator_Type tests_allocator;
+
+Allocator__Function(Tests_Allocator) {
+    // GOTEM size_t size
+    // ????? size_t alignment
+    // GOTEM size_t old_size
+    // GOTEM void*  old_memory_ptr
+    // GOTEM void*  allocator_data
+    // GOTEM u64    options
+    switch (mode) {
+    case Allocator_Mode::Allocate: {
+        Assert(old_memory_ptr == nullptr);
+        Assert(size > 0);
+        Assert(old_size == 0);
+
+        return tests_allocator.Allocate(size).ptr;
+    } break;
+
+    case Allocator_Mode::Resize: {
+        NOT_IMPLEMENTED;
+
+        // Assert(old_memory_ptr != nullptr);
+        // Assert(size > 0);
+        // Assert(old_size > 0);
+        //
+        // tests_allocator.Allocate(size);
+        //
+        // return std::realloc(old_memory_ptr, size);
+    } break;
+
+    case Allocator_Mode::Free: {
+        Assert(old_memory_ptr != nullptr);
+        Assert(size > 0);
+        tests_allocator.Deallocate(Blk(old_memory_ptr, old_size));
+        return nullptr;
+    } break;
+
+    case Allocator_Mode::Free_All: {
+        NOT_SUPPORTED;
+    } break;
+
+    case Allocator_Mode::Sanity: {
+        Assert(old_memory_ptr == nullptr);
+        Assert(size == 0);
+        Assert(old_size == 0);
+        Assert(alignment == 0);
+        tests_allocator.Sanity_Check();
+    } break;
+
+    default:
+        INVALID_PATH;
+    }
+    return nullptr;
+}
+
+#define INITALIZE_CTX                      \
+    auto ctx            = &_ctx;           \
+    _ctx.thread_index   = 0;               \
+    _ctx.allocator      = Tests_Allocator; \
+    _ctx.allocator_data = nullptr;
+
+global tvector<u8*> virtual_allocations;
+global tvector<void*> heap_allocations;
+
+void* heap_allocate(size_t n, size_t alignment) {
+    void* result = _aligned_malloc(n, alignment);
+    heap_allocations.push_back(result);
+    return result;
+}
+void heap_free(void* ptr) {
+    heap_allocations.erase(
+        std::remove(heap_allocations.begin(), heap_allocations.end(), ptr),
+        heap_allocations.end()
+    );
+    _aligned_free(ptr);
+}
+
+Allocate_Pages__Function(Win32_Allocate_Pages) {
+    Assert(count % OS_DATA.min_pages_per_allocation == 0);
+    auto size   = OS_DATA.page_size * count;
+    auto result = (u8*)VirtualAlloc(
+        nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+    );
+
+    virtual_allocations.push_back(result);
+    return result;
+}
+
+void Free_Allocations() {
+    for (auto ptr : virtual_allocations)
+        VirtualFree((void*)ptr, 0, MEM_RELEASE);
+
+    virtual_allocations.clear();
+
+    for (auto ptr : heap_allocations) {
+        // NOTE: Специально не вызываю heap_free,
+        // чтобы не удаляло из массива по ходу итерирования.
+        _aligned_free(ptr);
+    }
+
+    heap_allocations.clear();
+}
+
+// ============================================================= //
+//                             Tests                             //
+// ============================================================= //
 TEST_CASE ("Hash32, EmptyIsCorrect") {
     CHECK(Hash32((u8*)"", 0) == 2166136261);
 }
@@ -259,48 +402,6 @@ TEST_CASE ("As_Offset") {
     CHECK(As_Offset(Direction::Down) == v2i16(0, -1));
 }
 
-global tvector<u8*> virtual_allocations;
-global tvector<void*> heap_allocations;
-
-void* heap_allocate(size_t n, size_t alignment) {
-    void* result = _aligned_malloc(n, alignment);
-    heap_allocations.push_back(result);
-    return result;
-}
-void heap_free(void* ptr) {
-    heap_allocations.erase(
-        std::remove(heap_allocations.begin(), heap_allocations.end(), ptr),
-        heap_allocations.end()
-    );
-    _aligned_free(ptr);
-}
-
-Allocate_Pages__Function(Win32_Allocate_Pages) {
-    Assert(count % OS_DATA.min_pages_per_allocation == 0);
-    auto size   = OS_DATA.page_size * count;
-    auto result = (u8*)VirtualAlloc(
-        nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
-    );
-
-    virtual_allocations.push_back(result);
-    return result;
-}
-
-void Free_Allocations() {
-    for (auto ptr : virtual_allocations)
-        VirtualFree((void*)ptr, 0, MEM_RELEASE);
-
-    virtual_allocations.clear();
-
-    for (auto ptr : heap_allocations) {
-        // NOTE: Специально не вызываю heap_free,
-        // чтобы не удаляло из массива по ходу итерирования.
-        _aligned_free(ptr);
-    }
-
-    heap_allocations.clear();
-}
-
 Building* Global_Make_Building(
     Element_Tile*& element_tiles,
     Arena&         trash_arena,
@@ -320,7 +421,7 @@ int Process_Segments(
     Bucket_Array<Graph_Segment>*& segments,
     Arena&                        trash_arena,
     Building*&                    building_sawmill,
-    tvector<const char*>          strings,
+    tvector<const char*>&         strings,
     MCTX
 ) {
     // NOTE: Creating `element_tiles`
@@ -404,9 +505,9 @@ int Process_Segments(
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                                                           \
-    tvector<const char*> _strings = {__VA_ARGS__};                                            \
-    auto(segments_count)          = Process_Segments(                                         \
+#define Process_Segments_Macro(...)                                                               \
+    std::vector<const char*> _strings = {__VA_ARGS__};                                            \
+    auto(segments_count)              = Process_Segments(                                         \
         gsize, element_tiles, segments, trash_arena, building_sawmill, _strings, ctx \
     );
 
@@ -506,13 +607,54 @@ TEST_CASE ("Bit operations") {
     }
 }
 
-global Context _ctx;
+// Allocator__Function(Malloc_Allocatorrrr) {
+//     // GOTEM size_t size
+//     // ????? size_t alignment
+//     // GOTEM size_t old_size
+//     // GOTEM void*  old_memory_ptr
+//     // GOTEM void*  allocator_data
+//     // GOTEM u64    options
+//     switch (mode) {
+//     case Allocator_Mode::Allocate: {
+//         Assert(old_memory_ptr == nullptr);
+//         Assert(size > 0);
+//         Assert(old_size == 0);
+//
+//         return std::malloc(size);
+//     } break;
+//
+//     case Allocator_Mode::Resize: {
+//         Assert(old_memory_ptr != nullptr);
+//         Assert(size > 0);
+//         Assert(old_size > 0);
+//
+//         return std::realloc(old_memory_ptr, size);
+//     } break;
+//
+//     case Allocator_Mode::Free: {
+//         Assert(old_memory_ptr != nullptr);
+//         Assert(size == 0);
+//         Assert(old_size > 0);
+//
+//         std::free(old_memory_ptr);
+//         return nullptr;
+//     } break;
+//
+//     case Allocator_Mode::Free_All: {
+//         NOT_SUPPORTED;
+//     } break;
+//
+//     case Allocator_Mode::Sanity: {
+//     } break;
+//
+//     default:
+//         INVALID_PATH;
+//     }
+//     return nullptr;
+// }
 
 TEST_CASE ("Update_Tiles") {
-    auto ctx            = &_ctx;
-    _ctx.thread_index   = 0;
-    _ctx.allocator      = nullptr;
-    _ctx.allocator_data = nullptr;
+    INITALIZE_CTX;
 
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
@@ -1107,7 +1249,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(0, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1118,7 +1259,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1129,7 +1269,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(2, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1140,7 +1279,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(0, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1151,7 +1289,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(1, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1162,7 +1299,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(0, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1173,7 +1309,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(1, 1);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1184,7 +1319,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(2, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1195,7 +1329,6 @@ TEST_CASE ("Update_Tiles") {
         {
             auto pos                                = v2i(1, 0);
             GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
-
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1212,9 +1345,9 @@ TEST_CASE ("Update_Tiles") {
         CHECK(segments_count == 2);
 
         {
-            auto pos                                = v2i(1, 0);
-            GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+            auto pos = v2i(1, 0);
 
+            GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1231,9 +1364,9 @@ TEST_CASE ("Update_Tiles") {
         CHECK(segments_count == 0);
 
         {
-            auto pos                                = v2i(1, 0);
-            GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
+            auto pos = v2i(1, 0);
 
+            GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
             Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Removed});
             Update_Tiles_Macro(updated_tiles);
 
@@ -1249,10 +1382,7 @@ TEST_CASE ("Update_Tiles") {
 }
 
 TEST_CASE ("Queue") {
-    auto ctx            = &_ctx;
-    _ctx.thread_index   = 0;
-    _ctx.allocator      = nullptr;
-    _ctx.allocator_data = nullptr;
+    INITALIZE_CTX;
 
     Queue<int> queue = {};
 
