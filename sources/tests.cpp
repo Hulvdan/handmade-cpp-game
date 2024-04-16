@@ -2,6 +2,10 @@
 #include "doctest.h"
 
 #include "bf_game.h"
+
+#define Root_Allocator_Type \
+    Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
+
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
@@ -11,97 +15,14 @@
 // ============================================================= //
 global Context _ctx;
 
-struct Tests_Affix {
-    char data[2048];
-
-    Tests_Affix(size_t n) {
-        FOR_RANGE (int, i, 2048 / 4) {
-            data[i + 0] = 124;
-            data[i + 1] = 125;
-            data[i + 2] = 126;
-            data[i + 3] = 127;
-        }
-    }
-
-    bool Validate() {
-        FOR_RANGE (int, i, 2048 / 4) {
-            auto a1 = data[i + 0] == 124;
-            auto a2 = data[i + 1] == 125;
-            auto a3 = data[i + 2] == 126;
-            auto a4 = data[i + 3] == 127;
-
-            Assert(a1);
-            Assert(a2);
-            Assert(a3);
-            Assert(a4);
-
-            if (!(a1 && a2 && a3 && a4))
-                return false;
-        }
-        return true;
-    }
-};
-
-using Tests_Allocator_Type = Affix_Allocator<Malloc_Allocator, Tests_Affix, Tests_Affix>;
-global Tests_Allocator_Type tests_allocator;
-
-Allocator__Function(Tests_Allocator) {
-    // GOTEM size_t size
-    // ????? size_t alignment
-    // GOTEM size_t old_size
-    // GOTEM void*  old_memory_ptr
-    // GOTEM void*  allocator_data
-    // GOTEM u64    options
-    switch (mode) {
-    case Allocator_Mode::Allocate: {
-        Assert(old_memory_ptr == nullptr);
-        Assert(size > 0);
-        Assert(old_size == 0);
-
-        return tests_allocator.Allocate(size).ptr;
-    } break;
-
-    case Allocator_Mode::Resize: {
-        NOT_IMPLEMENTED;
-
-        // Assert(old_memory_ptr != nullptr);
-        // Assert(size > 0);
-        // Assert(old_size > 0);
-        //
-        // tests_allocator.Allocate(size);
-        //
-        // return std::realloc(old_memory_ptr, size);
-    } break;
-
-    case Allocator_Mode::Free: {
-        Assert(old_memory_ptr != nullptr);
-        Assert(size > 0);
-        tests_allocator.Deallocate(Blk(old_memory_ptr, old_size));
-        return nullptr;
-    } break;
-
-    case Allocator_Mode::Free_All: {
-        NOT_SUPPORTED;
-    } break;
-
-    case Allocator_Mode::Sanity: {
-        Assert(old_memory_ptr == nullptr);
-        Assert(size == 0);
-        Assert(old_size == 0);
-        Assert(alignment == 0);
-        tests_allocator.Sanity_Check();
-    } break;
-
-    default:
-        INVALID_PATH;
-    }
-    return nullptr;
-}
-
-#define INITALIZE_CTX                      \
-    auto ctx            = &_ctx;           \
-    _ctx.thread_index   = 0;               \
-    _ctx.allocator      = Tests_Allocator; \
+#define INITALIZE_CTX                                                               \
+    if (root_allocator == nullptr) {                                                \
+        root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
+        std::construct_at(root_allocator);                                          \
+    }                                                                               \
+    auto ctx            = &_ctx;                                                    \
+    _ctx.thread_index   = 0;                                                        \
+    _ctx.allocator      = Root_Allocator;                                           \
     _ctx.allocator_data = nullptr;
 
 global tvector<u8*> virtual_allocations;
@@ -606,52 +527,6 @@ TEST_CASE ("Bit operations") {
         CHECK((bool)QUERY_BIT(ptr, 14) == true);
     }
 }
-
-// Allocator__Function(Malloc_Allocatorrrr) {
-//     // GOTEM size_t size
-//     // ????? size_t alignment
-//     // GOTEM size_t old_size
-//     // GOTEM void*  old_memory_ptr
-//     // GOTEM void*  allocator_data
-//     // GOTEM u64    options
-//     switch (mode) {
-//     case Allocator_Mode::Allocate: {
-//         Assert(old_memory_ptr == nullptr);
-//         Assert(size > 0);
-//         Assert(old_size == 0);
-//
-//         return std::malloc(size);
-//     } break;
-//
-//     case Allocator_Mode::Resize: {
-//         Assert(old_memory_ptr != nullptr);
-//         Assert(size > 0);
-//         Assert(old_size > 0);
-//
-//         return std::realloc(old_memory_ptr, size);
-//     } break;
-//
-//     case Allocator_Mode::Free: {
-//         Assert(old_memory_ptr != nullptr);
-//         Assert(size == 0);
-//         Assert(old_size > 0);
-//
-//         std::free(old_memory_ptr);
-//         return nullptr;
-//     } break;
-//
-//     case Allocator_Mode::Free_All: {
-//         NOT_SUPPORTED;
-//     } break;
-//
-//     case Allocator_Mode::Sanity: {
-//     } break;
-//
-//     default:
-//         INVALID_PATH;
-//     }
-//     return nullptr;
-// }
 
 TEST_CASE ("Update_Tiles") {
     INITALIZE_CTX;

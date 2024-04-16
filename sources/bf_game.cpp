@@ -298,6 +298,11 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     auto first_time_initializing = !memory.is_initialized;
 
+    if (root_allocator == nullptr)
+        root_allocator = Allocate_For(root_arena, Root_Allocator_Type);
+    if (first_time_initializing)
+        std::construct_at(root_allocator);
+
     // --- IMGUI ---
     if (!first_time_initializing) {
         auto& rstate = Assert_Deref(state.renderer_state);
@@ -355,8 +360,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     // --- IMGUI END ---
 
     Context _ctx;
-    _ctx.thread_index   = 0;
-    _ctx.allocator      = nullptr;
+    _ctx.allocator      = Root_Allocator;
     _ctx.allocator_data = nullptr;
     auto ctx            = &_ctx;
 

@@ -1,3 +1,5 @@
+#pragma once
+
 // ============================== //
 //             Arena              //
 // ============================== //
@@ -82,15 +84,6 @@ void Deallocate_(Arena& arena, size_t size) {
     return rcast<u8*>(aligned_addr);
 }
 
-// #define _TEMP_USAGE_VARIABLE(name, counter) name##counter
-// #define TEMP_USAGE_VARIABLE(name, counter) _TEMP_USAGE_VARIABLE(name, counter)
-// #define TEMP_USAGE(arena)                                                          \
-//     auto TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__) = (arena).used;             \
-//     defer {                                                                        \
-//         Assert((arena).used >= TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__ - 1)); \
-//         (arena).used = TEMP_USAGE_VARIABLE(_arena_used, __COUNTER__ - 2);          \
-//     };
-
 #define TEMP_USAGE(arena)                     \
     auto _arena_used_ = (arena).used;         \
     defer {                                   \
@@ -102,6 +95,34 @@ void Deallocate_(Arena& arena, size_t size) {
 // #ifdef SHIT_MEMORY_DEBUG
 // static std::vector<std::tuple<void*, size_t>> bf_debug_allocations = {};
 // #endif  // SHIT_MEMORY_DEBUG
+
+// NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
+#define ALLOC(n) \
+    Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
+
+#define FREE(ptr, n)                                                             \
+    Assert_Not_Null(allocator)(                                                  \
+        Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
+    )
+
+#define FREE_ALL(allocator_function, n) \
+    Assert_Not_Null(allocator)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
+
+#define SANITIZE \
+    Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
+
+#define MCTX Context* ctx
+
+#define PUSH_CONTEXT(new_ctx, code) \
+    {                               \
+        auto ctx = (new_ctx);       \
+        (code);                     \
+    }
+
+template <typename T>
+void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
+
+// ==============================
 
 enum class Allocator_Mode {
     Allocate = 0,
@@ -124,21 +145,6 @@ enum class Allocator_Mode {
 
 using Allocator_Function_Type = Allocator__Function((*));
 
-// NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
-#define ALLOC(n) \
-    Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
-
-#define FREE(ptr, n)                                                             \
-    Assert_Not_Null(allocator)(                                                  \
-        Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
-    )
-
-#define FREE_ALL(allocator_function, n) \
-    Assert_Not_Null(allocator)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
-
-#define SANITIZE \
-    Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
-
 struct Context {
     Allocator_Function_Type allocator;
     void*                   allocator_data;
@@ -148,88 +154,6 @@ struct Context {
     // NOTE: Сюда можно ещё пихнуть и другие данные,
     // например, что-нибудь для логирования
 };
-
-#define MCTX Context* ctx
-
-#define PUSH_CONTEXT(new_ctx, code) \
-    {                               \
-        auto ctx = (new_ctx);       \
-        (code);                     \
-    }
-
-template <typename T>
-void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
-
-// template <typename T>
-// struct Game_Map_Allocator {
-//     typedef T value_type;
-//
-//     Game_Map_Allocator() = default;
-//
-//     template <typename U>
-//     constexpr Game_Map_Allocator(const Game_Map_Allocator<U>&) noexcept {};
-//
-//     [[nodiscard]] T* allocate(size_t n) {
-//         Assert(n <= size_t_max / sizeof(T));
-//         Assert((n * sizeof(T)) / sizeof(T) == n);
-//
-//         auto p = scast<T*>(_aligned_malloc(n * sizeof(T), alignof(T)));
-//         // auto p = scast<T*>(malloc(n * sizeof(T)));
-//
-// #ifdef SHIT_MEMORY_DEBUG
-//         bf_debug_allocations.push_back({p, n});
-// #endif  // SHIT_MEMORY_DEBUG
-//
-//         Assert(p);
-//
-//         report(p, n);
-//         return p;
-//     }
-//
-//     void deallocate(T* p, size_t n) noexcept {
-// #ifdef SHIT_MEMORY_DEBUG
-//         {
-//             bool found = false;
-//             size_t existing_n = 0;
-//
-//             i32 i = 0;
-//             for (auto& [pp, nn] : bf_debug_allocations) {
-//                 if (p == pp) {
-//                     found = true;
-//                     existing_n = nn;
-//                     break;
-//                 }
-//                 i++;
-//             }
-//             Assert(found);
-//             Assert(existing_n == n);
-//             Vector_Unordered_Remove_At(bf_debug_allocations, i);
-//         }
-// #endif  // SHIT_MEMORY_DEBUG
-//
-//         report(p, n, false);
-//
-//         _aligned_free(p);
-//         // free(p);
-//     }
-//
-// private:
-//     void report(T* p, size_t n, bool allocated = true) const {
-//         // NOTE: Здесь мы можем трекать операции аллокации / деаллокации
-//     }
-// };
-//
-// template <class T, class U>
-// bool operator==(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
-//     return true;
-// }
-//
-// template <class T, class U>
-// bool operator!=(const Game_Map_Allocator<T>&, const Game_Map_Allocator<U>&) {
-//     return false;
-// }
-
-// ==============================
 
 struct Blk {
     void*  ptr;
@@ -241,10 +165,6 @@ struct Blk {
         return a.ptr == b.ptr && a.length == b.length;
     }
 };
-
-// Blk Custom_Malloc(size_t size);
-//
-// void Custom_Free(Blk block);
 
 // ===== Simplest composite allocator =====
 
@@ -863,7 +783,91 @@ private:
 //                 Bitmapped_Allocator<Malloc_Allocator, 128>>>,
 //         Malloc_Allocator>>;
 
-using Game_Map_Allocator = Affix_Allocator<Malloc_Allocator>;
+struct Stoopid_Affix {
+    char data[2048];
+
+    Stoopid_Affix(size_t n) {
+        FOR_RANGE (int, i, 2048 / 4) {
+            data[i + 0] = 124;
+            data[i + 1] = 125;
+            data[i + 2] = 126;
+            data[i + 3] = 127;
+        }
+    }
+
+    bool Validate() {
+        FOR_RANGE (int, i, 2048 / 4) {
+            auto a1 = data[i + 0] == 124;
+            auto a2 = data[i + 1] == 125;
+            auto a3 = data[i + 2] == 126;
+            auto a4 = data[i + 3] == 127;
+
+            Assert(a1);
+            Assert(a2);
+            Assert(a3);
+            Assert(a4);
+
+            if (!(a1 && a2 && a3 && a4))
+                return false;
+        }
+        return true;
+    }
+};
+
+// #if 1
+// using Root_Allocator_Type
+//     = Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>;
+// #else
+// using Root_Allocator_Type = Malloc_Allocator;
+// #endif
+
+#ifndef Root_Allocator_Type
+#define Root_Allocator_Type Null_Allocator
+#endif  // Root_Allocator_Type
+
+global Root_Allocator_Type* root_allocator = nullptr;
+
+Allocator__Function(Root_Allocator) {
+    switch (mode) {
+    case Allocator_Mode::Allocate: {
+        Assert(old_memory_ptr == nullptr);
+        Assert(size > 0);
+        Assert(old_size == 0);
+
+        return Assert_Deref((Root_Allocator_Type*)root_allocator).Allocate(size).ptr;
+    } break;
+
+    case Allocator_Mode::Resize: {
+        NOT_IMPLEMENTED;
+    } break;
+
+    case Allocator_Mode::Free: {
+        Assert(old_memory_ptr != nullptr);
+        Assert(size > 0);
+
+        Assert_Deref((Root_Allocator_Type*)root_allocator)
+            .Deallocate(Blk(old_memory_ptr, old_size));
+        return nullptr;
+    } break;
+
+    case Allocator_Mode::Free_All: {
+        NOT_SUPPORTED;
+    } break;
+
+    case Allocator_Mode::Sanity: {
+        Assert(old_memory_ptr == nullptr);
+        Assert(size == 0);
+        Assert(old_size == 0);
+        Assert(alignment == 0);
+
+        Assert_Deref((Root_Allocator_Type*)root_allocator).Sanity_Check();
+    } break;
+
+    default:
+        INVALID_PATH;
+    }
+    return nullptr;
+}
 
 // ========================
 

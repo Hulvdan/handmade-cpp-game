@@ -1248,7 +1248,7 @@ struct Game_Map : public Non_Copyable {
     };
     std::vector<Human_To_Remove> humans_to_remove;
 
-    Game_Map_Allocator* allocator;
+    // Game_Map_Allocator* allocator;
 
     Queue<Graph_Segment*> segments_wo_humans;
 

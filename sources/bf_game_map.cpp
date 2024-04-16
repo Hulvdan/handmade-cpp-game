@@ -1226,7 +1226,6 @@ void Deinitialize_Game_Map(Game_State& state, MCTX) {
     Deinit_Bucket_Array(game_map.buildings, ctx);
 
     for (auto segment_ptr : Iter(&game_map.segments)) {
-        game_map.allocator;
         FREE(segment_ptr->vertices, segment_ptr->vertices_count);
         FREE(segment_ptr->graph.nodes, segment_ptr->graph.nodes_count);
 
