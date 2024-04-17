@@ -105,8 +105,8 @@ void Deallocate_(Arena& arena, size_t size) {
         Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
     )
 
-#define FREE_ALL(allocator_function, n) \
-    Assert_Not_Null(allocator)(Allocator_Mode::Free, (n), 1, 0, 0, allocator_data, 0)
+#define FREE_ALL \
+    Assert_Not_Null(allocator)(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
 
 #define SANITIZE \
     Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
@@ -168,7 +168,6 @@ struct Blk {
 
 // ===== Simplest composite allocator =====
 
-// NOTE: COMPLETED
 template <class P, class F>
 struct Fallback_Allocator {
     Blk Allocate(size_t n) {
@@ -205,7 +204,6 @@ private:
 
 // ===== Good citizenry =====
 
-// NOTE: COMPLETED
 struct Null_Allocator {
     Blk Allocate(size_t) { return Blk(nullptr, 0); }
 
@@ -254,7 +252,6 @@ private:
 
 // ===== Use =====
 
-// NOTE: COMPLETED
 struct Malloc_Allocator {
     Blk Allocate(size_t n) { return Blk(malloc(n), n); }
 
@@ -264,7 +261,49 @@ struct Malloc_Allocator {
         free(b.ptr);
     }
 
+    void Deallocate_All() { NOT_SUPPORTED; }
+
     bool Sanity_Check() { return true; }
+};
+
+struct Freeable_Malloc_Allocator {
+    Blk Allocate(size_t n) {
+        auto res = Blk(malloc(n), n);
+        _allocations.push_back(res);
+        return res;
+    }
+
+    void Deallocate(Blk b) {
+        Assert(b.ptr != nullptr);
+        Assert(b.length > 0);
+
+        {  // NOTE: Забываем об адресе
+            bool found = false;
+            for (auto& allocation : _allocations) {
+                if (allocation.ptr == b.ptr && allocation.length == b.length) {
+                    Assert(!found);
+                    found = true;
+                }
+            }
+            Assert(found);
+
+            auto& v = _allocations;
+            v.erase(std::remove(v.begin(), v.end(), b), v.end());
+        }
+
+        free(b.ptr);
+    }
+
+    void Deallocate_All() {
+        for (auto& [ptr, _] : _allocations)
+            free(ptr);
+        _allocations.clear();
+    }
+
+    bool Sanity_Check() { return true; }
+
+private:
+    std::vector<Blk> _allocations;
 };
 // using Localloc = Fallback_Allocator<Stack_Allocator<16384>, Malloc_Allocator>;
 
@@ -292,7 +331,6 @@ struct Malloc_Allocator {
 //     1024 // No more than 1024 remembered
 // > alloc8r;
 //
-// NOTE: COMPLETED
 // TODO: TEST
 template <class A, size_t min, size_t max, i32 min_allocations = 8, i32 top = 1024>
 struct Freelist {
@@ -363,12 +401,12 @@ private:
 
 // ===== Adding Affixes =====
 
-// NOTE: COMPLETED
 template <class A, class Prefix = void, class Suffix = void>
 struct Affix_Allocator {
-    // Add optional prefix and suffix
-    // Construct/destroy appropriately
-    // Uses: debug, stats, info, ...
+    // From Andrei:
+    // - Add optional prefix and suffix
+    // - Construct/destroy appropriately
+    // - Uses: debug, stats, info, ...
 
     Blk Allocate(size_t n) {
         auto to_allocate = n;
@@ -384,16 +422,28 @@ struct Affix_Allocator {
         if (ptr == nullptr)
             return Blk(nullptr, 0);
 
-        if (!std::is_void_v<Prefix>) {
-            std::construct_at<Prefix>((Prefix*)ptr, n);
-            ptr += sizeof(Prefix);
+        {  // NOTE: Проверка, что раньше аллокации с таким же адресом не было
+            for (auto& allocation : _allocations) {
+                if (allocation.ptr == blk.ptr && allocation.length == blk.length) {
+                    INVALID_PATH;
+                }
+            }
+            _allocations.push_back(Blk(ptr, to_allocate));
         }
 
-        if (!std::is_void_v<Suffix>) {
-            std::construct_at<Suffix>((Suffix*)(ptr + n), n);
+        {  // NOTE: Устанавливаем аффиксы
+            if (!std::is_void_v<Prefix>) {
+                std::construct_at<Prefix>((Prefix*)ptr, n);
+                ptr += sizeof(Prefix);
+            }
+
+            if (!std::is_void_v<Suffix>) {
+                std::construct_at<Suffix>((Suffix*)(ptr + n), n);
+            }
         }
 
-        return Blk((void*)ptr, n);
+        auto res = Blk((void*)ptr, n);
+        return res;
     }
 
     bool Owns(Blk b) {
@@ -429,10 +479,26 @@ struct Affix_Allocator {
 
         b.ptr = ptr;
 
-        auto& v = _allocations;
-        v.erase(std::remove(v.begin(), v.end(), b), v.end());
+        {  // NOTE: Забываем об адресе
+            bool found = false;
+            for (auto [aptr, alength] : _allocations) {
+                if (aptr == b.ptr && alength == b.length) {
+                    Assert(!found);
+                    found = true;
+                }
+            }
+            Assert(found);
+
+            auto& v = _allocations;
+            v.erase(std::remove(v.begin(), v.end(), b), v.end());
+        }
 
         _parent.Deallocate(b);
+    }
+
+    void Deallocate_All() {
+        _parent.Deallocate_All();
+        _allocations.clear();
     }
 
     bool Sanity_Check() {
@@ -662,7 +728,6 @@ private:
 
 // ===== Segregator =====
 
-// NOTE: COMPLETED
 // NOTE: Всё, что <= threshold идёт в A1. Остальное - в A2.
 template <size_t threshold, class A1, class A2>
 struct Segregator {
@@ -814,15 +879,15 @@ struct Stoopid_Affix {
     }
 };
 
-// #if 1
-// using Root_Allocator_Type
-//     = Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>;
-// #else
-// using Root_Allocator_Type = Malloc_Allocator;
-// #endif
-
 #ifndef Root_Allocator_Type
-#define Root_Allocator_Type Null_Allocator
+
+#if 1
+#define Root_Allocator_Type \
+    Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
+#else
+#define Root_Allocator_Type Malloc_Allocator
+#endif
+
 #endif  // Root_Allocator_Type
 
 global Root_Allocator_Type* root_allocator = nullptr;
@@ -846,7 +911,49 @@ Allocator__Function(Root_Allocator) {
         Assert(size > 0);
 
         Assert_Deref((Root_Allocator_Type*)root_allocator)
-            .Deallocate(Blk(old_memory_ptr, old_size));
+            .Deallocate(Blk(old_memory_ptr, size));
+        return nullptr;
+    } break;
+
+    case Allocator_Mode::Free_All: {
+        Assert_Deref((Root_Allocator_Type*)root_allocator).Deallocate_All();
+    } break;
+
+    case Allocator_Mode::Sanity: {
+        Assert(old_memory_ptr == nullptr);
+        Assert(size == 0);
+        Assert(old_size == 0);
+        Assert(alignment == 0);
+
+        Assert_Deref((Root_Allocator_Type*)root_allocator).Sanity_Check();
+    } break;
+
+    default:
+        INVALID_PATH;
+    }
+    return nullptr;
+}
+
+Allocator__Function(Only_Once_Free_All_Root_Allocator) {
+    switch (mode) {
+    case Allocator_Mode::Allocate: {
+        Assert(old_memory_ptr == nullptr);
+        Assert(size > 0);
+        Assert(old_size == 0);
+
+        return Assert_Deref((Root_Allocator_Type*)root_allocator).Allocate(size).ptr;
+    } break;
+
+    case Allocator_Mode::Resize: {
+        NOT_IMPLEMENTED;
+    } break;
+
+    case Allocator_Mode::Free: {
+        Assert(old_memory_ptr != nullptr);
+        Assert(size > 0);
+
+        Assert_Deref((Root_Allocator_Type*)root_allocator)
+            .Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
 

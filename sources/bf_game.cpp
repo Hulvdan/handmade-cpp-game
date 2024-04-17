@@ -362,6 +362,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     Context _ctx;
     _ctx.allocator      = Root_Allocator;
     _ctx.allocator_data = nullptr;
+    _ctx.thread_index   = 0;
     auto ctx            = &_ctx;
 
     if (!first_time_initializing && state.hot_reloaded) {

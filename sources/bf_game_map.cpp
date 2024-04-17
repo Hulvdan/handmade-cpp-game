@@ -208,10 +208,11 @@ template <typename T>
 void Init_Bucket_Array(
     Bucket_Array<T>& container,
     u32              buckets_count,
-    u32              items_per_bucket
+    u32              items_per_bucket,
+    MCTX
 ) {
-    container.allocator      = nullptr;
-    container.allocator_data = nullptr;
+    container.allocator      = ctx->allocator;
+    container.allocator_data = ctx->allocator_data;
 
     container.items_per_bucket = items_per_bucket;
     container.buckets_count    = buckets_count;
@@ -921,9 +922,11 @@ Human* Create_Human_Transporter(
     human.moving.progress     = 0;
     human.moving.from         = building->pos;
     human.moving.to.reset();
-    human.moving.path.count         = 0;
-    human.moving.path.max_count     = 0;
-    human.moving.path.base          = nullptr;
+    human.moving.path.count     = 0;
+    human.moving.path.max_count = 0;
+    human.moving.path.base      = nullptr;
+    Set_Container_Allocator_Context(human.moving.path, ctx);
+
     human.segment                   = segment_ptr;
     human.type                      = Human_Type::Transporter;
     human.state                     = Human_Main_State::None;
@@ -1012,6 +1015,9 @@ void Update_Human_Moving_Component(
     const Human_Data& data,
     MCTX
 ) {
+    CTX_ALLOCATOR;
+    SANITIZE;
+
     auto& game_map_data = Assert_Deref(game_map.data);
 
     auto&      moving   = human.moving;
@@ -1057,6 +1063,9 @@ void Update_Human(
     const Human_Data& data,
     MCTX
 ) {
+    CTX_ALLOCATOR;
+    SANITIZE;
+
     auto& human            = *human_ptr;
     auto& humans_to_remove = game_map.humans_to_remove;
 
@@ -1087,6 +1096,8 @@ void Update_Human(
         //     locator}
         // );
     }
+
+    SANITIZE;
 }
 
 void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
@@ -1178,10 +1189,10 @@ void Initialize_Game_Map(Game_State& state, Arena& arena, MCTX) {
 
     auto tiles_count = game_map.size.x * game_map.size.y;
 
-    Init_Bucket_Array(game_map.buildings, 32, 128);
-    Init_Bucket_Array(game_map.segments, 32, 128);
-    Init_Bucket_Array(game_map.humans, 32, 128);
-    Init_Bucket_Array(game_map.humans_to_add, 32, 128);
+    Init_Bucket_Array(game_map.buildings, 32, 128, ctx);
+    Init_Bucket_Array(game_map.segments, 32, 128, ctx);
+    Init_Bucket_Array(game_map.humans, 32, 128, ctx);
+    Init_Bucket_Array(game_map.humans_to_add, 32, 128, ctx);
 
     {
         auto& container     = game_map.segments_wo_humans;

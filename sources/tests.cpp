@@ -4,7 +4,7 @@
 #include "bf_game.h"
 
 #define Root_Allocator_Type \
-    Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
+    Affix_Allocator<Freeable_Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"
@@ -15,15 +15,22 @@
 // ============================================================= //
 global Context _ctx;
 
-#define INITALIZE_CTX                                                               \
-    if (root_allocator == nullptr) {                                                \
-        root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
-        std::construct_at(root_allocator);                                          \
-    }                                                                               \
-    auto ctx            = &_ctx;                                                    \
-    _ctx.thread_index   = 0;                                                        \
-    _ctx.allocator      = Root_Allocator;                                           \
-    _ctx.allocator_data = nullptr;
+#define INITALIZE_CTX                                                           \
+    Assert(root_allocator == nullptr);                                          \
+    root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
+    std::construct_at(root_allocator);                                          \
+                                                                                \
+    auto ctx            = &_ctx;                                                \
+    _ctx.thread_index   = 0;                                                    \
+    _ctx.allocator      = Root_Allocator;                                       \
+    _ctx.allocator_data = nullptr;                                              \
+                                                                                \
+    defer {                                                                     \
+        CTX_ALLOCATOR;                                                          \
+        FREE_ALL;                                                               \
+        free(root_allocator);                                                   \
+        root_allocator = nullptr;                                               \
+    }
 
 global tvector<u8*> virtual_allocations;
 global tvector<void*> heap_allocations;
@@ -357,7 +364,7 @@ int Process_Segments(
 
     {
         segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
-        Init_Bucket_Array(*segments, 32, 128);
+        Init_Bucket_Array(*segments, 32, 128, ctx);
     }
 
     auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
