@@ -108,10 +108,18 @@ void Deallocate_(Arena& arena, size_t size) {
 #define FREE_ALL \
     Assert_Not_Null(allocator)(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
 
+#if 0
 #define SANITIZE \
     Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
+#else
+#define SANITIZE
+#endif
 
 #define MCTX Context* ctx
+
+#define CTX_ALLOCATOR                      \
+    auto& allocator      = ctx->allocator; \
+    auto& allocator_data = ctx->allocator_data;
 
 #define PUSH_CONTEXT(new_ctx, code) \
     {                               \
@@ -424,9 +432,7 @@ struct Affix_Allocator {
 
         {  // NOTE: Проверка, что раньше аллокации с таким же адресом не было
             for (auto& allocation : _allocations) {
-                if (allocation.ptr == blk.ptr && allocation.length == blk.length) {
-                    INVALID_PATH;
-                }
+                Assert(allocation.ptr != blk.ptr);
             }
             _allocations.push_back(Blk(ptr, to_allocate));
         }
@@ -474,16 +480,18 @@ struct Affix_Allocator {
             ptr -= sizeof(Prefix);
             b.length += sizeof(Prefix);
         }
-        if (!std::is_void_v<Suffix>)
+        if (!std::is_void_v<Suffix>) {
             b.length += sizeof(Suffix);
+        }
 
         b.ptr = ptr;
 
         {  // NOTE: Забываем об адресе
             bool found = false;
             for (auto [aptr, alength] : _allocations) {
-                if (aptr == b.ptr && alength == b.length) {
+                if (aptr == b.ptr) {
                     Assert(!found);
+                    Assert(alength == b.length);
                     found = true;
                 }
             }
@@ -508,13 +516,12 @@ struct Affix_Allocator {
             if (!std::is_void_v<Prefix>) {
                 auto affix = (Prefix*)ptr;
                 Assert(affix->Validate());
-                ptr += sizeof(Prefix);
             }
 
             ptr += blk.length;
 
             if (!std::is_void_v<Suffix>) {
-                auto affix = (Suffix*)ptr;
+                auto affix = (Suffix*)(ptr - sizeof(Suffix));
                 Assert(affix->Validate());
             }
         }
@@ -853,19 +860,19 @@ struct Stoopid_Affix {
 
     Stoopid_Affix(size_t n) {
         FOR_RANGE (int, i, 2048 / 4) {
-            data[i + 0] = 124;
-            data[i + 1] = 125;
-            data[i + 2] = 126;
-            data[i + 3] = 127;
+            data[i * 4 + 0] = (char)124;
+            data[i * 4 + 1] = (char)125;
+            data[i * 4 + 2] = (char)126;
+            data[i * 4 + 3] = (char)127;
         }
     }
 
     bool Validate() {
         FOR_RANGE (int, i, 2048 / 4) {
-            auto a1 = data[i + 0] == 124;
-            auto a2 = data[i + 1] == 125;
-            auto a3 = data[i + 2] == 126;
-            auto a4 = data[i + 3] == 127;
+            auto a1 = data[i * 4 + 0] == (char)124;
+            auto a2 = data[i * 4 + 1] == (char)125;
+            auto a3 = data[i * 4 + 2] == (char)126;
+            auto a4 = data[i * 4 + 3] == (char)127;
 
             Assert(a1);
             Assert(a2);

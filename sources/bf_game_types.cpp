@@ -488,8 +488,17 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr, MCTX
 
 template <typename T>
 Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item, MCTX) {
+    CTX_ALLOCATOR;
+    SANITIZE;
+
     auto [locator, ptr] = Find_And_Occupy_Empty_Slot(arr, ctx);
+
+    SANITIZE;
+
     *ptr                = item;
+
+    SANITIZE;
+
     return locator;
 }
 

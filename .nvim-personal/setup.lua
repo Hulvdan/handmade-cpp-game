@@ -9,7 +9,6 @@ vim.fn.execute(":set nowritebackup")
 
 -- Helper Functions --
 -- ================ --
-local todo_plugin = require("todo-comments");
 local overseer = require("overseer")
 
 -- Options:
@@ -198,7 +197,6 @@ vim.keymap.set("n", "<leader>w", function()
 
     if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
         local view = vim.fn.winsaveview()
-        todo_plugin.disable();
 
         local buf_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
 
@@ -216,7 +214,6 @@ vim.keymap.set("n", "<leader>w", function()
             require("lint").try_lint()
 
             vim.fn.winrestview(view)
-            todo_plugin.enable();
 
             vim.api.nvim_input("mzhllhjkkj`z")  -- NOTE: for nvim-treesitter-context
         end)

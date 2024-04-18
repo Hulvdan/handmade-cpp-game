@@ -7,7 +7,7 @@
 #define Terabytes(value) (Gigabytes(value) * 1024)
 
 // NOTE: This importing nonsense was hastily taken from
-// https://blog.shaduri.dev/easily-create-shared-libraries-with-cmake-part-1
+// TODO: https://blog.shaduri.dev/easily-create-shared-libraries-with-cmake-part-1
 // I just wanted to enable dll builds as fast as possible.
 // SHIT: Rewrite this shiet in a better way
 //
