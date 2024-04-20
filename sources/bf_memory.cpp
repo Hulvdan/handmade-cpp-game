@@ -186,10 +186,6 @@ struct Fallback_Allocator {
     }
 
     void Deallocate(Blk b) {
-        // if (P::Owns(b))
-        //     P::Deallocate(b);
-        // else
-        //     F::Deallocate(b);
         if (_p.Owns(b))
             _p.Deallocate(b);
         else
