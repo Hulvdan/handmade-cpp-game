@@ -386,7 +386,7 @@ struct Human_Moving_In_The_World_Controller {
         if (human.type == Human_Type::Employee) {
             Assert(human.building != nullptr);
             human.building->employee_is_inside = true;
-            // TODO: (this TODO is from c# repo) Somehow remove this human
+            // C# TODO: Somehow remove this human
         }
     }
 
@@ -1121,6 +1121,37 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     Container_Reset(game_map.humans_to_add);
 
     Remove_Humans(state);
+
+    {  // NOTE: Debug shiet
+        int humans                         = 0;
+        int humans_moving_to_the_city_hall = 0;
+        int humans_moving_to_destination   = 0;
+        int humans_moving_inside_segment   = 0;
+        for (auto human_ptr : Iter(&game_map.humans)) {
+            humans++;
+            auto& human = *human_ptr;
+
+            if (human.state == Human_Main_State::Moving_In_The_World) {
+                if (human.state_moving_in_the_world
+                    == Moving_In_The_World_State::Moving_To_The_City_Hall) {
+                    humans_moving_to_the_city_hall++;
+                }
+                else if (human.state_moving_in_the_world //
+                        == Moving_In_The_World_State::Moving_To_Destination)
+                {
+                    humans_moving_to_destination++;
+                }
+            }
+            else if (human.state == Human_Main_State::Moving_Inside_Segment) {
+                humans_moving_inside_segment++;
+            }
+        }
+
+        ImGui::Text("humans %d", humans);
+        ImGui::Text("humans_moving_to_the_city_hall %d", humans_moving_to_the_city_hall);
+        ImGui::Text("humans_moving_to_destination %d", humans_moving_to_destination);
+        ImGui::Text("humans_moving_inside_segment %d", humans_moving_inside_segment);
+    }
 }
 
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
