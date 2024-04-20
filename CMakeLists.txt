@@ -12,6 +12,7 @@ add_compile_definitions(
     BF_INTERNAL
     BF_CLIENT
     ASSERT_SLOW
+    SHIT_MEMORY_DEBUG
 
     PROFILING
     TRACY_ENABLE

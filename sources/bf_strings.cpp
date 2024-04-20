@@ -3,7 +3,7 @@
 // Returns the offset from `filedata` to a newline character (`\r` or `\n`).
 // Returns STRINGS_EOF if reaches the end.
 // Returns STRINGS_ZEROBYTE if finds `\0`.
-const i32 STRINGS_EOF = -1;
+const i32 STRINGS_EOF      = -1;
 const i32 STRINGS_ZEROBYTE = -2;
 
 i32 Find_Newline(const u8* buffer, const i32 size) {
@@ -68,7 +68,7 @@ char* Allocate_Formatted_String(Arena& arena, const char* format, ...) {
     va_start(args, format);
 
     const auto MAX_N = 512;
-    char buf[MAX_N];
+    char       buf[MAX_N];
 
     auto n = vsnprintf(buf, MAX_N, format, args);
     Assert(n >= 0);

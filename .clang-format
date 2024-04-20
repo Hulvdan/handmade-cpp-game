@@ -2,25 +2,32 @@
 BasedOnStyle: Chromium
 AccessModifierOffset: '-4'
 AlignAfterOpenBracket: BlockIndent
-AlignConsecutiveAssignments: 'false'
-AlignConsecutiveDeclarations: 'false'
-AlignOperands: 'false'
-AlignTrailingComments: 'false'
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignOperands: true
+AlignTrailingComments: true
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Custom
-Cpp11BracedListStyle: 'true'
-BinPackArguments: 'false'
-BinPackParameters : 'false'
+Cpp11BracedListStyle: true
+BinPackArguments: false
+BinPackParameters : false
 BraceWrapping:
-    BeforeElse: 'true'
+    BeforeElse: true
 ColumnLimit: '90'
 ContinuationIndentWidth: '4'
-IndentCaseLabels: 'false'
+IndentCaseLabels: false
 IndentWidth: '4'
 Language: Cpp
-ReflowComments: 'true'
-SortIncludes: 'false'
-
-...
+ReflowComments: true
+SortIncludes: false
+FixNamespaceComments : true
+ShortNamespaceLines: 0
+AllowShortFunctionsOnASingleLine: 'All'
+ForEachMacros: [
+    'FOR_DIRECTION',
+    'FOR_RANGE',
+    'FOREACH',
+    'TEST_CASE',
+]

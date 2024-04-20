@@ -38,6 +38,36 @@ void DEBUG_Print(const char* text, ...) {
 #define DEBUG_Print(text_, ...)
 #endif  // BF_INTERNAL
 
+// ============================================================= //
+//                            INLINE                             //
+// ============================================================= //
+// NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
+#if BF_NO_INLINE_HINTS /* disable inlining hints */
+#if defined(__GNUC__) || defined(__clang__)
+#define BF_FORCE_INLINE static __attribute__((unused))
+#else
+#define BF_FORCE_INLINE static
+#endif
+#define BF_NO_INLINE static
+/* enable inlining hints */
+#elif defined(__GNUC__) || defined(__clang__)
+#define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
+#define BF_NO_INLINE static __attribute__((noinline))
+#elif defined(_MSC_VER) /* Visual Studio */
+#define BF_FORCE_INLINE static __forceinline
+#define BF_NO_INLINE static __declspec(noinline)
+#elif defined(__cplusplus) \
+    || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
+#define BF_FORCE_INLINE static inline
+#define BF_NO_INLINE static
+#else
+#define BF_FORCE_INLINE static
+#define BF_NO_INLINE static
+#endif
+
+// ============================================================= //
+//                          OTHER SHIT                           //
+// ============================================================= //
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
 typedef glm::vec<2, int16_t, glm::defaultp> v2i16;
@@ -46,25 +76,25 @@ const v2i16 v2i16_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 const v2i16 v2i16_adjacent_offsets_including_0[5]
     = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
-constexpr v2i v2i_zero = v2i(0, 0);
-constexpr v2i v2i_one = v2i(1, 1);
-constexpr v2i v2i_right = v2i(1, 0);
-constexpr v2i v2i_up = v2i(0, 1);
-constexpr v2i v2i_left = v2i(-1, 0);
+constexpr v2i v2i_zero   = v2i(0, 0);
+constexpr v2i v2i_one    = v2i(1, 1);
+constexpr v2i v2i_right  = v2i(1, 0);
+constexpr v2i v2i_up     = v2i(0, 1);
+constexpr v2i v2i_left   = v2i(-1, 0);
 constexpr v2i v2i_bottom = v2i(0, -1);
 
-constexpr v2i16 v2i16_zero = v2i16(0, 0);
-constexpr v2i16 v2i16_one = v2i16(1, 1);
-constexpr v2i16 v2i16_right = v2i16(1, 0);
-constexpr v2i16 v2i16_up = v2i16(0, 1);
-constexpr v2i16 v2i16_left = v2i16(-1, 0);
+constexpr v2i16 v2i16_zero   = v2i16(0, 0);
+constexpr v2i16 v2i16_one    = v2i16(1, 1);
+constexpr v2i16 v2i16_right  = v2i16(1, 0);
+constexpr v2i16 v2i16_up     = v2i16(0, 1);
+constexpr v2i16 v2i16_left   = v2i16(-1, 0);
 constexpr v2i16 v2i16_bottom = v2i16(0, -1);
 
-constexpr v2f v2f_zero = v2f(0, 0);
-constexpr v2f v2f_one = v2f(1, 1);
-constexpr v2f v2f_right = v2f(1, 0);
-constexpr v2f v2f_up = v2f(0, 1);
-constexpr v2f v2f_left = v2f(-1, 0);
+constexpr v2f v2f_zero   = v2f(0, 0);
+constexpr v2f v2f_one    = v2f(1, 1);
+constexpr v2f v2f_right  = v2f(1, 0);
+constexpr v2f v2f_up     = v2f(0, 1);
+constexpr v2f v2f_left   = v2f(-1, 0);
 constexpr v2f v2f_bottom = v2f(0, -1);
 
 using v3f = glm::vec3;
@@ -74,6 +104,8 @@ using v3i = glm::ivec3;
 #define global static
 
 #include "bf_types.h"
+
+constexpr u8 SHIT_BYTE_MASK = (u8)0xCC;
 
 #ifdef TESTS
 #define Assert(expr) REQUIRE(expr)
@@ -85,18 +117,29 @@ using v3i = glm::ivec3;
 #endif  // TESTS
 
 template <typename T>
-T& Assert_Deref(T* value) {
+BF_FORCE_INLINE T& Assert_Deref(T* value) {
     Assert(value != nullptr);
     return *value;
 }
 
+#if 1
+template <typename T>
+BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
+    Assert(value != nullptr);
+    return value;
+}
+#else
+#define Assert_Not_Null(value) value
+#endif
+
 #define INVALID_PATH Assert(false)
 #define NOT_IMPLEMENTED Assert(false)
+#define NOT_SUPPORTED Assert(false)
 
 #define scast static_cast
 #define rcast reinterpret_cast
 
-static constexpr f32 BF_PI = 3.14159265359f;
+static constexpr f32 BF_PI  = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -112,31 +155,49 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 //                             Defer                             //
 // ============================================================= //
 template <typename F>
-struct _privDefer {
+struct _Defer {
+    _Defer(F f) : f(f) {}
+    ~_Defer() { f(); }
     F f;
-    _privDefer(F f) : f(f) {}
-    ~_privDefer() { f(); }
 };
+
 template <typename F>
-_privDefer<F> _defer_func(F f) {
-    return _privDefer<F>(f);
+_Defer<F> _makeDefer(F f) {
+    return _Defer<F>(f);
+};
+
+#define __defer(counter) defer_##counter
+#define _defer(counter) __defer(counter)
+
+struct _defer_dummy {};
+template <typename F>
+_Defer<F> operator+(_defer_dummy, F&& f) {
+    return _makeDefer<F>(std::forward<F>(f));
 }
-#define _DEFER_1(x, y) x##y
-#define _DEFER_2(x, y) _DEFER_1(x, y)
-#define _DEFER_3(x) _DEFER_2(x, __COUNTER__)
-#define DEFER(code) auto _DEFER_3(_defer_) = _defer_func([&]() { code; })
+
+// Usage:
+//     {
+//         defer { printf("Deferred\n"); };
+//         printf("Normal\n");
+//     }
+//
+// Output:
+//     Normal
+//     Deferred
+//
+#define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
 
 // ============================================================= //
 //                             Other                             //
 // ============================================================= //
 struct Non_Copyable {
-    Non_Copyable() = default;
-    Non_Copyable(const Non_Copyable&) = delete;
+    Non_Copyable()                               = default;
+    Non_Copyable(const Non_Copyable&)            = delete;
     Non_Copyable& operator=(const Non_Copyable&) = delete;
 };
 
 template <typename T>
-void Initialize_As_Zeros(T& value) {
+BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
 
@@ -148,7 +209,7 @@ void Initialize_As_Zeros(T& value) {
 // https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
 template <class Reference>
 struct Arrow_Proxy {
-    Reference r;
+    Reference  r;
     Reference* operator->() { return &r; }
 };
 
@@ -158,7 +219,7 @@ protected:
     using Self_Type = Derived;
 
 private:
-    Self_Type& _self() { return scast<Self_Type&>(*this); }
+    Self_Type&       _self() { return scast<Self_Type&>(*this); }
     const Self_Type& _self() const { return scast<const Self_Type&>(*this); }
 
 public:
@@ -191,30 +252,3 @@ public:
         return copy;
     }
 };
-
-// ============================================================= //
-//                            INLINE                             //
-// ============================================================= //
-// NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
-#if BF_NO_INLINE_HINTS /* disable inlining hints */
-#if defined(__GNUC__) || defined(__clang__)
-#define BF_FORCE_INLINE static __attribute__((unused))
-#else
-#define BF_FORCE_INLINE static
-#endif
-#define BF_NO_INLINE static
-/* enable inlining hints */
-#elif defined(__GNUC__) || defined(__clang__)
-#define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
-#define BF_NO_INLINE static __attribute__((noinline))
-#elif defined(_MSC_VER) /* Visual Studio */
-#define BF_FORCE_INLINE static __forceinline
-#define BF_NO_INLINE static __declspec(noinline)
-#elif defined(__cplusplus) \
-    || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
-#define BF_FORCE_INLINE static inline
-#define BF_NO_INLINE static
-#else
-#define BF_FORCE_INLINE static
-#define BF_NO_INLINE static
-#endif

@@ -21,41 +21,41 @@
 struct BF_Bitmap {
     Game_Bitmap bitmap;
 
-    HBITMAP handle;
+    HBITMAP    handle;
     BITMAPINFO info;
 };
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
 global HMODULE game_lib = nullptr;
-global size_t game_memory_size;
-global void* game_memory = nullptr;
+global size_t  game_memory_size;
+global void*   game_memory = nullptr;
 
-global size_t events_count = 0;
+global size_t events_count    = 0;
 global std::vector<u8> events = {};
 
 global bool running = false;
 
-global bool should_recreate_bitmap_after_client_area_resize;
+global bool      should_recreate_bitmap_after_client_area_resize;
 global BF_Bitmap screen_bitmap;
 
-global int client_width = -1;
+global int client_width  = -1;
 global int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context) {
     Assert(client_width >= 0);
     Assert(client_height >= 0);
 
-    auto& game_bitmap = screen_bitmap.bitmap;
-    game_bitmap.width = client_width;
+    auto& game_bitmap  = screen_bitmap.bitmap;
+    game_bitmap.width  = client_width;
     game_bitmap.height = client_height;
 
-    game_bitmap.bits_per_pixel = 32;
-    screen_bitmap.info.bmiHeader.biSize = sizeof(screen_bitmap.info.bmiHeader);
-    screen_bitmap.info.bmiHeader.biWidth = client_width;
-    screen_bitmap.info.bmiHeader.biHeight = -client_height;
-    screen_bitmap.info.bmiHeader.biPlanes = 1;
-    screen_bitmap.info.bmiHeader.biBitCount = game_bitmap.bits_per_pixel;
+    game_bitmap.bits_per_pixel                 = 32;
+    screen_bitmap.info.bmiHeader.biSize        = sizeof(screen_bitmap.info.bmiHeader);
+    screen_bitmap.info.bmiHeader.biWidth       = client_width;
+    screen_bitmap.info.bmiHeader.biHeight      = -client_height;
+    screen_bitmap.info.bmiHeader.biPlanes      = 1;
+    screen_bitmap.info.bmiHeader.biBitCount    = game_bitmap.bits_per_pixel;
     screen_bitmap.info.bmiHeader.biCompression = BI_RGB;
 
     if (game_bitmap.memory)
@@ -118,8 +118,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     } break;
 
     case WM_SIZE: {
-        client_width = LOWORD(lParam);
-        client_height = HIWORD(lParam);
+        client_width                                    = LOWORD(lParam);
+        client_height                                   = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
         Win32GLResize();
     } break;
@@ -129,9 +129,9 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_SYSKEYDOWN:
     case WM_SYSKEYUP: {
         bool previous_was_down = lParam & (1 << 30);
-        bool is_up = lParam & (1 << 31);
-        bool alt_is_down = lParam & (1 << 29);
-        u32 vk_code = wParam;
+        bool is_up             = lParam & (1 << 31);
+        bool alt_is_down       = lParam & (1 << 29);
+        u32  vk_code           = wParam;
 
         if (is_up != previous_was_down)
             return 0;
@@ -142,7 +142,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         // } else if (vk_code == 'D') {
         // } else
         if (vk_code == VK_ESCAPE  //
-            || vk_code == 'Q'  //
+            || vk_code == 'Q'     //
             || vk_code == VK_F4 && alt_is_down) {
             running = false;
         }
@@ -174,20 +174,20 @@ u64 Win32Frequency() {
 }
 
 void Update_GUI(Arena& arena, Loaded_Texture& tex) {
-    local_persist int octaves = -1;
+    local_persist int octaves      = -1;
     local_persist f32 scaling_bias = 2;
-    local_persist int seed = 0;
+    local_persist int seed         = 0;
 
     auto texture_display_size = 256;
 
     auto new_total = octaves;
-    bool regen = false;
+    bool regen     = false;
 
     if (ImGui::SliderInt("Octaves Count", &new_total, 1, 9, "", 0))
         regen = true;
 
     if (ImGui::Button("New Seed")) {
-        seed = Win32Clock();
+        seed  = Win32Clock();
         regen = true;
     }
 
@@ -198,7 +198,7 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
     new_total = MAX(1, new_total);
     if (new_total != octaves) {
         octaves = new_total;
-        regen = true;
+        regen   = true;
     }
 
     if (regen) {
@@ -252,7 +252,7 @@ int main(int, char**) {
     events.reserve(Kilobytes(64LL));
 
     game_memory_size = Megabytes(64LL);
-    game_memory = VirtualAlloc(
+    game_memory      = VirtualAlloc(
         0, game_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
     );
     if (!game_memory) {
@@ -268,9 +268,9 @@ int main(int, char**) {
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     // windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-    windowClass.lpfnWndProc = *WindowEventsHandler;
+    windowClass.lpfnWndProc   = *WindowEventsHandler;
     windowClass.lpszClassName = "BFGWindowClass";
-    windowClass.hInstance = application_handle;
+    windowClass.hInstance     = application_handle;
 
     // TODO: Icon!
     // HICON     hIcon;
@@ -281,9 +281,9 @@ int main(int, char**) {
     }
 
     Arena& arena = *(Arena*)game_memory;
-    arena.size = game_memory_size - sizeof(Arena);
-    arena.used = 0;
-    arena.base = (u8*)(game_memory) + sizeof(Arena);
+    arena.size   = game_memory_size - sizeof(Arena);
+    arena.used   = 0;
+    arena.base   = (u8*)(game_memory) + sizeof(Arena);
 
     auto window_handle = CreateWindowExA(
         0,
@@ -294,10 +294,10 @@ int main(int, char**) {
         CW_USEDEFAULT,
         640,
         480,
-        NULL,  // [in, optional] HWND      hWndParent,
-        NULL,  // [in, optional] HMENU     hMenu,
+        NULL,                // [in, optional] HWND      hWndParent,
+        NULL,                // [in, optional] HMENU     hMenu,
         application_handle,  // [in, optional] HINSTANCE hInstance,
-        NULL  // [in, optional] LPVOID    lpParam
+        NULL                 // [in, optional] LPVOID    lpParam
     );
 
     if (!window_handle) {
@@ -309,7 +309,7 @@ int main(int, char**) {
     UpdateWindow(window_handle);
 
     Loaded_Texture tex;
-    tex.id = 1771;
+    tex.id   = 1771;
     tex.size = {512, 512};
     tex.base = (u8*)Allocate_Array(arena, u32, tex.size.x * tex.size.y);
 
@@ -321,13 +321,13 @@ int main(int, char**) {
 
         // --- Setting up pixel format start ---
         PIXELFORMATDESCRIPTOR pfd = {};
-        pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-        pfd.nVersion = 1;
-        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.nSize                 = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion              = 1;
+        pfd.dwFlags     = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
         pfd.dwLayerMask = PFD_MAIN_PLANE;
-        pfd.iPixelType = PFD_TYPE_RGBA;
-        pfd.cColorBits = 24;
-        pfd.cAlphaBits = 8;
+        pfd.iPixelType  = PFD_TYPE_RGBA;
+        pfd.cColorBits  = 24;
+        pfd.cAlphaBits  = 8;
         // pfd.cDepthBits = 0;
         // pfd.cAccumBits = 0;
         // pfd.cStencilBits = 0;
@@ -381,7 +381,7 @@ int main(int, char**) {
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
     ImGui::StyleColorsDark();
 
@@ -394,14 +394,14 @@ int main(int, char**) {
 
     running = true;
 
-    u64 perf_counter_current = Win32Clock();
+    u64 perf_counter_current   = Win32Clock();
     u64 perf_counter_frequency = Win32Frequency();
 
-    f32 last_frame_dt = 0;
-    const f32 MAX_FRAME_DT = 1.0f / 10.0f;
+    f32       last_frame_dt = 0;
+    const f32 MAX_FRAME_DT  = 1.0f / 10.0f;
     // TODO: Use DirectX / OpenGL to calculate refresh_rate and rework this whole
     // mess
-    f32 REFRESH_RATE = 60.0f;
+    f32 REFRESH_RATE       = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
 
     glEnable(GL_TEXTURE_2D);
@@ -424,7 +424,7 @@ int main(int, char**) {
             break;
 
         auto device_context = GetDC(window_handle);
-        auto capped_dt = MIN(last_frame_dt, MAX_FRAME_DT);
+        auto capped_dt      = MIN(last_frame_dt, MAX_FRAME_DT);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -447,8 +447,8 @@ int main(int, char**) {
         ReleaseDC(window_handle, device_context);
 
         u64 perf_counter_new = Win32Clock();
-        last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
-            / (f32)perf_counter_frequency;
+        last_frame_dt        = (f32)(perf_counter_new - perf_counter_current)
+                        / (f32)perf_counter_frequency;
         Assert(last_frame_dt >= 0);
 
         if (perf_counter_new < next_frame_expected_perf_counter) {
@@ -469,7 +469,7 @@ int main(int, char**) {
         }
 
         last_frame_dt = (f32)(perf_counter_new - perf_counter_current)
-            / (f32)perf_counter_frequency;
+                        / (f32)perf_counter_frequency;
         perf_counter_current = perf_counter_new;
     }
 

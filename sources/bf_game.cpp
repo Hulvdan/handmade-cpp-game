@@ -23,13 +23,21 @@ using toptional = std::optional<T>;
 template <typename... Args>
 using ttuple = std::tuple<Args...>;
 
+#include <vector>
+template <typename... Args>
+using tvector = std::vector<Args...>;
+
+#include <unordered_map>
+template <typename... Args>
+using tunordered_map = std::unordered_map<Args...>;
+
 global OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
-#include "bf_memory.cpp"
 #include "bf_math.cpp"
+#include "bf_memory.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
@@ -48,39 +56,39 @@ global OS_Data* global_os_data = nullptr;
 
 bool UI_Clicked(Game_State& state) {
     auto& game_map = state.game_map;
-    auto& rstate = *state.renderer_state;
+    auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
-    auto gsize = game_map.size;
-    auto swidth = (f32)bitmap.width;
+    auto gsize   = game_map.size;
+    auto swidth  = (f32)bitmap.width;
     auto sheight = (f32)bitmap.height;
 
-    auto sprite_params = ui_state.buildables_panel_params;
-    auto& pad_h = sprite_params.stretch_paddings_h;
-    auto& pad_v = sprite_params.stretch_paddings_v;
+    auto  sprite_params = ui_state.buildables_panel_params;
+    auto& pad_h         = sprite_params.stretch_paddings_h;
+    auto& pad_v         = sprite_params.stretch_paddings_v;
 
-    auto texture = ui_state.buildables_panel_background;
+    auto texture             = ui_state.buildables_panel_background;
     auto placeholder_texture = ui_state.buildables_placeholder_background;
-    auto psize = v2f(placeholder_texture.size);
+    auto psize               = v2f(placeholder_texture.size);
 
-    auto scale = ui_state.scale;
-    v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+    auto scale         = ui_state.scale;
+    v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-    v2f padding = ui_state.padding;
-    f32 placeholders_gap = ui_state.placeholders_gap;
-    auto placeholders = ui_state.placeholders;
-    auto panel_size = v2f(
+    v2f  padding          = ui_state.padding;
+    f32  placeholders_gap = ui_state.placeholders_gap;
+    auto placeholders     = ui_state.placeholders;
+    auto panel_size       = v2f(
         psize.x + 2 * padding.x,
         2 * padding.y + placeholders_gap * (f32)(placeholders - 1)
             + (f32)placeholders * psize.y
     );
 
-    v2f outer_anchor = ui_state.buildables_panel_container_anchor;
+    v2f outer_anchor         = ui_state.buildables_panel_container_anchor;
     v2i outer_container_size = v2i(swidth, sheight);
-    f32 outer_x = (f32)outer_container_size.x * outer_anchor.x;
-    f32 outer_y = (f32)outer_container_size.y * outer_anchor.y;
+    f32 outer_x              = (f32)outer_container_size.x * outer_anchor.x;
+    f32 outer_y              = (f32)outer_container_size.y * outer_anchor.y;
 
     auto projection = glm::mat3(1);
     // projection = glm::translate(projection, v2f(0, 1));
@@ -91,22 +99,22 @@ bool UI_Clicked(Game_State& state) {
     i8 clicked_buildable_index = -1;
 
     {
-        auto model = glm::mat3(1);
-        model = glm::scale(model, v2f(panel_size));
+        auto model   = glm::mat3(1);
+        model        = glm::scale(model, v2f(panel_size));
         v3f p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
         v3f p1_local = model * v3f(v2f_one - sprite_anchor, 1);
-        v3f origin = (p1_local + p0_local) / 2.0f;
+        v3f origin   = (p1_local + p0_local) / 2.0f;
 
         // Aligning items in a column
         // justify-content: center
-        FOR_RANGE(i8, i, placeholders) {
+        FOR_RANGE (i8, i, placeholders) {
             v3f drawing_point = origin;
             drawing_point.y -= (f32)(placeholders - 1) * (psize.y + placeholders_gap) / 2;
             drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
-            v3f p = projection * drawing_point;
-            v3f s = projection * v3f(psize, 0);
-            v2f p2 = v2f(p) - v2f(s) * 0.5f;  // anchor
+            v3f p   = projection * drawing_point;
+            v3f s   = projection * v3f(psize, 0);
+            v2f p2  = v2f(p) - v2f(s) * 0.5f;  // anchor
             v2f off = v2f(rstate.mouse_pos) - p2;
             if (Pos_Is_In_Bounds(off, s)) {
                 clicked_buildable_index = i;
@@ -128,11 +136,12 @@ bool UI_Clicked(Game_State& state) {
 
 void Process_Events(
     Game_State& state,
-    const u8* events,
-    size_t input_events_count,
-    float dt
+    const u8*   events,
+    size_t      input_events_count,
+    float       dt,
+    MCTX
 ) {
-    auto& rstate = *state.renderer_state;
+    auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
     while (input_events_count > 0) {
@@ -160,16 +169,16 @@ void Process_Events(
                         if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
                             switch (selected_buildable.type) {
                             case Item_To_Build_Type::Road: {
-                                Try_Build(state, tile_pos, Item_To_Build_Flag);
-                                Try_Build(state, tile_pos, Item_To_Build_Road);
+                                Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
+                                Try_Build(state, tile_pos, Item_To_Build_Road, ctx);
                             } break;
 
                             case Item_To_Build_Type::Flag: {
-                                Try_Build(state, tile_pos, Item_To_Build_Flag);
+                                Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
                             } break;
 
                             case Item_To_Build_Type::Building: {
-                                Try_Build(state, tile_pos, selected_buildable);
+                                Try_Build(state, tile_pos, selected_buildable, ctx);
                             } break;
 
                             default:
@@ -179,9 +188,9 @@ void Process_Events(
                     }
                 }
                 else if (event.type == Mouse_Button_Type::Right) {
-                    rstate.panning = true;
+                    rstate.panning       = true;
                     rstate.pan_start_pos = event.position;
-                    rstate.pan_offset = v2i(0, 0);
+                    rstate.pan_offset    = v2i(0, 0);
                 }
             }
         } break;
@@ -194,8 +203,8 @@ void Process_Events(
             if (event.type == Mouse_Button_Type::Left) {
             }
             else if (event.type == Mouse_Button_Type::Right) {
-                rstate.panning = false;
-                rstate.pan_pos = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
+                rstate.panning    = false;
+                rstate.pan_pos    = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
                 rstate.pan_offset = v2i(0, 0);
             }
         } break;
@@ -273,13 +282,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     global_os_data = &os_data;
 
     Arena root_arena = {};
-    root_arena.name = "root_arena";
-    root_arena.base = (u8*)memory_ptr;
-    root_arena.size = memory_size;
-    root_arena.used = 0;
+    root_arena.name  = "root_arena";
+    root_arena.base  = (u8*)memory_ptr;
+    root_arena.size  = memory_size;
+    root_arena.used  = 0;
 
-    auto& memory = *Allocate_For(root_arena, Game_Memory);
-    auto& state = memory.state;
+    auto& memory       = *Allocate_For(root_arena, Game_Memory);
+    auto& state        = memory.state;
     state.hot_reloaded = hot_reloaded;
 
     if (!editor_data.game_context_set) {
@@ -288,6 +297,11 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     }
 
     auto first_time_initializing = !memory.is_initialized;
+
+    if (root_allocator == nullptr)
+        root_allocator = Allocate_For(root_arena, Root_Allocator_Type);
+    if (first_time_initializing)
+        std::construct_at(root_allocator);
 
     // --- IMGUI ---
     if (!first_time_initializing) {
@@ -345,22 +359,28 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     }
     // --- IMGUI END ---
 
+    Context _ctx;
+    _ctx.allocator      = Root_Allocator;
+    _ctx.allocator_data = nullptr;
+    _ctx.thread_index   = 0;
+    auto ctx            = &_ctx;
+
     if (!first_time_initializing && state.hot_reloaded) {
-        Deinitialize_Game_Map(state);
+        Deinitialize_Game_Map(state, ctx);
     }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
         editor_data.changed = false;
 
-        auto trash_arena_size = Megabytes((size_t)1);
+        auto trash_arena_size          = Megabytes((size_t)1);
         auto non_persistent_arena_size = Megabytes((size_t)1);
         auto arena_size = root_arena.size - root_arena.used - non_persistent_arena_size
-            - trash_arena_size;
+                          - trash_arena_size;
 
         // NOTE: `arena` remains the same after hot reloading. Others get reset
-        auto& arena = state.arena;
+        auto& arena                = state.arena;
         auto& non_persistent_arena = state.non_persistent_arena;
-        auto& trash_arena = state.trash_arena;
+        auto& trash_arena          = state.trash_arena;
 
         Map_Arena(root_arena, arena, arena_size);
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
@@ -369,7 +389,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
-        state.arena.name = "arena";
+        state.arena.name          = "arena";
         non_persistent_arena.name = Allocate_Formatted_String(
             non_persistent_arena, "non_persistent_arena_%d", state.dll_reloads_count
         );
@@ -388,7 +408,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         Initialize_As_Zeros<Game_Map>(state.game_map);
         state.game_map.size = {32, 24};
-        auto& gsize = state.game_map.size;
+        auto& gsize         = state.game_map.size;
 
         auto tiles_count = (size_t)gsize.x * gsize.y;
         state.game_map.terrain_tiles
@@ -403,31 +423,33 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
             auto& r = Assert_Deref(Get_Scriptable_Resource(state, 1));
-            r.name = "forest";
+            r.name  = "forest";
         }
 
         state.scriptable_buildings_count = 2;
         state.scriptable_buildings
             = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
-            auto& b = Assert_Deref(state.scriptable_buildings + 0);
-            b.name = "City Hall";
-            b.type = Building_Type::City_Hall;
+            auto& b                = Assert_Deref(state.scriptable_buildings + 0);
+            b.name                 = "City Hall";
+            b.type                 = Building_Type::City_Hall;
+            b.human_spawning_delay = 1;
             state.scriptable_building_city_hall = &b;
         }
         {
-            auto& b = Assert_Deref(state.scriptable_buildings + 1);
-            b.name = "Lumberjack's Hut";
-            b.type = Building_Type::Harvest;
+            auto& b                = Assert_Deref(state.scriptable_buildings + 1);
+            b.name                 = "Lumberjack's Hut";
+            b.type                 = Building_Type::Harvest;
+            b.human_spawning_delay = 0;
             state.scriptable_building_lumberjacks_hut = &b;
         }
 
-        Initialize_Game_Map(state, non_persistent_arena);
+        Initialize_Game_Map(state, non_persistent_arena, ctx);
         Regenerate_Terrain_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data
+            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
         Regenerate_Element_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data
+            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
         On_Item_Built__Function((*callbacks[])) = {
@@ -463,8 +485,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     const auto player_radius = 24;
 
-    FOR_RANGE(i32, y, bitmap.height) {
-        FOR_RANGE(i32, x, bitmap.width) {
+    FOR_RANGE (i32, y, bitmap.height) {
+        FOR_RANGE (i32, x, bitmap.width) {
             // u32 red  = 0;
             u32 red = (u8)(x + offset_x);
             // u32 red  = (u8)(y + offset_y);
@@ -479,15 +501,19 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             auto dy = y - (i32)state.player_pos.y;
             if (dx * dx + dy * dy < player_radius * player_radius) {
                 const auto player_color = 255;
-                red = player_color;
-                green = player_color;
-                blue = player_color;
+                red                     = player_color;
+                green                   = player_color;
+                blue                    = player_color;
             }
 
             (*pixel++) = (blue << 0) | (green << 8) | (red << 0);
         }
     }
 
-    Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt);
-    Render(state, dt);
+    auto& trash_arena = state.trash_arena;
+    TEMP_USAGE(trash_arena);
+
+    Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);
+    Update_Game_Map(state, dt, ctx);
+    Render(state, dt, ctx);
 }
