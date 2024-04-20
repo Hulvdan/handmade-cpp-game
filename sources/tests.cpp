@@ -3,8 +3,14 @@
 
 #include "bf_game.h"
 
-#define Root_Allocator_Type \
-    Affix_Allocator<Freeable_Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
+#define Root_Allocator_Type                                                 \
+    Affix_Allocator<                                                        \
+        Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \
+        Stoopid_Affix,                                                      \
+        Stoopid_Affix>
+
+// #define Root_Allocator_Type \
+//     Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"
@@ -453,49 +459,49 @@ int Process_Segments(
         gsize, element_tiles, segments, trash_arena, building_sawmill, _strings, ctx \
     );
 
-#define Update_Tiles_Macro(updated_tiles)                                   \
-    REQUIRE(segments != nullptr);                                           \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles(     \
-        gsize,                                                              \
-        element_tiles,                                                      \
-        segments,                                                           \
-        trash_arena,                                                        \
-        (updated_tiles),                                                    \
-        [&segments, &trash_arena](                                          \
-            u32             segments_to_be_deleted_count,                   \
-            Graph_Segment** segments_to_be_deleted,                         \
-            u32             added_segments_count,                           \
-            Graph_Segment*  added_segments,                                 \
-            MCTX                                                            \
-        ) {                                                                 \
-            CTX_ALLOCATOR;                                                  \
-                                                                            \
-            FOR_RANGE (u32, i, segments_to_be_deleted_count) {              \
-                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i); \
-                auto&          segment     = Assert_Deref(segment_ptr);     \
-                                                                            \
-                FREE(segment.vertices, segment.vertices_count);             \
-                                                                            \
-                SANITIZE;                                                   \
-                                                                            \
-                FREE(segment.graph.nodes, segment.graph.nodes_count);       \
-                                                                            \
-                SANITIZE;                                                   \
-                                                                            \
-                Bucket_Array_Remove(*segments, segment.locator);            \
-                                                                            \
-                SANITIZE;                                                   \
-            }                                                               \
-                                                                            \
-            FOR_RANGE (u32, i, added_segments_count) {                      \
-                Add_And_Link_Segment(                                       \
-                    *segments, *(added_segments + i), trash_arena, ctx      \
-                );                                                          \
-                                                                            \
-                SANITIZE;                                                   \
-            }                                                               \
-        },                                                                  \
-        ctx                                                                 \
+#define Update_Tiles_Macro(updated_tiles)                                        \
+    REQUIRE(segments != nullptr);                                                \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(          \
+        gsize,                                                                   \
+        element_tiles,                                                           \
+        segments,                                                                \
+        trash_arena,                                                             \
+        (updated_tiles),                                                         \
+        [&segments, &trash_arena](                                               \
+            u32             segments_to_be_deleted_count,                        \
+            Graph_Segment** segments_to_be_deleted,                              \
+            u32             added_segments_count,                                \
+            Graph_Segment*  added_segments,                                      \
+            MCTX                                                                 \
+        ) {                                                                      \
+            CTX_ALLOCATOR;                                                       \
+                                                                                 \
+            FOR_RANGE (u32, i, segments_to_be_deleted_count) {                   \
+                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);      \
+                auto&          segment     = Assert_Deref(segment_ptr);          \
+                                                                                 \
+                FREE(segment.vertices, segment.vertices_count);                  \
+                                                                                 \
+                SANITIZE;                                                        \
+                                                                                 \
+                FREE(segment.graph.nodes, segment.graph.nodes_allocation_count); \
+                                                                                 \
+                SANITIZE;                                                        \
+                                                                                 \
+                Bucket_Array_Remove(*segments, segment.locator);                 \
+                                                                                 \
+                SANITIZE;                                                        \
+            }                                                                    \
+                                                                                 \
+            FOR_RANGE (u32, i, added_segments_count) {                           \
+                Add_And_Link_Segment(                                            \
+                    *segments, *(added_segments + i), trash_arena, ctx           \
+                );                                                               \
+                                                                                 \
+                SANITIZE;                                                        \
+            }                                                                    \
+        },                                                                       \
+        ctx                                                                      \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \

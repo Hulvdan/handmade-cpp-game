@@ -495,7 +495,7 @@ Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item, MCTX) {
 
     SANITIZE;
 
-    *ptr                = item;
+    *ptr = item;
 
     SANITIZE;
 
@@ -845,6 +845,7 @@ struct Calculated_Graph_Data {
 
 struct Graph : public Non_Copyable {
     Graph_Nodes_Count nodes_count;
+    size_t            nodes_allocation_count;
     u8*               nodes;  // 0b0000DLUR
 
     v2i16 size;

@@ -1234,7 +1234,7 @@ void Deinitialize_Game_Map(Game_State& state, MCTX) {
 
     for (auto segment_ptr : Iter(&game_map.segments)) {
         FREE(segment_ptr->vertices, segment_ptr->vertices_count);
-        FREE(segment_ptr->graph.nodes, segment_ptr->graph.nodes_count);
+        FREE(segment_ptr->graph.nodes, segment_ptr->graph.nodes_allocation_count);
 
         segment_ptr->linked_segments.clear();
         Deinit_Queue(segment_ptr->resources_to_transport, ctx);
@@ -1789,13 +1789,14 @@ Graph_Segment* Add_And_Link_Segment(
         memset(segment1_ptr, SHIT_BYTE_MASK, sizeof(Graph_Segment));
 #endif  // SHIT_MEMORY_DEBUG
 
-        auto& segment             = *segment1_ptr;
-        segment.vertices_count    = added_segment.vertices_count;
-        segment.vertices          = added_segment.vertices;
-        segment.graph.nodes_count = added_segment.graph.nodes_count;
-        segment.graph.nodes       = added_segment.graph.nodes;
-        segment.graph.size        = added_segment.graph.size;
-        segment.graph.offset      = added_segment.graph.offset;
+        auto& segment                        = *segment1_ptr;
+        segment.vertices_count               = added_segment.vertices_count;
+        segment.vertices                     = added_segment.vertices;
+        segment.graph.nodes_count            = added_segment.graph.nodes_count;
+        segment.graph.nodes_allocation_count = added_segment.graph.nodes_allocation_count;
+        segment.graph.nodes                  = added_segment.graph.nodes;
+        segment.graph.size                   = added_segment.graph.size;
+        segment.graph.offset                 = added_segment.graph.offset;
 
         SANITIZE;
 
@@ -1936,7 +1937,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
         Bucket_Array_Remove(segments, segment.locator);
         FREE(segment.vertices, segment.vertices_count);
-        FREE(segment.graph.nodes, segment.graph.nodes_count);
+        FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
     }
 
     Graph_Segment** added_calculated_segments = nullptr;
@@ -2217,8 +2218,10 @@ void Update_Graphs(
 
         // NOTE: Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
-        auto all_nodes_count = gr_size.x * gr_size.y;
-        segment.graph.nodes  = (u8*)ALLOC(sizeof(*segment.graph.nodes) * all_nodes_count);
+        auto nodes_allocation_count          = gr_size.x * gr_size.y;
+        segment.graph.nodes_allocation_count = nodes_allocation_count;
+        segment.graph.nodes
+            = (u8*)ALLOC(sizeof(*segment.graph.nodes) * nodes_allocation_count);
 
         SANITIZE;
 
@@ -2502,8 +2505,7 @@ ttuple<int, int> Update_Tiles(
 
     SANITIZE;
 
-    // NOTE: Each byte here contains differently bit-shifted values of
-    // `Direction`
+    // NOTE: Each byte here contains differently bit-shifted values of `Direction`
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};

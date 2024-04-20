@@ -409,6 +409,14 @@ private:
 
 // ===== Adding Affixes =====
 
+struct Size_Affix {
+    size_t n;
+
+    Size_Affix(size_t an) : n(an) {}
+
+    bool Validate() { return true; }
+};
+
 template <class A, class Prefix = void, class Suffix = void>
 struct Affix_Allocator {
     // From Andrei:
@@ -511,11 +519,22 @@ struct Affix_Allocator {
 
     bool Sanity_Check() {
         for (auto blk : _allocations) {
+            auto blk_length_without_affixes = blk.length;
+            if (!std::is_void_v<Prefix>)
+                blk_length_without_affixes -= sizeof(Prefix);
+            if (!std::is_void_v<Suffix>)
+                blk_length_without_affixes -= sizeof(Suffix);
+
             auto ptr = (u8*)blk.ptr;
 
             if (!std::is_void_v<Prefix>) {
                 auto affix = (Prefix*)ptr;
                 Assert(affix->Validate());
+
+                if (std::is_same_v<Prefix, Size_Affix>) {
+                    auto& saffix = *(Size_Affix*)affix;
+                    Assert(saffix.n == blk_length_without_affixes);
+                }
             }
 
             ptr += blk.length;
@@ -523,6 +542,11 @@ struct Affix_Allocator {
             if (!std::is_void_v<Suffix>) {
                 auto affix = (Suffix*)(ptr - sizeof(Suffix));
                 Assert(affix->Validate());
+
+                if (std::is_same_v<Prefix, Size_Affix>) {
+                    auto& saffix = *(Size_Affix*)affix;
+                    Assert(saffix.n == blk_length_without_affixes);
+                }
             }
         }
 
