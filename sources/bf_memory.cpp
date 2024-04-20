@@ -149,13 +149,21 @@ enum class Allocator_Mode {
 using Allocator_Function_Type = Allocator__Function((*));
 
 struct Context {
+    u32                     thread_index;
     Allocator_Function_Type allocator;
     void*                   allocator_data;
 
-    u32 thread_index;
-
     // NOTE: Сюда можно ещё пихнуть и другие данные,
     // например, что-нибудь для логирования
+
+    Context(
+        u32                     a_thread_index,
+        Allocator_Function_Type a_allocator,
+        void*                   a_allocator_data
+    )
+        : thread_index(a_thread_index)
+        , allocator(a_allocator)
+        , allocator_data(a_allocator_data) {}
 };
 
 struct Blk {
@@ -919,7 +927,7 @@ struct Stoopid_Affix {
 
 global Root_Allocator_Type* root_allocator = nullptr;
 
-Allocator__Function(Root_Allocator) {
+Allocator__Function(Root_Allocator_Routine) {
     switch (mode) {
     case Allocator_Mode::Allocate: {
         Assert(old_memory_ptr == nullptr);

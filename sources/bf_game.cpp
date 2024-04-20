@@ -303,6 +303,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     if (first_time_initializing)
         std::construct_at(root_allocator);
 
+    Context _ctx(0, Root_Allocator_Routine, nullptr);
+    auto    ctx = &_ctx;
+
     // --- IMGUI ---
     if (!first_time_initializing) {
         auto& rstate = Assert_Deref(state.renderer_state);
@@ -358,12 +361,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
     }
     // --- IMGUI END ---
-
-    Context _ctx;
-    _ctx.allocator      = Root_Allocator;
-    _ctx.allocator_data = nullptr;
-    _ctx.thread_index   = 0;
-    auto ctx            = &_ctx;
 
     if (!first_time_initializing && state.hot_reloaded) {
         Deinitialize_Game_Map(state, ctx);

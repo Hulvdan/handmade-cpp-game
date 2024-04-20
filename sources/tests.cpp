@@ -28,17 +28,14 @@
 // ============================================================= //
 //                         Memory Setup                          //
 // ============================================================= //
-global Context _ctx;
+global Context _ctx(0, Root_Allocator_Routine, nullptr);
 
-#define INITALIZE_CTX                                                           \
+#define INITIALIZE_CTX                                                           \
     Assert(root_allocator == nullptr);                                          \
     root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
     std::construct_at(root_allocator);                                          \
                                                                                 \
-    auto ctx            = &_ctx;                                                \
-    _ctx.thread_index   = 0;                                                    \
-    _ctx.allocator      = Root_Allocator;                                       \
-    _ctx.allocator_data = nullptr;                                              \
+    auto ctx = &_ctx;                                                           \
                                                                                 \
     defer {                                                                     \
         CTX_ALLOCATOR;                                                          \
@@ -464,7 +461,7 @@ TEST_CASE ("Bit operations") {
 }
 
 TEST_CASE ("Update_Tiles") {
-    INITALIZE_CTX;
+    INITIALIZE_CTX;
 
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
@@ -1194,7 +1191,7 @@ TEST_CASE ("Update_Tiles") {
 }
 
 TEST_CASE ("Queue") {
-    INITALIZE_CTX;
+    INITIALIZE_CTX;
 
     Queue<int> queue = {};
 
