@@ -3,6 +3,15 @@
 
 #include "bf_game.h"
 
+// #define Root_Allocator_Type                                                     \
+//     Freelist<                                                                   \
+//         Affix_Allocator<                                                        \
+//             Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \
+//             Stoopid_Affix,                                                      \
+//             Stoopid_Affix>,                                                     \
+//         0,                                                                      \
+//         32>
+
 #define Root_Allocator_Type                                                 \
     Affix_Allocator<                                                        \
         Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \

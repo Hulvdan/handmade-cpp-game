@@ -91,11 +91,6 @@ void Deallocate_(Arena& arena, size_t size) {
         (arena).used = _arena_used_;          \
     };
 
-// // NOTE: Стырено с https://en.cppreference.com/w/cpp/named_req/Allocator
-// #ifdef SHIT_MEMORY_DEBUG
-// static std::vector<std::tuple<void*, size_t>> bf_debug_allocations = {};
-// #endif  // SHIT_MEMORY_DEBUG
-
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
 #define ALLOC(n) \
     Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
@@ -112,7 +107,7 @@ void Deallocate_(Arena& arena, size_t size) {
 #define SANITIZE \
     Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
 #else
-#define SANITIZE
+#define SANITIZE [] {}()
 #endif
 
 #define MCTX Context* ctx
@@ -174,8 +169,6 @@ struct Blk {
     }
 };
 
-// ===== Simplest composite allocator =====
-
 template <class P, class F>
 struct Fallback_Allocator {
     Blk Allocate(size_t n) {
@@ -206,8 +199,6 @@ private:
     F _f;
 };
 
-// ===== Good citizenry =====
-
 struct Null_Allocator {
     Blk Allocate(size_t) { return Blk(nullptr, 0); }
 
@@ -217,8 +208,6 @@ struct Null_Allocator {
 
     bool Sanity_Check() { return true; }
 };
-
-// ===== Suddenly =====
 
 template <size_t s>
 struct Stack_Allocator {
@@ -334,63 +323,74 @@ private:
 //     8,   // Allocate 8 at a time
 //     1024 // No more than 1024 remembered
 // > alloc8r;
-//
-// TODO: TEST
+
 template <class A, size_t min, size_t max, i32 min_allocations = 8, i32 top = 1024>
 struct Freelist {
-    Blk Allocate(size_t n) {
-        // TODO: Поднять assert-ы
-        static_assert(top > 0);
-        static_assert(min_allocations > 0);
-        static_assert(min_allocations <= top);
-        static_assert(min <= max);
+    static_assert(top > 0);
+    static_assert(min_allocations > 0);
+    static_assert(min_allocations <= top);
+    static_assert(min <= max);
 
+    Blk Allocate(size_t n) {
         // NOTE: Если наш размер, а также есть предыдущие
         // аллокации в freelist-е, возвращаем их.
-        if (min <= n && n <= max && _root) {
-            Blk b(_root, n);
-            _root = _root.next;
+        if ((min <= n) && (n <= max) && (_root.next != nullptr)) {
+            Blk b(_root.next, n);
+            _root.next = _root.next->next;
             return b;
         }
 
         // NOTE: Пытаемся аллоцировать `min_allocations` раз.
         // Одну аллокацию возвращаем, остальные (если смогли) сохраняем в Freelist.
-        void* ptr = _parent.Allocate(n);
+        auto [ptr, _] = _parent.Allocate(n);
 
-        if (ptr != nullptr && min <= n && n <= max) {
+        if ((ptr != nullptr) && (min <= n) && (n <= max)) {
             FOR_RANGE (i32, i, min_allocations - 1) {
-                auto p = (Node*)_parent.Allocate(n);
-                if (p == nullptr)
+                auto allocated_block = _parent.Allocate(n);
+                if (allocated_block.ptr == nullptr)
                     break;
 
-                p->next = _root;
-                _root   = p;
+                Assert(allocated_block.length == n);
+
+                auto p = (Node*)allocated_block.ptr;
+
+                p->next    = _root.next;
+                _root.next = p;
                 _remembered++;
             }
         }
 
-        return ptr;
+        return Blk(ptr, n);
     }
 
     // TODO: Это код Andrei Alexandrescu.
     // Странно выглядит, что тут проверка на ||.
     // По-идее корректно будет, если мы пробежимся
     // по freelist-у и найдём указанную аллокацию.
-    bool Owns(Blk b) { return (min <= b.length && b.length <= max) || _parent.Owns(b); }
+    bool Owns(Blk b) {
+        return ((min <= b.length) && (b.length <= max)) || _parent.Owns(b);
+    }
 
     void Deallocate(Blk b) {
         // NOTE: Если не заполнен список freelist-а, а также это наш размер,
         // тогда не вызываем free аллокатора, а добавляем в freelist.
-        if (_remembered < top && min <= b.length && b.length <= max) {
-            auto p  = (Node*)b.ptr;
-            p->next = _root;
-            _root   = p;
+        if ((_remembered < top) && (min <= b.length) && (b.length <= max)) {
+            auto p     = (Node*)b.ptr;
+            p->next    = _root.next;
+            _root.next = p;
 
             _remembered -= 1;
             return;
         }
 
         _parent.Deallocate(b);
+    }
+
+    void Deallocate_All() {
+        _remembered = 0;
+        _root.next  = nullptr;
+
+        _parent.Deallocate_All();
     }
 
     bool Sanity_Check() { return _parent.Sanity_Check(); }
