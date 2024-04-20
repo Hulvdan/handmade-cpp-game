@@ -230,100 +230,6 @@ TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward((u8*)(8UL), 8) == (u8*)8UL);
 }
 
-// TEST_CASE ("Allocator") {
-//     u8* toc_buffer  = new u8[1024];
-//     u8* data_buffer = new u8[1024];
-//     memset(toc_buffer, 0, 1024);
-//
-//     auto allocator = Allocator(1024, toc_buffer, 1024, data_buffer);
-//     auto alloc     = rcast<Allocation*>(toc_buffer);
-//
-//     // Tests
-//     {
-//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 1);
-//         CHECK(ptr == data_buffer);
-//
-//         CHECK((alloc + 0)->next == size_t_max);
-//     }
-//     {
-//         auto ptr = Allocator_Allocate_Macro(allocator, 36, 1UL);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 2);
-//         CHECK(ptr == data_buffer + 12);
-//
-//         CHECK((alloc + 0)->next == 1);
-//         CHECK((alloc + 1)->next == size_t_max);
-//     }
-//     {
-//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 3);
-//         CHECK(ptr == data_buffer + 48);
-//
-//         CHECK((alloc + 0)->next == 1);
-//         CHECK((alloc + 1)->next == 2);
-//         CHECK((alloc + 2)->next == size_t_max);
-//     }
-//     {
-//         Allocator_Free_Macro(allocator, data_buffer + 48);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 2);
-//         CHECK((alloc + 0)->next == 1);
-//         CHECK((alloc + 1)->next == size_t_max);
-//         CHECK((alloc + 1)->active == true);
-//         CHECK((alloc + 2)->active == false);
-//     }
-//     {
-//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 3);
-//         CHECK(ptr == data_buffer + 48);
-//     }
-//     {
-//         Allocator_Free_Macro(allocator, data_buffer + 0);
-//         CHECK(allocator.first_allocation_index == 1);
-//         CHECK(allocator.current_allocations_count == 2);
-//         CHECK((alloc + 0)->active == false);
-//         CHECK((alloc + 1)->next == 2);
-//         CHECK((alloc + 1)->active == true);
-//         CHECK((alloc + 2)->active == true);
-//     }
-//     {
-//         Allocator_Free_Macro(allocator, data_buffer + 12);
-//         CHECK(allocator.first_allocation_index == 2);
-//         CHECK(allocator.current_allocations_count == 1);
-//         CHECK((alloc + 0)->active == false);
-//         CHECK((alloc + 1)->active == false);
-//         CHECK((alloc + 0)->active == false);
-//         CHECK((alloc + 1)->active == false);
-//         CHECK((alloc + 2)->active == true);
-//     }
-//     {
-//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 2);
-//         CHECK(ptr == data_buffer + 0);
-//         CHECK((alloc + 0)->active == true);
-//         CHECK((alloc + 2)->active == true);
-//         CHECK((alloc + 0)->next == 2);
-//         CHECK((alloc + 2)->next == size_t_max);
-//     }
-//     {
-//         auto ptr = Allocator_Allocate_Macro(allocator, 12, 1UL);
-//         CHECK(allocator.first_allocation_index == 0);
-//         CHECK(allocator.current_allocations_count == 3);
-//         CHECK(ptr == data_buffer + 12);
-//         CHECK((alloc + 0)->active == true);
-//         CHECK((alloc + 1)->active == true);
-//         CHECK((alloc + 2)->active == true);
-//         CHECK((alloc + 0)->next == 1);
-//         CHECK((alloc + 1)->next == 2);
-//         CHECK((alloc + 2)->next == size_t_max);
-//     }
-// }
-
 TEST_CASE ("Opposite") {
     CHECK(Opposite(Direction::Right) == Direction::Left);
     CHECK(Opposite(Direction::Up) == Direction::Down);
@@ -373,29 +279,21 @@ int Process_Segments(
     gsize.y = strings.size();
     gsize.x = strlen(strings[0]);
 
-    SANITIZE;
-
     for (auto string_ptr : strings)
         REQUIRE(strlen(string_ptr) == gsize.x);
 
     auto tiles_count = gsize.x * gsize.y;
     element_tiles    = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
 
-    SANITIZE;
-
     {
         segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
         Init_Bucket_Array(*segments, 32, 128, ctx);
     }
 
-    SANITIZE;
-
     auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
     };
-
-    SANITIZE;
 
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
@@ -443,8 +341,6 @@ int Process_Segments(
             default:
                 INVALID_PATH;
             }
-
-            SANITIZE;
         }
     }
 
@@ -453,11 +349,11 @@ int Process_Segments(
         gsize, element_tiles, *segments, trash_arena, [](...) {}, ctx
     );
 
-    SANITIZE;
-
     int segments_count = 0;
     for (auto _ : Iter(segments))
         segments_count++;
+
+    SANITIZE;
 
     return segments_count;
 };
@@ -490,25 +386,17 @@ int Process_Segments(
                 auto&          segment     = Assert_Deref(segment_ptr);          \
                                                                                  \
                 FREE(segment.vertices, segment.vertices_count);                  \
-                                                                                 \
-                SANITIZE;                                                        \
-                                                                                 \
                 FREE(segment.graph.nodes, segment.graph.nodes_allocation_count); \
-                                                                                 \
-                SANITIZE;                                                        \
-                                                                                 \
                 Bucket_Array_Remove(*segments, segment.locator);                 \
-                                                                                 \
-                SANITIZE;                                                        \
             }                                                                    \
                                                                                  \
             FOR_RANGE (u32, i, added_segments_count) {                           \
                 Add_And_Link_Segment(                                            \
                     *segments, *(added_segments + i), trash_arena, ctx           \
                 );                                                               \
-                                                                                 \
-                SANITIZE;                                                        \
             }                                                                    \
+                                                                                 \
+            SANITIZE;                                                            \
         },                                                                       \
         ctx                                                                      \
     );
@@ -912,8 +800,6 @@ TEST_CASE ("Update_Tiles") {
 
     SUBCASE("Test_RoadPlaced_1") {
         CTX_ALLOCATOR;
-        SANITIZE;
-
         Process_Segments_Macro(
             ".B",  //
             ".F",  //
@@ -921,17 +807,11 @@ TEST_CASE ("Update_Tiles") {
         );
         CHECK(segments_count == 1);
 
-        SANITIZE;
-
         auto pos = v2i(0, 1);
         CHECK(GRID_PTR_VALUE(element_tiles, pos).type == Element_Tile_Type::None);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Road;
 
-        SANITIZE;
-
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Road_Placed});
-
-        SANITIZE;
 
         Update_Tiles_Macro(updated_tiles);
 

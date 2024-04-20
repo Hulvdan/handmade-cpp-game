@@ -1012,7 +1012,6 @@ void Update_Human_Moving_Component(
     MCTX
 ) {
     CTX_ALLOCATOR;
-    SANITIZE;
 
     auto& game_map_data = Assert_Deref(game_map.data);
 
@@ -1048,6 +1047,7 @@ void Update_Human_Moving_Component(
     }
 
     moving.progress = MIN(1.0f, moving.elapsed / duration);
+    SANITIZE;
 }
 
 void Update_Human(
@@ -1060,7 +1060,6 @@ void Update_Human(
     MCTX
 ) {
     CTX_ALLOCATOR;
-    SANITIZE;
 
     auto& human            = *human_ptr;
     auto& humans_to_remove = game_map.humans_to_remove;
@@ -1579,7 +1578,6 @@ void Assert_Is_Undirected(Graph& graph) {
 #define _Anon_Variable(name, counter) name##counter
 #define Anon_Variable(name, counter) _Anon_Variable(name, counter)
 
-// NOTE: Жрёт trash arena
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     TEMP_USAGE(trash_arena);
 
@@ -1604,14 +1602,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
                 if (node == 0)
                     continue;
 
-                SANITIZE;
-
                 data.node_index_2_pos.insert({node_index, v2i16(x, y)});
-
-                SANITIZE;
                 data.pos_2_node_index.insert({v2i16(x, y), node_index});
-
-                SANITIZE;
 
                 node_index += 1;
             }
@@ -1628,12 +1620,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     FOR_RANGE (int, y, n) {
         FOR_RANGE (int, x, n) {
             dist[y * n + x] = i16_max;
-
-            SANITIZE;
-
             prev[y * n + x] = i16_min;
-
-            SANITIZE;
         }
     }
 
@@ -1641,7 +1628,6 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // > for each edge (u, v) do
     // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
     // >     prev[u][v] ← u
-    //
     {
         int node_index = 0;
         FOR_RANGE (int, y, height) {
@@ -1658,15 +1644,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
                     Assert(pos_2_node_index.contains(new_pos));
                     auto new_node_index = pos_2_node_index[new_pos];
 
-                    SANITIZE;
-
                     dist[node_index * n + new_node_index] = 1;
-
-                    SANITIZE;
-
                     prev[node_index * n + new_node_index] = node_index;
-
-                    SANITIZE;
                 }
 
                 node_index += 1;
@@ -1678,37 +1657,10 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // > for each vertex v do
     // >     dist[v][v] ← 0
     // >     prev[v][v] ← v
-    //
     {
-        // int node_index = 0;
-        // FOR_RANGE (int, y, graph.size.y) {
-        //     FOR_RANGE (int, x, graph.size.x) {
-        //         u8 node = nodes[y * n + x];
-        //         if (!node)
-        //             continue;
-        //
-        //         dist[node_index * n + node_index] = 0;
-        //
-        //         SANITIZE;
-        //
-        //         prev[node_index * n + node_index] = node_index;
-        //
-        //         SANITIZE;
-        //
-        //         node_index += 1;
-        //     }
-        // }
-
-        SANITIZE;
-
         FOR_RANGE (int, node_index, n) {
             dist[node_index * n + node_index] = 0;
-
-            SANITIZE;
-
             prev[node_index * n + node_index] = node_index;
-
-            SANITIZE;
         }
     }
 
@@ -1731,15 +1683,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
                     && (kj != i16_max)  //
                     && (ij > ik + kj)   //
                 ) {
-                    SANITIZE;
-
                     dist[i * n + j] = ik + kj;
-
-                    SANITIZE;
-
                     prev[i * n + j] = prev[k * n + j];
-
-                    SANITIZE;
                 }
             }
         }
@@ -1771,6 +1716,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
             break;
         }
     }
+
+    SANITIZE;
 }
 
 Graph_Segment* Add_And_Link_Segment(
@@ -1798,20 +1745,12 @@ Graph_Segment* Add_And_Link_Segment(
         segment.graph.size                   = added_segment.graph.size;
         segment.graph.offset                 = added_segment.graph.offset;
 
-        SANITIZE;
-
         Calculate_Graph_Data(segment.graph, trash_arena, ctx);
-
-        SANITIZE;
 
         segment.locator        = locator;
         segment.assigned_human = nullptr;
 
-        SANITIZE;
-
         std::construct_at(&segment.linked_segments);
-
-        SANITIZE;
 
         segment.resources_to_transport.max_count = 0;
         segment.resources_to_transport.count     = 0;
@@ -1822,8 +1761,6 @@ Graph_Segment* Add_And_Link_Segment(
         if (segment2_ptr == segment1_ptr)
             continue;
 
-        SANITIZE;
-
         // PERF: Мб тут стоит что-то из разряда
         // AABB(graph1, graph2) для оптимизации заюзать
         auto& segment1 = *segment1_ptr;
@@ -1832,12 +1769,8 @@ Graph_Segment* Add_And_Link_Segment(
             if (Vector_Find(segment2.linked_segments, segment1_ptr) == -1)
                 segment2.linked_segments.push_back(segment1_ptr);
 
-            SANITIZE;
-
             if (Vector_Find(segment1.linked_segments, segment2_ptr) == -1)
                 segment1.linked_segments.push_back(segment2_ptr);
-
-            SANITIZE;
         }
     }
 
@@ -2006,11 +1939,7 @@ void Update_Graphs(
 ) {
     CTX_ALLOCATOR;
 
-    SANITIZE;
-
     TEMP_USAGE(trash_arena);
-
-    SANITIZE;
 
     auto tiles_count = gsize.x * gsize.y;
 
@@ -2019,13 +1948,10 @@ void Update_Graphs(
         vis = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
 
     while (big_queue.count) {
-        SANITIZE;
         TEMP_USAGE(trash_arena);
 
         auto p = Dequeue(big_queue);
         Enqueue(queue, p);
-
-        SANITIZE;
 
         auto [_, p_pos] = p;
         if (full_graph_build) {
@@ -2034,8 +1960,6 @@ void Update_Graphs(
 
         v2i16* vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
         v2i16* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-
-        SANITIZE;
 
         int vertices_count      = 0;
         int segment_tiles_count = 1;
@@ -2047,13 +1971,9 @@ void Update_Graphs(
         temp_graph.size.y = gsize.y;
 
         while (queue.count) {
-            SANITIZE;
-
             auto [dir, pos] = Dequeue(queue);
             if (full_graph_build)
                 GRID_PTR_VALUE(vis, pos) = true;
-
-            SANITIZE;
 
             auto& tile = GRID_PTR_VALUE(element_tiles, pos);
 
@@ -2063,8 +1983,6 @@ void Update_Graphs(
 
             if (is_vertex)
                 Add_Without_Duplication(tiles_count, vertices_count, vertices, pos);
-
-            SANITIZE;
 
             FOR_DIRECTION (dir_index) {
                 if (is_vertex && dir_index != dir)
@@ -2102,14 +2020,11 @@ void Update_Graphs(
                         FOR_DIRECTION (new_dir_index) {
                             if (!Graph_Node_Has(new_visited_value, new_dir_index)) {
                                 Enqueue(big_queue, {new_dir_index, new_pos});
-                                SANITIZE;
                             }
                         }
                     }
                     continue;
                 }
-
-                SANITIZE;
 
                 visited_value = Graph_Node_Mark(visited_value, dir_index, true);
                 new_visited_value
@@ -2124,12 +2039,9 @@ void Update_Graphs(
                     }
                 }
 
-                SANITIZE;
-
                 Add_Without_Duplication(
                     tiles_count, segment_tiles_count, segment_tiles, new_pos
                 );
-                SANITIZE;
 
                 if (new_is_vertex) {
                     Add_Without_Duplication(
@@ -2139,8 +2051,9 @@ void Update_Graphs(
                 else {
                     Enqueue(queue, {(Direction)0, new_pos});
                 }
-                SANITIZE;
             }
+
+            SANITIZE;
         }
 
         // NOTE: Поиск островов графа
@@ -2158,9 +2071,7 @@ void Update_Graphs(
 
                     if (is_vertex && !v1 && !v2) {
                         FOR_DIRECTION (dir_index) {
-                            SANITIZE;
                             Enqueue(big_queue, {dir_index, pos});
-                            SANITIZE;
                         }
                     }
                 }
@@ -2177,11 +2088,8 @@ void Update_Graphs(
         segment.vertices_count = vertices_count;
         added_segments_count++;
 
-        SANITIZE;
         segment.vertices = (v2i16*)ALLOC(sizeof(v2i16) * vertices_count);
-        SANITIZE;
         memcpy(segment.vertices, vertices, sizeof(v2i16) * vertices_count);
-        SANITIZE;
 
         segment.graph.nodes_count = temp_graph.nodes_count;
 
@@ -2214,16 +2122,12 @@ void Update_Graphs(
         Assert(offset.x < gsize.x);
         Assert(offset.y < gsize.y);
 
-        SANITIZE;
-
         // NOTE: Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти
         auto nodes_allocation_count          = gr_size.x * gr_size.y;
         segment.graph.nodes_allocation_count = nodes_allocation_count;
         segment.graph.nodes
             = (u8*)ALLOC(sizeof(*segment.graph.nodes) * nodes_allocation_count);
-
-        SANITIZE;
 
         auto rows          = gr_size.y;
         auto stride        = gsize.x;
@@ -2256,8 +2160,6 @@ void Build_Graph_Segments(
     Graph_Segment* added_segments
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
 
-    SANITIZE;
-
     v2i16 pos   = -v2i16_one;
     bool  found = false;
     FOR_RANGE (int, y, gsize.y) {
@@ -2287,11 +2189,7 @@ void Build_Graph_Segments(
 
     FOR_DIRECTION (dir) {
         Enqueue(big_queue, {dir, pos});
-
-        SANITIZE;
     }
-
-    SANITIZE;
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};
     queue.memory_size                 = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
@@ -2300,8 +2198,6 @@ void Build_Graph_Segments(
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
 
     bool full_graph_build = true;
-
-    SANITIZE;
 
     Update_Graphs(
         gsize,
@@ -2316,16 +2212,10 @@ void Build_Graph_Segments(
         ctx
     );
 
-    SANITIZE;
-
     Update_Segments_Lambda(0, nullptr, added_segments_count, added_segments, ctx);
-
-    SANITIZE;
 
     FOR_RANGE (u32, i, added_segments_count) {
         Add_And_Link_Segment(segments, *(added_segments + i), trash_arena, ctx);
-
-        SANITIZE;
     }
 
     SANITIZE;
@@ -2342,8 +2232,6 @@ ttuple<int, int> Update_Tiles(
     MCTX
 ) {
     CTX_ALLOCATOR;
-
-    SANITIZE;
 
     Assert(updated_tiles.count > 0);
     if (!updated_tiles.count)
@@ -2373,8 +2261,6 @@ ttuple<int, int> Update_Tiles(
         );
     };
 
-    SANITIZE;
-
     // NOTE: Создание новых сегментов
     auto           added_segments_allocate = updated_tiles.count * 4;
     u32            added_segments_count    = 0;
@@ -2384,8 +2270,6 @@ ttuple<int, int> Update_Tiles(
     Fixed_Size_Queue<Dir_v2i16> big_queue = {};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
-
-    SANITIZE;
 
     FOR_RANGE (auto, i, updated_tiles.count) {
         const auto& updated_type = *(updated_tiles.type + i);
@@ -2403,7 +2287,6 @@ ttuple<int, int> Update_Tiles(
                     continue;
 
                 Enqueue(big_queue, {dir, pos});
-                SANITIZE;
             }
         } break;
 
@@ -2416,8 +2299,6 @@ ttuple<int, int> Update_Tiles(
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road)
                     Enqueue(big_queue, {dir, pos});
-
-                SANITIZE;
             }
         } break;
 
@@ -2430,8 +2311,6 @@ ttuple<int, int> Update_Tiles(
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type != Element_Tile_Type::None)
                     Enqueue(big_queue, {dir, pos});
-
-                SANITIZE;
             }
         } break;
 
@@ -2447,10 +2326,7 @@ ttuple<int, int> Update_Tiles(
 
                 FOR_DIRECTION (dir) {
                     Enqueue(big_queue, {dir, new_pos});
-
-                    SANITIZE;
                 }
-                SANITIZE;
             }
         } break;
 
@@ -2472,11 +2348,7 @@ ttuple<int, int> Update_Tiles(
 
                 FOR_DIRECTION (dir) {
                     Enqueue(big_queue, {dir, new_pos});
-
-                    SANITIZE;
                 }
-
-                SANITIZE;
             }
         } break;
 
@@ -2486,13 +2358,10 @@ ttuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                SANITIZE;
-
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road) {
                     FOR_DIRECTION (new_dir) {
                         Enqueue(big_queue, {new_dir, new_pos});
-                        SANITIZE;
                     }
                 }
             }
@@ -2503,16 +2372,12 @@ ttuple<int, int> Update_Tiles(
         }
     }
 
-    SANITIZE;
-
     // NOTE: Each byte here contains differently bit-shifted values of `Direction`
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};
     queue.memory_size                 = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-
-    SANITIZE;
 
     bool full_graph_build = false;
     Update_Graphs(
@@ -2527,8 +2392,6 @@ ttuple<int, int> Update_Tiles(
         full_graph_build,
         ctx
     );
-
-    SANITIZE;
 
     Update_Segments_Lambda(
         segments_to_be_deleted_count,
