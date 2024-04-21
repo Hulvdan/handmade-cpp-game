@@ -23,17 +23,6 @@ struct Allocator_Functions {
     FREE__FUNCTION((*free));
 };
 
-// template <typename T>
-// using custom_tvector = tvector<T, Game_Map_Allocator<T>>;
-//
-// template <typename Key, typename T>
-// using custom_hash_map = tunordered_map<
-//     Key,
-//     T,
-//     std::hash<Key>,
-//     std::equal_to<Key>,
-//     Game_Map_Allocator<std::pair<const Key, T>>>;
-
 template <>
 struct std::hash<v2i16> {
     size_t operator()(const v2i16& o) const noexcept {
@@ -42,8 +31,6 @@ struct std::hash<v2i16> {
         return h1 ^ (h2 << 1);
     }
 };
-
-// ----- Queues -----
 
 #define CONTAINER_ALLOCATOR                          \
     auto  allocator      = container.allocator;      \
@@ -380,9 +367,6 @@ Bucket<T>* Add_Bucket(Bucket_Array<T>& container, MCTX) {
     Assert(container.items_per_bucket > 0);
     Assert(container.buckets_count > 0);
 
-    // NOTE: Это код инициализации. Подумать, не нужно
-    // ли его инициализировать в самом начале его создания
-
     if (container.buckets == nullptr) {  // NOTE: Следовательно, это первый вызов.
         Assert(container.unfull_buckets == nullptr);
 
@@ -528,8 +512,7 @@ void Bucket_Array_Remove(Bucket_Array<T>& arr, Bucket_Locator& locator) {
 }
 
 template <typename T>
-class Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
-public:
+struct Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
     Bucket_Array_Iterator() = delete;
 
     Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
@@ -607,9 +590,8 @@ private:
 };
 
 template <typename T>
-class Bucket_Array_With_Locator_Iterator
+struct Bucket_Array_With_Locator_Iterator
     : public Iterator_Facade<Bucket_Array_With_Locator_Iterator<T>> {
-public:
     Bucket_Array_With_Locator_Iterator() = delete;
 
     Bucket_Array_With_Locator_Iterator(Bucket_Array<T>* arr)
@@ -691,8 +673,7 @@ private:
 };
 
 template <typename T>
-class Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
-public:
+struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
     Vector_Iterator() = delete;
     Vector_Iterator(Vector<T>* container) : Vector_Iterator(container, 0) {}
     Vector_Iterator(Vector<T>* container, i32 current)
@@ -721,8 +702,7 @@ private:
 };
 
 template <typename T>
-class TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
-public:
+struct TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
     TVector_Iterator() = delete;
     TVector_Iterator(tvector<T>* container) : TVector_Iterator(container, 0) {}
     TVector_Iterator(tvector<T>* container, u64 current)
@@ -1042,17 +1022,6 @@ enum class Moving_In_The_World_State {
 struct Moving_Inside_Segment {
     //
 };
-
-// struct Main_Controller {
-//     // Building_Database bdb;
-//     // Human_Database db;
-//     Moving_In_The_World moving_in_the_world;
-//     Moving_Inside_Segment moving_inside_segment;
-//     // Moving_Resources moving_resources;
-//     // Construction_Controller construction_controller;
-//     // Employee_Controller employee_controller;
-//     // Human_Data data;
-// };
 
 struct Main_Controller;
 

@@ -28,9 +28,9 @@
 // ============================================================= //
 //                         Memory Setup                          //
 // ============================================================= //
-global Context _ctx(0, Root_Allocator_Routine, nullptr);
+global Context _ctx(0, Root_Allocator_Routine, nullptr, nullptr, nullptr);
 
-#define INITIALIZE_CTX                                                           \
+#define INITIALIZE_CTX                                                          \
     Assert(root_allocator == nullptr);                                          \
     root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
     std::construct_at(root_allocator);                                          \

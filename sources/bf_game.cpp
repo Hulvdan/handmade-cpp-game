@@ -6,6 +6,7 @@
 #endif
 
 #include <cstdlib>
+#include <source_location>
 #include <memory>
 #include <concepts>
 
@@ -37,6 +38,7 @@ global OS_Data* global_os_data = nullptr;
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
 #include "bf_math.cpp"
+#include "bf_log.cpp"
 #include "bf_memory.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
@@ -277,6 +279,16 @@ void Reset_Arena(Arena& arena) {
     arena.used = 0;
 }
 
+template <typename T>
+T* Instantiate_Logger(Arena& arena) {
+    if (std::is_same_v<T, void*>)
+        return nullptr;
+
+    auto logger = Allocate_For(arena, T);
+    std::construct_at(logger);
+    return logger;
+}
+
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
     global_os_data = &os_data;
@@ -291,20 +303,22 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     auto& state        = memory.state;
     state.hot_reloaded = hot_reloaded;
 
+    auto first_time_initializing = !memory.is_initialized;
+
+    root_logger = Instantiate_Logger<Root_Logger_Type>(root_arena);
+
+    if (first_time_initializing) {
+        root_allocator = Allocate_For(root_arena, Root_Allocator_Type);
+        std::construct_at(root_allocator);
+    }
+
+    Context _ctx(0, Root_Allocator_Routine, root_allocator, nullptr, root_logger);
+    auto    ctx = &_ctx;
+
     if (!editor_data.game_context_set) {
         ImGui::SetCurrentContext(editor_data.context);
         editor_data.game_context_set = true;
     }
-
-    auto first_time_initializing = !memory.is_initialized;
-
-    if (root_allocator == nullptr)
-        root_allocator = Allocate_For(root_arena, Root_Allocator_Type);
-    if (first_time_initializing)
-        std::construct_at(root_allocator);
-
-    Context _ctx(0, Root_Allocator_Routine, nullptr);
-    auto    ctx = &_ctx;
 
     // --- IMGUI ---
     if (!first_time_initializing) {

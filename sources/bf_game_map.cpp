@@ -202,8 +202,6 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
     tile.building = found_instance;
 }
 
-// TODO: Прикрутить какой-либо аллокатор,
-// который позволяет использовать заранее аллоцированные memory spaces.
 template <typename T>
 void Init_Bucket_Array(
     Bucket_Array<T>& container,
@@ -407,6 +405,10 @@ struct Human_Moving_In_The_World_Controller {
 
     static void
     On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
+        LOG_DEBUG("human.moving %d.%d", human.moving.pos.x, human.moving.pos.y);
+
         if (human.type == Human_Type::Constructor       //
             && human.building != nullptr                //
             && human.moving.pos == human.building->pos  //

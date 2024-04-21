@@ -149,9 +149,13 @@ enum class Allocator_Mode {
 using Allocator_Function_Type = Allocator__Function((*));
 
 struct Context {
-    u32                     thread_index;
+    u32 thread_index;
+
     Allocator_Function_Type allocator;
     void*                   allocator_data;
+
+    Logger_Function_Type logger;
+    void*                logger_data;
 
     // NOTE: Сюда можно ещё пихнуть и другие данные,
     // например, что-нибудь для логирования
@@ -159,11 +163,15 @@ struct Context {
     Context(
         u32                     a_thread_index,
         Allocator_Function_Type a_allocator,
-        void*                   a_allocator_data
+        void*                   a_allocator_data,
+        Logger_Function_Type    a_logger,
+        void*                   a_logger_data
     )
         : thread_index(a_thread_index)
         , allocator(a_allocator)
-        , allocator_data(a_allocator_data) {}
+        , allocator_data(a_allocator_data)
+        , logger(a_logger)
+        , logger_data(a_logger_data) {}
 };
 
 struct Blk {
@@ -934,7 +942,7 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(size > 0);
         Assert(old_size == 0);
 
-        return Assert_Deref((Root_Allocator_Type*)root_allocator).Allocate(size).ptr;
+        return Assert_Deref((Root_Allocator_Type*)allocator_data).Allocate(size).ptr;
     } break;
 
     case Allocator_Mode::Resize: {
@@ -945,13 +953,13 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_memory_ptr != nullptr);
         Assert(size > 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator)
+        Assert_Deref((Root_Allocator_Type*)allocator_data)
             .Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
 
     case Allocator_Mode::Free_All: {
-        Assert_Deref((Root_Allocator_Type*)root_allocator).Deallocate_All();
+        Assert_Deref((Root_Allocator_Type*)allocator_data).Deallocate_All();
     } break;
 
     case Allocator_Mode::Sanity: {
@@ -960,7 +968,7 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_size == 0);
         Assert(alignment == 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator).Sanity_Check();
+        Assert_Deref((Root_Allocator_Type*)allocator_data).Sanity_Check();
     } break;
 
     default:
@@ -976,7 +984,7 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
         Assert(size > 0);
         Assert(old_size == 0);
 
-        return Assert_Deref((Root_Allocator_Type*)root_allocator).Allocate(size).ptr;
+        return Assert_Deref((Root_Allocator_Type*)allocator_data).Allocate(size).ptr;
     } break;
 
     case Allocator_Mode::Resize: {
@@ -987,7 +995,7 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
         Assert(old_memory_ptr != nullptr);
         Assert(size > 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator)
+        Assert_Deref((Root_Allocator_Type*)allocator_data)
             .Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
@@ -1002,7 +1010,7 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
         Assert(old_size == 0);
         Assert(alignment == 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator).Sanity_Check();
+        Assert_Deref((Root_Allocator_Type*)allocator_data).Sanity_Check();
     } break;
 
     default:
