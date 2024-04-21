@@ -969,8 +969,9 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
     node = Graph_Node_Mark(node, dir, value);
 }
 
-using Scriptable_Resource_ID                            = u16;
-global Scriptable_Resource_ID global_forest_resource_id = 1;
+using Scriptable_Resource_ID = u16;
+
+global_var Scriptable_Resource_ID global_forest_resource_id = 1;
 
 using Player_ID   = u8;
 using Building_ID = u32;

@@ -43,8 +43,8 @@ bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment
     return false;
 }
 
-global int global_last_segments_to_be_deleted_count = 0;
-global int global_last_added_segments_count         = 0;
+global_var int global_last_segments_to_be_deleted_count = 0;
+global_var int global_last_added_segments_count         = 0;
 
 struct Path_Find_Result {
     bool   success;

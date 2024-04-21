@@ -25,7 +25,7 @@
 #include "bf_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-global OS_Data os_data;
+global_var OS_Data os_data;
 
 // -- RENDERING STUFF
 struct BF_Bitmap {
@@ -37,15 +37,15 @@ struct BF_Bitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
-global bool hot_reloaded = false;
+global_var bool hot_reloaded = false;
 
-global Editor_Data editor_data;
-global HMODULE     game_lib = nullptr;
-global size_t      initial_game_memory_size;
-global void*       initial_game_memory = nullptr;
+global_var Editor_Data editor_data;
+global_var HMODULE     game_lib = nullptr;
+global_var size_t      initial_game_memory_size;
+global_var void*       initial_game_memory = nullptr;
 
-global size_t events_count    = 0;
-global std::vector<u8> events = {};
+global_var size_t events_count    = 0;
+global_var std::vector<u8> events = {};
 
 // TODO: Is there any way to restrict T
 // to be only one of event structs specified in game.h?
@@ -67,7 +67,7 @@ void push_event(T& event) {
 }
 
 #if BF_INTERNAL
-global FILETIME last_game_dll_write_time;
+global_var FILETIME last_game_dll_write_time;
 
 struct Peek_Filetime_Result {
     bool     success;
@@ -300,13 +300,13 @@ CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
 }
 // -- XAUDIO STUFF END
 
-global bool running = false;
+global_var bool running = false;
 
-global bool      should_recreate_bitmap_after_client_area_resize;
-global BF_Bitmap screen_bitmap;
+global_var bool      should_recreate_bitmap_after_client_area_resize;
+global_var BF_Bitmap screen_bitmap;
 
-global int client_width  = -1;
-global int client_height = -1;
+global_var int client_width  = -1;
+global_var int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context) {
     Assert(client_width >= 0);

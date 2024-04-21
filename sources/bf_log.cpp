@@ -1,6 +1,9 @@
+#include "spdlog/spdlog.h"
+
 enum class Log_Type { DEBUG = 0, INFO, WARN, CRIT };
 
-#define Logger__Function(name_) void name_(void* logger_data, Log_Type log_type, ...)
+#define Logger__Function(name_) \
+    void name_(void* logger_data, Log_Type log_type, const char* message)
 #define Logger_Tracing__Function(name_) void name_(void* logger_data, bool push, ...)
 
 using Logger_Function_Type         = Logger__Function((*));
@@ -9,7 +12,7 @@ using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
 // NOTE: Для отключения логирования по-умолчанию, нужно указать `void*`
 using Root_Logger_Type = void*;
 
-global Root_Logger_Type* root_logger = nullptr;
+global_var Root_Logger_Type* root_logger = nullptr;
 
 struct Tracing_Logger {
     int current_indentation;
@@ -28,17 +31,43 @@ Logger__Function(Tracing_Logger_Routine) {
     auto& data = *(Tracing_Logger*)logger_data;
 
     data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
+
+    switch (log_type) {
+    case Log_Type::DEBUG: {
+        spdlog::debug(message);
+    } break;
+
+    case Log_Type::INFO: {
+        spdlog::info(message);
+    } break;
+
+    case Log_Type::WARN: {
+        spdlog::warn(message);
+    } break;
+
+    case Log_Type::CRIT: {
+        spdlog::error(message);
+    } break;
+
+    default:
+        INVALID_PATH;
+    }
 }
 
-#define _LOG_COMMON(log_type_, ...)                        \
-    [&] {                                                  \
-        if (logger != nullptr)                             \
-            logger(logger_data, (log_type_), __VA_ARGS__); \
+#define _LOG_COMMON(log_type_, message_, ...)                                \
+    [&] {                                                                    \
+        if (logger != nullptr) {                                             \
+            auto str = spdlog::fmt_lib::vformat(                             \
+                (message_), ##spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
+            );                                                               \
+            logger(logger_data, (log_type_), str.c_str());                   \
+        }                                                                    \
     }()
-#define LOG_DEBUG(...) _LOG_COMMON(Log_Type::DEBUG, __VA_ARGS__)
-#define LOG_INFO(...) _LOG_COMMON(Log_Type::INFO, __VA_ARGS__)
-#define LOG_WARN(...) _LOG_COMMON(Log_Type::WARN, __VA_ARGS__)
-#define LOG_CRIT(...) _LOG_COMMON(Log_Type::CRIT, __VA_ARGS__)
+
+#define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
+#define LOG_INFO(message_, ...) _LOG_COMMON(Log_Type::INFO, (message_), ##__VA_ARGS__)
+#define LOG_WARN(message_, ...) _LOG_COMMON(Log_Type::WARN, (message_), ##__VA_ARGS__)
+#define LOG_CRIT(message_, ...) _LOG_COMMON(Log_Type::CRIT, (message_), ##__VA_ARGS__)
 
 bool operator==(const std::source_location& a, const std::source_location& b) {
     return (
@@ -50,6 +79,7 @@ bool operator==(const std::source_location& a, const std::source_location& b) {
 }
 
 Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
+    Assert(logger_data != nullptr);
     auto  logger = Tracing_Logger_Routine;
     auto& data   = *(Tracing_Logger*)logger_data;
 
@@ -66,7 +96,21 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
             data.collapse_number++;
         }
         else {
-            // LOG_INFO(std::source_location);
+            char rendered_loc[2048];
+            snprintf(
+                rendered_loc,
+                2048,
+                "[%d:%d:%s:%s]",
+                loc.line(),
+                loc.column(),
+                loc.file_name(),
+                loc.function_name()
+            );
+            rendered_loc[2047] = '\0';
+
+            logger(logger_data, Log_Type::INFO, rendered_loc);
+
+            memcpy(data.previous_buffer, (u8*)(&loc), sizeof(loc));
             data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
         }
     }

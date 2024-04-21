@@ -28,7 +28,7 @@
 // ============================================================= //
 //                         Memory Setup                          //
 // ============================================================= //
-global Context _ctx(0, Root_Allocator_Routine, nullptr, nullptr, nullptr);
+global_var Context _ctx(0, Root_Allocator_Routine, nullptr, nullptr, nullptr);
 
 #define INITIALIZE_CTX                                                          \
     Assert(root_allocator == nullptr);                                          \
@@ -44,8 +44,8 @@ global Context _ctx(0, Root_Allocator_Routine, nullptr, nullptr, nullptr);
         root_allocator = nullptr;                                               \
     }
 
-global tvector<u8*> virtual_allocations;
-global tvector<void*> heap_allocations;
+global_var tvector<u8*> virtual_allocations;
+global_var tvector<void*> heap_allocations;
 
 void* heap_allocate(size_t n, size_t alignment) {
     void* result = _aligned_malloc(n, alignment);

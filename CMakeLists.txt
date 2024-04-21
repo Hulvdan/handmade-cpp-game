@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
+set(SPDLOG_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/spdlog-1.13.0/include")
 
 add_compile_definitions(
     BF_INTERNAL
@@ -60,6 +61,7 @@ target_compile_definitions(bf_game PRIVATE
 target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
+    "${SPDLOG_DIR}"
 )
 target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
@@ -126,6 +128,7 @@ add_executable(tests sources/tests.cpp)
 target_include_directories(tests PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
+    "${SPDLOG_DIR}"
 )
 target_compile_definitions(tests PRIVATE
     GAME_LIBRARY_BUILD

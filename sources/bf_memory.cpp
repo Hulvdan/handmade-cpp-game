@@ -107,7 +107,7 @@ void Deallocate_(Arena& arena, size_t size) {
 #define SANITIZE \
     Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
 #else
-#define SANITIZE [] {}()
+#define SANITIZE (void)0
 #endif
 
 #define MCTX Context* ctx
@@ -933,7 +933,7 @@ struct Stoopid_Affix {
 
 #endif  // Root_Allocator_Type
 
-global Root_Allocator_Type* root_allocator = nullptr;
+global_var Root_Allocator_Type* root_allocator = nullptr;
 
 Allocator__Function(Root_Allocator_Routine) {
     switch (mode) {

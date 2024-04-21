@@ -32,7 +32,7 @@ using tvector = std::vector<Args...>;
 template <typename... Args>
 using tunordered_map = std::unordered_map<Args...>;
 
-global OS_Data* global_os_data = nullptr;
+global_var OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 
 // NOLINTBEGIN(bugprone-suspicious-include)
