@@ -154,23 +154,25 @@ struct Context {
     Allocator_Function_Type allocator;
     void*                   allocator_data;
 
-    Logger_Function_Type logger;
-    void*                logger_data;
+    Logger_Function_Type         logger_routine;
+    Logger_Tracing_Function_Type logger_tracing_routine;
+    void*                        logger_data;
 
-    // NOTE: Сюда можно ещё пихнуть и другие данные,
-    // например, что-нибудь для логирования
+    Context() = default;
 
     Context(
-        u32                     a_thread_index,
-        Allocator_Function_Type a_allocator,
-        void*                   a_allocator_data,
-        Logger_Function_Type    a_logger,
-        void*                   a_logger_data
+        u32                          a_thread_index,
+        Allocator_Function_Type      a_allocator,
+        void*                        a_allocator_data,
+        Logger_Function_Type         a_logger_routine,
+        Logger_Tracing_Function_Type a_logger_tracing_routine,
+        void*                        a_logger_data
     )
         : thread_index(a_thread_index)
         , allocator(a_allocator)
         , allocator_data(a_allocator_data)
-        , logger(a_logger)
+        , logger_routine(a_logger_routine)
+        , logger_tracing_routine(a_logger_tracing_routine)
         , logger_data(a_logger_data) {}
 };
 
@@ -202,7 +204,7 @@ struct Fallback_Allocator {
     }
 
     bool Owns(Blk b) {
-        // NOTE: Используется MDFINAE (method definition is not an error).
+        // NOTE: Используется MDFINAE (method definition failure is not an error).
         // Не будет ошибки компиляции, если не будет вызываться
         // `owns` для F, у которого не определён этот метод
         return _p.Owns(b) || _f.Owns(b);

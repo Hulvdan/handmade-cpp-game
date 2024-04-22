@@ -280,12 +280,13 @@ void Reset_Arena(Arena& arena) {
 }
 
 template <typename T>
-T* Instantiate_Logger(Arena& arena) {
+T* Map_Logger(Arena& arena) {
     if (std::is_same_v<T, void*>)
         return nullptr;
 
-    auto logger = Allocate_For(arena, T);
+    T* logger = Allocate_For(arena, T);
     std::construct_at(logger);
+    logger->previous_buffer = Allocate_Array(arena, u8, Tracing_Logger::MAX_BUFFER_SIZE);
     return logger;
 }
 
@@ -305,15 +306,22 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     auto first_time_initializing = !memory.is_initialized;
 
-    root_logger = Instantiate_Logger<Root_Logger_Type>(root_arena);
+    root_logger = Map_Logger<Root_Logger_Type>(root_arena);
 
     if (first_time_initializing) {
         root_allocator = Allocate_For(root_arena, Root_Allocator_Type);
         std::construct_at(root_allocator);
     }
 
-    Context _ctx(0, Root_Allocator_Routine, root_allocator, nullptr, root_logger);
-    auto    ctx = &_ctx;
+    Context _ctx(
+        0,
+        Root_Allocator_Routine,
+        root_allocator,
+        (root_logger != nullptr) ? Tracing_Logger_Routine : nullptr,
+        (root_logger != nullptr) ? Tracing_Logger_Tracing_Routine : nullptr,
+        root_logger
+    );
+    auto ctx = &_ctx;
 
     if (!editor_data.game_context_set) {
         ImGui::SetCurrentContext(editor_data.context);

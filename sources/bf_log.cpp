@@ -9,12 +9,9 @@ enum class Log_Type { DEBUG = 0, INFO, WARN, CRIT };
 using Logger_Function_Type         = Logger__Function((*));
 using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
 
-// NOTE: Для отключения логирования по-умолчанию, нужно указать `void*`
-using Root_Logger_Type = void*;
-
-global_var Root_Logger_Type* root_logger = nullptr;
-
 struct Tracing_Logger {
+    static constexpr int MAX_BUFFER_SIZE = 4096;
+
     int current_indentation;
     int collapse_number;
 
@@ -26,6 +23,15 @@ struct Tracing_Logger {
     u8*           previous_buffer;
     size_t        previous_buffer_size;
 };
+
+#if 0
+// NOTE: void* = отключение логирования
+using Root_Logger_Type = void*;
+#else
+using Root_Logger_Type = Tracing_Logger;
+#endif
+
+global_var Root_Logger_Type* root_logger = nullptr;
 
 Logger__Function(Tracing_Logger_Routine) {
     auto& data = *(Tracing_Logger*)logger_data;
@@ -56,11 +62,11 @@ Logger__Function(Tracing_Logger_Routine) {
 
 #define _LOG_COMMON(log_type_, message_, ...)                                \
     [&] {                                                                    \
-        if (logger != nullptr) {                                             \
+        if (logger_routine != nullptr) {                                     \
             auto str = spdlog::fmt_lib::vformat(                             \
                 (message_), ##spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
             );                                                               \
-            logger(logger_data, (log_type_), str.c_str());                   \
+            logger_routine(logger_data, (log_type_), str.c_str());           \
         }                                                                    \
     }()
 
@@ -80,8 +86,8 @@ bool operator==(const std::source_location& a, const std::source_location& b) {
 
 Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
     Assert(logger_data != nullptr);
-    auto  logger = Tracing_Logger_Routine;
-    auto& data   = *(Tracing_Logger*)logger_data;
+    auto  logger_routine = Tracing_Logger_Routine;
+    auto& data           = *(Tracing_Logger*)logger_data;
 
     if (push) {
         va_list args;
@@ -90,25 +96,25 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
         va_end(args);
 
         data.current_indentation++;
-        if ((data.previous_type == Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION)
+        if (data.previous_buffer != nullptr  //
+            && (data.previous_type == Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION)
             && (loc == *(std::source_location*)data.previous_buffer)  //
         ) {
             data.collapse_number++;
         }
         else {
-            char rendered_loc[2048];
+            char rendered_loc[Tracing_Logger::MAX_BUFFER_SIZE];
             snprintf(
                 rendered_loc,
-                2048,
+                Tracing_Logger::MAX_BUFFER_SIZE,
                 "[%d:%d:%s:%s]",
                 loc.line(),
                 loc.column(),
                 loc.file_name(),
                 loc.function_name()
             );
-            rendered_loc[2047] = '\0';
 
-            logger(logger_data, Log_Type::INFO, rendered_loc);
+            logger_routine(logger_data, Log_Type::INFO, rendered_loc);
 
             memcpy(data.previous_buffer, (u8*)(&loc), sizeof(loc));
             data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
@@ -119,15 +125,16 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
     }
 }
 
-#define LOG_TRACING_SCOPE                                              \
-    {                                                                  \
-        CTX_LOGGER;                                                    \
-        Tracing_Logger_Tracing_Routine(                                \
-            logger_data, true, std::source_location::current()         \
-        );                                                             \
-        defer { Tracing_Logger_Tracing_Routine(logger_data, false); }; \
-    }
+#define LOG_TRACING_SCOPE                                                           \
+    if (logger_tracing_routine != nullptr)                                          \
+        logger_tracing_routine(logger_data, true, std::source_location::current()); \
+                                                                                    \
+    defer {                                                                         \
+        if (logger_tracing_routine != nullptr)                                      \
+            logger_tracing_routine(logger_data, false);                             \
+    };
 
-#define CTX_LOGGER                   \
-    auto& logger      = ctx->logger; \
-    auto& logger_data = ctx->logger_data;
+#define CTX_LOGGER                                              \
+    auto& logger_routine         = ctx->logger_routine;         \
+    auto& logger_tracing_routine = ctx->logger_tracing_routine; \
+    auto& logger_data            = ctx->logger_data;
