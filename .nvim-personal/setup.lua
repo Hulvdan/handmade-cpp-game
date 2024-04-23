@@ -96,7 +96,7 @@ function run_task()
         cmd = [[.nvim-personal\launch_vs.ahk]],
         components = {
             { "on_output_quickfix", open = true, close = true },
-            "default"
+            "default",
         },
     }
     local build_data = build_task_data({
@@ -115,7 +115,7 @@ function run_task()
                 "run_after", task_names = { build_data },
             },
             { "on_output_quickfix", open = true, },
-            "default"
+            "default",
         },
     }
     return overseer.new_task(stop_vs_data)
@@ -128,7 +128,7 @@ function test_task()
         cmd = [[cmd\build.bat && cmd\run_unit_tests.bat]],
         components = {
             { "on_output_quickfix", open = true, close = true },
-            "default"
+            "default",
         },
     })
 end
@@ -138,7 +138,7 @@ function lint_task()
         cmd = [[cmd\lint.bat]],
         components = {
             { "on_output_quickfix", open = true, close = true },
-            "default"
+            "default",
         },
     })
 end
@@ -171,17 +171,6 @@ end, opts)
 vim.keymap.set("n", "<A-t>", function()
     save_files()
     test_task():start()
-    -- launch_side([[cmd\build.bat && cmd\run_unit_tests.bat]], { go_down = false })
-end, opts)
-
-vim.keymap.set("n", "<f6>", function()
-    save_files()
-    launch_tab([[cmd\debug.bat]])
-end, opts)
-
-vim.keymap.set("n", "<S-f6>", function()
-    save_files()
-    launch_tab([[cmd\debug.bat]])
 end, opts)
 
 vim.keymap.set("n", "<leader>q", function()
@@ -197,24 +186,11 @@ vim.keymap.set("n", "<leader>w", function()
 
     if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
         local view = vim.fn.winsaveview()
-
         local buf_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
 
         launch_background([[cmd\format.bat "]] .. buf_path .. '"', function()
             reload_file()
-
-            -- TODO(hulvdan): This horseshit of a function should take a callback
-            -- and call it upon finishing the linting.
-            -- We need to somehow indicate to user that file was saved and linted successfully.
-            -- Mb just use a print()
-            --
-            -- OR
-            --
-            -- PREFERRABLY: Make it able to work without generating errors on fast consecutive saves
-            require("lint").try_lint()
-
             vim.fn.winrestview(view)
-
             vim.api.nvim_input("mzhllhjkkj`z")  -- NOTE: for nvim-treesitter-context
         end)
     end
@@ -237,16 +213,3 @@ vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c):\ %m]])
 vim.fn.execute([[set errorformat+=\\\ %#%f(%l)\ :\ %#%t%[A-z]%#\ %m]])
 -- Microsoft HLSL compiler: fxc.exe
 vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]])
-
-vim.keymap.set(
-    "v",
-    "<C-S-U>",
-    function()
-        vim.api.nvim_input("<C-S-f>")
-
-        vim.defer_fn(function()
-            vim.api.nvim_input("<C-S-q><C-W>h<C-W>k")
-        end, 200)
-    end,
-    { silent = true, remap = true }
-)

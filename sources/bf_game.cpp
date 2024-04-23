@@ -38,6 +38,7 @@ global_var OS_Data* global_os_data = nullptr;
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
 #include "bf_math.cpp"
+#include "bf_memory_arena.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
 #include "bf_game_types.cpp"
@@ -280,13 +281,14 @@ void Reset_Arena(Arena& arena) {
 }
 
 template <typename T>
-T* Map_Logger(Arena& arena) {
+T* Map_Logger(Arena& arena, bool first_time_initializing) {
     if (std::is_same_v<T, void*>)
         return nullptr;
 
     T* logger = Allocate_For(arena, T);
-    std::construct_at(logger);
-    logger->previous_buffer = Allocate_Array(arena, u8, Tracing_Logger::MAX_BUFFER_SIZE);
+    if (first_time_initializing) {
+        std::construct_at(logger, arena);
+    }
     return logger;
 }
 
@@ -306,7 +308,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     auto first_time_initializing = !memory.is_initialized;
 
-    root_logger = Map_Logger<Root_Logger_Type>(root_arena);
+    root_logger = Map_Logger<Root_Logger_Type>(root_arena, first_time_initializing);
 
     if (first_time_initializing) {
         root_allocator = Allocate_For(root_arena, Root_Allocator_Type);

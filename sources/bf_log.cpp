@@ -1,4 +1,137 @@
+#pragma once
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/sink.h"
+
+class Sink : public spdlog::sinks::sink {
+public:
+    Sink(spdlog::color_mode mode = spdlog::color_mode::automatic) {
+#ifdef _WIN32
+        handle_                         = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD console_mode              = 0;
+        in_console_                     = ::GetConsoleMode(handle_, &console_mode) != 0;
+        CONSOLE_SCREEN_BUFFER_INFO info = {};
+        ::GetConsoleScreenBufferInfo(handle_, &info);
+        colors_[spdlog::level::trace] = FOREGROUND_INTENSITY;
+        colors_[spdlog::level::debug]
+            = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+        colors_[spdlog::level::info] = FOREGROUND_INTENSITY | FOREGROUND_GREEN;
+        colors_[spdlog::level::warn]
+            = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_GREEN;
+        colors_[spdlog::level::err] = FOREGROUND_INTENSITY | FOREGROUND_RED;
+        colors_[spdlog::level::critical]
+            = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_BLUE;
+        colors_[spdlog::level::off] = info.wAttributes;
+#endif
+        set_color_mode(mode);
+    }
+
+    Sink(const Sink& other)            = delete;
+    Sink& operator=(const Sink& other) = delete;
+
+    ~Sink() override = default;
+
+    void log(const spdlog::details::log_msg& msg) override {
+        spdlog::memory_buf_t formatted;
+        std::lock_guard      lock{mutex_};
+        formatter_->format(msg, formatted);
+        if (should_color_ && msg.color_range_end > msg.color_range_start) {
+            print_range(formatted, 0, msg.color_range_start);
+            print_range(formatted, msg.color_range_start, msg.color_range_end, msg.level);
+            print_range(formatted, msg.color_range_end, formatted.size());
+        }
+        else {
+            print_range(formatted, 0, formatted.size());
+        }
+        fflush(stdout);
+
+        DEBUG_Print(msg.payload.data());
+        DEBUG_Print("\n");
+    }
+
+    void set_pattern(const std::string& pattern) final {
+        std::lock_guard lock{mutex_};
+        formatter_ = std::make_unique<spdlog::pattern_formatter>(pattern);
+    }
+
+    void set_formatter(std::unique_ptr<spdlog::formatter> formatter) override {
+        std::lock_guard lock{mutex_};
+        formatter_ = std::move(formatter);
+    }
+
+    void flush() override {
+        std::lock_guard lock{mutex_};
+        fflush(stdout);
+    }
+
+    void set_color_mode(spdlog::color_mode mode) {
+        std::lock_guard lock{mutex_};
+        switch (mode) {
+        case spdlog::color_mode::always:
+            should_color_ = true;
+            break;
+        case spdlog::color_mode::automatic:
+#if _WIN32
+            should_color_
+                = spdlog::details::os::in_terminal(stdout) || IsDebuggerPresent();
+#else
+            should_color_ = spdlog::details::os::in_terminal(stdout)
+                            && spdlog::details::os::is_color_terminal();
+#endif
+            break;
+        case spdlog::color_mode::never:
+            should_color_ = false;
+            break;
+        }
+    }
+
+private:
+    void print_range(const spdlog::memory_buf_t& formatted, size_t start, size_t end) {
+#ifdef _WIN32
+        if (in_console_) {
+            auto data = formatted.data() + start;
+            auto size = static_cast<DWORD>(end - start);
+            while (size > 0) {
+                DWORD written = 0;
+                if (!::WriteFile(handle_, data, size, &written, nullptr) || written == 0
+                    || written > size) {
+                    SPDLOG_THROW(spdlog::spdlog_ex(
+                        "sink: print_range failed. GetLastError(): "
+                        + std::to_string(::GetLastError())
+                    ));
+                }
+                size -= written;
+            }
+            return;
+        }
+#endif
+        fwrite(formatted.data() + start, sizeof(char), end - start, stdout);
+    }
+
+    void print_range(
+        const spdlog::memory_buf_t& formatted,
+        size_t                      start,
+        size_t                      end,
+        spdlog::level::level_enum   level
+    ) {
+#ifdef _WIN32
+        if (in_console_) {
+            ::SetConsoleTextAttribute(handle_, colors_[level]);
+            print_range(formatted, start, end);
+            ::SetConsoleTextAttribute(handle_, colors_[spdlog::level::off]);
+            return;
+        }
+#endif
+    }
+
+    std::mutex                         mutex_;
+    std::unique_ptr<spdlog::formatter> formatter_;
+#ifdef _WIN32
+    std::array<DWORD, 7> colors_;
+    bool                 in_console_ = true;
+    HANDLE               handle_     = nullptr;
+#endif
+    bool should_color_ = false;
+};
 
 enum class Log_Type { DEBUG = 0, INFO, WARN, CRIT };
 
@@ -22,6 +155,26 @@ struct Tracing_Logger {
     Previous_Type previous_type;
     u8*           previous_buffer;
     size_t        previous_buffer_size;
+
+    spdlog::logger spdlog_logger;
+    Sink           sink;
+
+    Tracing_Logger(Arena& arena)
+        : current_indentation(0)
+        , collapse_number(0)
+        , previous_type(Previous_Type::PREVIOUS_IS_SOURCE_LOCATION)
+        , previous_buffer(nullptr)
+        , previous_buffer_size(0)
+        , spdlog_logger("example_logger", spdlog::sink_ptr(&sink))  //
+        , sink(Sink())                                              //
+    {
+        previous_buffer
+            = Allocate_Array(arena, u8, Tracing_Logger::MAX_BUFFER_SIZE);
+
+        sink.set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v");
+        sink.set_level(spdlog::level::level_enum::trace);
+        spdlog_logger.set_level(spdlog::level::level_enum::trace);
+    }
 };
 
 #if 0
@@ -40,19 +193,23 @@ Logger__Function(Tracing_Logger_Routine) {
 
     switch (log_type) {
     case Log_Type::DEBUG: {
-        spdlog::debug(message);
+        // spdlog::debug(message);
+        data.spdlog_logger.debug(message);
     } break;
 
     case Log_Type::INFO: {
-        spdlog::info(message);
+        // spdlog::info(message);
+        data.spdlog_logger.info(message);
     } break;
 
     case Log_Type::WARN: {
-        spdlog::warn(message);
+        // spdlog::warn(message);
+        data.spdlog_logger.warn(message);
     } break;
 
     case Log_Type::CRIT: {
-        spdlog::error(message);
+        // spdlog::error(message);
+        data.spdlog_logger.error(message);
     } break;
 
     default:
