@@ -287,8 +287,9 @@ T* Map_Logger(Arena& arena, bool first_time_initializing) {
 
     T* logger = Allocate_For(arena, T);
     if (first_time_initializing) {
-        std::construct_at(logger, arena);
+        MAKE_LOGGER(logger, arena);
     }
+
     return logger;
 }
 

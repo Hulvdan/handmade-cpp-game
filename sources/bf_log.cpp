@@ -1,4 +1,5 @@
 #pragma once
+
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/sink.h"
 
@@ -44,7 +45,10 @@ public:
         }
         fflush(stdout);
 
-        DEBUG_Print(msg.payload.data());
+        // TODO: Команда ниже ожидает \0 на конце
+        // ::OutputDebugStringA(formatted.data());
+
+        DEBUG_Print(formatted.data());
         DEBUG_Print("\n");
     }
 
@@ -168,20 +172,27 @@ struct Tracing_Logger {
         , spdlog_logger("example_logger", spdlog::sink_ptr(&sink))  //
         , sink(Sink())                                              //
     {
-        previous_buffer
-            = Allocate_Array(arena, u8, Tracing_Logger::MAX_BUFFER_SIZE);
+        previous_buffer = Allocate_Array(arena, u8, Tracing_Logger::MAX_BUFFER_SIZE);
 
-        sink.set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v");
         sink.set_level(spdlog::level::level_enum::trace);
         spdlog_logger.set_level(spdlog::level::level_enum::trace);
+        spdlog_logger.set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v\n\0");
+        sink.set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v\n\0");
     }
 };
 
-#if 0
+#if 1
+
+using Root_Logger_Type = Tracing_Logger;
+#define MAKE_LOGGER(logger_ptr, arena) \
+    { (logger_ptr) = std::construct_at((logger_ptr), (arena)); }
+
+#else
+
 // NOTE: void* = отключение логирования
 using Root_Logger_Type = void*;
-#else
-using Root_Logger_Type = Tracing_Logger;
+#define MAKE_LOGGER(logger_ptr, arena) (void)0
+
 #endif
 
 global_var Root_Logger_Type* root_logger = nullptr;
@@ -192,25 +203,21 @@ Logger__Function(Tracing_Logger_Routine) {
     data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
 
     switch (log_type) {
-    case Log_Type::DEBUG: {
-        // spdlog::debug(message);
+    case Log_Type::DEBUG:
         data.spdlog_logger.debug(message);
-    } break;
+        break;
 
-    case Log_Type::INFO: {
-        // spdlog::info(message);
+    case Log_Type::INFO:
         data.spdlog_logger.info(message);
-    } break;
+        break;
 
-    case Log_Type::WARN: {
-        // spdlog::warn(message);
+    case Log_Type::WARN:
         data.spdlog_logger.warn(message);
-    } break;
+        break;
 
-    case Log_Type::CRIT: {
-        // spdlog::error(message);
+    case Log_Type::CRIT:
         data.spdlog_logger.error(message);
-    } break;
+        break;
 
     default:
         INVALID_PATH;
