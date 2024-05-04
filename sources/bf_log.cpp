@@ -198,28 +198,64 @@ using Root_Logger_Type = void*;
 
 global_var Root_Logger_Type* root_logger = nullptr;
 
+BF_FORCE_INLINE void common_log(
+    int                                current_indentation,
+    const char*                        message,
+    std::invocable<const char*> auto&& log_function
+) {
+    if (current_indentation == 0) {
+        log_function(message);
+        return;
+    }
+
+    // NOTE: Прописываем таблуляцию в буфер
+    const int BUFFER_SIZE = 4096;
+    char      buffer[BUFFER_SIZE];
+    memset(buffer, '\t', current_indentation);
+
+    // NOTE: Подсчёт длины сообщения с учётом 0 символа
+    int n = 1;
+    {
+        auto m = message;
+        while (*m != '\0') {
+            m++;
+            n++;
+        }
+    }
+
+    // NOTE: Прописываем сообщение в буфер
+    Assert(current_indentation + n <= BUFFER_SIZE);
+    memcpy(buffer + current_indentation, message, n);
+
+    log_function(buffer);
+}
+
 Logger__Function(Tracing_Logger_Routine) {
     auto& data = *(Tracing_Logger*)logger_data;
 
     data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
 
     switch (log_type) {
-    case Log_Type::DEBUG: {
-        data.spdlog_logger.debug(message);
-    } break;
-
-    case Log_Type::INFO: {
-        data.spdlog_logger.info(message);
-    } break;
-
-    case Log_Type::WARN: {
-        data.spdlog_logger.warn(message);
-    } break;
-
-    case Log_Type::ERR: {
-        data.spdlog_logger.error(message);
-    } break;
-
+    case Log_Type::DEBUG:
+        common_log(data.current_indentation, message, [&data](const char* message) {
+            data.spdlog_logger.debug(message);
+        });
+        break;
+    case Log_Type::INFO:
+        common_log(data.current_indentation, message, [&data](const char* message) {
+            data.spdlog_logger.info(message);
+        });
+        break;
+    case Log_Type::WARN:
+        common_log(data.current_indentation, message, [&data](const char* message) {
+            data.spdlog_logger.warn(message);
+        });
+        break;
+    case Log_Type::ERR:
+        common_log(data.current_indentation, message, [&data](const char* message) {
+            data.spdlog_logger.error(message);
+        });
+        break;
     default:
         INVALID_PATH;
     }

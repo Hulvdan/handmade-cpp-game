@@ -375,7 +375,8 @@ struct Human_Moving_In_The_World_Controller {
     }
 
     static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        // TODO: TRACELOG_SCOPE;
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
 
         human.state_moving_in_the_world = Moving_In_The_World_State::None;
         human.moving.to.reset();
@@ -398,7 +399,9 @@ struct Human_Moving_In_The_World_Controller {
         Graph_Segment*    old_segment,
         MCTX
     ) {
-        // TODO: TRACELOG_SCOPE;
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
+
         Assert(human.type == Human_Type::Transporter);
         Update_States(human, data, old_segment, nullptr, ctx);
     }
@@ -437,7 +440,9 @@ struct Human_Moving_In_The_World_Controller {
         Building*         old_building,
         MCTX
     ) {
-        // TODO: TRACELOG_SCOPE;
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
+
         auto& game_map = *data.game_map;
 
         if (human.segment != nullptr) {
@@ -590,7 +595,9 @@ struct Human_Moving_Inside_Segment {
     }
 
     static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        // TODO: using var _ = Tracing.Scope();
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
+
         Container_Reset(human.moving.path);
     }
 
@@ -604,7 +611,9 @@ struct Human_Moving_Inside_Segment {
         Graph_Segment*    old_segment,
         MCTX
     ) {
-        // TODO: using var _ = Tracing.Scope();
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
+
         // Tracing.Log("_controller.SetState(human, HumanState.MovingInTheWorld)");
         Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
     }
@@ -621,7 +630,9 @@ struct Human_Moving_Inside_Segment {
         Building*         old_building,
         MCTX
     ) {
-        // TODO: using var _ = Tracing.Scope();
+        CTX_LOGGER;
+        LOG_TRACING_SCOPE;
+
         if (human.segment == nullptr) {
             Container_Reset(human.moving.path);
             Main_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
@@ -845,8 +856,8 @@ void Main_Set_Human_State(
     const Human_Data& data,
     MCTX
 ) {
-    // TODO: TRACELOG_SCOPE;
-    // TRACELOG("Set_Human_State");
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
     auto old_state = human.state;
     human.state    = new_state;
 
@@ -1014,6 +1025,7 @@ void Update_Human_Moving_Component(
     const Human_Data& data,
     MCTX
 ) {
+    CTX_LOGGER;
     CTX_ALLOCATOR;
 
     auto& game_map_data = Assert_Deref(game_map.data);
@@ -1029,9 +1041,10 @@ void Update_Human_Moving_Component(
            && moving.to.has_value()                            //
            && moving.elapsed > duration                        //
     ) {
+        LOG_TRACING_SCOPE;
+
         iteration++;
 
-        // TODO: using var _ = Tracing.Scope();
         // Tracing.Log("Human reached the next tile");
 
         moving.elapsed -= duration;
