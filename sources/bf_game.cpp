@@ -230,8 +230,9 @@ void Process_Events(
             else if (event.value < 0) {
                 rstate.zoom_target /= 2.0f;
             }
-            else
+            else {
                 INVALID_PATH;
+            }
 
             rstate.zoom_target = MAX(0.5f, MIN(8.0f, rstate.zoom_target));
         } break;

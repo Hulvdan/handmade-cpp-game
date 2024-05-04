@@ -3,6 +3,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/sink.h"
 
+// Sink, логи которого выдны в консоли Visual Studio
 class Sink : public spdlog::sinks::sink {
 public:
     Sink(spdlog::color_mode mode = spdlog::color_mode::automatic) {
@@ -45,11 +46,11 @@ public:
         }
         fflush(stdout);
 
-        // TODO: Команда ниже ожидает \0 на конце
-        // ::OutputDebugStringA(formatted.data());
-
+        auto s   = formatted.size();
+        auto d   = formatted.data();
+        d[s - 2] = '\0';
+        d[s - 3] = '\n';
         DEBUG_Print(formatted.data());
-        DEBUG_Print("\n");
     }
 
     void set_pattern(const std::string& pattern) final {
@@ -137,7 +138,7 @@ private:
     bool should_color_ = false;
 };
 
-enum class Log_Type { DEBUG = 0, INFO, WARN, CRIT };
+enum class Log_Type { DEBUG = 0, INFO, WARN, ERR };
 
 #define Logger__Function(name_) \
     void name_(void* logger_data, Log_Type log_type, const char* message)
@@ -176,8 +177,8 @@ struct Tracing_Logger {
 
         sink.set_level(spdlog::level::level_enum::trace);
         spdlog_logger.set_level(spdlog::level::level_enum::trace);
-        spdlog_logger.set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v\n\0");
-        sink.set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v\n\0");
+        spdlog_logger.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
+        sink.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
     }
 };
 
@@ -203,21 +204,21 @@ Logger__Function(Tracing_Logger_Routine) {
     data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
 
     switch (log_type) {
-    case Log_Type::DEBUG:
+    case Log_Type::DEBUG: {
         data.spdlog_logger.debug(message);
-        break;
+    } break;
 
-    case Log_Type::INFO:
+    case Log_Type::INFO: {
         data.spdlog_logger.info(message);
-        break;
+    } break;
 
-    case Log_Type::WARN:
+    case Log_Type::WARN: {
         data.spdlog_logger.warn(message);
-        break;
+    } break;
 
-    case Log_Type::CRIT:
+    case Log_Type::ERR: {
         data.spdlog_logger.error(message);
-        break;
+    } break;
 
     default:
         INVALID_PATH;
@@ -237,7 +238,7 @@ Logger__Function(Tracing_Logger_Routine) {
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
 #define LOG_INFO(message_, ...) _LOG_COMMON(Log_Type::INFO, (message_), ##__VA_ARGS__)
 #define LOG_WARN(message_, ...) _LOG_COMMON(Log_Type::WARN, (message_), ##__VA_ARGS__)
-#define LOG_CRIT(message_, ...) _LOG_COMMON(Log_Type::CRIT, (message_), ##__VA_ARGS__)
+#define LOG_ERROR(message_, ...) _LOG_COMMON(Log_Type::ERR, (message_), ##__VA_ARGS__)
 
 bool operator==(const std::source_location& a, const std::source_location& b) {
     return (

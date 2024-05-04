@@ -408,6 +408,7 @@ struct Human_Moving_In_The_World_Controller {
         CTX_LOGGER;
         LOG_TRACING_SCOPE;
         LOG_DEBUG("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
+        LOG_ERROR("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
 
         if (human.type == Human_Type::Constructor       //
             && human.building != nullptr                //
