@@ -149,31 +149,32 @@ using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
 
 struct Tracing_Logger {
     static constexpr int MAX_BUFFER_SIZE = 4096;
+    static constexpr int MAX_TRASH_SIZE  = 4096;
 
     int current_indentation;
     int collapse_number;
 
-    enum Previous_Type {
-        PREVIOUS_IS_SOURCE_LOCATION,
-        PREVIOUS_IS_STRING,
-    };
-    Previous_Type previous_type;
-    u8*           previous_buffer;
-    size_t        previous_buffer_size;
+    char* previous_buffer;
+    int   previous_indentaion;
 
     spdlog::logger spdlog_logger;
     Sink           sink;
 
+    char* trash_buffer;
+    char* trash_buffer2;
+
     Tracing_Logger(Arena& arena)
         : current_indentation(0)
         , collapse_number(0)
-        , previous_type(Previous_Type::PREVIOUS_IS_SOURCE_LOCATION)
-        , previous_buffer(nullptr)
-        , previous_buffer_size(0)
+        , previous_indentaion(-1)
         , spdlog_logger("example_logger", spdlog::sink_ptr(&sink))  //
         , sink(Sink())                                              //
     {
-        previous_buffer = Allocate_Array(arena, u8, Tracing_Logger::MAX_BUFFER_SIZE);
+        previous_buffer = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+        trash_buffer    = Allocate_Array(arena, char, Tracing_Logger::MAX_TRASH_SIZE);
+        trash_buffer2   = Allocate_Array(arena, char, Tracing_Logger::MAX_TRASH_SIZE);
+
+        *previous_buffer = '\0';
 
         sink.set_level(spdlog::level::level_enum::trace);
         spdlog_logger.set_level(spdlog::level::level_enum::trace);
@@ -198,20 +199,14 @@ using Root_Logger_Type = void*;
 
 global_var Root_Logger_Type* root_logger = nullptr;
 
-BF_FORCE_INLINE void common_log(
-    int                                current_indentation,
-    const char*                        message,
-    std::invocable<const char*> auto&& log_function
+BF_FORCE_INLINE void Assert_String_Copy_With_Indentation(
+    char*       destination_buffer,
+    const char* message,
+    const int   max_dest_size,
+    const int   indentation
 ) {
-    if (current_indentation == 0) {
-        log_function(message);
-        return;
-    }
-
-    // NOTE: Прописываем таблуляцию в буфер
-    const int BUFFER_SIZE = 4096;
-    char      buffer[BUFFER_SIZE];
-    memset(buffer, '\t', current_indentation);
+    Assert(indentation >= 0);
+    Assert(max_dest_size >= 0);
 
     // NOTE: Подсчёт длины сообщения с учётом 0 символа
     int n = 1;
@@ -221,38 +216,100 @@ BF_FORCE_INLINE void common_log(
             m++;
             n++;
         }
+        Assert(indentation + n <= max_dest_size);
     }
 
-    // NOTE: Прописываем сообщение в буфер
-    Assert(current_indentation + n <= BUFFER_SIZE);
-    memcpy(buffer + current_indentation, message, n);
+    // NOTE: Прописываем таблуляцию и сообщение в буфер
+    memset(destination_buffer, '\t', indentation);
+    memcpy(destination_buffer + indentation, message, n);
+}
 
-    log_function(buffer);
+BF_FORCE_INLINE void common_log(
+    Tracing_Logger&                    data,
+    const char*                        message,
+    std::invocable<const char*> auto&& log_function
+) {
+    if (data.current_indentation == 0) {
+        log_function(message);
+        return;
+    }
+
+    Assert_String_Copy_With_Indentation(
+        data.trash_buffer,
+        message,
+        Tracing_Logger::MAX_TRASH_SIZE,
+        data.current_indentation
+    );
+    log_function(data.trash_buffer);
 }
 
 Logger__Function(Tracing_Logger_Routine) {
     auto& data = *(Tracing_Logger*)logger_data;
 
-    data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
+    // NOTE: Засчитываем сообщение в collapse, если оно идентично предыдущему
+    if (strcmp(data.previous_buffer, message) == 0) {
+        data.collapse_number++;
+        return;
+    }
 
+    // NOTE: Логирование collapse секции
+    if (data.collapse_number > 0) {
+        snprintf(
+            data.trash_buffer,
+            Tracing_Logger::MAX_TRASH_SIZE,
+            "<-- %d more -->",
+            data.collapse_number
+        );
+
+        data.collapse_number = 0;
+
+        // NOTE: Отбиваем сообщение табами, если нужно
+        auto buffer_to_log = data.trash_buffer;
+        if (data.current_indentation > 0) {
+            Assert_String_Copy_With_Indentation(
+                data.trash_buffer2,
+                data.trash_buffer,
+                Tracing_Logger::MAX_TRASH_SIZE,
+                data.current_indentation
+            );
+            buffer_to_log = data.trash_buffer2;
+        }
+
+        data.spdlog_logger.info(buffer_to_log);
+    }
+
+    // NOTE: Запоминаем сообщение в качестве предыдущего
+    int n = 1;
+    {
+        auto m = message;
+        while (*m != '\0') {
+            n++;
+            m++;
+        }
+    }
+
+    Assert(n <= Tracing_Logger::MAX_BUFFER_SIZE);
+    memcpy(data.previous_buffer, (u8*)message, n);
+
+    // NOTE: Логируем через spdlog
     switch (log_type) {
     case Log_Type::DEBUG:
-        common_log(data.current_indentation, message, [&data](const char* message) {
+        common_log(data, message, [&data](const char* message) {
             data.spdlog_logger.debug(message);
         });
         break;
     case Log_Type::INFO:
-        common_log(data.current_indentation, message, [&data](const char* message) {
+        common_log(data, message, [&data](const char* message) {
             data.spdlog_logger.info(message);
         });
         break;
     case Log_Type::WARN:
-        common_log(data.current_indentation, message, [&data](const char* message) {
+        common_log(data, message, [&data](const char* message) {
             data.spdlog_logger.warn(message);
         });
         break;
     case Log_Type::ERR:
-        common_log(data.current_indentation, message, [&data](const char* message) {
+        common_log(data, message, [&data](const char* message) {
             data.spdlog_logger.error(message);
         });
         break;
@@ -261,14 +318,14 @@ Logger__Function(Tracing_Logger_Routine) {
     }
 }
 
-#define _LOG_COMMON(log_type_, message_, ...)                                \
-    [&] {                                                                    \
-        if (logger_routine != nullptr) {                                     \
-            auto str = spdlog::fmt_lib::vformat(                             \
-                (message_), ##spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
-            );                                                               \
-            logger_routine(logger_data, (log_type_), str.c_str());           \
-        }                                                                    \
+#define _LOG_COMMON(log_type_, message_, ...)                                     \
+    [&] {                                                                         \
+        if (logger_routine != nullptr) {                                          \
+            auto str = spdlog::fmt_lib::vformat(                                  \
+                (message_), ##/**/ spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
+            );                                                                    \
+            logger_routine(logger_data, (log_type_), str.c_str());                \
+        }                                                                         \
     }()
 
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
@@ -290,40 +347,29 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
     auto  logger_routine = Tracing_Logger_Routine;
     auto& data           = *(Tracing_Logger*)logger_data;
 
-    if (push) {
-        va_list args;
-        va_start(args, push);
-        std::source_location loc = va_arg(args, std::source_location);
-        va_end(args);
-
-        data.current_indentation++;
-        if (data.previous_buffer != nullptr  //
-            && (data.previous_type == Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION)
-            && (loc == *(std::source_location*)data.previous_buffer)  //
-        ) {
-            data.collapse_number++;
-        }
-        else {
-            char rendered_loc[Tracing_Logger::MAX_BUFFER_SIZE];
-            snprintf(
-                rendered_loc,
-                Tracing_Logger::MAX_BUFFER_SIZE,
-                "[%d:%d:%s:%s]",
-                loc.line(),
-                loc.column(),
-                loc.file_name(),
-                loc.function_name()
-            );
-
-            logger_routine(logger_data, Log_Type::INFO, rendered_loc);
-
-            memcpy(data.previous_buffer, (u8*)(&loc), sizeof(loc));
-            data.previous_type = Tracing_Logger::PREVIOUS_IS_SOURCE_LOCATION;
-        }
-    }
-    else {
+    if (!push) {
         data.current_indentation--;
+        return;
     }
+
+    va_list args;
+    va_start(args, push);
+    std::source_location loc = va_arg(args, std::source_location);
+    va_end(args);
+
+    data.current_indentation++;
+    char rendered_loc[Tracing_Logger::MAX_BUFFER_SIZE];
+    snprintf(
+        rendered_loc,
+        Tracing_Logger::MAX_BUFFER_SIZE,
+        "[%d:%d:%s:%s]",
+        loc.line(),
+        loc.column(),
+        loc.file_name(),
+        loc.function_name()
+    );
+
+    logger_routine(logger_data, Log_Type::INFO, rendered_loc);
 }
 
 #define LOG_TRACING_SCOPE                                                           \

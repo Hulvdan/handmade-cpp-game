@@ -411,7 +411,6 @@ struct Human_Moving_In_The_World_Controller {
         CTX_LOGGER;
         LOG_TRACING_SCOPE;
         LOG_DEBUG("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
-        LOG_ERROR("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
 
         if (human.type == Human_Type::Constructor       //
             && human.building != nullptr                //
@@ -1777,8 +1776,9 @@ Graph_Segment* Add_And_Link_Segment(
 
     auto [locator, segment1_ptr] = Find_And_Occupy_Empty_Slot(segments, ctx);
 
-    {  // NOTE: Создание финального Graph_Segment,
-       // который будет использоваться в игровой логике
+    // NOTE: Создание финального Graph_Segment,
+    // который будет использоваться в игровой логике
+    {
 #ifdef SHIT_MEMORY_DEBUG
         memset(segment1_ptr, SHIT_BYTE_MASK, sizeof(Graph_Segment));
 #endif  // SHIT_MEMORY_DEBUG
