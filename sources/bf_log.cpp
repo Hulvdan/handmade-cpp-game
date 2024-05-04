@@ -3,6 +3,41 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/sink.h"
 
+// ============================================================= //
+//                  Oh my god I hate this shit                   //
+// ============================================================= //
+//
+// Набор функций для отбрасывания абсолютного пути файла. Оставляем только название
+constexpr const char* str_end(const char* str) { return *str ? str_end(str + 1) : str; }
+
+constexpr bool str_slant(const char* str) {
+    return *str == '/' ? true : (*str ? str_slant(str + 1) : false);
+}
+
+constexpr const char* r_slant(const char* str) {
+    return *str == '/' ? (str + 1) : r_slant(str - 1);
+}
+constexpr const char* unix_file_name(const char* str) {
+    return str_slant(str) ? r_slant(str_end(str)) : str;
+}
+
+constexpr const char* str_end2(const char* str) { return *str ? str_end2(str + 1) : str; }
+
+constexpr bool str_slant2(const char* str) {
+    return *str == '\\' ? true : (*str ? str_slant2(str + 1) : false);
+}
+
+constexpr const char* r_slant2(const char* str) {
+    return *str == '\\' ? (str + 1) : r_slant2(str - 1);
+}
+constexpr const char* windows_file_name(const char* str) {
+    return str_slant2(str) ? r_slant2(str_end2(str)) : str;
+}
+
+constexpr const char* file_name(const char* str) {
+    return windows_file_name(unix_file_name(str));
+}
+
 // Sink, логи которого выдны в консоли Visual Studio
 class Sink : public spdlog::sinks::sink {
 public:
@@ -362,10 +397,10 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
     snprintf(
         rendered_loc,
         Tracing_Logger::MAX_BUFFER_SIZE,
-        "[%d:%d:%s:%s]",
+        "%s:%d:%d:%s: ",
+        file_name(loc.file_name()),
         loc.line(),
         loc.column(),
-        loc.file_name(),
         loc.function_name()
     );
 
