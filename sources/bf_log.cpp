@@ -199,7 +199,7 @@ struct Tracing_Logger {
     int collapse_number;
 
     char* previous_buffer;
-    int   previous_indentaion;
+    int   previous_indentation;
 
     spdlog::logger spdlog_logger;
     Sink           sink;
@@ -211,7 +211,7 @@ struct Tracing_Logger {
     Tracing_Logger(Arena& arena)
         : current_indentation(0)
         , collapse_number(0)
-        , previous_indentaion(-1)
+        , previous_indentation(0)
         , spdlog_logger("", spdlog::sink_ptr(&sink))  //
         , sink(Sink())                                //
     {
@@ -249,10 +249,10 @@ using Root_Logger_Type = void*;
 global_var Root_Logger_Type* root_logger = nullptr;
 
 BF_FORCE_INLINE void Assert_String_Copy_With_Indentation(
-    char*       destination_buffer,
-    const char* message,
-    const int   max_dest_size,
-    const int   indentation
+    char*             destination_buffer,
+    const char* const message,
+    const int         max_dest_size,
+    const int         indentation
 ) {
     Assert(indentation >= 0);
     Assert(max_dest_size >= 0);
@@ -314,14 +314,14 @@ Logger__Function(Tracing_Logger_Routine) {
 
         // NOTE: Отбиваем сообщение табами, если нужно
         auto buffer_to_log = data.trash_buffer;
-        if (data.current_indentation > 0) {
+        if (data.previous_indentation > 0) {
+            buffer_to_log = data.trash_buffer2;
             Assert_String_Copy_With_Indentation(
-                data.trash_buffer2,
+                buffer_to_log,
                 data.trash_buffer,
                 Tracing_Logger::MAX_BUFFER_SIZE,
-                data.current_indentation
+                data.previous_indentation
             );
-            buffer_to_log = data.trash_buffer2;
         }
 
         data.spdlog_logger.info(buffer_to_log);
@@ -339,6 +339,7 @@ Logger__Function(Tracing_Logger_Routine) {
 
     Assert(n <= Tracing_Logger::MAX_BUFFER_SIZE);
     memcpy(data.previous_buffer, (u8*)message, n);
+    data.previous_indentation = data.current_indentation;
 
     // NOTE: Логируем через spdlog
     switch (log_type) {
