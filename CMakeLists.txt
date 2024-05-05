@@ -58,6 +58,13 @@ target_compile_definitions(bf_game PRIVATE
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
 )
+
+IF(WIN32)
+    target_compile_definitions(bf_game PRIVATE
+        _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+    )
+ENDIf()
+
 target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
