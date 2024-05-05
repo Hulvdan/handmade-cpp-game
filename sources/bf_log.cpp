@@ -38,6 +38,16 @@ constexpr const char* file_name(const char* str) {
     return windows_file_name(unix_file_name(str));
 }
 
+// NOTE: Возвращает индекс символа открывающей скобки в названии функции
+constexpr int index_of_brace_in_function_name(const char* str) {
+    int n = 0;
+    while (*str != '(' && *str != '\0') {
+        n++;
+        str++;
+    }
+    return n;
+}
+
 // Sink, логи которого выдны в консоли Visual Studio
 class Sink : public spdlog::sinks::sink {
 public:
@@ -184,7 +194,6 @@ using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
 
 struct Tracing_Logger {
     static constexpr int MAX_BUFFER_SIZE = 4096;
-    static constexpr int MAX_TRASH_SIZE  = 4096;
 
     int current_indentation;
     int collapse_number;
@@ -195,6 +204,7 @@ struct Tracing_Logger {
     spdlog::logger spdlog_logger;
     Sink           sink;
 
+    char* rendering_buffer;
     char* trash_buffer;
     char* trash_buffer2;
 
@@ -202,19 +212,23 @@ struct Tracing_Logger {
         : current_indentation(0)
         , collapse_number(0)
         , previous_indentaion(-1)
-        , spdlog_logger("example_logger", spdlog::sink_ptr(&sink))  //
-        , sink(Sink())                                              //
+        , spdlog_logger("", spdlog::sink_ptr(&sink))  //
+        , sink(Sink())                                //
     {
-        previous_buffer = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
-        trash_buffer    = Allocate_Array(arena, char, Tracing_Logger::MAX_TRASH_SIZE);
-        trash_buffer2   = Allocate_Array(arena, char, Tracing_Logger::MAX_TRASH_SIZE);
+        previous_buffer  = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+        rendering_buffer = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+        trash_buffer     = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+        trash_buffer2    = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
 
         *previous_buffer = '\0';
 
         sink.set_level(spdlog::level::level_enum::trace);
         spdlog_logger.set_level(spdlog::level::level_enum::trace);
-        spdlog_logger.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
-        sink.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
+
+        // spdlog_logger.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
+        // sink.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
+        spdlog_logger.set_pattern("[%L] %v\n\0");
+        sink.set_pattern("[%L] %v\n\0");
     }
 };
 
@@ -272,7 +286,7 @@ BF_FORCE_INLINE void common_log(
     Assert_String_Copy_With_Indentation(
         data.trash_buffer,
         message,
-        Tracing_Logger::MAX_TRASH_SIZE,
+        Tracing_Logger::MAX_BUFFER_SIZE,
         data.current_indentation
     );
     log_function(data.trash_buffer);
@@ -291,7 +305,7 @@ Logger__Function(Tracing_Logger_Routine) {
     if (data.collapse_number > 0) {
         snprintf(
             data.trash_buffer,
-            Tracing_Logger::MAX_TRASH_SIZE,
+            Tracing_Logger::MAX_BUFFER_SIZE,
             "<-- %d more -->",
             data.collapse_number
         );
@@ -304,7 +318,7 @@ Logger__Function(Tracing_Logger_Routine) {
             Assert_String_Copy_With_Indentation(
                 data.trash_buffer2,
                 data.trash_buffer,
-                Tracing_Logger::MAX_TRASH_SIZE,
+                Tracing_Logger::MAX_BUFFER_SIZE,
                 data.current_indentation
             );
             buffer_to_log = data.trash_buffer2;
@@ -392,19 +406,31 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
     std::source_location loc = va_arg(args, std::source_location);
     va_end(args);
 
-    data.current_indentation++;
-    char rendered_loc[Tracing_Logger::MAX_BUFFER_SIZE];
+    // NOTE: Получение названия функции без скобок
+    auto stripped_function_name = data.trash_buffer;
+    {
+        auto loc_function_name = loc.function_name();
+
+        auto i = index_of_brace_in_function_name(loc_function_name);
+        Assert(i < Tracing_Logger::MAX_BUFFER_SIZE);
+
+        memcpy(stripped_function_name, loc_function_name, i);
+        stripped_function_name[i] = '\0';
+    }
+
+    auto rendered_loc = data.rendering_buffer;
     snprintf(
         rendered_loc,
         Tracing_Logger::MAX_BUFFER_SIZE,
-        "%s:%d:%d:%s: ",
+        "[%s:%d:%d:%s]",
         file_name(loc.file_name()),
         loc.line(),
         loc.column(),
-        loc.function_name()
+        stripped_function_name
     );
 
     logger_routine(logger_data, Log_Type::INFO, rendered_loc);
+    data.current_indentation++;
 }
 
 #define LOG_TRACING_SCOPE                                                           \
