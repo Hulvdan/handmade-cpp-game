@@ -424,6 +424,7 @@ consteval auto replace_sub_str(const char* src) {
 }
 
 // TODO: А можно ли как-то убрать const_cast тут?
+// TODO: Вычислять `static constexpr const scope_name = ...`.
 #define LOG_TRACING_SCOPE                                                        \
     if (logger_tracing_routine != nullptr) {                                     \
         constexpr const auto current_location = std::source_location::current(); \
@@ -431,7 +432,7 @@ consteval auto replace_sub_str(const char* src) {
             = index_of_brace_in_function_name(current_location.function_name()); \
         constexpr const auto function_name                                       \
             = replace_sub_str<n>(current_location.function_name());              \
-        constexpr const char*  file_n = current_location.file_name();            \
+        constexpr const char*  file_n = file_name(current_location.file_name()); \
         constexpr const size_t nn     = fmt::formatted_size(                     \
             FMT_COMPILE("[{}:{}:{}:{}]"),                                    \
             file_n,                                                          \
