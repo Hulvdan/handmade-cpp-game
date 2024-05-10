@@ -8,38 +8,39 @@
 // ============================================================= //
 //
 // Набор функций для отбрасывания абсолютного пути файла. Оставляем только название
-constexpr const char* str_end(const char* str) { return *str ? str_end(str + 1) : str; }
+consteval const char* str_end(const char* str) { return *str ? str_end(str + 1) : str; }
 
-constexpr bool str_slant(const char* str) {
+consteval bool str_slant(const char* str) {
     return *str == '/' ? true : (*str ? str_slant(str + 1) : false);
 }
 
-constexpr const char* r_slant(const char* str) {
+consteval const char* r_slant(const char* str) {
     return *str == '/' ? (str + 1) : r_slant(str - 1);
 }
-constexpr const char* unix_file_name(const char* str) {
+consteval const char* unix_file_name(const char* str) {
     return str_slant(str) ? r_slant(str_end(str)) : str;
 }
 
-constexpr const char* str_end2(const char* str) { return *str ? str_end2(str + 1) : str; }
+consteval const char* str_end2(const char* str) { return *str ? str_end2(str + 1) : str; }
 
-constexpr bool str_slant2(const char* str) {
+consteval bool str_slant2(const char* str) {
     return *str == '\\' ? true : (*str ? str_slant2(str + 1) : false);
 }
 
-constexpr const char* r_slant2(const char* str) {
+consteval const char* r_slant2(const char* str) {
     return *str == '\\' ? (str + 1) : r_slant2(str - 1);
 }
-constexpr const char* windows_file_name(const char* str) {
+consteval const char* windows_file_name(const char* str) {
     return str_slant2(str) ? r_slant2(str_end2(str)) : str;
 }
 
-constexpr const char* file_name(const char* str) {
+consteval const char* file_name(const char* str) {
     return windows_file_name(unix_file_name(str));
 }
 
-// NOTE: Возвращает индекс символа открывающей скобки в названии функции
-constexpr int index_of_brace_in_function_name(const char* str) {
+// NOTE: index_of_brace_in_function_name возвращает
+// индекс символа открывающей скобки в названии функции
+consteval int index_of_brace_in_function_name(const char* str) {
     int n = 0;
     while (*str != '(' && *str != '\0') {
         n++;
@@ -48,7 +49,14 @@ constexpr int index_of_brace_in_function_name(const char* str) {
     return n;
 }
 
-// Sink, логи которого выдны в консоли Visual Studio
+consteval int string_length(const char* str) {
+    int n = 0;
+    while (*str)
+        n++;
+    return n;
+}
+
+// Sink, логи которого видны в консоли Visual Studio
 class Sink : public spdlog::sinks::sink {
 public:
     Sink(spdlog::color_mode mode = spdlog::color_mode::automatic) {
@@ -187,7 +195,8 @@ enum class Log_Type { DEBUG = 0, INFO, WARN, ERR };
 
 #define Logger__Function(name_) \
     void name_(void* logger_data, Log_Type log_type, const char* message)
-#define Logger_Tracing__Function(name_) void name_(void* logger_data, bool push, ...)
+#define Logger_Tracing__Function(name_) \
+    void name_(void* logger_data, bool push, const char* location)
 
 using Logger_Function_Type         = Logger__Function((*));
 using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
@@ -212,8 +221,8 @@ struct Tracing_Logger {
         : current_indentation(0)
         , collapse_number(0)
         , previous_indentation(0)
-        , spdlog_logger("", spdlog::sink_ptr(&sink))  //
-        , sink(Sink())                                //
+        , spdlog_logger("", spdlog::sink_ptr(&sink))
+        , sink(Sink())  //
     {
         previous_buffer  = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
         rendering_buffer = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
@@ -402,45 +411,79 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
         return;
     }
 
-    va_list args;
-    va_start(args, push);
-    std::source_location loc = va_arg(args, std::source_location);
-    va_end(args);
-
-    // NOTE: Получение названия функции без скобок
-    auto stripped_function_name = data.trash_buffer;
-    {
-        auto loc_function_name = loc.function_name();
-
-        auto i = index_of_brace_in_function_name(loc_function_name);
-        Assert(i < Tracing_Logger::MAX_BUFFER_SIZE);
-
-        memcpy(stripped_function_name, loc_function_name, i);
-        stripped_function_name[i] = '\0';
-    }
-
-    auto rendered_loc = data.rendering_buffer;
-    snprintf(
-        rendered_loc,
-        Tracing_Logger::MAX_BUFFER_SIZE,
-        "[%s:%d:%d:%s]",
-        file_name(loc.file_name()),
-        loc.line(),
-        loc.column(),
-        stripped_function_name
-    );
-
-    logger_routine(logger_data, Log_Type::INFO, rendered_loc);
+    logger_routine(logger_data, Log_Type::INFO, location);
     data.current_indentation++;
 }
 
-#define LOG_TRACING_SCOPE                                                           \
-    if (logger_tracing_routine != nullptr)                                          \
-        logger_tracing_routine(logger_data, true, std::source_location::current()); \
-                                                                                    \
-    defer {                                                                         \
-        if (logger_tracing_routine != nullptr)                                      \
-            logger_tracing_routine(logger_data, false);                             \
+template <auto N>
+consteval auto replace_sub_str(const char* src) {
+    std::array<char, N + 1> res = {};
+    std::copy_n(src, N, res.data());
+    res.data()[N] = '\0';
+    return res;
+}
+
+// TODO: А можно ли как-то убрать const_cast тут?
+#define LOG_TRACING_SCOPE                                                        \
+    if (logger_tracing_routine != nullptr) {                                     \
+        constexpr const auto current_location = std::source_location::current(); \
+        constexpr const auto n                                                   \
+            = index_of_brace_in_function_name(current_location.function_name()); \
+        constexpr const auto function_name                                       \
+            = replace_sub_str<n>(current_location.function_name());              \
+        constexpr const char*  file_n = current_location.file_name();            \
+        constexpr const size_t nn     = fmt::formatted_size(                     \
+            FMT_COMPILE("[{}:{}:{}:{}]"),                                    \
+            file_n,                                                          \
+            current_location.line(),                                         \
+            current_location.column(),                                       \
+            function_name.data()                                             \
+        );                                                                   \
+        constexpr char to[nn + 1] = {};                                          \
+        fmt::format_to(                                                          \
+            const_cast<char*>(to),                                               \
+            FMT_COMPILE("[{}:{}:{}:{}]"),                                        \
+            file_n,                                                              \
+            current_location.line(),                                             \
+            current_location.column(),                                           \
+            function_name.data()                                                 \
+        );                                                                       \
+        const_cast<char*>(to)[nn] = '\0';                                        \
+        static_assert(to != nullptr);                                            \
+                                                                                 \
+        logger_tracing_routine(logger_data, true, to);                           \
+    }                                                                            \
+                                                                                 \
+    defer {                                                                      \
+        if (logger_tracing_routine == nullptr)                                   \
+            return;                                                              \
+                                                                                 \
+        constexpr const auto current_location = std::source_location::current(); \
+        constexpr const auto n                                                   \
+            = index_of_brace_in_function_name(current_location.function_name()); \
+        constexpr const auto function_name                                       \
+            = replace_sub_str<n>(current_location.function_name());              \
+        constexpr const char*  file_n = current_location.file_name();            \
+        constexpr const size_t nn     = fmt::formatted_size(                     \
+            FMT_COMPILE("[{}:{}:{}:{}]\0"),                                  \
+            file_n,                                                          \
+            current_location.line(),                                         \
+            current_location.column(),                                       \
+            function_name.data()                                             \
+        );                                                                   \
+        constexpr char to[nn + 1] = {};                                          \
+        fmt::format_to(                                                          \
+            const_cast<char*>(to),                                               \
+            FMT_COMPILE("[{}:{}:{}:{}]"),                                        \
+            file_n,                                                              \
+            current_location.line(),                                             \
+            current_location.column(),                                           \
+            function_name.data()                                                 \
+        );                                                                       \
+        const_cast<char*>(to)[nn] = '\0';                                        \
+        static_assert(to != nullptr);                                            \
+                                                                                 \
+        logger_tracing_routine(logger_data, false, to);                          \
     };
 
 #define CTX_LOGGER                                              \

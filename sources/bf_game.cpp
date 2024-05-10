@@ -32,6 +32,8 @@ using tvector = std::vector<Args...>;
 template <typename... Args>
 using tunordered_map = std::unordered_map<Args...>;
 
+#include "fmt/compile.h"
+
 global_var OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 

@@ -1200,6 +1200,9 @@ enum class Human_Removal_Reason {
 
 struct Game_Map_Data {
     f32 human_moving_one_tile_duration;
+
+    Game_Map_Data(f32 a_human_moving_one_tile_duration)
+        : human_moving_one_tile_duration(a_human_moving_one_tile_duration) {}
 };
 struct Human_Data;
 
