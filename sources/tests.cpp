@@ -371,16 +371,16 @@ int Process_Segments(
         trash_arena,                                                             \
         (updated_tiles),                                                         \
         [&segments, &trash_arena](                                               \
-            u32             segments_to_be_deleted_count,                        \
-            Graph_Segment** segments_to_be_deleted,                              \
-            u32             added_segments_count,                                \
-            Graph_Segment*  added_segments,                                      \
+            u32             segments_to_delete_count,                            \
+            Graph_Segment** segments_to_delete,                                  \
+            u32             segments_to_add_count,                               \
+            Graph_Segment*  segments_to_add,                                     \
             MCTX                                                                 \
         ) {                                                                      \
             CTX_ALLOCATOR;                                                       \
                                                                                  \
-            FOR_RANGE (u32, i, segments_to_be_deleted_count) {                   \
-                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);      \
+            FOR_RANGE (u32, i, segments_to_delete_count) {                       \
+                Graph_Segment* segment_ptr = *(segments_to_delete + i);          \
                 auto&          segment     = Assert_Deref(segment_ptr);          \
                                                                                  \
                 FREE(segment.vertices, segment.vertices_count);                  \
@@ -388,9 +388,9 @@ int Process_Segments(
                 Bucket_Array_Remove(*segments, segment.locator);                 \
             }                                                                    \
                                                                                  \
-            FOR_RANGE (u32, i, added_segments_count) {                           \
+            FOR_RANGE (u32, i, segments_to_add_count) {                          \
                 Add_And_Link_Segment(                                            \
-                    *segments, *(added_segments + i), trash_arena, ctx           \
+                    *segments, *(segments_to_add + i), trash_arena, ctx          \
                 );                                                               \
             }                                                                    \
                                                                                  \

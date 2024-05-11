@@ -170,8 +170,6 @@ private:
     u8* _current;
 };
 
-// ===== Use =====
-
 struct Malloc_Allocator {
     Blk Allocate(size_t n) { return Blk(malloc(n), n); }
 
