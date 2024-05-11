@@ -12,7 +12,7 @@
 #define FREE_ALL \
     Assert_Not_Null(allocator)(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
 
-#if 0
+#if 1
 #define SANITIZE \
     Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
 #else

@@ -939,6 +939,10 @@ Human* Create_Human_Transporter(
     const Human_Data& data,
     MCTX
 ) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+    LOG_DEBUG("Creating a new human...");
+
     auto& segment = Assert_Deref(segment_ptr);
 
     auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans_to_add, ctx);
@@ -958,7 +962,7 @@ Human* Create_Human_Transporter(
     human.type                      = Human_Type::Transporter;
     human.state                     = Human_Main_State::None;
     human.state_moving_in_the_world = Moving_In_The_World_State::None;
-    human.building                  = building;
+    human.building                  = nullptr;
 
     Root_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
 
@@ -1131,6 +1135,8 @@ void Update_Human(
 }
 
 void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
+    CTX_LOGGER;
+
     auto& game_map   = state.game_map;
     auto  city_halls = data.city_halls;
 
@@ -1146,14 +1152,15 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     }
 
     auto prev_count = game_map.humans_to_add.count;
-    for (auto human_ptr : Iter(&game_map.humans_to_add)) {
-        auto [locator, arr_place] = Find_And_Occupy_Empty_Slot(game_map.humans, ctx);
+    for (auto human_to_move : Iter(&game_map.humans_to_add)) {
+        LOG_DEBUG("Update_Humans: moving human from humans_to_add to humans");
+        auto [locator, human_ptr] = Find_And_Occupy_Empty_Slot(game_map.humans, ctx);
 
-        *arr_place = std::move(*human_ptr);
+        *human_ptr = std::move(*human_to_move);
         if (human_ptr->segment != nullptr)
-            human_ptr->segment->assigned_human = arr_place;
+            human_ptr->segment->assigned_human = human_ptr;
 
-        Update_Human(game_map, arr_place, locator, dt, city_halls, data, ctx);
+        Update_Human(game_map, human_ptr, locator, dt, city_halls, data, ctx);
     }
 
     Assert(prev_count == game_map.humans_to_add.count);
@@ -1256,6 +1263,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena, MCTX) {
     Init_Bucket_Array(game_map.segments, 32, 128, ctx);
     Init_Bucket_Array(game_map.humans, 32, 128, ctx);
     Init_Bucket_Array(game_map.humans_to_add, 32, 128, ctx);
+    std::construct_at(&game_map.humans_to_remove);
 
     {
         auto& container     = game_map.segments_wo_humans;
