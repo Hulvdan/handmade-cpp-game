@@ -3,11 +3,8 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/sink.h"
 
-// ============================================================= //
-//                  Oh my god I hate this shit                   //
-// ============================================================= //
-//
-// Набор функций для отбрасывания абсолютного пути файла. Оставляем только название
+// TODO: ВЫЧИСТИТЬ ЭТОТ СРАЧ
+// Набор функций для отбрасывания абсолютного пути файла. Оставляем только название.
 consteval const char* str_end(const char* str) { return *str ? str_end(str + 1) : str; }
 
 consteval bool str_slant(const char* str) {
@@ -39,7 +36,7 @@ consteval const char* extract_file_name(const char* str) {
 }
 
 // NOTE: index_of_brace_in_function_name возвращает
-// индекс символа открывающей скобки в названии функции
+// индекс символа открывающей скобки в названии функции.
 consteval int index_of_brace_in_function_name(const char* str) {
     int n = 0;
     while (*str != '(' && *str != '\0') {
@@ -56,7 +53,7 @@ consteval int string_length(const char* str) {
     return n;
 }
 
-// Sink, логи которого видны в консоли Visual Studio
+// Sink, логи которого видны в консоли Visual Studio.
 class Sink : public spdlog::sinks::sink {
 public:
     Sink(spdlog::color_mode mode = spdlog::color_mode::automatic) {
@@ -234,7 +231,7 @@ struct Tracing_Logger {
         sink.set_level(spdlog::level::level_enum::trace);
         spdlog_logger.set_level(spdlog::level::level_enum::trace);
 
-        // spdlog_logger.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
+        // "[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n"
         // sink.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
         spdlog_logger.set_pattern("[%L] %v\n\0");
         sink.set_pattern("[%L] %v\n\0");
