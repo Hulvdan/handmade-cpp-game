@@ -81,6 +81,20 @@ void Deallocate_(Arena& arena, size_t size) {
     return rcast<u8*>(aligned_addr);
 }
 
+// TEMP_USAGE используется для временного использования арены.
+// При вызове TEMP_USAGE запоминается текущее количество занятого
+// пространства арены, которое обратно устанавливается при выходе из scope.
+//
+// Пример использования:
+//
+//     size_t X = trash_arena.used;
+//     {
+//         TEMP_USAGE(trash_arena);
+//         int* aboba = ALLOCATE_FOR(trash_arena, u32);
+//         Assert(trash_arena.used == X + 4);
+//     }
+//     Assert(trash_arena.used == X);
+//
 #define TEMP_USAGE(arena)                     \
     auto _arena_used_ = (arena).used;         \
     defer {                                   \
