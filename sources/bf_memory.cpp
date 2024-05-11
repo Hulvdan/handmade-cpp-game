@@ -1,96 +1,5 @@
 #pragma once
 
-// ============================== //
-//             Arena              //
-// ============================== //
-struct Arena : public Non_Copyable {
-    size_t      used;
-    size_t      size;
-    u8*         base;
-    const char* name;
-};
-
-struct Page : public Non_Copyable {
-    u8* base;
-};
-
-struct Pages : public Non_Copyable {
-    size_t total_count_cap;
-    size_t allocated_count;
-    Page*  base;
-    bool*  in_use;
-};
-
-#define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
-#define Allocate_Array(arena, type, count) \
-    rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
-
-#define Allocate_Zeros_For(arena, type) rcast<type*>(Allocate_Zeros_(arena, sizeof(type)))
-#define Allocate_Zeros_Array(arena, type, count) \
-    rcast<type*>(Allocate_Zeros_(arena, sizeof(type) * (count)))
-
-#define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))
-
-//
-// TODO: Introduce the notion of `alignment` here!
-// NOTE: Refer to Casey's memory allocation functions
-// https://youtu.be/MvDUe2evkHg?list=PLEMXAbCVnmY6Azbmzj3BiC3QRYHE9QoG7&t=2121
-//
-u8* Allocate_(Arena& arena, size_t size) {
-    Assert(size > 0);
-    Assert(arena.size >= size);
-    Assert(arena.used <= arena.size - size);
-
-    u8* result = arena.base + arena.used;
-    arena.used += size;
-
-#ifdef PROFILING
-    // TODO: Изучить способы того, как можно прикрутить профилирование памяти с
-    // поддержкой arena аллокаций таким образом, чтобы не приходилось запускать Free в
-    // профилировщике для старых аллокаций, когда делаем Reset арен
-    //
-    // Assert(arena.name != nullptr);
-    // TracyAllocN(result, size, arena.name);
-#endif  // PROFILING
-
-    return result;
-}
-
-u8* Allocate_Zeros_(Arena& arena, size_t size) {
-    auto result = Allocate_(arena, size);
-    memset(result, 0, size);
-    return result;
-}
-
-void Deallocate_(Arena& arena, size_t size) {
-    Assert(size > 0);
-    Assert(arena.used >= size);
-    arena.used -= size;
-
-#ifdef PROFILING
-    // TODO: См. выше
-    //
-    // Assert(arena.name != nullptr);
-    // TracyFreeN(arena.base + arena.used, arena.name);
-#endif
-}
-
-// ============================== //
-//             Other              //
-// ============================== //
-[[nodiscard]] BF_FORCE_INLINE u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
-    const auto addr         = rcast<size_t>(ptr);
-    const auto aligned_addr = (addr + (alignment - 1)) & -alignment;
-    return rcast<u8*>(aligned_addr);
-}
-
-#define TEMP_USAGE(arena)                     \
-    auto _arena_used_ = (arena).used;         \
-    defer {                                   \
-        Assert((arena).used >= _arena_used_); \
-        (arena).used = _arena_used_;          \
-    };
-
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
 #define ALLOC(n) \
     Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
@@ -103,11 +12,11 @@ void Deallocate_(Arena& arena, size_t size) {
 #define FREE_ALL \
     Assert_Not_Null(allocator)(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
 
-#if 0
+#if 1
 #define SANITIZE \
     Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
 #else
-#define SANITIZE [] {}()
+#define SANITIZE (void)0
 #endif
 
 #define MCTX Context* ctx
@@ -149,21 +58,31 @@ enum class Allocator_Mode {
 using Allocator_Function_Type = Allocator__Function((*));
 
 struct Context {
-    u32                     thread_index;
+    u32 thread_index;
+
     Allocator_Function_Type allocator;
     void*                   allocator_data;
 
-    // NOTE: Сюда можно ещё пихнуть и другие данные,
-    // например, что-нибудь для логирования
+    Logger_Function_Type         logger_routine;
+    Logger_Tracing_Function_Type logger_tracing_routine;
+    void*                        logger_data;
+
+    Context() = default;
 
     Context(
-        u32                     a_thread_index,
-        Allocator_Function_Type a_allocator,
-        void*                   a_allocator_data
+        u32                          a_thread_index,
+        Allocator_Function_Type      a_allocator,
+        void*                        a_allocator_data,
+        Logger_Function_Type         a_logger_routine,
+        Logger_Tracing_Function_Type a_logger_tracing_routine,
+        void*                        a_logger_data
     )
         : thread_index(a_thread_index)
         , allocator(a_allocator)
-        , allocator_data(a_allocator_data) {}
+        , allocator_data(a_allocator_data)
+        , logger_routine(a_logger_routine)
+        , logger_tracing_routine(a_logger_tracing_routine)
+        , logger_data(a_logger_data) {}
 };
 
 struct Blk {
@@ -194,7 +113,7 @@ struct Fallback_Allocator {
     }
 
     bool Owns(Blk b) {
-        // NOTE: Используется MDFINAE (method definition is not an error).
+        // NOTE: Используется MDFINAE (method definition failure is not an error).
         // Не будет ошибки компиляции, если не будет вызываться
         // `owns` для F, у которого не определён этот метод
         return _p.Owns(b) || _f.Owns(b);
@@ -250,8 +169,6 @@ private:
     u8  _buffer[s];
     u8* _current;
 };
-
-// ===== Use =====
 
 struct Malloc_Allocator {
     Blk Allocate(size_t n) { return Blk(malloc(n), n); }
@@ -925,7 +842,7 @@ struct Stoopid_Affix {
 
 #endif  // Root_Allocator_Type
 
-global Root_Allocator_Type* root_allocator = nullptr;
+global_var Root_Allocator_Type* root_allocator = nullptr;
 
 Allocator__Function(Root_Allocator_Routine) {
     switch (mode) {
@@ -934,7 +851,7 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(size > 0);
         Assert(old_size == 0);
 
-        return Assert_Deref((Root_Allocator_Type*)root_allocator).Allocate(size).ptr;
+        return Assert_Deref((Root_Allocator_Type*)allocator_data).Allocate(size).ptr;
     } break;
 
     case Allocator_Mode::Resize: {
@@ -945,13 +862,13 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_memory_ptr != nullptr);
         Assert(size > 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator)
+        Assert_Deref((Root_Allocator_Type*)allocator_data)
             .Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
 
     case Allocator_Mode::Free_All: {
-        Assert_Deref((Root_Allocator_Type*)root_allocator).Deallocate_All();
+        Assert_Deref((Root_Allocator_Type*)allocator_data).Deallocate_All();
     } break;
 
     case Allocator_Mode::Sanity: {
@@ -960,7 +877,7 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_size == 0);
         Assert(alignment == 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator).Sanity_Check();
+        Assert_Deref((Root_Allocator_Type*)allocator_data).Sanity_Check();
     } break;
 
     default:
@@ -976,7 +893,7 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
         Assert(size > 0);
         Assert(old_size == 0);
 
-        return Assert_Deref((Root_Allocator_Type*)root_allocator).Allocate(size).ptr;
+        return Assert_Deref((Root_Allocator_Type*)allocator_data).Allocate(size).ptr;
     } break;
 
     case Allocator_Mode::Resize: {
@@ -987,7 +904,7 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
         Assert(old_memory_ptr != nullptr);
         Assert(size > 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator)
+        Assert_Deref((Root_Allocator_Type*)allocator_data)
             .Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
@@ -1002,7 +919,7 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
         Assert(old_size == 0);
         Assert(alignment == 0);
 
-        Assert_Deref((Root_Allocator_Type*)root_allocator).Sanity_Check();
+        Assert_Deref((Root_Allocator_Type*)allocator_data).Sanity_Check();
     } break;
 
     default:

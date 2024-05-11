@@ -28,14 +28,15 @@
 // ============================================================= //
 //                         Memory Setup                          //
 // ============================================================= //
-global Context _ctx(0, Root_Allocator_Routine, nullptr);
+global_var Context _ctx(0, Root_Allocator_Routine, nullptr, nullptr, nullptr, nullptr);
 
-#define INITIALIZE_CTX                                                           \
+#define INITIALIZE_CTX                                                          \
     Assert(root_allocator == nullptr);                                          \
     root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
     std::construct_at(root_allocator);                                          \
                                                                                 \
-    auto ctx = &_ctx;                                                           \
+    auto ctx            = &_ctx;                                                \
+    _ctx.allocator_data = root_allocator;                                       \
                                                                                 \
     defer {                                                                     \
         CTX_ALLOCATOR;                                                          \
@@ -44,8 +45,8 @@ global Context _ctx(0, Root_Allocator_Routine, nullptr);
         root_allocator = nullptr;                                               \
     }
 
-global tvector<u8*> virtual_allocations;
-global tvector<void*> heap_allocations;
+global_var tvector<u8*> virtual_allocations;
+global_var tvector<void*> heap_allocations;
 
 void* heap_allocate(size_t n, size_t alignment) {
     void* result = _aligned_malloc(n, alignment);
@@ -370,16 +371,16 @@ int Process_Segments(
         trash_arena,                                                             \
         (updated_tiles),                                                         \
         [&segments, &trash_arena](                                               \
-            u32             segments_to_be_deleted_count,                        \
-            Graph_Segment** segments_to_be_deleted,                              \
-            u32             added_segments_count,                                \
-            Graph_Segment*  added_segments,                                      \
+            u32             segments_to_delete_count,                            \
+            Graph_Segment** segments_to_delete,                                  \
+            u32             segments_to_add_count,                               \
+            Graph_Segment*  segments_to_add,                                     \
             MCTX                                                                 \
         ) {                                                                      \
             CTX_ALLOCATOR;                                                       \
                                                                                  \
-            FOR_RANGE (u32, i, segments_to_be_deleted_count) {                   \
-                Graph_Segment* segment_ptr = *(segments_to_be_deleted + i);      \
+            FOR_RANGE (u32, i, segments_to_delete_count) {                       \
+                Graph_Segment* segment_ptr = *(segments_to_delete + i);          \
                 auto&          segment     = Assert_Deref(segment_ptr);          \
                                                                                  \
                 FREE(segment.vertices, segment.vertices_count);                  \
@@ -387,9 +388,9 @@ int Process_Segments(
                 Bucket_Array_Remove(*segments, segment.locator);                 \
             }                                                                    \
                                                                                  \
-            FOR_RANGE (u32, i, added_segments_count) {                           \
+            FOR_RANGE (u32, i, segments_to_add_count) {                          \
                 Add_And_Link_Segment(                                            \
-                    *segments, *(added_segments + i), trash_arena, ctx           \
+                    *segments, *(segments_to_add + i), trash_arena, ctx          \
                 );                                                               \
             }                                                                    \
                                                                                  \

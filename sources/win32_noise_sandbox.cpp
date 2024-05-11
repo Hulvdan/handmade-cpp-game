@@ -27,20 +27,20 @@ struct BF_Bitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
-global HMODULE game_lib = nullptr;
-global size_t  game_memory_size;
-global void*   game_memory = nullptr;
+global_var HMODULE game_lib = nullptr;
+global_var size_t  game_memory_size;
+global_var void*   game_memory = nullptr;
 
-global size_t events_count    = 0;
-global std::vector<u8> events = {};
+global_var size_t events_count    = 0;
+global_var std::vector<u8> events = {};
 
-global bool running = false;
+global_var bool running = false;
 
-global bool      should_recreate_bitmap_after_client_area_resize;
-global BF_Bitmap screen_bitmap;
+global_var bool      should_recreate_bitmap_after_client_area_resize;
+global_var BF_Bitmap screen_bitmap;
 
-global int client_width  = -1;
-global int client_height = -1;
+global_var int client_width  = -1;
+global_var int client_height = -1;
 
 void Win32UpdateBitmap(HDC device_context) {
     Assert(client_width >= 0);

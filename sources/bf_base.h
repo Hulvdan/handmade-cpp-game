@@ -101,7 +101,7 @@ using v3f = glm::vec3;
 using v3i = glm::ivec3;
 
 #define local_persist static
-#define global static
+#define global_var static
 
 #include "bf_types.h"
 
