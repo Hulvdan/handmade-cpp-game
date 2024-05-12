@@ -207,6 +207,8 @@ IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends")
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/spdlog-1.13.0/include")
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/fmt-10.2.0")
 ENDIf()
 
 # === Other Win32 Bullshiet ===

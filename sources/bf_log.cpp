@@ -378,7 +378,7 @@ Logger__Function(Tracing_Logger_Routine) {
     [&] {                                                                         \
         if (logger_routine != nullptr) {                                          \
             auto str = spdlog::fmt_lib::vformat(                                  \
-                (message_), ##/**/ spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
+                (message_), spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
             );                                                                    \
             logger_routine(logger_data, (log_type_), str.c_str());                \
         }                                                                         \
