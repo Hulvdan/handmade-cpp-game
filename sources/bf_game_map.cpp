@@ -349,14 +349,15 @@ void Human_Moving_Component_Add_Path(
     if (path_count != 0) {
         Assert(path != nullptr);
 
-        if (moving.to.value_or(moving.pos) == *(path + 0)) {
-            path += 1;
-            path_count -= 1;
+        if (moving.to.value_or(moving.pos) == path[0]) {
+            path++;
+            path_count--;
         }
         Bulk_Enqueue(moving.path, path, path_count, ctx);
     }
 
-    Advance_Moving_To(moving, ctx);
+    if (!moving.to.has_value())
+        Advance_Moving_To(moving, ctx);
 }
 
 struct Human_Moving_In_The_World_Controller {
@@ -1068,8 +1069,6 @@ void Update_Human_Moving_Component(
 
         iteration++;
 
-        // Tracing.Log("Human reached the next tile");
-
         moving.elapsed -= duration;
 
         moving.pos  = moving.to.value();
@@ -1082,7 +1081,8 @@ void Update_Human_Moving_Component(
 
     Assert(iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME);
     if (iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME) {
-        // TODO: Debug.Log_Warning("WTF?");
+        LOG_TRACING_SCOPE;
+        LOG_WARN("WTF? iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME");
     }
 
     moving.progress = MIN(1.0f, moving.elapsed / duration);
