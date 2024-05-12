@@ -43,6 +43,7 @@ global_var OS_Data* global_os_data = nullptr;
 #include "bf_memory_arena.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
+#include "bf_containers.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
