@@ -1306,6 +1306,22 @@ void Update_Game_Map(Game_State& state, float dt, MCTX) {
     Update_Humans(state, dt, Assert_Deref(state.game_map.human_data), ctx);
 }
 
+void Add_Map_Resource(
+    Game_State&          state,
+    Scriptable_Resource* scriptable,
+    const v2i16          pos,
+    MCTX
+) {
+    auto& game_map    = state.game_map;
+    auto  gsize       = game_map.size;
+    auto& trash_arena = state.trash_arena;
+
+    // TODO: !!! Push context. Pool allocator для аллокации Map_Resource.
+    Map_Resource* resource = ALLOC();
+
+    Vector_Add(game_map.resources, resource, pos, gsize.x);
+}
+
 void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     auto& game_map = state.game_map;
 
@@ -1357,6 +1373,9 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
             &state.trash_arena
         );
     }
+
+    // TODO: !!!
+    Add_Map_Resource(state, );
 }
 
 void Deinit_Game_Map(Game_State& state, MCTX) {

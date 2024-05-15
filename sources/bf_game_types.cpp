@@ -465,6 +465,10 @@ struct Game_Map : public Non_Copyable {
     };
     std::vector<Human_To_Remove> humans_to_remove;
 
+    // NOTE: Выделяем pool, т.к. эти ресурсы могут перемещаться из контейнера
+    // карты к чувачкам в руки, в здания, а также обратно в `resources`.
+    // TODO: !!! Pool
+    Pool<Map_Resource>             resources_pool;
     Grid_Of_Vectors<Map_Resource*> resources;
 
     Queue<Graph_Segment*> segments_wo_humans;
