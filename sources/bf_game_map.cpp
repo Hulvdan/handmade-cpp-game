@@ -320,8 +320,38 @@ void Deinit_Grid_Of_Queues(Grid_Of_Queues<T>& container, const v2i16 gsize, MCTX
 
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            T*  base      = container.bases + y * gsize.x + x;
-            u32 max_count = *(container.max_counts + y * gsize.x + x);
+            T*  base      = *Get_By_Stride(container.bases, {x, y}, gsize.x);
+            u32 max_count = *Get_By_Stride(container.max_counts, {x, y}, gsize.x);
+
+            if (max_count != 0) {
+                Assert(base != nullptr);
+            }
+
+            if (base != nullptr) {
+                Assert(max_count > 0);
+                FREE(base, sizeof(T) * max_count);
+            }
+        }
+    }
+
+    if (container.counts != nullptr)
+        FREE(container.counts, sizeof(i32) * tiles_count);
+    if (container.max_counts != nullptr)
+        FREE(container.max_counts, sizeof(u32) * tiles_count);
+    if (container.bases != nullptr)
+        FREE(container.bases, sizeof(T*) * tiles_count);
+}
+
+template <typename T>
+void Deinit_Grid_Of_Vectors(Grid_Of_Vectors<T>& container, const v2i16 gsize, MCTX) {
+    CTX_ALLOCATOR;
+
+    const auto tiles_count = gsize.x * gsize.y;
+
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
+            T*  base      = *Get_By_Stride(container.bases, {x, y}, gsize.x);
+            u32 max_count = *Get_By_Stride(container.max_counts, {x, y}, gsize.x);
 
             if (max_count != 0) {
                 Assert(base != nullptr);
@@ -1281,53 +1311,17 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
 
     game_map.data = std::construct_at(Allocate_For(arena, Game_Map_Data), 0.3f);
 
-    // {
-    //     size_t toc_size = 1024;
-    //     size_t data_size = 4096;
-    //
-    //     game_map.segment_vertices_allocator = std::construct_at(
-    //         Allocate_For(arena, Allocator),
-    //         toc_size,
-    //         Allocate_Zeros_Array(arena, u8, toc_size),
-    //         data_size,
-    //         Allocate_Array(arena, u8, data_size)
-    //     );
-    //
-    //     Set_Allocator_Name_If_Profiling(
-    //         arena,
-    //         *game_map.segment_vertices_allocator,
-    //         "segment_vertices_allocator_%d",
-    //         state.dll_reloads_count
-    //     );
-    // }
-    //
-    // {
-    //     size_t toc_size = 1024;
-    //     size_t data_size = 4096;
-    //
-    //     game_map.graph_nodes_allocator = std::construct_at(
-    //         Allocate_For(arena, Allocator),
-    //         toc_size,
-    //         Allocate_Zeros_Array(arena, u8, toc_size),
-    //         data_size,
-    //         Allocate_Array(arena, u8, data_size)
-    //     );
-    //
-    //     Set_Allocator_Name_If_Profiling(
-    //         arena,
-    //         *game_map.graph_nodes_allocator,
-    //         "graph_nodes_allocator_%d",
-    //         state.dll_reloads_count
-    //     );
-    // }
-
-    auto tiles_count = game_map.size.x * game_map.size.y;
+    const auto tiles_count = game_map.size.x * game_map.size.y;
 
     Init_Bucket_Array(game_map.buildings, 32, 128, ctx);
     Init_Bucket_Array(game_map.segments, 32, 128, ctx);
     Init_Bucket_Array(game_map.humans, 32, 128, ctx);
     Init_Bucket_Array(game_map.humans_to_add, 32, 128, ctx);
+
+    // TODO: переписать это на свой Vector
     std::construct_at(&game_map.humans_to_remove);
+
+    Init_Grid_Of_Vectors(game_map.resources, game_map.size, ctx);
 
     {
         auto& container     = game_map.segments_wo_humans;
@@ -1339,7 +1333,7 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     Place_Building(state, {2, 2}, state.scriptable_building_city_hall, ctx);
 
     {
-        int        players_count    = 1;
+        const int  players_count    = 1;
         int        city_halls_count = 0;
         Building** city_halls       = Allocate_Array(arena, Building*, players_count);
 
@@ -1397,6 +1391,10 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
     Deinit_Bucket_Array(game_map.segments, ctx);
     Deinit_Bucket_Array(game_map.humans, ctx);
     Deinit_Bucket_Array(game_map.humans_to_add, ctx);
+
+    // TODO: деинициалиация game_map.humans_to_remove
+
+    Deinit_Grid_Of_Vectors(game_map.resources, game_map.size, ctx);
 
     game_map.humans_to_remove.clear();
     Deinit_Queue(game_map.segments_wo_humans, ctx);

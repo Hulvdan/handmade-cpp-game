@@ -322,7 +322,8 @@ i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
 }
 
 template <typename T>
-BF_FORCE_INLINE T* Get_By_Stride(T* values, const v2i16 pos, const i16 stride) {
+BF_FORCE_INLINE T*
+Get_By_Stride(T* const values, const v2i16 pos, const i16 stride) {
     return values + pos.y * stride + pos.x;
 }
 
@@ -863,6 +864,63 @@ private:
     u64         _current = 0;
 };
 
+// NOTE: Grid_Of_Vectors_Iterator - это итератор для
+// прохождения по элементам на конкретной клетке.
+template <typename T>
+struct Grid_Of_Vectors_Iterator : public Iterator_Facade<Grid_Of_Vectors_Iterator<T>> {
+    Grid_Of_Vectors_Iterator() = delete;
+    Grid_Of_Vectors_Iterator(Grid_Of_Vectors<T>* container, v2i16 pos, i16 stride)
+        : Grid_Of_Vectors_Iterator(container, 0, pos, stride) {}
+    Grid_Of_Vectors_Iterator(
+        Grid_Of_Vectors<T>* container,
+        i32                 current,
+        v2i16               pos,
+        i16                 stride  //
+    )
+        : _container(container)
+        , _current(current)
+        , _pos(pos)
+        , _stride(stride)  //
+    {
+        Assert(container != nullptr);
+    }
+
+    Grid_Of_Vectors_Iterator begin() const {
+        return {_container, _current, _pos, _stride};
+    }
+    Grid_Of_Vectors_Iterator end() const {
+        const auto count = *Get_By_Stride(_container->counts, _pos, _stride);
+        return {_container, count, _pos, _stride};
+    }
+
+    T* Dereference() const {
+        const auto count = *Get_By_Stride(_container->counts, _pos, _stride);
+        Assert(_current >= 0);
+        Assert(_current < count);
+        T* base = *Get_By_Stride(_container->bases, _pos, _stride);
+        return base + _current * sizeof(T);
+    }
+
+    void Increment() { _current++; }
+
+    bool Equal_To(const Grid_Of_Vectors_Iterator& o) const {
+        return _current == o._current  //
+               && _pos == o._pos       //
+               && _stride == o._stride;
+
+        // TODO: Подумать. Если не нужно сравнивать несколько разных итераторов
+        // между собой, т.е., когда pos и stride не изменяются,
+        // можно ли просто раскомментить это?
+        // return _current == o._current;
+    }
+
+private:
+    Grid_Of_Vectors<T>* const _container;
+    i32                       _current = 0;
+    const v2i16               _pos;
+    const i16                 _stride;
+};
+
 template <typename T>
 BF_FORCE_INLINE auto Iter(Bucket_Array<T>* container) {
     return Bucket_Array_Iterator(container);
@@ -871,6 +929,11 @@ BF_FORCE_INLINE auto Iter(Bucket_Array<T>* container) {
 template <typename T>
 BF_FORCE_INLINE auto Iter(tvector<T>* container) {
     return TVector_Iterator(container);
+}
+
+template <typename T>
+BF_FORCE_INLINE auto Iter(Grid_Of_Vectors<T>* container, v2i16 pos, i16 stride) {
+    return Grid_Of_Vectors_Iterator(container, pos, stride);
 }
 
 template <typename T>

@@ -790,6 +790,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     if (swidth == 0.0f || sheight == 0.0f)
         return;
 
+    // NOTE: Обработка зума карты к курсору.
+    // TODO: Зафиксить небольшую неточность, небольшой телепорт в самом конце анимации.
     {
         auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
         ImGui::Text(
@@ -876,6 +878,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // projection = glm::scale(projection, v2f(2, 2) / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // NOTE: Рисование поверхности (травы).
     FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
 
@@ -907,6 +910,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     }
 
     // --- Drawing Resoures ---
+    // NOTE: Рисование деревьев.
     auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
@@ -957,6 +961,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // --- Drawing Resoures End ---
 
     // --- Drawing Element Tiles ---
+    // NOTE: Рисование дорог.
     auto& element_tilemap   = *(rstate.tilemaps + rstate.element_tilemap_index);
     auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
     FOR_RANGE (int, y, gsize.y) {
@@ -980,6 +985,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         }
     }
 
+    // NOTE: Рисование флагов.
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
             auto& tile = *(element_tilemap_2.tiles + y * gsize.x + x);
@@ -999,6 +1005,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     }
     // --- Drawing Element Tiles End ---
 
+    // NOTE: Рисование зданий.
     for (auto building_ptr : Iter(&game_map.buildings)) {
         auto& building            = *building_ptr;
         auto& scriptable_building = Assert_Deref(building.scriptable);
@@ -1014,8 +1021,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glEnd();
     }
 
-    // ImGui::Text("humans count %d", game_map.humans.count);
-
+    // NOTE: Рисование чувачков.
     {
         i32 i = 0;
         for (auto human_ptr : Iter(&game_map.humans)) {
@@ -1042,12 +1048,39 @@ void Render(Game_State& state, f32 dt, MCTX) {
         i++;
     }
 
+    // NOTE: Рисование ресурсов-предметов на карте (которые, например,
+    // сразу идут на старте игры или же были положены чувачками на карту).
+    {
+        i32 i = 0;
+
+        FOR_RANGE (int, y, gsize.y) {
+            FOR_RANGE (int, x, gsize.x) {
+                for (auto resource_pptr :
+                     Iter(&game_map.resources, {x, y}, game_map.size.x)) {
+                    auto& resource   = Assert_Deref(Assert_Deref(resource_pptr));
+                    auto& scriptable = Assert_Deref(resource.scriptable);
+                    auto  tex_id     = Assert_Deref(scriptable.texture).id;
+
+                    glBindTexture(GL_TEXTURE_2D, tex_id);
+
+                    v2f  pos         = {x, y};
+                    auto sprite_pos  = pos * v2f(cell_size);
+                    auto sprite_size = v2i_one * cell_size;
+
+                    glBegin(GL_TRIANGLES);
+                    Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
+                    glEnd();
+                }
+            }
+        }
+    }
+
     glDeleteTextures(1, (GLuint*)&texture_name);
     Check_OpenGL_Errors();
 
+    // NOTE: Рисование UI плашки слева.
     auto& ui_state = *rstate.ui_state;
     {
-        // Drawing left buildables thingy
         auto  sprite_params = ui_state.buildables_panel_params;
         auto& pad_h         = sprite_params.stretch_paddings_h;
         auto& pad_v         = sprite_params.stretch_paddings_v;
@@ -1137,6 +1170,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         }
     }
 
+    // NOTE: Дебаг-рисование штук для чувачков.
     {
         for (auto human_ptr : Iter(&game_map.humans)) {
             auto& human = Assert_Deref(human_ptr);
@@ -1174,6 +1208,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         }
     }
 
+    // NOTE: Дебаг-рисование сегментов.
 #if 0
     {
         const BF_Color colors[] = {
@@ -1190,8 +1225,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
         segment_index++;
         if (segment_index >= colors_count)
             segment_index = 0;
-
-        // glUseProgram(0);
 
         int rendered_segments = 0;
         for (auto segment_ptr : Iter(&game_map.segments)) {
@@ -1228,17 +1261,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
                         glVertex2f(p2.x, p2.y);
                         glVertex2f(p3.x, p3.y);
                         glEnd();
-
-                        // glLineWidth(11);
-                        // glBlendFunc(GL_ONE, GL_ZERO);
-                        // glBegin(GL_LINES);
-                        // auto color = *(colors + segment_index);
-                        // glColor3f(color.r, color.g, color.b);
-                        // glVertex2f(p1.x, 2.0f - p1.y);
-                        // glVertex2f(p2.x, 2.0f - p2.y);
-                        // // glVertex2f(p1.x, p1.y - 1.0f);
-                        // // glVertex2f(p2.x, p2.y - 1.0f);
-                        // glEnd();
                     }
                 }
             }

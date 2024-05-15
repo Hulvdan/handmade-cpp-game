@@ -404,7 +404,8 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource : public Non_Copyable {
-    const char* name;
+    const char*     name;
+    Loaded_Texture* texture;
 };
 
 // NOTE: `scriptable` is `null` when `amount` = 0
