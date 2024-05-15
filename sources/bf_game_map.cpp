@@ -255,10 +255,44 @@ void Init_Queue(Queue<T>& container, MCTX) {
 }
 
 template <typename T>
+void Init_Grid_Of_Queues(Grid_Of_Queues<T>& container, const v2i16 gsize, MCTX) {
+    CTX_ALLOCATOR;
+
+    const auto tiles_count = gsize.x * gsize.y;
+
+    container.counts     = (u32*)ALLOC(sizeof(u32) * tiles_count);
+    container.max_counts = (i32*)ALLOC(sizeof(i32) * tiles_count);
+    container.bases      = (T*)ALLOC(sizeof(T) * tiles_count);
+    memset(container.counts, 0, sizeof(u32) * tiles_count);
+    memset(container.max_counts, 0, sizeof(i32) * tiles_count);
+    memset(container.bases, 0, sizeof(T) * tiles_count);
+
+    container.allocator      = ctx->allocator;
+    container.allocator_data = ctx->allocator_data;
+}
+
+template <typename T>
 void Init_Vector(Vector<T>& container, MCTX) {
     container.count     = 0;
     container.max_count = 0;
     container.base      = nullptr;
+
+    container.allocator      = ctx->allocator;
+    container.allocator_data = ctx->allocator_data;
+}
+
+template <typename T>
+void Init_Grid_Of_Vectors(Grid_Of_Vectors<T>& container, const v2i16 gsize, MCTX) {
+    CTX_ALLOCATOR;
+
+    const auto tiles_count = gsize.x * gsize.y;
+
+    container.counts     = (i32*)ALLOC(sizeof(i32) * tiles_count);
+    container.max_counts = (u32*)ALLOC(sizeof(u32) * tiles_count);
+    container.bases      = (T**)ALLOC(sizeof(T*) * tiles_count);
+    memset(container.counts, 0, sizeof(u32) * tiles_count);
+    memset(container.max_counts, 0, sizeof(i32) * tiles_count);
+    memset(container.bases, 0, sizeof(T) * tiles_count);
 
     container.allocator      = ctx->allocator;
     container.allocator_data = ctx->allocator_data;
@@ -276,6 +310,36 @@ void Deinit_Queue(Queue<T>& container, MCTX) {
 
     container.count     = 0;
     container.max_count = 0;
+}
+
+template <typename T>
+void Deinit_Grid_Of_Queues(Grid_Of_Queues<T>& container, const v2i16 gsize, MCTX) {
+    CTX_ALLOCATOR;
+
+    const auto tiles_count = gsize.x * gsize.y;
+
+    FOR_RANGE (int, y, gsize.y) {
+        FOR_RANGE (int, x, gsize.x) {
+            T*  base      = container.bases + y * gsize.x + x;
+            u32 max_count = *(container.max_counts + y * gsize.x + x);
+
+            if (max_count != 0) {
+                Assert(base != nullptr);
+            }
+
+            if (base != nullptr) {
+                Assert(max_count > 0);
+                FREE(base, sizeof(T) * max_count);
+            }
+        }
+    }
+
+    if (container.counts != nullptr)
+        FREE(container.counts, sizeof(i32) * tiles_count);
+    if (container.max_counts != nullptr)
+        FREE(container.max_counts, sizeof(u32) * tiles_count);
+    if (container.bases != nullptr)
+        FREE(container.bases, sizeof(T*) * tiles_count);
 }
 
 template <typename T>
@@ -1212,7 +1276,7 @@ void Update_Game_Map(Game_State& state, float dt, MCTX) {
     Update_Humans(state, dt, Assert_Deref(state.game_map.human_data), ctx);
 }
 
-void Initialize_Game_Map(Game_State& state, Arena& arena, MCTX) {
+void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     auto& game_map = state.game_map;
 
     game_map.data = std::construct_at(Allocate_For(arena, Game_Map_Data), 0.3f);
@@ -1301,7 +1365,7 @@ void Initialize_Game_Map(Game_State& state, Arena& arena, MCTX) {
     }
 }
 
-void Deinitialize_Game_Map(Game_State& state, MCTX) {
+void Deinit_Game_Map(Game_State& state, MCTX) {
     CTX_ALLOCATOR;
     auto& game_map = state.game_map;
 

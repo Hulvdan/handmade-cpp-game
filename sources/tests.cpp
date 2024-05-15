@@ -1315,3 +1315,50 @@ TEST_CASE ("Longest_Meaningful_Path") {
     CHECK(Longest_Meaningful_Path({5, 3}) == 11);
     CHECK(Longest_Meaningful_Path({5, 5}) == 17);
 }
+
+TEST_CASE ("Grid_Of_Vectors") {
+    INITIALIZE_CTX;
+
+    const auto gsize  = v2i16(20, 10);
+    const auto stride = gsize.x;
+
+    Grid_Of_Vectors<i16> container;
+    Init_Grid_Of_Vectors(container, gsize, ctx);
+
+    {
+        Vector_Add(container, (i16)10, v2i16(0, 0), stride, ctx);
+        CHECK(container.bases[0][0] == 10);
+        CHECK(container.counts[0] == 1);
+
+        Vector_Add(container, (i16)20, v2i16(0, 0), stride, ctx);
+        CHECK(container.bases[0][0] == 10);
+        CHECK(container.bases[0][1] == 20);
+        CHECK(container.counts[0] == 2);
+
+        Vector_Add(container, (i16)30, v2i16(0, 0), stride, ctx);
+        CHECK(container.bases[0][0] == 10);
+        CHECK(container.bases[0][1] == 20);
+        CHECK(container.bases[0][2] == 30);
+        CHECK(container.counts[0] == 3);
+
+        Vector_Unordered_Remove_At(container, 0, v2i16(0, 0), stride);
+        CHECK(container.bases[0][0] == 30);
+        CHECK(container.bases[0][1] == 20);
+        CHECK(container.counts[0] == 2);
+    }
+
+    {
+        Vector_Add(container, (i16)30, v2i16(1, 0), stride, ctx);
+        CHECK(container.bases[1][0] == 30);
+        CHECK(container.counts[1] == 1);
+    }
+
+    {
+        Vector_Add(container, (i16)40, v2i16(1, 1), stride, ctx);
+        CHECK(container.bases[stride + 1][0] == 40);
+        CHECK(container.counts[stride + 1] == 1);
+
+        Vector_Unordered_Remove_At(container, 0, v2i16(1, 1), stride);
+        CHECK(container.counts[stride + 1] == 0);
+    }
+}

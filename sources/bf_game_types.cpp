@@ -111,8 +111,8 @@ struct Map_Resource {
 
     Map_Resource_Booking* booking;
 
-    std::vector<Graph_Segment*> transportation_segments;
-    std::vector<v2i16>          transportation_vertices;
+    Vector<Graph_Segment*> transportation_segments;
+    Vector<v2i16>          transportation_vertices;
 
     Human* targeted_human;
     Human* carrying_human;
@@ -464,7 +464,7 @@ struct Game_Map : public Non_Copyable {
     };
     std::vector<Human_To_Remove> humans_to_remove;
 
-    // Game_Map_Allocator* allocator;
+    Grid_Of_Vectors<Map_Resource*> resources;
 
     Queue<Graph_Segment*> segments_wo_humans;
 

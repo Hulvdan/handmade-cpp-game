@@ -392,7 +392,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     // --- IMGUI END ---
 
     if (!first_time_initializing && state.hot_reloaded) {
-        Deinitialize_Game_Map(state, ctx);
+        Deinit_Game_Map(state, ctx);
     }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
@@ -470,7 +470,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.scriptable_building_lumberjacks_hut = &b;
         }
 
-        Initialize_Game_Map(state, non_persistent_arena, ctx);
+        Init_Game_Map(state, non_persistent_arena, ctx);
         Regenerate_Terrain_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );

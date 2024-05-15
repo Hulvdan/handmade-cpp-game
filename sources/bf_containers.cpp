@@ -28,11 +28,34 @@ struct Queue {
     void* allocator_data;
 };
 
+// PERF: Переписать на ring buffer!
+// TODO: Дока для чего сделал это
+template <typename T>
+struct Grid_Of_Queues {
+    u32* max_counts;
+    i32* counts;
+    T*   bases;
+
+    Allocator__Function((*allocator));
+    void* allocator_data;
+};
+
 template <typename T>
 struct Vector {
     T*  base;
     i32 count;
     u32 max_count;
+
+    Allocator__Function((*allocator));
+    void* allocator_data;
+};
+
+// TODO: Дока для чего сделал это
+template <typename T>
+struct Grid_Of_Vectors {
+    T**  bases;
+    i32* counts;
+    u32* max_counts;
 
     Allocator__Function((*allocator));
     void* allocator_data;
@@ -74,8 +97,6 @@ struct Bucket_Array : Non_Copyable {
 
 template <typename T>
 void Enqueue(Fixed_Size_Queue<T>& container, const T value) {
-    // TODO: Test!
-
     Assert(container.memory_size >= (container.count + 1) * sizeof(T));
 
     *(container.base + container.count) = value;
@@ -134,6 +155,46 @@ void Enqueue(Queue<T>& container, const T value, MCTX)
 
     *(container.base + container.count) = value;
     container.count++;
+}
+
+template <typename T>
+void Enqueue(
+    Grid_Of_Queues<T>& container,
+    const T            value,
+    const v2i16        pos,
+    const i16          stride,
+    MCTX
+) {
+    Assert(stride > 0);
+    Assert(pos.x >= 0);
+    Assert(pos.y >= 0);
+
+    CONTAINER_ALLOCATOR;
+
+    auto& max_count = *(container.max_counts + pos.y * stride + pos.x);
+    auto& count     = *(container.counts + pos.y * stride + pos.x);
+    auto& base      = *(container.bases + pos.y * stride + pos.x);
+
+    if (base == nullptr) {
+        Assert(max_count == 0);
+        Assert(count == 0);
+        max_count = 8;
+        base      = (T*)ALLOC(sizeof(T) * max_count);
+    }
+    else if (max_count == count) {
+        u32 new_max_count = max_count * 2;
+        Assert(max_count < new_max_count);  // NOTE: Ловим overflow
+
+        auto new_ptr = (T*)ALLOC(sizeof(T) * new_max_count);
+        memcpy(new_ptr, base, max_count * sizeof(T));
+        FREE(base, max_count);
+
+        base      = new_ptr;
+        max_count = new_max_count;
+    }
+
+    *(base + count) = value;
+    count++;
 }
 
 template <typename T>
@@ -261,6 +322,95 @@ i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
 }
 
 template <typename T>
+BF_FORCE_INLINE T* Get_By_Stride(T* values, const v2i16 pos, const i16 stride) {
+    return values + pos.y * stride + pos.x;
+}
+
+template <typename T>
+i32 Vector_Add(
+    Grid_Of_Vectors<T>& container,
+    const T&            value,
+    const v2i16         pos,
+    const i16           stride,
+    MCTX
+) {
+    CONTAINER_ALLOCATOR;
+
+    auto& base      = *Get_By_Stride(container.bases, pos, stride);
+    auto& max_count = *Get_By_Stride(container.max_counts, pos, stride);
+    auto& count     = *Get_By_Stride(container.counts, pos, stride);
+    i32   locator   = count;
+
+    if (base == nullptr) {
+        Assert(max_count == 0);
+        Assert(count == 0);
+
+        max_count = 8;
+        base      = (T*)ALLOC(sizeof(T) * max_count);
+    }
+    else if (max_count == count) {
+        u32 new_max_count = max_count * 2;
+        Assert(max_count < new_max_count);  // NOTE: Ловим overflow
+
+        auto old_size = sizeof(T) * max_count;
+        auto old_ptr  = base;
+
+        base = rcast<T*>(ALLOC(old_size * 2));
+        memcpy(base, old_ptr, old_size);
+        FREE(old_ptr, max_count);
+
+        max_count = new_max_count;
+    }
+
+    *(base + count) = value;
+    count += 1;
+
+    return locator;
+}
+
+template <typename T>
+i32 Vector_Add(
+    Grid_Of_Vectors<T>& container,
+    T&&                 value,
+    const v2i16         pos,
+    const i16           stride,
+    MCTX
+) {
+    CONTAINER_ALLOCATOR;
+
+    auto& base      = *Get_By_Stride(container.bases, pos, stride);
+    auto& max_count = *Get_By_Stride(container.max_counts, pos, stride);
+    auto& count     = *Get_By_Stride(container.counts, pos, stride);
+    i32   locator   = count;
+
+    if (base == nullptr) {
+        Assert(max_count == 0);
+        Assert(count == 0);
+
+        max_count = 8;
+        base      = (T*)ALLOC(sizeof(T) * max_count);
+    }
+    else if (max_count == count) {
+        u32 new_max_count = max_count * 2;
+        Assert(max_count < new_max_count);  // NOTE: Ловим overflow
+
+        auto old_size = sizeof(T) * max_count;
+        auto old_ptr  = base;
+
+        base = rcast<T*>(ALLOC(old_size * 2));
+        memcpy(base, old_ptr, old_size);
+        FREE(old_ptr, max_count);
+
+        max_count = new_max_count;
+    }
+
+    *(base + count) = std::move(value);
+    count += 1;
+
+    return locator;
+}
+
+template <typename T>
 void Vector_Remove_At(Vector<T>& container, i32 i) {
     Assert(i >= 0);
     Assert(i < container.count);
@@ -276,7 +426,7 @@ void Vector_Remove_At(Vector<T>& container, i32 i) {
 }
 
 template <typename T>
-void Vector_Unordered_Remove_At(tvector<T>& container, i32 i) {
+void Vector_Unordered_Remove_At(tvector<T>& container, const i32 i) {
     Assert(i >= 0);
     Assert(i < container.size());
 
@@ -284,6 +434,25 @@ void Vector_Unordered_Remove_At(tvector<T>& container, i32 i) {
         std::swap(container[i], container[container.size() - 1]);
 
     container.pop_back();
+}
+
+template <typename T>
+void Vector_Unordered_Remove_At(
+    Grid_Of_Vectors<T>& container,
+    const i32           i,
+    const v2i16         pos,
+    const i16           stride
+) {
+    Assert(i >= 0);
+    auto& count = *Get_By_Stride(container.counts, pos, stride);
+    Assert(i < count);
+
+    auto base = *Get_By_Stride(container.bases, pos, stride);
+
+    if (i != count - 1)
+        std::swap(base[i], base[count - 1]);
+
+    count -= 1;
 }
 
 template <typename T>
