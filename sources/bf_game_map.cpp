@@ -18,14 +18,15 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
     return result;
 }
 
-#define Array_Reverse(array, count)                                      \
-    {                                                                    \
-        Assert((count) >= 0);                                            \
-        FOR_RANGE (i32, i, (count) / 2) {                                \
-            auto t                       = *((array) + i);               \
-            *((array) + i)               = *((array) + ((count)-i - 1)); \
-            *((array) + ((count)-i - 1)) = t;                            \
-        }                                                                \
+#define Array_Reverse(array, count)          \
+    {                                        \
+        Assert((count) >= 0);                \
+        FOR_RANGE (i32, l, (count) / 2) {    \
+            auto r         = count - l - 1;  \
+            auto t         = *((array) + l); \
+            *((array) + l) = *((array) + r); \
+            *((array) + r) = t;              \
+        }                                    \
     }
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
