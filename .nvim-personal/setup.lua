@@ -82,7 +82,7 @@ function build_task_data(params)
     end
 
     return {
-        cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal]],
+        cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -clp:DisableConsoleColor;ForceNoAlign -noLogo]],
         components = components,
     }
 end
@@ -95,7 +95,7 @@ function run_task()
     local launch_vs_data = {
         cmd = [[.nvim-personal\launch_vs.ahk]],
         components = {
-            { "on_output_quickfix", open = true, close = true },
+            { "on_output_quickfix", open = true, close = false },
             "default",
         },
     }

@@ -32,7 +32,7 @@ cls
 
 echo.
 echo [33mINFO: Compiling...[0m
-MSBuild .cmake\vs17\game.sln -v:minimal
+MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3
 
 if %errorlevel% neq 0 (
     echo.
