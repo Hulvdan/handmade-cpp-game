@@ -95,8 +95,8 @@ function run_task()
     local launch_vs_data = {
         cmd = [[.nvim-personal\launch_vs.ahk]],
         components = {
-            { "on_output_quickfix", open = true, close = false },
             "default",
+            { "on_output_quickfix", open = true, close = true },
         },
     }
     local build_data = build_task_data({
@@ -106,6 +106,7 @@ function run_task()
                 "run_after", task_names = { launch_vs_data },
                 statuses = {"SUCCESS", "FAILURE"},
             },
+            { "on_exit_set_status", success_codes = { 0 } },
         },
     })
     local stop_vs_data = {
