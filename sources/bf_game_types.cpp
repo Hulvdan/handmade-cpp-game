@@ -116,6 +116,8 @@ struct Map_Resource {
 
     Human* targeted_human;
     Human* carrying_human;
+
+    Bucket_Locator locator;
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -404,8 +406,14 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource : public Non_Copyable {
-    const char*     name;
+    const char* name;
+
+#ifdef BF_CLIENT
+    // TODO: Исползовать handle-ы текстур? Что-то вроде хешей,
+    // а игра бы подгружала бы эти текстуры асинхронно
     Loaded_Texture* texture;
+    Loaded_Texture* small_texture;
+#endif  // BF_CLIENT
 };
 
 // NOTE: `scriptable` is `null` when `amount` = 0
@@ -468,7 +476,7 @@ struct Game_Map : public Non_Copyable {
     // NOTE: Выделяем pool, т.к. эти ресурсы могут перемещаться из контейнера
     // карты к чувачкам в руки, в здания, а также обратно в `resources`.
     // TODO: !!! Pool
-    Pool<Map_Resource>             resources_pool;
+    Bucket_Array<Map_Resource>     resources_pool;
     Grid_Of_Vectors<Map_Resource*> resources;
 
     Queue<Graph_Segment*> segments_wo_humans;
@@ -672,4 +680,23 @@ struct Game_Renderer_State : public Non_Copyable {
     bool  shaders_compilation_failed;
     GLint ui_shader_program;
 };
+
+// struct Texture_Meta_Info {
+//     const char*   filename;
+//     BF_Texture_ID key;
+//
+//     u32 width;
+//     u32 height;
+// };
+//
+// global_var HashMap<BF_Texture_ID, Texture_Meta_Info> texture_id_2_texture_meta_info;
+//
+// struct Texture_2_Atlas_Binding {
+//     BF_Texture_ID texture_key;
+//     BF_Atlas_ID   atlas_key;
+// };
+//
+// struct Atlas {
+//     Vector<BF_Texture_ID> textures;
+// };
 #endif  // BF_CLIENT

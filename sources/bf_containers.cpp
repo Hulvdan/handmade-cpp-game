@@ -321,9 +321,10 @@ i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
     return locator;
 }
 
+// NOTE: stride - это не байтовый stride.
+// Это, к примеру, для Grid_Of_Vectors было бы количество клеток по ширине карты.
 template <typename T>
-BF_FORCE_INLINE T*
-Get_By_Stride(T* const values, const v2i16 pos, const i16 stride) {
+BF_FORCE_INLINE T* Get_By_Stride(T* const values, const v2i16 pos, const i16 stride) {
     return values + pos.y * stride + pos.x;
 }
 
@@ -473,7 +474,7 @@ i32 Array_Find(T* values, u32 n, T& value) {
     FOR_RANGE (u32, i, n) {
         auto& v = *(values + n);
         if (v == value)
-            return true;
+            return i;
     }
     return -1;
 }
@@ -638,10 +639,10 @@ void Bucket_Array_Remove(Bucket_Array<T>& arr, Bucket_Locator& locator) {
     arr.count -= 1;
 
     if (was_full) {
-        auto exists = Array_Find(
+        const auto found_index = Array_Find(
             arr.unfull_buckets, arr.unfull_buckets_count, bucket.bucket_index
         );
-        Assert(!exists);
+        Assert(found_index == -1);
         *(arr.unfull_buckets + arr.unfull_buckets_count) = bucket.bucket_index;
         arr.unfull_buckets_count++;
     }
@@ -889,7 +890,7 @@ struct Grid_Of_Vectors_Iterator : public Iterator_Facade<Grid_Of_Vectors_Iterato
         return {_container, _current, _pos, _stride};
     }
     Grid_Of_Vectors_Iterator end() const {
-        const auto count = *Get_By_Stride(_container->counts, _pos, _stride);
+        const i32 count = *Get_By_Stride(_container->counts, _pos, _stride);
         return {_container, count, _pos, _stride};
     }
 

@@ -4,6 +4,13 @@
 #define ALLOC(n) \
     Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
 
+#define ALLOC_ZEROS(n)        \
+    [&] {                     \
+        auto addr = ALLOC(n); \
+        memset(addr, 0, n);   \
+        return addr;          \
+    }()
+
 #define FREE(ptr, n)                                                             \
     Assert_Not_Null(allocator)(                                                  \
         Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \

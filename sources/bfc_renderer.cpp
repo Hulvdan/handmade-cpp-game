@@ -300,7 +300,6 @@ void main() {
     rstate.forest_smart_tile.id = 2;
     rstate.forest_top_tile_id   = 3;
 
-    // if (first_time_initializing) {
     {
         DEBUG_Load_Texture(
             non_persistent_arena, trash_arena, "human", rstate.human_texture
@@ -363,6 +362,19 @@ void main() {
                 load_result.size
             );
             Assert(rule_loading_result.success);
+        }
+
+        Assert(state.scriptable_resources_count == 1);
+        FOR_RANGE (int, i, state.scriptable_resources_count) {
+            auto& resource         = state.scriptable_resources[i];
+            resource.texture       = Allocate_For(arena, Loaded_Texture);
+            resource.small_texture = Allocate_For(arena, Loaded_Texture);
+            DEBUG_Load_Texture(
+                non_persistent_arena, trash_arena, "items/planks_thumb", *resource.texture
+            );
+            DEBUG_Load_Texture(
+                non_persistent_arena, trash_arena, "items/planks", *resource.small_texture
+            );
         }
     }
 
@@ -1059,7 +1071,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
                      Iter(&game_map.resources, {x, y}, game_map.size.x)) {
                     auto& resource   = Assert_Deref(Assert_Deref(resource_pptr));
                     auto& scriptable = Assert_Deref(resource.scriptable);
-                    auto  tex_id     = Assert_Deref(scriptable.texture).id;
+                    auto  tex_id     = Assert_Deref(scriptable.small_texture).id;
 
                     glBindTexture(GL_TEXTURE_2D, tex_id);
 

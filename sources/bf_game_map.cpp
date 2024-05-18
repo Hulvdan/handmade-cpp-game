@@ -261,12 +261,9 @@ void Init_Grid_Of_Queues(Grid_Of_Queues<T>& container, const v2i16 gsize, MCTX) 
 
     const auto tiles_count = gsize.x * gsize.y;
 
-    container.counts     = (u32*)ALLOC(sizeof(u32) * tiles_count);
-    container.max_counts = (i32*)ALLOC(sizeof(i32) * tiles_count);
-    container.bases      = (T*)ALLOC(sizeof(T) * tiles_count);
-    memset(container.counts, 0, sizeof(u32) * tiles_count);
-    memset(container.max_counts, 0, sizeof(i32) * tiles_count);
-    memset(container.bases, 0, sizeof(T) * tiles_count);
+    container.counts     = (u32*)ALLOC_ZEROS(sizeof(u32) * tiles_count);
+    container.max_counts = (i32*)ALLOC_ZEROS(sizeof(i32) * tiles_count);
+    container.bases      = (T*)ALLOC_ZEROS(sizeof(T) * tiles_count);
 
     container.allocator      = ctx->allocator;
     container.allocator_data = ctx->allocator_data;
@@ -288,12 +285,9 @@ void Init_Grid_Of_Vectors(Grid_Of_Vectors<T>& container, const v2i16 gsize, MCTX
 
     const auto tiles_count = gsize.x * gsize.y;
 
-    container.counts     = (i32*)ALLOC(sizeof(i32) * tiles_count);
-    container.max_counts = (u32*)ALLOC(sizeof(u32) * tiles_count);
-    container.bases      = (T**)ALLOC(sizeof(T*) * tiles_count);
-    memset(container.counts, 0, sizeof(u32) * tiles_count);
-    memset(container.max_counts, 0, sizeof(i32) * tiles_count);
-    memset(container.bases, 0, sizeof(T) * tiles_count);
+    container.counts     = (i32*)ALLOC_ZEROS(sizeof(i32) * tiles_count);
+    container.max_counts = (u32*)ALLOC_ZEROS(sizeof(u32) * tiles_count);
+    container.bases      = (T**)ALLOC_ZEROS(sizeof(T*) * tiles_count);
 
     container.allocator      = ctx->allocator;
     container.allocator_data = ctx->allocator_data;
@@ -397,6 +391,7 @@ void Deinit_Vector(Vector<T>& container, MCTX) {
 //     }
 // }
 
+// TODO: rename to Human_Controller_Dependencies
 struct Human_Data : public Non_Copyable {
     Player_ID  max_player_id;
     Building** city_halls;
@@ -1317,10 +1312,21 @@ void Add_Map_Resource(
     auto  gsize       = game_map.size;
     auto& trash_arena = state.trash_arena;
 
-    // TODO: !!! Push context. Pool allocator для аллокации Map_Resource.
-    Map_Resource* resource = ALLOC();
+    auto [locator, resource_ptr]
+        = Find_And_Occupy_Empty_Slot(game_map.resources_pool, ctx);
 
-    Vector_Add(game_map.resources, resource, pos, gsize.x);
+    auto& resource      = *resource_ptr;
+    resource.id         = 0;
+    resource.scriptable = scriptable;
+    resource.pos        = pos;
+    resource.booking    = nullptr;
+    Init_Vector(resource.transportation_segments, ctx);
+    Init_Vector(resource.transportation_vertices, ctx);
+    resource.targeted_human = nullptr;
+    resource.carrying_human = nullptr;
+    resource.locator        = locator;
+
+    Vector_Add(game_map.resources, resource_ptr, pos, gsize.x, ctx);
 }
 
 void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
@@ -1334,6 +1340,7 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     Init_Bucket_Array(game_map.segments, 32, 128, ctx);
     Init_Bucket_Array(game_map.humans, 32, 128, ctx);
     Init_Bucket_Array(game_map.humans_to_add, 32, 128, ctx);
+    Init_Bucket_Array(game_map.resources_pool, 32, 512, ctx);
 
     // TODO: переписать это на свой Vector
     std::construct_at(&game_map.humans_to_remove);
@@ -1376,7 +1383,8 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     }
 
     // TODO: !!!
-    Add_Map_Resource(state, );
+    Assert(state.scriptable_resources_count > 0);
+    Add_Map_Resource(state, state.scriptable_resources + 0, {0, 0}, ctx);
 }
 
 void Deinit_Game_Map(Game_State& state, MCTX) {
@@ -1411,6 +1419,7 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
     Deinit_Bucket_Array(game_map.segments, ctx);
     Deinit_Bucket_Array(game_map.humans, ctx);
     Deinit_Bucket_Array(game_map.humans_to_add, ctx);
+    Deinit_Bucket_Array(game_map.resources_pool, ctx);
 
     // TODO: деинициалиация game_map.humans_to_remove
 
