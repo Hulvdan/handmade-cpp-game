@@ -11,40 +11,6 @@ vim.fn.execute(":set nowritebackup")
 -- ================ --
 local overseer = require("overseer")
 
--- Options:
--- go_down - default: true - Places a cursor at the bottom upon launching the command
-function launch_tab(command, options)
-    vim.g.hulvdan_DisableAnimations()
-
-    options = options or { go_down = true }
-    if options.go_down == nil then options.go_down = true end
-
-    vim.fn.execute([[term ]] .. command)
-    if options.go_down then
-        vim.fn.execute("norm G")
-    end
-
-    vim.g.hulvdan_EnableAnimations()
-end
-
--- Options:
--- go_down - default: true - Places a cursor at the bottom upon launching the command
-function launch_side(command, options)
-    vim.g.hulvdan_DisableAnimations()
-
-    options = options or { go_down = true }
-    if options.go_down == nil then options.go_down = true end
-
-    local esc_command = command:gsub([[%\]], [[\\]]):gsub([[% ]], [[\ ]])
-    vim.fn.execute([[vs +term\ ]] .. esc_command)
-
-    if options.go_down then
-        vim.fn.execute("norm G")
-    end
-
-    vim.g.hulvdan_EnableAnimations()
-end
-
 function launch_background(command, callback)
     vim.fn.jobstart(command, {on_exit = callback})
 end
@@ -53,95 +19,19 @@ function save_files()
     vim.fn.execute(":wa")
 end
 
-function save_file_if_needed()
-    if vim.bo.buftype == "" and vim.bo.modified == true then
-        vim.fn.execute(":w")
-    end
-end
-
 function reload_file()
     vim.fn.execute(":e")
 end
 
-function build_task_data(params)
-    local close = false
-    if params.close then
-        close = true
-    end
-
-    local components  = {
-        { "on_output_quickfix", open = true, close = close },
-        "default",
-    }
-
-    if params["additional_components"] ~= nil then
+function overseer_run(cmd)
+    overseer.new_task({
+        cmd = cmd,
         components = {
-            unpack(components),
-            unpack(params.additional_components),
-        }
-    end
-
-    return {
-        cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -clp:DisableConsoleColor;ForceNoAlign -noLogo]],
-        components = components,
-    }
-end
-
-function build_task()
-    return overseer.new_task(build_task_data({ close = true }))
-end
-
-function run_task()
-    local launch_vs_data = {
-        cmd = [[.nvim-personal\launch_vs.ahk]],
-        components = {
-            "default",
             { "on_output_quickfix", open = true, close = true },
-        },
-    }
-    local build_data = build_task_data({
-        close = false,
-        additional_components = {
-            {
-                "run_after", task_names = { launch_vs_data },
-                statuses = {"SUCCESS", "FAILURE"},
-            },
             { "on_exit_set_status", success_codes = { 0 } },
-        },
-    })
-    local stop_vs_data = {
-        cmd = [[.nvim-personal\stop_vs.ahk]],
-        components = {
-            {
-                "run_after", task_names = { build_data },
-            },
-            { "on_output_quickfix", open = true, },
             "default",
         },
-    }
-    return overseer.new_task(stop_vs_data)
-end
-
-function test_task()
-    return overseer.new_task({
-        strategy = "terminal",
-        -- cmd = [[MSBuild .cmake\vs17\game.sln -v:minimal]],
-        cmd = [[cmd\build.bat && cmd\run_unit_tests.bat]],
-        components = {
-            { "on_output_quickfix", open = true, close = true },
-            "default",
-        },
-    })
-end
-
-function lint_task()
-    return overseer.new_task({
-        cmd = [[cmd\lint.bat]],
-        components = {
-            { "on_output_quickfix", open = true, close = true },
-            "default",
-        },
-    })
+    }):start()
 end
 
 -- Keyboard Shortcuts --
@@ -150,37 +40,28 @@ local opts = { remap = false, silent = true }
 
 vim.keymap.set("n", "<leader>l", function()
     save_files()
-    lint_task():start()
+    overseer_run([[python cmd\cli.py lint]])
 end, opts)
 
 vim.keymap.set("n", "<A-b>", function()
     save_files()
-    build_task():start()
+    overseer_run([[python cmd\cli.py build]])
 end, opts)
 
-
-vim.keymap.set("n", "<f4>", function()
+vim.keymap.set("n", "<C-S-b>", function()
     save_files()
-    build_task():start()
+    overseer_run([[python cmd\cli.py cmake_vs_files]])
 end, opts)
 
 vim.keymap.set("n", "<f5>", function()
     save_files()
-    run_task():start()
+    overseer_run([[python cmd\cli.py stoopid_windows_visual_studio_run]])
 end, opts)
 
 vim.keymap.set("n", "<A-t>", function()
     save_files()
-    test_task():start()
+    overseer_run([[python cmd\cli.py test]])
 end, opts)
-
-vim.keymap.set("n", "<leader>q", function()
-    vim.api.nvim_input("<M-m>:bd! #<cr>")
-end)
-
-vim.keymap.set("n", "<leader>Q", function()
-    vim.api.nvim_input(":q<cr>")
-end)
 
 vim.keymap.set("n", "<leader>w", function()
     save_files()
@@ -189,22 +70,16 @@ vim.keymap.set("n", "<leader>w", function()
         local view = vim.fn.winsaveview()
         local buf_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
 
-        launch_background([[cmd\format.bat "]] .. buf_path .. '"', function()
+        -- TODO: Форматировать активный файл.
+        -- OLD REF: launch_background([[cmd\format.bat "]] .. buf_path .. '"', function()
+        launch_background([[python cmd\cli.py format]], function()
             reload_file()
             vim.fn.winrestview(view)
-            vim.api.nvim_input("mzhllhjkkj`z")  -- NOTE: for nvim-treesitter-context
+            -- NOTE: костыль для нормального отображения nvim-treesitter-context
+            vim.api.nvim_input("mzhllhjkkj`z")
         end)
     end
 end, opts)
-
-vim.keymap.set("n", "<C-S-b>", function()
-    save_files()
-    launch_tab([[cmd\remake_cmake.bat]])
-end, opts)
-
-require("overseer").setup({
-    templates = { "builtin", "user.build_bat" },
-})
 
 -- Thanks to https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
 -- error message formats

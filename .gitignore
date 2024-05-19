@@ -33,8 +33,10 @@
 
 /.cache/
 /.cmake/
+/.vscode/
 /build/
 /Ninja/
 /compile_commands.json
 /out/
 /Testing/
+

@@ -4,22 +4,36 @@
 
 ### Windows
 
-Project setup and CMake bullshiet.
+Что нужно иметь:
+
+- Visual Studio 2022
+- Python 3.11.3 (лучше всего через pyenv)
+- Установленный LLVM (clang-tidy, clang-format - для линтинга и форматтинга)
+- cli утилита "sed" (для линтинга)
+
+Завод проекта:
 
 ```
 call "c:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 
 set CC="cl"
 set CXX="cl"
-cmake -G "Visual Studio 17 2022" -B .cmake\vs17 -DCMAKE_UNITY_BUILD=ON -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
 
-.\cmd\build.bat
-.\cmd\run.bat
-```
+REM Создать / перегенерить .sln
+python cmd\cli.py cmake_vs_files
 
-Linting. In order to use `clang-tidy`, `compile_commands.json` needs to be present.
+REM Билд проекта
+python cmd\cli.py build
 
-```
-cmake -G Ninja -B .cmake\ninja -DCMAKE_UNITY_BUILD=ON -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
-ninja -C .cmake\ninja -f build.ninja -t compdb > compile_commands.json
+REM Прогнать тесты
+python cmd\cli.py test
+
+REM Запуск
+python cmd\cli.py run
+
+REM Форматирование
+python cmd\cli.py format
+
+REM Запуск линта
+python cmd\cli.py lint
 ```
