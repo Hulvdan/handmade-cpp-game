@@ -1,0 +1,43 @@
+// Example:
+// https://raw.githubusercontent.com/google/flatbuffers/master/samples/monster.fbs
+
+namespace BFGame;
+
+enum Building_Type:byte {
+    Undefined = 0,
+    City_Hall = 1,
+    Harvest   = 2,
+    Plant     = 3,
+    Fish      = 4,
+    Produce   = 5,
+}
+
+table Resource {
+    code:          string (required);
+    texture:       string (required);
+    small_texture: string (required);
+}
+
+table Construction_Resource_Pair {
+    resource_code: string (required);
+    count: int;
+}
+
+table Building {
+    code:          string         (required);
+    type:          Building_Type = Undefined;
+    texture:       string         (required);
+
+    human_spawning_delay:         float;
+    required_construction_points: float;
+
+    construction_resources: [Construction_Resource_Pair];
+}
+
+table Game_Library {
+    buildings: [Building];
+    resources: [Resource];
+}
+
+file_identifier "GLIB";
+root_type Game_Library;

@@ -161,13 +161,7 @@ def do_generate() -> None:
         for file in map(Path, flatbuffer_files)
     ]
 
-    # NOTE: Форматируем сгенерированные файлы
-    do_format(generated_file_paths)
-    log.debug(
-        "Formatted {}".format(
-            ", ".join("'{}'".format(file) for file in generated_file_paths)
-        ),
-    )
+    run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", "gamelib.jsonc"])
 
 
 def do_run() -> None:

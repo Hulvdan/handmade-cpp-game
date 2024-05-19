@@ -374,14 +374,14 @@ Logger__Function(Tracing_Logger_Routine) {
     }
 }
 
-#define _LOG_COMMON(log_type_, message_, ...)                                     \
-    [&] {                                                                         \
-        if (logger_routine != nullptr) {                                          \
-            auto str = spdlog::fmt_lib::vformat(                                  \
+#define _LOG_COMMON(log_type_, message_, ...)                              \
+    [&] {                                                                  \
+        if (logger_routine != nullptr) {                                   \
+            auto str = spdlog::fmt_lib::vformat(                           \
                 (message_), spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
-            );                                                                    \
-            logger_routine(logger_data, (log_type_), str.c_str());                \
-        }                                                                         \
+            );                                                             \
+            logger_routine(logger_data, (log_type_), str.c_str());         \
+        }                                                                  \
     }()
 
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)

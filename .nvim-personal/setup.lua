@@ -52,6 +52,11 @@ vim.keymap.set("n", "<A-b>", function()
     overseer_run(cli_command("build"))
 end, opts)
 
+vim.keymap.set("n", "<A-g>", function()
+    save_files()
+    overseer_run(cli_command("generate"))
+end, opts)
+
 vim.keymap.set("n", "<C-S-b>", function()
     save_files()
     overseer_run(cli_command("cmake_vs_files"))
@@ -93,3 +98,6 @@ vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c):\ %m]])
 vim.fn.execute([[set errorformat+=\\\ %#%f(%l)\ :\ %#%t%[A-z]%#\ %m]])
 -- Microsoft HLSL compiler: fxc.exe
 vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]])
+
+-- NOTE: Для обработки ошибок FlatBuffers
+vim.fn.execute([[set errorformat+=\ \ %f(%l\\,\ %c\\):\ %m]])

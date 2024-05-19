@@ -335,6 +335,16 @@ void main() {
         }
 
         {
+            sprintf(texture_name, "tiles/building_in_progress");
+            DEBUG_Load_Texture(
+                non_persistent_arena,
+                trash_arena,
+                texture_name,
+                rstate.in_progress_building_texture
+            );
+        }
+
+        {
             TEMP_USAGE(trash_arena);
 
             auto path = "assets/art/tiles/tilerule_grass.txt";
@@ -1023,6 +1033,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
         auto& scriptable_building = Assert_Deref(building.scriptable);
 
         auto tex_id = scriptable_building.texture->id;
+
+        auto constructed = building.construction_points
+                           >= building.scriptable->required_construction_points;
+        if (!constructed)
+            tex_id = rstate.in_progress_building_texture.id;
+
         glBindTexture(GL_TEXTURE_2D, tex_id);
 
         auto sprite_pos  = v2i(building.pos) * cell_size;

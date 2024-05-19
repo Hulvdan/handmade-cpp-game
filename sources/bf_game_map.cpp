@@ -184,7 +184,13 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i16 pos) {
     return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
-void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptable, MCTX) {
+void Place_Building(
+    Game_State&          state,
+    v2i16                pos,
+    Scriptable_Building* scriptable,
+    bool                 built,
+    MCTX
+) {
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
@@ -195,6 +201,10 @@ void Place_Building(Game_State& state, v2i16 pos, Scriptable_Building* scriptabl
     instance.pos                          = pos;
     instance.scriptable                   = scriptable;
     instance.time_since_human_was_created = f32_inf;
+    if (built)
+        instance.construction_points = scriptable->required_construction_points;
+    else
+        instance.construction_points = 0;
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
@@ -1354,7 +1364,8 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
         container.base      = nullptr;
     }
 
-    Place_Building(state, {2, 2}, state.scriptable_building_city_hall, ctx);
+    bool built = true;
+    Place_Building(state, {2, 2}, state.scriptable_building_city_hall, built, ctx);
 
     {
         const int  players_count    = 1;
@@ -2706,7 +2717,8 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         if (tile.type != Element_Tile_Type::None)
             return false;
 
-        Place_Building(state, pos, item.scriptable_building, ctx);
+        bool built = false;
+        Place_Building(state, pos, item.scriptable_building, built, ctx);
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Building_Placed);
         INVOKE_UPDATE_TILES;

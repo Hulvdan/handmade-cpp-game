@@ -1,0 +1,27 @@
+{
+    "buildings": [
+        {
+            "code": "city_hall",
+            "type": "City_Hall",
+            "texture": "tiles/building_house",
+            "human_spawning_delay": 1,
+            "required_construction_points": 20,
+            "construction_resources": [],
+        },
+        {
+            "code": "lumberjacks_hut",
+            "type": "Harvest",
+            "texture": "tiles/building_lumberjack",
+            "construction_resources": [
+                ["planks", 2],
+            ],
+        },
+    ],
+    "resources": [
+        {
+            "code": "planks",
+            "texture": "items/planks_thumb",
+            "small_texture": "items/planks",
+        },
+    ],
+}

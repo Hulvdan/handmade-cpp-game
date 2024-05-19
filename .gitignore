@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# Binaries
+*.bin
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -47,3 +50,4 @@ cython_debug/
 /compile_commands.json
 /out/
 /Testing/
+/sources/generated/

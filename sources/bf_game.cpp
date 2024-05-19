@@ -456,11 +456,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.scriptable_buildings
             = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
         {
-            auto& b                = Assert_Deref(state.scriptable_buildings + 0);
-            b.name                 = "City Hall";
-            b.type                 = Building_Type::City_Hall;
-            b.human_spawning_delay = 1;
+            auto& b                        = Assert_Deref(state.scriptable_buildings + 0);
+            b.name                         = "City Hall";
+            b.type                         = Building_Type::City_Hall;
+            b.human_spawning_delay         = 1;
+            b.required_construction_points = 0;
             state.scriptable_building_city_hall = &b;
+            Init_Vector(b.construction_resources, ctx);
         }
         {
             auto& b                = Assert_Deref(state.scriptable_buildings + 1);
@@ -468,6 +470,15 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             b.type                 = Building_Type::Harvest;
             b.human_spawning_delay = 0;
             state.scriptable_building_lumberjacks_hut = &b;
+            b.required_construction_points            = 10;
+
+            Scriptable_Resource* plank_scriptable_resource = state.scriptable_resources;
+            Init_Vector(b.construction_resources, ctx);
+            Vector_Add(
+                b.construction_resources,
+                std::tuple(plank_scriptable_resource, (i16)2),
+                ctx
+            );
         }
 
         Init_Game_Map(state, non_persistent_arena, ctx);

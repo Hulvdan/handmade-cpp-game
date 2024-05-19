@@ -289,7 +289,40 @@ void Queue_Remove_At(Queue<T>& container, i32 i) {
 }
 
 template <typename T>
-i32 Vector_Add(Vector<T>& container, T& value, MCTX) {
+i32 Vector_Add(Vector<T>& container, const T& value, MCTX) {
+    CONTAINER_ALLOCATOR;
+
+    i32 locator = container.count;
+
+    if (container.base == nullptr) {
+        Assert(container.max_count == 0);
+        Assert(container.count == 0);
+
+        container.max_count = 8;
+        container.base      = (T*)ALLOC(sizeof(T) * container.max_count);
+    }
+    else if (container.max_count == container.count) {
+        u32 new_max_count = container.max_count * 2;
+        Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
+
+        auto old_size = sizeof(T) * container.max_count;
+        auto old_ptr  = container.base;
+
+        container.base = rcast<T*>(ALLOC(old_size * 2));
+        memcpy(container.base, old_ptr, old_size);
+        FREE(old_ptr, container.max_count);
+
+        container.max_count = new_max_count;
+    }
+
+    *(container.base + container.count) = value;
+    container.count += 1;
+
+    return locator;
+}
+
+template <typename T>
+i32 Vector_Add(Vector<T>& container, T&& value, MCTX) {
     CONTAINER_ALLOCATOR;
 
     i32 locator = container.count;

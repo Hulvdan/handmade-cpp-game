@@ -239,6 +239,9 @@ struct Scriptable_Building : public Non_Copyable {
     Scriptable_Resource_ID harvestable_resource_id;
 
     f32 human_spawning_delay;
+    f32 required_construction_points;
+
+    Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
 };
 
 enum class Human_Type {
@@ -361,7 +364,8 @@ struct Building : public Non_Copyable {
     f32 time_since_human_was_created;
 
     bool employee_is_inside;
-    bool is_constructed;
+
+    f32 construction_points;
 
     // Bucket_Locator locator;
     // f32 time_since_item_was_placed;
@@ -658,6 +662,7 @@ struct Game_Renderer_State : public Non_Copyable {
     Loaded_Texture forest_textures[3];
     Loaded_Texture road_textures[16];
     Loaded_Texture flag_textures[4];
+    Loaded_Texture in_progress_building_texture;
 
     int      tilemaps_count;
     Tilemap* tilemaps;
