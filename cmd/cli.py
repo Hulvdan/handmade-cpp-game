@@ -9,12 +9,8 @@
 - python cmd\cli.py stoopid_windows_visual_studio_run
 - python cmd\cli.py test
 - python cmd\cli.py format
+- python cmd\cli.py format file1 file2 ...
 - python cmd\cli.py lint
-
-TODO:
-
-- Стриминг run_command. Сейчас выдача происходит
-  только после завершения созданного процесса.
 """
 
 import glob
@@ -54,7 +50,6 @@ app = typer.Typer(callback=hook_exit)
 #                Constants                 #
 # ======================================== #
 LOG_FILE_POSITION = False
-STARTED_AT = time()
 
 PROJECT_DIR = Path(__file__).parent.parent
 CMD_DIR = Path("cmd")
@@ -127,21 +122,20 @@ def run_command(cmd: list[str] | str) -> None:
     if isinstance(cmd, str):
         cmd = replace_double_spaces(cmd.replace("\n", " ").strip())
 
-    log.debug(f"Executing command: {cmd}")
+    log.debug(f"Executing command: {cmd}", flush=True)
 
     # TODO: Стримить напрямую, не дожидаясь завершения работы программы
     p = subprocess.run(
         cmd,
         shell=True,
-        capture_output=True,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
         text=True,
         encoding="utf-8",
     )
-    print(p.stdout, end="", sep="")
-    print(p.stderr, file=sys.stderr, end="", sep="")
 
     if p.returncode:
-        log.critical(f"Failed to execute: {cmd}")
+        log.critical(f"Failed to execute: {cmd}", flush=True)
         exit(p.returncode)
 
 
@@ -169,7 +163,8 @@ def do_generate() -> None:
     log.debug(
         "Formatted {}".format(
             ", ".join("'{}'".format(file) for file in generated_file_paths)
-        )
+        ),
+        flush=True,
     )
 
 
@@ -271,7 +266,7 @@ def timing(f):
         started_at = time()
         result = f(*args, **kw)
         elapsed = time() - started_at
-        log.debug("Running '{}' took: {:.4f} sec".format(f.__name__, elapsed))
+        log.debug("Running '{}' took: {:.4f} sec".format(f.__name__, elapsed), flush=True)
         return result
 
     return wrap
@@ -339,7 +334,7 @@ def make_timing_manager():
     def timing_manager():
         started_at = time()
         yield
-        log.info("Running took: {:.4f} sec".format(time() - started_at))
+        log.info("Running took: {:.4f} sec".format(time() - started_at), flush=True)
 
     instance = timing_manager()
     with instance:
