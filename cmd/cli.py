@@ -15,10 +15,8 @@ TODO:
 
 - Стриминг run_command. Сейчас выдача происходит
   только после завершения созданного процесса.
-- format должен принимать аргументы - пути к файлам для форматирования.
 """
 
-import argparse
 import glob
 import logging
 import os
@@ -29,6 +27,27 @@ from functools import wraps
 from pathlib import Path
 from time import time
 from typing import NoReturn
+
+import typer
+
+
+# NOTE: При вызове exit отображаем затраченное время.
+def hook_exit():
+    global exit
+    old_exit = exit
+
+    def timed_exit(code: int) -> NoReturn:
+        global global_timing_manager_instance
+        if global_timing_manager_instance is not None:
+            global_timing_manager_instance.__exit__(None, None, None)
+            console_handler.flush()
+
+        old_exit(code)
+
+    exit = timed_exit
+
+
+app = typer.Typer(callback=hook_exit)
 
 
 # ======================================== #
@@ -70,7 +89,7 @@ class CustomLoggingFormatter(logging.Formatter):
 
     _FORMATS = {
         logging.NOTSET: _get_format(None),
-        logging.DEBUG: _get_format(_grey),
+        logging.DEBUG: _get_format(None),
         logging.INFO: _get_format(_green),
         logging.WARNING: _get_format(_yellow),
         logging.ERROR: _get_format(_red),
@@ -92,24 +111,6 @@ log.addHandler(console_handler)
 
 
 # ======================================== #
-#  Exit now calculates execution duration  #
-# ======================================== #
-old_exit = exit
-
-
-def timed_exit(code: int) -> NoReturn:
-    global global_timing_manager_instance
-    if global_timing_manager_instance is not None:
-        global_timing_manager_instance.__exit__(None, None, None)
-        console_handler.flush()
-
-    old_exit(code)
-
-
-exit = timed_exit
-
-
-# ======================================== #
 #            Library Functions             #
 # ======================================== #
 global_timing_manager_instance = None
@@ -120,6 +121,7 @@ def replace_double_spaces(string: str) -> str:
         string = string.replace("  ", " ")
 
     return string
+
 
 def run_command(cmd: list[str] | str) -> None:
     if isinstance(cmd, str):
@@ -154,18 +156,21 @@ def do_generate() -> None:
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
     # NOTE: Генерируем cpp файлы из FlatBuffer (.fbs) файлов
-    flatbuffer_files = glob.glob(
-        str(glob_pattern), recursive=True, include_hidden=True
-    )
-    run_command(
-        [FLATC_PATH, "-o", SOURCES_DIR / "generated", "--cpp", *flatbuffer_files]
-    )
+    flatbuffer_files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
+    run_command([FLATC_PATH, "-o", SOURCES_DIR / "generated", "--cpp", *flatbuffer_files])
+
+    generated_file_paths = [
+        SOURCES_DIR / "generated" / (file.stem + "_generated.h")
+        for file in map(Path, flatbuffer_files)
+    ]
 
     # NOTE: Форматируем сгенерированные файлы
-    for file in map(Path, flatbuffer_files):
-        generated_file_path = SOURCES_DIR / "generated" / (file.stem + "_generated.h")
-        do_format(generated_file_path)
-        log.debug(f"Formatted '{generated_file_path}'")
+    do_format(generated_file_paths)
+    log.debug(
+        "Formatted {}".format(
+            ", ".join("'{}'".format(file) for file in generated_file_paths)
+        )
+    )
 
 
 def do_run() -> None:
@@ -176,9 +181,9 @@ def do_test() -> None:
     run_command(str(CMAKE_DEBUG_BUILD_DIR / "tests.exe"))
 
 
-def do_format(specific_file: str | None = None) -> None:
-    if specific_file is not None:
-        run_command([CLANG_FORMAT_PATH, "-i", specific_file])
+def do_format(specific_files: list[str]) -> None:
+    if specific_files:
+        run_command([CLANG_FORMAT_PATH, "-i", *specific_files])
         return
 
     glob_patterns = [
@@ -188,9 +193,9 @@ def do_format(specific_file: str | None = None) -> None:
 
     files_to_format = []
     for pattern in glob_patterns:
-        files_to_format.extend(glob.glob(
-            str(pattern), recursive=True, include_hidden=True
-        ))
+        files_to_format.extend(
+            glob.glob(str(pattern), recursive=True, include_hidden=True)
+        )
 
     run_command([CLANG_FORMAT_PATH, "-i", *files_to_format])
 
@@ -210,36 +215,43 @@ def do_lint() -> None:
         )
     )
 
+
 def do_cmake_vs_files() -> None:
-    run_command(r"""
-        cmake
-        -G "Visual Studio 17 2022"
-        -B .cmake\vs17
-        -DCMAKE_UNITY_BUILD=ON
-        -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
-        --log-level=ERROR
-    """)
+    run_command(
+        r"""
+            cmake
+            -G "Visual Studio 17 2022"
+            -B .cmake\vs17
+            -DCMAKE_UNITY_BUILD=ON
+            -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
+            --log-level=ERROR
+        """
+    )
 
 
 def do_cmake_ninja_files() -> None:
-    run_command(r"""
-        cmake
-        -G Ninja
-        -B .cmake\ninja
-        -D CMAKE_CXX_COMPILER=cl
-        -D CMAKE_C_COMPILER=cl
-        --log-level=ERROR
-    """)
+    run_command(
+        r"""
+            cmake
+            -G Ninja
+            -B .cmake\ninja
+            -D CMAKE_CXX_COMPILER=cl
+            -D CMAKE_C_COMPILER=cl
+            --log-level=ERROR
+        """
+    )
 
 
 def do_compile_commands_json() -> None:
-    run_command(r"""
-        ninja
-        -C .cmake\ninja
-        -f build.ninja
-        -t compdb
-        > compile_commands.json
-    """)
+    run_command(
+        r"""
+            ninja
+            -C .cmake\ninja
+            -f build.ninja
+            -t compdb
+            > compile_commands.json
+        """
+    )
 
 
 def do_stop_vs_ahk() -> None:
@@ -251,63 +263,67 @@ def do_run_vs_ahk() -> None:
 
 
 # ======================================== #
-#                CLI Actions               #
+#               CLI Commands               #
 # ======================================== #
-CLI_ACTIONS = {}
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kw):
+        started_at = time()
+        result = f(*args, **kw)
+        elapsed = time() - started_at
+        log.debug("Running '{}' took: {:.4f} sec".format(f.__name__, elapsed))
+        return result
+
+    return wrap
 
 
-def register_action(f):
-    assert f.__name__.startswith("action_"), (
-        f"Action's name must start with 'action_': {f.__name__}"
-    )
-    CLI_ACTIONS[f.__name__.replace("action_", "")] = f
-    return f
-
-
-@register_action
+@app.command("generate")
+@timing
 def action_generate():
     do_generate()
 
 
-@register_action
+@app.command("cmake_vs_files")
+@timing
 def action_cmake_vs_files():
     do_cmake_vs_files()
 
 
-@register_action
+@app.command("build")
+@timing
 def action_build():
     do_cmake_vs_files()
     do_generate()
     do_build()
 
 
-@register_action
+@app.command("run")
 def action_run():
     action_build()
     do_run()
 
 
-@register_action
+@app.command("stoopid_windows_visual_studio_run")
 def action_stoopid_windows_visual_studio_run():
     do_stop_vs_ahk()
     action_build()
     do_run_vs_ahk()
 
 
-@register_action
+@app.command("test")
 def action_test():
     action_build()
     do_test()
 
 
-@register_action
-def action_format():
+@app.command("format")
+def action_format(filepaths: list[str] = typer.Argument(default=None)):
     do_cmake_ninja_files()
     do_compile_commands_json()
-    do_format()
+    do_format(filepaths)
 
 
-@register_action
+@app.command("lint")
 def action_lint():
     do_cmake_ninja_files()
     do_compile_commands_json()
@@ -317,19 +333,6 @@ def action_lint():
 # ======================================== #
 #                   Main                   #
 # ======================================== #
-def timing(f):
-    @wraps(f)
-    def wrap(*args, **kw):
-        started_at = time()
-        result = f(*args, **kw)
-        log.debug(
-            "Running '{}' took: {:.4f} sec".format(f.__name__, time() - started_at)
-        )
-        return result
-
-    return wrap
-
-
 @contextmanager
 def make_timing_manager():
     @contextmanager
@@ -344,22 +347,18 @@ def make_timing_manager():
 
 
 def main() -> None:
+    # NOTE: Всегда исполняем файл относительно корня проекта.
+    os.chdir(PROJECT_DIR)
+
     caught_exc = None
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=CLI_ACTIONS.keys())
-    args = parser.parse_args()
-
-    action = args.action
-
+    # NOTE: При выпадении exception-а отображаем затраченное время.
     with make_timing_manager() as timing_manager_instance:
         global global_timing_manager_instance
         global_timing_manager_instance = timing_manager_instance
 
         try:
-            log.debug(f"Running action '{action}'...")
-            timing(CLI_ACTIONS[action])()
-            log.info(f"Action completed '{action}'")
+            app()
         except Exception as e:
             caught_exc = e
 
@@ -368,6 +367,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # NOTE: Данный файл всегда исполняться будет относительно папки проекта.
-    os.chdir(PROJECT_DIR)
     main()

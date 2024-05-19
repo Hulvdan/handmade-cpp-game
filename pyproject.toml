@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "handmade-cpp-game"
+version = "0.1.0"
+description = ""
+authors = ["Aleksei Chistov <aleksey.chistov@gmail.com>"]
+readme = "README.md"
+packages = [{include = "handmade_cpp_game"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typer = "^0.12.3"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+isort = "^5.13.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 90
+
+[tool.isort]
+multi_line_output = 3
+line_length = 90
+include_trailing_comma = true

@@ -34,33 +34,37 @@ function overseer_run(cmd)
     }):start()
 end
 
+function cli_command(cmd)
+    return [[poetry run python cmd\cli.py ]] .. cmd
+end
+
 -- Keyboard Shortcuts --
 -- ================== --
 local opts = { remap = false, silent = true }
 
 vim.keymap.set("n", "<leader>l", function()
     save_files()
-    overseer_run([[python cmd\cli.py lint]])
+    overseer_run(cli_command("lint"))
 end, opts)
 
 vim.keymap.set("n", "<A-b>", function()
     save_files()
-    overseer_run([[python cmd\cli.py build]])
+    overseer_run(cli_command("build"))
 end, opts)
 
 vim.keymap.set("n", "<C-S-b>", function()
     save_files()
-    overseer_run([[python cmd\cli.py cmake_vs_files]])
+    overseer_run(cli_command("cmake_vs_files"))
 end, opts)
 
 vim.keymap.set("n", "<f5>", function()
     save_files()
-    overseer_run([[python cmd\cli.py stoopid_windows_visual_studio_run]])
+    overseer_run(cli_command("stoopid_windows_visual_studio_run"))
 end, opts)
 
 vim.keymap.set("n", "<A-t>", function()
     save_files()
-    overseer_run([[python cmd\cli.py test]])
+    overseer_run(cli_command("test"))
 end, opts)
 
 vim.keymap.set("n", "<leader>w", function()
@@ -72,7 +76,7 @@ vim.keymap.set("n", "<leader>w", function()
 
         -- TODO: Форматировать активный файл.
         -- OLD REF: launch_background([[cmd\format.bat "]] .. buf_path .. '"', function()
-        launch_background([[python cmd\cli.py format]], function()
+        launch_background(cli_command("format"), function()
             reload_file()
             vim.fn.winrestview(view)
             -- NOTE: костыль для нормального отображения nvim-treesitter-context
