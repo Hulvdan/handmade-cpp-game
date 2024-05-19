@@ -26,24 +26,28 @@ from typing import NoReturn
 
 import typer
 
+global_timing_manager_instance = None
+
 
 # NOTE: При вызове exit отображаем затраченное время.
+old_exit = exit
+
+
+def timed_exit(code: int) -> NoReturn:
+    global global_timing_manager_instance
+    if global_timing_manager_instance is not None:
+        global_timing_manager_instance.__exit__(None, None, None)
+        console_handler.flush()
+
+    old_exit(code)
+
+
 def hook_exit():
     global exit
-    old_exit = exit
-
-    def timed_exit(code: int) -> NoReturn:
-        global global_timing_manager_instance
-        if global_timing_manager_instance is not None:
-            global_timing_manager_instance.__exit__(None, None, None)
-            console_handler.flush()
-
-        old_exit(code)
-
     exit = timed_exit
 
 
-app = typer.Typer(callback=hook_exit)
+app = typer.Typer(callback=hook_exit, result_callback=timed_exit)
 
 
 # ======================================== #
@@ -108,7 +112,6 @@ log.addHandler(console_handler)
 # ======================================== #
 #            Library Functions             #
 # ======================================== #
-global_timing_manager_instance = None
 
 
 def replace_double_spaces(string: str) -> str:
@@ -122,7 +125,7 @@ def run_command(cmd: list[str] | str) -> None:
     if isinstance(cmd, str):
         cmd = replace_double_spaces(cmd.replace("\n", " ").strip())
 
-    log.debug(f"Executing command: {cmd}", flush=True)
+    log.debug(f"Executing command: {cmd}")
 
     # TODO: Стримить напрямую, не дожидаясь завершения работы программы
     p = subprocess.run(
@@ -135,7 +138,7 @@ def run_command(cmd: list[str] | str) -> None:
     )
 
     if p.returncode:
-        log.critical(f"Failed to execute: {cmd}", flush=True)
+        log.critical(f"Failed to execute: {cmd}")
         exit(p.returncode)
 
 
@@ -164,7 +167,6 @@ def do_generate() -> None:
         "Formatted {}".format(
             ", ".join("'{}'".format(file) for file in generated_file_paths)
         ),
-        flush=True,
     )
 
 
@@ -266,7 +268,7 @@ def timing(f):
         started_at = time()
         result = f(*args, **kw)
         elapsed = time() - started_at
-        log.debug("Running '{}' took: {:.4f} sec".format(f.__name__, elapsed), flush=True)
+        log.info("Running '{}' took: {:.2f} sec".format(f.__name__, elapsed))
         return result
 
     return wrap
@@ -329,16 +331,11 @@ def action_lint():
 #                   Main                   #
 # ======================================== #
 @contextmanager
-def make_timing_manager():
-    @contextmanager
-    def timing_manager():
-        started_at = time()
-        yield
-        log.info("Running took: {:.4f} sec".format(time() - started_at), flush=True)
-
-    instance = timing_manager()
-    with instance:
-        yield instance
+def timing_manager():
+    started_at = time()
+    yield
+    log.info("Running took: {:.2f} sec".format(time() - started_at))
+    console_handler.flush()
 
 
 def main() -> None:
@@ -348,10 +345,10 @@ def main() -> None:
     caught_exc = None
 
     # NOTE: При выпадении exception-а отображаем затраченное время.
-    with make_timing_manager() as timing_manager_instance:
-        global global_timing_manager_instance
-        global_timing_manager_instance = timing_manager_instance
+    global global_timing_manager_instance
+    global_timing_manager_instance = timing_manager()
 
+    with global_timing_manager_instance:
         try:
             app()
         except Exception as e:
