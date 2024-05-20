@@ -22,6 +22,9 @@ set CXX="cl"
 REM Создать / перегенерить .sln
 poetry run python cmd\cli.py cmake_vs_files
 
+REM Кодогенерация
+poetry run python cmd\cli.py generate
+
 REM Билд проекта
 poetry run python cmd\cli.py build
 
