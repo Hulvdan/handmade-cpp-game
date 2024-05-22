@@ -13,7 +13,7 @@ enum Building_Type:byte {
 }
 
 table Resource {
-    code:          string (required);
+    code:          string (key);
     texture:       string (required);
     small_texture: string (required);
 }
@@ -24,7 +24,7 @@ table Construction_Resource_Pair {
 }
 
 table Building {
-    code:          string         (required);
+    code:          string         (key);
     type:          Building_Type = Undefined;
     texture:       string         (required);
 

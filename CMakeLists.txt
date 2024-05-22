@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
+set(FLATBUFFERS_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/flatbuffers-24.3.25")
 set(SPDLOG_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/spdlog-1.13.0/include")
 set(FMT_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/fmt-10.2.0")
 
@@ -73,6 +74,7 @@ target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}/backends"
     "${SPDLOG_DIR}"
     "${FMT_DIR}/include"
+    "${FLATBUFFERS_DIR}/include"
 )
 target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
@@ -141,6 +143,7 @@ target_include_directories(tests PRIVATE
     "${IMGUI_DIR}/backends"
     "${SPDLOG_DIR}"
     "${FMT_DIR}/include"
+    "${FLATBUFFERS_DIR}/include"
 )
 target_compile_definitions(tests PRIVATE
     GAME_LIBRARY_BUILD

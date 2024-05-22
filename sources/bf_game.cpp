@@ -37,6 +37,8 @@ using tunordered_map = std::unordered_map<Args...>;
 global_var OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 
+#include "generated/bf_gamelib_generated.h"
+
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
 #include "bf_math.cpp"
