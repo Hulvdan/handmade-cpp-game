@@ -235,7 +235,8 @@ struct Building FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_TEXTURE = 8,
     VT_HUMAN_SPAWNING_DELAY = 10,
     VT_REQUIRED_CONSTRUCTION_POINTS = 12,
-    VT_CONSTRUCTION_RESOURCES = 14
+    VT_CAN_BE_BUILT = 14,
+    VT_CONSTRUCTION_RESOURCES = 16
   };
   const ::flatbuffers::String *code() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CODE);
@@ -264,6 +265,9 @@ struct Building FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   float required_construction_points() const {
     return GetField<float>(VT_REQUIRED_CONSTRUCTION_POINTS, 0.0f);
   }
+  bool can_be_built() const {
+    return GetField<uint8_t>(VT_CAN_BE_BUILT, 0) != 0;
+  }
   const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Construction_Resource_Pair>> *construction_resources() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Construction_Resource_Pair>> *>(VT_CONSTRUCTION_RESOURCES);
   }
@@ -276,6 +280,7 @@ struct Building FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(texture()) &&
            VerifyField<float>(verifier, VT_HUMAN_SPAWNING_DELAY, 4) &&
            VerifyField<float>(verifier, VT_REQUIRED_CONSTRUCTION_POINTS, 4) &&
+           VerifyField<uint8_t>(verifier, VT_CAN_BE_BUILT, 1) &&
            VerifyOffset(verifier, VT_CONSTRUCTION_RESOURCES) &&
            verifier.VerifyVector(construction_resources()) &&
            verifier.VerifyVectorOfTables(construction_resources()) &&
@@ -302,6 +307,9 @@ struct BuildingBuilder {
   void add_required_construction_points(float required_construction_points) {
     fbb_.AddElement<float>(Building::VT_REQUIRED_CONSTRUCTION_POINTS, required_construction_points, 0.0f);
   }
+  void add_can_be_built(bool can_be_built) {
+    fbb_.AddElement<uint8_t>(Building::VT_CAN_BE_BUILT, static_cast<uint8_t>(can_be_built), 0);
+  }
   void add_construction_resources(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Construction_Resource_Pair>>> construction_resources) {
     fbb_.AddOffset(Building::VT_CONSTRUCTION_RESOURCES, construction_resources);
   }
@@ -325,6 +333,7 @@ inline ::flatbuffers::Offset<Building> CreateBuilding(
     ::flatbuffers::Offset<::flatbuffers::String> texture = 0,
     float human_spawning_delay = 0.0f,
     float required_construction_points = 0.0f,
+    bool can_be_built = false,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Construction_Resource_Pair>>> construction_resources = 0) {
   BuildingBuilder builder_(_fbb);
   builder_.add_construction_resources(construction_resources);
@@ -332,6 +341,7 @@ inline ::flatbuffers::Offset<Building> CreateBuilding(
   builder_.add_human_spawning_delay(human_spawning_delay);
   builder_.add_texture(texture);
   builder_.add_code(code);
+  builder_.add_can_be_built(can_be_built);
   builder_.add_type(type);
   return builder_.Finish();
 }
@@ -343,6 +353,7 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
     const char *texture = nullptr,
     float human_spawning_delay = 0.0f,
     float required_construction_points = 0.0f,
+    bool can_be_built = false,
     const std::vector<::flatbuffers::Offset<BFGame::Construction_Resource_Pair>> *construction_resources = nullptr) {
   auto code__ = code ? _fbb.CreateString(code) : 0;
   auto texture__ = texture ? _fbb.CreateString(texture) : 0;
@@ -354,6 +365,7 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
       texture__,
       human_spawning_delay,
       required_construction_points,
+      can_be_built,
       construction_resources__);
 }
 

@@ -21,16 +21,16 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
     ((*((u8*)(bytes_ptr) + ((bit_index) / 8))) & (1 << ((bit_index) % 8)))
 
 #define MARK_BIT(bytes_ptr, bit_index)                      \
-    {                                                       \
+    do {                                                    \
         u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
         byte     = byte | (1 << ((bit_index) % 8));         \
-    }
+    } while (0)
 
 #define UNMARK_BIT(bytes_ptr, bit_index)                    \
-    {                                                       \
+    do {                                                    \
         u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
         byte &= 0xFF - (1 << ((bit_index) % 8));            \
-    }
+    } while (0)
 
 // Usage Examples:
 //     32 -> 32

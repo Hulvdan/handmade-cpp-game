@@ -152,7 +152,7 @@ def do_build() -> None:
 def do_generate() -> None:
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
-    # NOTE: Генерируем cpp файлы из FlatBuffer (.fbs) файлов
+    # NOTE: Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
     flatbuffer_files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
     run_command([FLATC_PATH, "-o", SOURCES_DIR / "generated", "--cpp", *flatbuffer_files])
 
@@ -161,6 +161,7 @@ def do_generate() -> None:
         for file in map(Path, flatbuffer_files)
     ]
 
+    # NOTE: Конвертим gamelib.jsonc в бинарю.
     run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", "gamelib.jsonc"])
 
 
@@ -283,7 +284,7 @@ def action_cmake_vs_files():
 @app.command("build")
 @timing
 def action_build():
-    do_cmake_vs_files()
+    # do_cmake_vs_files()
     do_generate()
     do_build()
 

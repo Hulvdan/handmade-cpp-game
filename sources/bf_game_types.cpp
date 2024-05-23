@@ -221,6 +221,7 @@ using Player_ID = u8;
 using Human_ID  = u32;
 
 enum class Building_Type {
+    Undefined = 0,
     City_Hall,
     Harvest,
     Plant,
@@ -229,7 +230,7 @@ enum class Building_Type {
 };
 
 struct Scriptable_Building : public Non_Copyable {
-    const char*   name;
+    const char*   code;
     Building_Type type;
 
 #ifdef BF_CLIENT
@@ -240,6 +241,8 @@ struct Scriptable_Building : public Non_Copyable {
 
     f32 human_spawning_delay;
     f32 required_construction_points;
+
+    bool can_be_built;
 
     Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
 };
@@ -410,7 +413,7 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource : public Non_Copyable {
-    const char* name;
+    const char* code;
 
 #ifdef BF_CLIENT
     // TODO: Исползовать handle-ы текстур? Что-то вроде хешей,
@@ -498,12 +501,12 @@ struct Observer : public Non_Copyable {
 // Usage:
 //     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
 #define INVOKE_OBSERVER(observer, code)                    \
-    {                                                      \
+    do {                                                   \
         FOR_RANGE (size_t, i, observer.count) {            \
             auto&    function = *(observer.functions + i); \
             function code;                                 \
         }                                                  \
-    }
+    } while (0)
 
 // Usage:
 //     On_Item_Built__Function((*callbacks[])) = {
@@ -511,12 +514,12 @@ struct Observer : public Non_Copyable {
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
-    {                                                                                  \
+    do {                                                                               \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                   \
         (observer).functions                                                           \
             = (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
         memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
-    }
+    } while (0)
 
 #define On_Item_Built__Function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item)
@@ -536,9 +539,6 @@ struct Game_State : public Non_Copyable {
     size_t               scriptable_buildings_count;
     Scriptable_Building* scriptable_buildings;
 
-    Scriptable_Building* scriptable_building_city_hall;
-    Scriptable_Building* scriptable_building_lumberjacks_hut;
-
     Arena arena;
     Arena non_persistent_arena;  // Gets flushed on DLL reloads
     Arena trash_arena;           // Use for transient calculations
@@ -550,6 +550,8 @@ struct Game_State : public Non_Copyable {
 #endif  // BF_CLIENT
 
     Observer<On_Item_Built__Function((*))> On_Item_Built;
+
+    const BFGame::Game_Library* gamelib;
 };
 
 struct Game_Memory : public Non_Copyable {

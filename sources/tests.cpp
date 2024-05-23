@@ -191,34 +191,15 @@ struct Test_Node {
     Test_Node(u32 a_id) : id(a_id), next(0), active(false) {}
 };
 
-#define Linked_List_Push_Back_Macro(nodes_, n_, first_node_index_, node_to_add_) \
-    Linked_List_Push_Back(                                                       \
-        rcast<u8*>(nodes_),                                                      \
-        (n_),                                                                    \
-        (first_node_index_),                                                     \
-        rcast<u8*>(&(node_to_add_)),                                             \
-        offsetof(node_to_add_, active),                                          \
-        offsetof(node_to_add_, next),                                            \
-        sizeof(node_to_add_)                                                     \
-    );
-
-#define Linked_List_Remove_At_Macro(                       \
-    nodes_, n_, first_node_index_, index_to_remove_, type_ \
-)                                                          \
-    Linked_List_Remove_At(                                 \
-        rcast<u8*>(nodes_),                                \
-        (n_),                                              \
-        (first_node_index_),                               \
-        (index_to_remove_),                                \
-        offsetof(type_, active),                           \
-        offsetof(type_, next),                             \
-        sizeof(type_)                                      \
-    );
-
 #define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
-    (allocator_).Allocate((size_), (alignment_));
+    do {                                                        \
+        (allocator_).Allocate((size_), (alignment_));           \
+    } while (0)
 
-#define Allocator_Free_Macro(allocator_, key_) (allocator_).Free((key_));
+#define Allocator_Free_Macro(allocator_, key_) \
+    do {                                       \
+        (allocator_).Free((key_));             \
+    } while (0)
 
 TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);

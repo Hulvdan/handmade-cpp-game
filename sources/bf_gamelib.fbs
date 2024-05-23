@@ -30,6 +30,7 @@ table Building {
 
     human_spawning_delay:         float;
     required_construction_points: float;
+    can_be_built: bool;
 
     construction_resources: [Construction_Resource_Pair];
 }

@@ -33,10 +33,10 @@
     auto& allocator_data = ctx->allocator_data;
 
 #define PUSH_CONTEXT(new_ctx, code) \
-    {                               \
+    do {                            \
         auto ctx = (new_ctx);       \
         (code);                     \
-    }
+    } while (0)
 
 template <typename T>
 void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);

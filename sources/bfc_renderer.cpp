@@ -374,16 +374,38 @@ void main() {
             Assert(rule_loading_result.success);
         }
 
-        Assert(state.scriptable_resources_count == 1);
+        Assert(state.gamelib->resources()->size() == state.scriptable_resources_count);
+
         FOR_RANGE (int, i, state.scriptable_resources_count) {
+            const auto& libresource = *(*state.gamelib->resources())[i];
+
             auto& resource         = state.scriptable_resources[i];
             resource.texture       = Allocate_For(arena, Loaded_Texture);
             resource.small_texture = Allocate_For(arena, Loaded_Texture);
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, "items/planks_thumb", *resource.texture
+                non_persistent_arena,
+                trash_arena,
+                libresource.texture()->c_str(),
+                *resource.texture
             );
             DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, "items/planks", *resource.small_texture
+                non_persistent_arena,
+                trash_arena,
+                libresource.small_texture()->c_str(),
+                *resource.small_texture
+            );
+        }
+
+        FOR_RANGE (int, i, state.scriptable_buildings_count) {
+            const auto& libbuilding = *(*state.gamelib->buildings())[i];
+
+            auto& building   = state.scriptable_buildings[i];
+            building.texture = Allocate_For(arena, Loaded_Texture);
+            DEBUG_Load_Texture(
+                non_persistent_arena,
+                trash_arena,
+                libbuilding.texture()->c_str(),
+                *building.texture
             );
         }
     }
@@ -481,21 +503,6 @@ void main() {
     rstate.zoom_target = 1;
     rstate.cell_size   = 32;
 
-    {
-        auto& b   = *state.scriptable_building_city_hall;
-        b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
-        DEBUG_Load_Texture(
-            non_persistent_arena, trash_arena, "tiles/building_house", *b.texture
-        );
-    }
-    {
-        auto& b   = *state.scriptable_building_lumberjacks_hut;
-        b.texture = Allocate_For(non_persistent_arena, Loaded_Texture);
-        DEBUG_Load_Texture(
-            non_persistent_arena, trash_arena, "tiles/building_lumberjack", *b.texture
-        );
-    }
-
     rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
     auto& ui_state  = *rstate.ui_state;
 
@@ -515,17 +522,32 @@ void main() {
         ui_state.buildables_placeholder_background
     );
 
-    auto buildables_count     = 2;
-    ui_state.buildables       = Allocate_Array(arena, Item_To_Build, buildables_count);
-    ui_state.buildables_count = buildables_count;
-    (ui_state.buildables + 0)->type                = Item_To_Build_Type::Road;
-    (ui_state.buildables + 0)->scriptable_building = state.scriptable_building_city_hall;
-    (ui_state.buildables + 1)->type                = Item_To_Build_Type::Building;
-    (ui_state.buildables + 1)->scriptable_building
-        = state.scriptable_building_lumberjacks_hut;
+    int buildable_buildings_count = 0;
+    FOR_RANGE (int, i, state.scriptable_buildings_count) {
+        if (state.scriptable_buildings[i].can_be_built) {
+            buildable_buildings_count++;
+        }
+    }
+
+    ui_state.buildables_count = 1 + buildable_buildings_count;
+    ui_state.buildables = Allocate_Array(arena, Item_To_Build, ui_state.buildables_count);
+    ui_state.buildables[0].type                = Item_To_Build_Type::Road;
+    ui_state.buildables[0].scriptable_building = nullptr;
+
+    auto ii = 1;
+    FOR_RANGE (int, i, state.scriptable_buildings_count) {
+        auto scriptable_building = state.scriptable_buildings + i;
+        if (scriptable_building->can_be_built) {
+            auto& buildable = ui_state.buildables[ii];
+
+            buildable.type                = Item_To_Build_Type::Building;
+            buildable.scriptable_building = scriptable_building;
+            ii++;
+        }
+    }
 
     ui_state.padding                           = {6, 6};
-    ui_state.placeholders                      = 2;
+    ui_state.placeholders                      = ui_state.buildables_count;
     ui_state.placeholders_gap                  = 4;
     ui_state.selected_buildable_index          = -1;
     ui_state.buildables_panel_sprite_anchor    = {0.0f, 0.5f};
@@ -772,8 +794,6 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
 
     res.deallocation_size = allocation_size;
     res.textures = Allocate_Array(trash_arena, GLuint, ui_state.buildables_count);
-
-    Assert(state.scriptable_buildings_count == 2);
 
     FOR_RANGE (int, i, ui_state.buildables_count) {
         auto& buildable = *(ui_state.buildables + i);
@@ -1188,7 +1208,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
                 auto p = projection * drawing_point;
                 auto s = projection * v3f(buildable_size, 0);
-                glBindTexture(GL_TEXTURE_2D, *(buildable_textures.textures + i));
+                glBindTexture(GL_TEXTURE_2D, buildable_textures.textures[i]);
 
                 auto color = (i == ui_state.selected_buildable_index)
                                  ? ui_state.selected_buildable_color

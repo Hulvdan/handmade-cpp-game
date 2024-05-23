@@ -4,11 +4,11 @@
 #define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
 
 #define Array_Push(array, array_count, array_max_count, value) \
-    {                                                          \
+    do {                                                       \
         *(array + (array_count)) = value;                      \
         (array_count)++;                                       \
         Assert((array_count) <= (array_max_count));            \
-    }
+    } while (0)
 
 template <typename T>
 BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
@@ -19,7 +19,7 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
 }
 
 #define Array_Reverse(array, count)          \
-    {                                        \
+    do {                                     \
         Assert((count) >= 0);                \
         FOR_RANGE (i32, l, (count) / 2) {    \
             auto r         = count - l - 1;  \
@@ -27,7 +27,7 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
             *((array) + l) = *((array) + r); \
             *((array) + r) = t;              \
         }                                    \
-    }
+    } while (0)
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
     FOR_RANGE (i32, i1, s1.vertices_count) {
@@ -1365,7 +1365,7 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     }
 
     bool built = true;
-    Place_Building(state, {2, 2}, state.scriptable_building_city_hall, built, ctx);
+    Place_Building(state, {2, 2}, state.scriptable_buildings + 0, built, ctx);
 
     {
         const int  players_count    = 1;
@@ -1688,7 +1688,7 @@ bool Should_Segment_Be_Deleted(
 }
 
 #define Add_Without_Duplication(max_count_, count_, array_, value_) \
-    {                                                               \
+    do {                                                            \
         Assert((max_count_) >= (count_));                           \
                                                                     \
         auto found = false;                                         \
@@ -1705,7 +1705,7 @@ bool Should_Segment_Be_Deleted(
             *((array_) + (count_)) = (value_);                      \
             (count_)++;                                             \
         }                                                           \
-    }
+    } while (0)
 
 // v2i16* Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
 //     return (v2i16*)allocator.Allocate(sizeof(v2i16) * vertices_count, 1);
@@ -2640,32 +2640,34 @@ ttuple<int, int> Update_Tiles(
     auto type__                   = (type_);               \
     (variable_name_).type         = &type__;
 
-#define INVOKE_UPDATE_TILES                           \
-    Update_Tiles(                                     \
-        state.game_map.size,                          \
-        state.game_map.element_tiles,                 \
-        &state.game_map.segments,                     \
-        trash_arena,                                  \
-        updated_tiles,                                \
-        [&game_map, &trash_arena, &state](            \
-            u32             segments_to_delete_count, \
-            Graph_Segment** segments_to_delete,       \
-            u32             segments_to_add_count,    \
-            Graph_Segment*  segments_to_add,          \
-            MCTX                                      \
-        ) {                                           \
-            Update_Segments_Function(                 \
-                trash_arena,                          \
-                game_map,                             \
-                segments_to_delete_count,             \
-                segments_to_delete,                   \
-                segments_to_add_count,                \
-                segments_to_add,                      \
-                ctx                                   \
-            );                                        \
-        },                                            \
-        ctx                                           \
-    );
+#define INVOKE_UPDATE_TILES                               \
+    do {                                                  \
+        Update_Tiles(                                     \
+            state.game_map.size,                          \
+            state.game_map.element_tiles,                 \
+            &state.game_map.segments,                     \
+            trash_arena,                                  \
+            updated_tiles,                                \
+            [&game_map, &trash_arena, &state](            \
+                u32             segments_to_delete_count, \
+                Graph_Segment** segments_to_delete,       \
+                u32             segments_to_add_count,    \
+                Graph_Segment*  segments_to_add,          \
+                MCTX                                      \
+            ) {                                           \
+                Update_Segments_Function(                 \
+                    trash_arena,                          \
+                    game_map,                             \
+                    segments_to_delete_count,             \
+                    segments_to_delete,                   \
+                    segments_to_add_count,                \
+                    segments_to_add,                      \
+                    ctx                                   \
+                );                                        \
+            },                                            \
+            ctx                                           \
+        );                                                \
+    } while (0)
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
     auto& arena                = state.arena;

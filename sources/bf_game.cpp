@@ -43,6 +43,7 @@ global_var OS_Data* global_os_data = nullptr;
 #include "bf_opengl.cpp"
 #include "bf_math.cpp"
 #include "bf_memory_arena.cpp"
+#include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
 #include "bf_containers.cpp"
@@ -50,7 +51,6 @@ global_var OS_Data* global_os_data = nullptr;
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
 #include "bf_rand.cpp"
-#include "bf_file.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -299,6 +299,12 @@ T* Map_Logger(Arena& arena, bool first_time_initializing) {
     return logger;
 }
 
+const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
+    auto result = Debug_Load_File_To_Arena("gamelib.bin", arena);
+    Assert(result.success);
+    return BFGame::GetGame_Library(result.output);
+}
+
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
     global_os_data = &os_data;
@@ -414,6 +420,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
 
+        if (first_time_initializing) {
+            state.gamelib = Load_Game_Library(arena);
+        }
+
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
@@ -451,37 +461,71 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
         {
             auto& r = Assert_Deref(Get_Scriptable_Resource(state, 1));
-            r.name  = "forest";
+            r.code  = "forest";
         }
 
-        state.scriptable_buildings_count = 2;
+        if (first_time_initializing) {
+            auto& resources = *state.gamelib->resources();
+
+            auto newresources
+                = Allocate_Array(arena, Scriptable_Resource, resources.size());
+
+            FOR_RANGE (int, i, resources.size()) {
+                const auto& resource     = *resources[i];
+                auto&       new_resource = newresources[i];
+                new_resource.code        = resource.code()->c_str();
+            }
+
+            state.scriptable_resources_count = resources.size();
+            state.scriptable_resources       = newresources;
+        }
+
+        auto s = state.gamelib->buildings()->size();
         state.scriptable_buildings
-            = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
-        {
-            auto& b                        = Assert_Deref(state.scriptable_buildings + 0);
-            b.name                         = "City Hall";
-            b.type                         = Building_Type::City_Hall;
-            b.human_spawning_delay         = 1;
-            b.required_construction_points = 0;
-            state.scriptable_building_city_hall = &b;
-            Init_Vector(b.construction_resources, ctx);
-        }
-        {
-            auto& b                = Assert_Deref(state.scriptable_buildings + 1);
-            b.name                 = "Lumberjack's Hut";
-            b.type                 = Building_Type::Harvest;
-            b.human_spawning_delay = 0;
-            state.scriptable_building_lumberjacks_hut = &b;
-            b.required_construction_points            = 10;
+            = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, s);
+        state.scriptable_buildings_count = s;
+        FOR_RANGE (int, i, s) {
+            auto& building    = state.scriptable_buildings[i];
+            auto& libbuilding = *state.gamelib->buildings()->Get(i);
 
-            Scriptable_Resource* plank_scriptable_resource = state.scriptable_resources;
-            Init_Vector(b.construction_resources, ctx);
-            Vector_Add(
-                b.construction_resources,
-                std::tuple(plank_scriptable_resource, (i16)2),
-                ctx
-            );
+            building.code                    = libbuilding.code()->c_str();
+            building.type                    = (Building_Type)libbuilding.type();
+            building.harvestable_resource_id = 0;
+
+            building.human_spawning_delay  //
+                = libbuilding.human_spawning_delay();
+            building.required_construction_points  //
+                = libbuilding.required_construction_points();
+
+            building.can_be_built = libbuilding.can_be_built();
+
+            Init_Vector(building.construction_resources, ctx);
         }
+
+        // {
+        //     auto& b                        = Assert_Deref(state.scriptable_buildings +
+        //     0); b.code                         = "City Hall"; b.type =
+        //     Building_Type::City_Hall; b.human_spawning_delay         = 1;
+        //     b.required_construction_points = 0;
+        //     state.scriptable_building_city_hall = &b;
+        //     Init_Vector(b.construction_resources, ctx);
+        // }
+        // {
+        //     auto& b                = Assert_Deref(state.scriptable_buildings + 1);
+        //     b.code                 = "Lumberjack's Hut";
+        //     b.type                 = Building_Type::Harvest;
+        //     b.human_spawning_delay = 0;
+        //     state.scriptable_building_lumberjacks_hut = &b;
+        //     b.required_construction_points            = 10;
+        //
+        //     Scriptable_Resource* plank_scriptable_resource =
+        //     state.scriptable_resources; Init_Vector(b.construction_resources, ctx);
+        //     Vector_Add(
+        //         b.construction_resources,
+        //         std::tuple(plank_scriptable_resource, (i16)2),
+        //         ctx
+        //     );
+        // }
 
         Init_Game_Map(state, non_persistent_arena, ctx);
         Regenerate_Terrain_Tiles(
