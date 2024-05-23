@@ -455,8 +455,8 @@ void main() {
         }
     }
 
-    auto& resources_tilemap  = *(rstate.tilemaps + rstate.resources_tilemap_index);
-    auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
+    auto& resources_tilemap  = rstate.tilemaps[rstate.resources_tilemap_index];
+    auto& resources_tilemap2 = rstate.tilemaps[rstate.resources_tilemap_index + 1];
     FOR_RANGE (i32, y, gsize.y) {
         auto is_last_row = y == gsize.y - 1;
         FOR_RANGE (i32, x, gsize.x) {
@@ -484,7 +484,7 @@ void main() {
     }
 
     // --- Element Tiles ---
-    auto& element_tilemap = *(rstate.tilemaps + rstate.element_tilemap_index);
+    auto& element_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
             Element_Tile& element_tile = *(game_map.element_tiles + y * gsize.x + x);

@@ -5,11 +5,11 @@ namespace BFGame;
 
 enum Building_Type:byte {
     Undefined = 0,
-    City_Hall = 1,
-    Harvest   = 2,
-    Plant     = 3,
-    Fish      = 4,
-    Produce   = 5,
+    City_Hall,
+    Harvest,
+    Plant,
+    Fish,
+    Produce,
 }
 
 table Resource {

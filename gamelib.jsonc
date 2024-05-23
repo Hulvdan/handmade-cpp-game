@@ -5,8 +5,6 @@
             "type": "City_Hall",
             "texture": "tiles/building_house",
             "human_spawning_delay": 1,
-            "required_construction_points": 20,
-            "construction_resources": [],
         },
         {
             "code": "lumberjacks_hut",
