@@ -50,6 +50,46 @@ struct Vector {
     void* allocator_data;
 };
 
+// NOTE: Изменение максимального количества элементов,
+// которое вектор сможет содержать без реаллокации.
+template <typename T>
+void Vector_Resize(Vector<T>& container, u32 size, MCTX) {
+    CTX_ALLOCATOR;
+
+    if (container.max_count < size) {
+        container.base = rcast<T*>(
+            REALLOC(sizeof(T) * size, sizeof(T) * container.max_count, container.base)
+        );
+    }
+    else if (container.max_count > size) {
+        auto old_max_count  = container.max_count;
+        container.max_count = size;
+        auto old_base       = container.base;
+        container.base      = rcast<T*>(ALLOC(sizeof(T) * size));
+        memcpy(container.bae, old_base, sizeof(T) * size);
+        FREE(old_base, sizeof(T) * old_max_count);
+    }
+}
+
+// NOTE: Вектор сможет содержать как минимум столько элементов без реаллокации.
+template <typename T>
+void Vector_Reserve(Vector<T>& container, u32 size, MCTX) {
+    CTX_ALLOCATOR;
+
+    if (container.base == nullptr) {
+        container.base      = rcast<T*>(ALLOC(sizeof(T) * size));
+        container.max_count = size;
+        return;
+    }
+
+    if (container.max_count < size) {
+        container.base = rcast<T*>(
+            REALLOC(sizeof(T) * size, sizeof(T) * container.max_count, container.base)
+        );
+        container.max_count = size;
+    }
+}
+
 // TODO: Дока для чего сделал это
 template <typename T>
 struct Grid_Of_Vectors {

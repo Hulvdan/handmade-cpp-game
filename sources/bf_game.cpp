@@ -500,6 +500,33 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             building.can_be_built = libbuilding.can_be_built();
 
             Init_Vector(building.construction_resources, ctx);
+
+            if (libbuilding.construction_resources() != nullptr) {
+                Vector_Reserve(
+                    building.construction_resources,
+                    libbuilding.construction_resources()->size(),
+                    ctx
+                );
+
+                FOR_RANGE (int, i, libbuilding.construction_resources()->size()) {
+                    auto resource = libbuilding.construction_resources()->Get(i);
+                    auto code     = resource->resource_code()->c_str();
+                    auto count    = resource->count();
+
+                    Scriptable_Resource* scriptable_resource = nullptr;
+                    FOR_RANGE (int, k, state.scriptable_resources_count) {
+                        auto res = state.scriptable_resources + k;
+                        if (strcmp(res->code, code) == 0) {
+                            scriptable_resource = res;
+                            break;
+                        }
+                    }
+                    Assert(scriptable_resource != nullptr);
+                    Vector_Add(
+                        building.construction_resources, {scriptable_resource, count}, ctx
+                    );
+                }
+            }
         }
 
         // {

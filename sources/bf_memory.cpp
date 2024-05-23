@@ -11,6 +11,11 @@
         return addr;          \
     }()
 
+#define REALLOC(n, old_size, old_ptr)                                        \
+    Assert_Not_Null(allocator)(                                              \
+        Allocator_Mode::Resize, (n), 1, old_size, old_ptr, allocator_data, 0 \
+    )
+
 #define FREE(ptr, n)                                                             \
     Assert_Not_Null(allocator)(                                                  \
         Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
