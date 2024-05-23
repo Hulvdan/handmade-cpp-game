@@ -16,8 +16,10 @@
 import glob
 import logging
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
@@ -149,17 +151,38 @@ def do_build() -> None:
     run_command(r"MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3")
 
 
+def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
+    files = glob.glob(str(Path(path) / "**" / "*"), recursive=True, include_hidden=True)
+
+    res = {}
+
+    for file in files:
+        with open(file, "rb") as in_file:
+            res[str(Path(file).relative_to(path))] = hash(in_file.read())
+
+    return res
+
+
 def do_generate() -> None:
+    hashes = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
+
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
     # NOTE: Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
     flatbuffer_files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
-    run_command([FLATC_PATH, "-o", SOURCES_DIR / "generated", "--cpp", *flatbuffer_files])
 
-    generated_file_paths = [
-        SOURCES_DIR / "generated" / (file.stem + "_generated.h")
-        for file in map(Path, flatbuffer_files)
-    ]
+    # NOTE: Мудацкий костыль, чтобы MSBuild не ребилдился каждый раз.
+    with tempfile.TemporaryDirectory() as td:
+        run_command([FLATC_PATH, "-o", td, "--cpp", *flatbuffer_files])
+
+        generated_file_paths = [
+            SOURCES_DIR / "generated" / (file.stem + "_generated.h")
+            for file in map(Path, flatbuffer_files)
+        ]
+
+        for file, file_hash in listfiles_with_hashes_in_dir(td).items():
+            if file_hash != hashes.get(file):
+                shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
 
     # NOTE: Конвертим gamelib.jsonc в бинарю.
     run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", "gamelib.jsonc"])
