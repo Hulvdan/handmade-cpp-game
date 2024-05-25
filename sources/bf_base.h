@@ -157,7 +157,9 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 template <typename F>
 struct _Defer {
     _Defer(F f) : f(f) {}
-    ~_Defer() { f(); }
+    ~_Defer() {
+        f();
+    }
     F f;
 };
 
@@ -210,7 +212,9 @@ BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
 template <class Reference>
 struct Arrow_Proxy {
     Reference  r;
-    Reference* operator->() { return &r; }
+    Reference* operator->() {
+        return &r;
+    }
 };
 
 template <typename Derived>
@@ -219,11 +223,17 @@ protected:
     using Self_Type = Derived;
 
 private:
-    Self_Type&       _self() { return scast<Self_Type&>(*this); }
-    const Self_Type& _self() const { return scast<const Self_Type&>(*this); }
+    Self_Type& _self() {
+        return scast<Self_Type&>(*this);
+    }
+    const Self_Type& _self() const {
+        return scast<const Self_Type&>(*this);
+    }
 
 public:
-    decltype(auto) operator*() const { return _self().Dereference(); }
+    decltype(auto) operator*() const {
+        return _self().Dereference();
+    }
 
     auto operator->() const {
         decltype(auto) ref = **this;

@@ -750,7 +750,9 @@ struct Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> 
 
         return iter;
     }
-    Bucket_Array_Iterator end() const { return {_arr, 0, _arr->used_buckets_count}; }
+    Bucket_Array_Iterator end() const {
+        return {_arr, 0, _arr->used_buckets_count};
+    }
 
     T* Dereference() const {
         Assert(_current_bucket < _arr->used_buckets_count);
@@ -893,8 +895,12 @@ struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
         Assert(container != nullptr);
     }
 
-    Vector_Iterator begin() const { return {_container, _current}; }
-    Vector_Iterator end() const { return {_container, _container->count}; }
+    Vector_Iterator begin() const {
+        return {_container, _current};
+    }
+    Vector_Iterator end() const {
+        return {_container, _container->count};
+    }
 
     T* Dereference() const {
         Assert(_current >= 0);
@@ -902,9 +908,13 @@ struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
         return _container->base + _current * sizeof(T);
     }
 
-    void Increment() { _current++; }
+    void Increment() {
+        _current++;
+    }
 
-    bool Equal_To(const Vector_Iterator& o) const { return _current == o._current; }
+    bool Equal_To(const Vector_Iterator& o) const {
+        return _current == o._current;
+    }
 
 private:
     Vector<T>* _container;
@@ -920,8 +930,12 @@ struct TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
         Assert(container != nullptr);
     }
 
-    TVector_Iterator begin() const { return {_container, _current}; }
-    TVector_Iterator end() const { return {_container, scast<u64>(_container->size())}; }
+    TVector_Iterator begin() const {
+        return {_container, _current};
+    }
+    TVector_Iterator end() const {
+        return {_container, scast<u64>(_container->size())};
+    }
 
     T* Dereference() const {
         Assert(_current >= 0);
@@ -929,9 +943,13 @@ struct TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
         return scast<T*>(_container->data()) + _current;
     }
 
-    void Increment() { _current++; }
+    void Increment() {
+        _current++;
+    }
 
-    bool Equal_To(const TVector_Iterator& o) const { return _current == o._current; }
+    bool Equal_To(const TVector_Iterator& o) const {
+        return _current == o._current;
+    }
 
 private:
     tvector<T>* _container;
@@ -975,7 +993,9 @@ struct Grid_Of_Vectors_Iterator : public Iterator_Facade<Grid_Of_Vectors_Iterato
         return base + _current * sizeof(T);
     }
 
-    void Increment() { _current++; }
+    void Increment() {
+        _current++;
+    }
 
     bool Equal_To(const Grid_Of_Vectors_Iterator& o) const {
         return _current == o._current  //

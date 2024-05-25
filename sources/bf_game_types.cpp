@@ -499,7 +499,9 @@ struct Game_Map : public Non_Copyable {
     Vector<Map_Resource_To_Book> resources_booking_queue;
 };
 
-Building_ID Next_Building_ID(Game_Map& game_map) { return ++game_map.last_building_id; }
+Building_ID Next_Building_ID(Game_Map& game_map) {
+    return ++game_map.last_building_id;
+}
 
 Building_ID Next_Scriptable_Resource_ID(Game_Map& game_map) {
     return ++game_map.last_building_id;

@@ -131,7 +131,9 @@ struct Fallback_Allocator {
         return _p.Owns(b) || _f.Owns(b);
     }
 
-    bool Sanity_Check() { return _p.Sanity_Check() && _f.Sanity_Check(); }
+    bool Sanity_Check() {
+        return _p.Sanity_Check() && _f.Sanity_Check();
+    }
 
 private:
     P _p;
@@ -139,13 +141,21 @@ private:
 };
 
 struct Null_Allocator {
-    Blk Allocate(size_t) { return Blk(nullptr, 0); }
+    Blk Allocate(size_t) {
+        return Blk(nullptr, 0);
+    }
 
-    void Deallocate(Blk b) { Assert(b.ptr == nullptr); }
+    void Deallocate(Blk b) {
+        Assert(b.ptr == nullptr);
+    }
 
-    bool Owns(Blk b) { return b.ptr == nullptr; }
+    bool Owns(Blk b) {
+        return b.ptr == nullptr;
+    }
 
-    bool Sanity_Check() { return true; }
+    bool Sanity_Check() {
+        return true;
+    }
 };
 
 template <size_t s>
@@ -167,9 +177,13 @@ struct Stack_Allocator {
         // }
     }
 
-    bool Owns(Blk b) { return b.ptr >= _buffer && b.ptr < _buffer + s; }
+    bool Owns(Blk b) {
+        return b.ptr >= _buffer && b.ptr < _buffer + s;
+    }
 
-    void Deallocate_All() { _current = _buffer; }
+    void Deallocate_All() {
+        _current = _buffer;
+    }
 
     bool Sanity_Check() {
         bool sane = _buffer != nullptr && _current != nullptr;
@@ -183,7 +197,9 @@ private:
 };
 
 struct Malloc_Allocator {
-    Blk Allocate(size_t n) { return Blk(malloc(n), n); }
+    Blk Allocate(size_t n) {
+        return Blk(malloc(n), n);
+    }
 
     void Deallocate(Blk b) {
         Assert(b.ptr != nullptr);
@@ -191,9 +207,13 @@ struct Malloc_Allocator {
         free(b.ptr);
     }
 
-    void Deallocate_All() { NOT_SUPPORTED; }
+    void Deallocate_All() {
+        NOT_SUPPORTED;
+    }
 
-    bool Sanity_Check() { return true; }
+    bool Sanity_Check() {
+        return true;
+    }
 };
 
 struct Freeable_Malloc_Allocator {
@@ -230,7 +250,9 @@ struct Freeable_Malloc_Allocator {
         _allocations.clear();
     }
 
-    bool Sanity_Check() { return true; }
+    bool Sanity_Check() {
+        return true;
+    }
 
 private:
     std::vector<Blk> _allocations;
@@ -330,7 +352,9 @@ struct Freelist {
         _parent.Deallocate_All();
     }
 
-    bool Sanity_Check() { return _parent.Sanity_Check(); }
+    bool Sanity_Check() {
+        return _parent.Sanity_Check();
+    }
 
 private:
     A _parent;
@@ -347,7 +371,9 @@ struct Size_Affix {
 
     Size_Affix(size_t an) : n(an) {}
 
-    bool Validate() { return true; }
+    bool Validate() {
+        return true;
+    }
 };
 
 template <class A, class Prefix = void, class Suffix = void>
@@ -625,8 +651,12 @@ class Bitmapped_Allocator {
     }
 
 private:
-    consteval size_t Last_Block_Offset() { return block_size * 4 - 1; }
-    consteval size_t Total_Blocks_Count() { return block_size * 4; }
+    consteval size_t Last_Block_Offset() {
+        return block_size * 4 - 1;
+    }
+    consteval size_t Total_Blocks_Count() {
+        return block_size * 4;
+    }
 
     A _parent;  // NOTE: Аллокатор для аллокации блоков
 

@@ -5,7 +5,9 @@
 
 // TODO: ВЫЧИСТИТЬ ЭТОТ СРАЧ
 // Набор функций для отбрасывания абсолютного пути файла. Оставляем только название.
-consteval const char* str_end(const char* str) { return *str ? str_end(str + 1) : str; }
+consteval const char* str_end(const char* str) {
+    return *str ? str_end(str + 1) : str;
+}
 
 consteval bool str_slant(const char* str) {
     return *str == '/' ? true : (*str ? str_slant(str + 1) : false);
@@ -18,7 +20,9 @@ consteval const char* unix_file_name(const char* str) {
     return str_slant(str) ? r_slant(str_end(str)) : str;
 }
 
-consteval const char* str_end2(const char* str) { return *str ? str_end2(str + 1) : str; }
+consteval const char* str_end2(const char* str) {
+    return *str ? str_end2(str + 1) : str;
+}
 
 consteval bool str_slant2(const char* str) {
     return *str == '\\' ? true : (*str ? str_slant2(str + 1) : false);

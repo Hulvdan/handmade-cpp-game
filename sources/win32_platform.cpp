@@ -575,7 +575,9 @@ public:
         std::swap(s1, s2);
     }
 
-    void OnStreamEnd() noexcept override { RecalculateAndSwap(); }
+    void OnStreamEnd() noexcept override {
+        RecalculateAndSwap();
+    }
 
     void OnBufferEnd(void* pBufferContext) noexcept override {}
     void OnBufferStart(void* pBufferContext) noexcept override {}

@@ -229,7 +229,9 @@ void main() {
 )Shader";
 
         auto vertex = glCreateShader(GL_VERTEX_SHADER);
-        defer { glDeleteShader(vertex); };
+        defer {
+            glDeleteShader(vertex);
+        };
 
         glShaderSource(vertex, 1, &vertex_code, nullptr);
         glCompileShader(vertex);
@@ -252,7 +254,9 @@ void main() {
 )Shader";
 
         auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        defer { glDeleteShader(fragment); };
+        defer {
+            glDeleteShader(fragment);
+        };
 
         glShaderSource(fragment, 1, &fragment_code, nullptr);
         glCompileShader(fragment);
