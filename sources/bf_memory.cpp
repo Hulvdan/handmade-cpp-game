@@ -79,7 +79,7 @@ struct Context {
     Logger_Tracing_Function_Type logger_tracing_routine;
     void*                        logger_data;
 
-    Context() = default;
+    // Context() = default;
 
     Context(
         u32                          a_thread_index,

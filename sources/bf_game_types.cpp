@@ -89,6 +89,9 @@ struct Human;
 struct Building;
 struct Scriptable_Resource;
 struct Graph_Segment;
+using Scriptable_Resource_ID = u16;
+using Building_ID            = u16;
+using Scriptable_Building_ID = u16;
 
 enum class Map_Resource_Booking_Type {
     Construction,
@@ -212,10 +215,6 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
 
     node = Graph_Node_Mark(node, dir, value);
 }
-
-using Scriptable_Resource_ID = u16;
-
-global_var Scriptable_Resource_ID global_forest_resource_id = 1;
 
 using Player_ID = u8;
 using Human_ID  = u32;
@@ -344,25 +343,29 @@ struct Human : public Non_Copyable {
     }
 };
 
+struct Map_Resource_To_Book : public Non_Copyable {
+    Scriptable_Resource_ID scriptable_id;
+    u8                     count;
+    Building_ID            building_id;
+};
+
 struct Resource_To_Book : public Non_Copyable {
     Scriptable_Resource_ID scriptable_id;
-    u8                     amount;
+    u8                     count;
 };
 
 struct Building : public Non_Copyable {
-    using ID = u32;
-
-    ID        id;
-    Player_ID player_id;
+    Building_ID id;
+    Player_ID   player_id;
 
     Human* constructor;
     Human* employee;
 
     Scriptable_Building* scriptable;
 
-    size_t            resources_to_book_count;
-    Resource_To_Book* resources_to_book;
-    v2i16             pos;
+    Vector<Resource_To_Book> resources_to_book;
+
+    v2i16 pos;
 
     f32 time_since_human_was_created;
 
@@ -462,6 +465,8 @@ struct Game_Map_Data {
 struct Human_Data;
 
 struct Game_Map : public Non_Copyable {
+    Building_ID last_building_id;
+
     v2i16             size;
     Terrain_Tile*     terrain_tiles;
     Terrain_Resource* terrain_resources;
@@ -490,7 +495,15 @@ struct Game_Map : public Non_Copyable {
 
     Game_Map_Data* data;
     Human_Data*    human_data;
+
+    Vector<Map_Resource_To_Book> resources_booking_queue;
 };
+
+Building_ID Next_Building_ID(Game_Map& game_map) { return ++game_map.last_building_id; }
+
+Building_ID Next_Scriptable_Resource_ID(Game_Map& game_map) {
+    return ++game_map.last_building_id;
+}
 
 template <typename T>
 struct Observer : public Non_Copyable {
@@ -707,3 +720,5 @@ struct Game_Renderer_State : public Non_Copyable {
 //     Vector<BF_Texture_ID> textures;
 // };
 #endif  // BF_CLIENT
+
+global_var Scriptable_Resource_ID global_forest_resource_id = 1;

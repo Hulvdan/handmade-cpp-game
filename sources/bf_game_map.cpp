@@ -198,13 +198,26 @@ void Place_Building(
     auto [_, found_instance] = Find_And_Occupy_Empty_Slot(game_map.buildings, ctx);
     auto& instance           = *found_instance;
 
+    instance.id                           = Next_Building_ID(game_map);
     instance.pos                          = pos;
     instance.scriptable                   = scriptable;
     instance.time_since_human_was_created = f32_inf;
-    if (built)
+    Init_Vector(instance.resources_to_book);
+
+    if (built) {
         instance.construction_points = scriptable->required_construction_points;
-    else
+    }
+    else {
         instance.construction_points = 0;
+        for (auto pair_ptr : Iter(instance.scriptable->construction_resources)) {
+            auto& [resource, count] = *pair_ptr;
+
+            Vector_Add(
+                game_map.resources_booking_queue,
+                {resource.scriptable_id, resource.count, instance.id}
+            );
+        }
+    }
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
@@ -1330,8 +1343,20 @@ void Add_Map_Resource(
     resource.scriptable = scriptable;
     resource.pos        = pos;
     resource.booking    = nullptr;
-    Init_Vector(resource.transportation_segments, ctx);
-    Init_Vector(resource.transportation_vertices, ctx);
+    PUSH_CONTEXT(
+        Context(
+            ctx.thread_index,
+            nullptr,
+            nullptr,
+            ctx.logger_routine,
+            ctx.logger_tracing_routine,
+            ctx.logger_data
+        ),
+        {
+            Init_Vector(resource.transportation_segments, ctx);
+            Init_Vector(resource.transportation_vertices, ctx);
+        }
+    );
     resource.targeted_human = nullptr;
     resource.carrying_human = nullptr;
     resource.locator        = locator;
@@ -1341,6 +1366,8 @@ void Add_Map_Resource(
 
 void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     auto& game_map = state.game_map;
+
+    game_map.last_building_id = 0;
 
     game_map.data = std::construct_at(Allocate_For(arena, Game_Map_Data), 0.3f);
 
