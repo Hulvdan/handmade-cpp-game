@@ -218,6 +218,21 @@ struct Arrow_Proxy {
 };
 
 template <typename Derived>
+struct Equatable {
+protected:
+    using Self_Type = Derived;
+
+public:
+    friend bool operator==(const Self_Type& left, const Self_Type& right) {
+        return left.Equal_To(right);
+    }
+    // SHIT: Fuken `clang-tidy` requires this function to be specified
+    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
+        return !left.Equal_To(right);
+    }
+};
+
+template <typename Derived>
 struct Iterator_Facade {
 protected:
     using Self_Type = Derived;

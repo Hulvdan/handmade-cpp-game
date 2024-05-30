@@ -50,6 +50,14 @@ struct Vector {
     void* allocator_data;
 };
 
+template <typename T, typename U>
+struct Sparse_Array {
+    T*  base;
+    U*  pks;
+    i32 count;
+    i32 max_count;
+};
+
 // NOTE: Изменение максимального количества элементов,
 // которое вектор сможет содержать без реаллокации.
 template <typename T>
@@ -112,10 +120,27 @@ struct Bucket {
     Bucket_Index bucket_index;
 };
 
-struct Bucket_Locator {
+struct Bucket_Locator : Equatable<Bucket_Locator> {
     Bucket_Index bucket_index;
     u32          slot_index;
+
+    constexpr Bucket_Locator()                            = default;
+    constexpr Bucket_Locator(Bucket_Locator&& other)      = default;
+    constexpr Bucket_Locator(const Bucket_Locator& other) = default;
+
+    constexpr Bucket_Locator(Bucket_Index a_bucket_index, u32 a_slot_index)
+        : bucket_index(a_bucket_index), slot_index(a_slot_index) {}
+    constexpr Bucket_Locator& operator=(const Bucket_Locator&) = default;
+
+    // Bucket_Locator(Bucket_Locator&& other)
+    //     : bucket_index(other.bucket_index), slot_index(other.slot_index) {}
+
+    bool Equal_To(const Bucket_Locator& o) const {
+        return bucket_index == o.bucket_index && slot_index == o.slot_index;
+    }
 };
+
+constexpr const Bucket_Locator Incorrect_Bucket_Locator(-1, -1);
 
 // TODO:
 // 1) Нужно ли реализовать expandable количество бакетов?
@@ -673,10 +698,7 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr, MCTX
         arr.unfull_buckets_count -= 1;
     }
 
-    Bucket_Locator locator = {};
-    locator.bucket_index   = bucket_ptr->bucket_index;
-    locator.slot_index     = index;
-
+    Bucket_Locator locator{bucket_ptr->bucket_index, index};
     return {locator, scast<T*>(bucket_ptr->data) + index};
 }
 
@@ -691,7 +713,8 @@ Bucket_Locator Bucket_Array_Add(Bucket_Array<T>& arr, T& item, MCTX) {
 }
 
 template <typename T>
-T* Bucket_Array_Find(Bucket_Array<T> arr, Bucket_Locator locator) {
+T* Bucket_Array_Find(Bucket_Array<T>& arr, Bucket_Locator& locator) {
+    // TODO: Больше проверок!
     auto& bucket = *(arr.all_buckets + locator.bucket_index);
     Assert(Bucket_Occupied(bucket, locator.slot_index));
     auto result = scast<T*>(bucket.data) + locator.slot_index;
@@ -799,6 +822,44 @@ private:
     i32              _current              = 0;
     Bucket_Index     _current_bucket       = 0;
     u16              _current_bucket_count = 0;
+};
+
+template <typename T, typename U>
+struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U>> {
+    Sparse_Array_Iterator() = delete;
+    Sparse_Array_Iterator(Sparse_Array<T, U>* container)
+        : Sparse_Array_Iterator(container, 0) {}
+    Sparse_Array_Iterator(Sparse_Array<T, U>* container, i32 current)
+        : _current(current)
+        , _container(container)  //
+    {
+        Assert(container != nullptr);
+    }
+
+    Sparse_Array_Iterator begin() const {
+        return {_container, _current};
+    }
+    Sparse_Array_Iterator end() const {
+        return {_container, _container->count};
+    }
+
+    std::tuple<U, T*> Dereference() const {
+        Assert(_current >= 0);
+        Assert(_current < _container->count);
+        return std::tuple(_container->pks[_current], _container->base[_current]);
+    }
+
+    void Increment() {
+        _current++;
+    }
+
+    bool Equal_To(const Sparse_Array_Iterator& o) const {
+        return _current == o._current;
+    }
+
+private:
+    Sparse_Array<T, U>* _container;
+    i32                 _current = 0;
 };
 
 template <typename T>
@@ -1019,6 +1080,15 @@ template <typename T>
 BF_FORCE_INLINE auto Iter(Bucket_Array<T>* container) {
     return Bucket_Array_Iterator(container);
 }
+template <typename T, typename U>
+BF_FORCE_INLINE auto Iter(Sparse_Array<T, U>* container) {
+    return Sparse_Array_Iterator(container);
+}
+
+template <typename T>
+BF_FORCE_INLINE auto Iter(Vector<T>* container) {
+    return Vector_Iterator(container);
+}
 
 template <typename T>
 BF_FORCE_INLINE auto Iter(tvector<T>* container) {
@@ -1031,7 +1101,7 @@ BF_FORCE_INLINE auto Iter(Grid_Of_Vectors<T>* container, v2i16 pos, i16 stride) 
 }
 
 template <typename T>
-BF_FORCE_INLINE auto Iter_With_Locator(Bucket_Array<T>* arr) {
+BF_FORCE_INLINE auto Iter_With_ID(Bucket_Array<T>* arr) {
     return Bucket_Array_With_Locator_Iterator(arr);
 }
 
@@ -1069,4 +1139,83 @@ BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
         }
     }
     container.used_buckets_count = 0;
+}
+
+template <typename T, typename U>
+Sparse_Array<T, U> Sparse_Array_Create(i32 max_count, MCTX) {
+    CTX_ALLOCATOR;
+    Sparse_Array<T, U> res;
+    res.base      = rcast<T*>(ALLOC(sizeof(T) * max_count));
+    res.pks       = rcast<U*>(ALLOC(sizeof(U) * max_count));
+    res.count     = 0;
+    res.max_count = max_count;
+    return res;
+}
+
+template <typename T, typename U>
+void Enlarge_Sparse_Array(Sparse_Array<T, U>& container, MCTX) {
+    CTX_ALLOCATOR;
+
+    u32 new_max_count = container.max_count * 2;
+    Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
+
+    auto old_base_size = sizeof(T) * container.max_count;
+    auto old_pks_size  = sizeof(U) * container.max_count;
+    auto old_base_ptr  = container.base;
+    auto old_pks_ptr   = container.pks;
+
+    container.base = rcast<T*>(ALLOC(old_base_size * 2));
+    container.pks  = rcast<T*>(ALLOC(old_pks_size * 2));
+    memcpy(container.base, old_base_ptr, old_base_size);
+    memcpy(container.pks, old_pks_ptr, old_pks_size);
+    FREE(old_base_ptr, old_base_size);
+    FREE(old_pks_ptr, old_pks_size);
+
+    container.max_count = new_max_count;
+}
+
+template <typename T, typename U>
+void Sparse_Array_Add(Sparse_Array<T, U>& container, U pk, const T& value, MCTX) {
+    if (container.max_count == container.count)
+        Enlarge_Sparse_Array(container, ctx);
+
+    *(container.base + container.count) = value;
+    *(container.pks + container.count)  = pk;
+    container.count += 1;
+}
+
+template <typename T, typename U>
+void Sparse_Array_Add(Sparse_Array<T, U>& container, U pk, T&& value, MCTX) {
+    if (container.max_count == container.count)
+        Enlarge_Sparse_Array(container, ctx);
+
+    *(container.base + container.count) = value;
+    *(container.pks + container.count)  = pk;
+    container.count += 1;
+}
+
+template <typename T, typename U>
+void Sparse_Array_Unordered_Remove(Sparse_Array<T, U>& container, U pk) {
+    FOR_RANGE (i32, i, container.count) {
+        if (container.pks[i] == pk) {
+            if (i != container.count - 1) {
+                std::swap(container.base[i], container.base[container.count - 1]);
+                std::swap(container.pks[i], container.pks[container.count - 1]);
+            }
+            container.count--;
+            return;
+        }
+    }
+    // NOTE: Элемент с указанным id не находился в этом массиве.
+    Assert(false);
+}
+
+template <typename T, typename U>
+T* Sparse_Array_Find(Sparse_Array<T, U>& arr, U id) {
+    FOR_RANGE (int, i, arr.count) {
+        if (arr.pks[i] == id)
+            return i.base[i];
+    }
+    Assert(false);
+    return nullptr;
 }
