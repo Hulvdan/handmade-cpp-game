@@ -50,6 +50,13 @@ struct Vector {
     void* allocator_data;
 };
 
+template <typename T>
+struct Sparse_Array_Of_Pks {
+    T*  pks;
+    i32 count;
+    i32 max_count;
+};
+
 template <typename T, typename U>
 struct Sparse_Array {
     T*  base;

@@ -14,14 +14,14 @@ struct Loaded_Texture;
 using Entity_ID                   = u32;
 const Entity_ID Entity_ID_Missing = 1 << 31;
 
-using C_Human_ID                    = Entity_ID;
-const C_Human_ID C_Human_ID_Missing = Entity_ID_Missing;
+using Human_ID                  = Entity_ID;
+const Human_ID Human_ID_Missing = Entity_ID_Missing;
 
-using C_Human_Constructor_ID                                = C_Human_ID;
-const C_Human_Constructor_ID C_Human_Constructor_ID_Missing = Entity_ID_Missing;
+using Human_Constructor_ID                              = Human_ID;
+const Human_Constructor_ID Human_Constructor_ID_Missing = Entity_ID_Missing;
 
-using C_Building_ID                       = Entity_ID;
-const C_Building_ID C_Building_ID_Missing = Entity_ID_Missing;
+using Building_ID                     = Entity_ID;
+const Building_ID Building_ID_Missing = Entity_ID_Missing;
 
 // TODO: Куда-то перенести эту функцию
 template <>
@@ -97,7 +97,6 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
     return result;
 }
 
-struct Human;
 struct Scriptable_Resource;
 struct Graph_Segment;
 
@@ -107,11 +106,16 @@ const Scriptable_Resource_ID No_Scriptable_Resource_ID = 0;
 using Scriptable_Building_ID                           = u16;
 const Scriptable_Building_ID No_Scriptable_Building_ID = 0;
 
-using Graph_Segment_ID = Bucket_Locator;
-const Graph_Segment_ID No_Graph_Segment_ID(-1, -1);
+// using Graph_Segment_ID = Bucket_Locator;
+// const Graph_Segment_ID No_Graph_Segment_ID(-1, -1);
+// using Map_Resource_ID = Bucket_Locator;
+// const Map_Resource_ID No_Map_Resource_ID(-1, -1);
 
-using Map_Resource_ID = Bucket_Locator;
-const Map_Resource_ID No_Map_Resource_ID(-1, -1);
+using Graph_Segment_ID                         = Entity_ID;
+const Graph_Segment_ID Graph_Segment_ID_Mising = Entity_ID_Missing;
+
+using Map_Resource_ID                         = Entity_ID;
+const Map_Resource_ID Map_Resource_ID_Missing = Entity_ID_Missing;
 
 using Map_Resource_Booking_ID                            = u16;
 const Map_Resource_Booking_ID No_Map_Resource_Booking_ID = 0;
@@ -124,7 +128,7 @@ enum class Map_Resource_Booking_Type {
 struct Map_Resource_Booking {
     Map_Resource_Booking_ID   id;
     Map_Resource_Booking_Type type;
-    C_Building_ID             building_id;
+    Building_ID               building_id;
     i32                       priority;
 };
 
@@ -139,8 +143,8 @@ struct Map_Resource {
     Vector<Graph_Segment*> transportation_segments;
     Vector<v2i16>          transportation_vertices;
 
-    Human* targeted_human;
-    Human* carrying_human;
+    Human_ID targeted_human;  // optional
+    Human_ID carrying_human;  // optional
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -188,7 +192,7 @@ struct Graph_Segment : public Non_Copyable {
 
     Graph graph;
 
-    Human*                      assigned_human;
+    Human_ID                    assigned_human;  // optional
     std::vector<Graph_Segment*> linked_segments;
 
     Queue<Map_Resource> resources_to_transport;
@@ -313,63 +317,15 @@ enum class Human_Main_State {
     Employee,
 };
 
-struct Human : public Non_Copyable {
-    Player_ID              player_id;
-    Human_Moving_Component moving;
-
-    Graph_Segment* segment;
-    Human_Type     type;
-
-    Human_Main_State          state;
-    Moving_In_The_World_State state_moving_in_the_world;
-
-    // Human_ID id;
-    C_Building_ID building_id;
-    // Moving_Resources_State state_moving_resources;
-    //
-    // f32 moving_resources__picking_up_resource_elapsed;
-    // f32 moving_resources__picking_up_resource_progress;
-    // f32 moving_resources__placing_resource_elapsed;
-    // f32 moving_resources__placing_resource_progress;
-    //
-    // Map_Resource* moving_resources__targeted_resource;
-    //
-    // f32 harvesting_elapsed;
-    // i32 current_behaviour_id = -1;
-    //
-    // Employee_Behaviour_Set behaviour_set;
-    // f32 processing_elapsed;
-
-    Human(Human&& o) : building_id(std::move(o.building_id)) {
-        player_id                 = std::move(o.player_id);
-        moving                    = std::move(o.moving);
-        segment                   = std::move(o.segment);
-        type                      = std::move(o.type);
-        state                     = std::move(o.state);
-        state_moving_in_the_world = std::move(o.state_moving_in_the_world);
-    }
-
-    Human& operator=(Human&& o) {
-        player_id                 = std::move(o.player_id);
-        moving                    = std::move(o.moving);
-        segment                   = std::move(o.segment);
-        type                      = std::move(o.type);
-        state                     = std::move(o.state);
-        state_moving_in_the_world = std::move(o.state_moving_in_the_world);
-        building_id               = std::move(o.building_id);
-        return *this;
-    }
-};
-
 struct Map_Resource_To_Book : public Non_Copyable {
     Scriptable_Resource_ID scriptable_id;
     u8                     count;
-    C_Building_ID          building_id;
+    Building_ID            building_id;
 
     Map_Resource_To_Book(
         Scriptable_Resource_ID a_scriptable_id,
         u8                     a_count,
-        C_Building_ID          a_building_id
+        Building_ID            a_building_id
     )
         : scriptable_id(a_scriptable_id)  //
         , count(a_count)
@@ -405,7 +361,7 @@ enum class Element_Tile_Type {
 
 struct Element_Tile : public Non_Copyable {
     Element_Tile_Type type;
-    C_Building_ID     building_id;
+    Building_ID       building_id;
     Player_ID         player_id;
 };
 
@@ -414,9 +370,9 @@ void Validate_Element_Tile(Element_Tile& tile) {
     Assert((int)tile.type <= 3);
 
     if (tile.type == Element_Tile_Type::Building)
-        Assert(tile.building_id != C_Building_ID_Missing);
+        Assert(tile.building_id != Building_ID_Missing);
     else
-        Assert(tile.building_id == C_Building_ID_Missing);
+        Assert(tile.building_id == Building_ID_Missing);
 }
 
 struct Scriptable_Resource : public Non_Copyable {
@@ -464,11 +420,7 @@ enum class Human_Removal_Reason {
     Employee_Reached_Building,
 };
 
-template <typename T>
-struct Relationship {};
-
-template <typename T>
-struct C_Human {
+struct Human {
     Human_Moving_Component moving;
 
     Human_Type type;
@@ -477,38 +429,35 @@ struct C_Human {
     Moving_In_The_World_State state_moving_in_the_world;
 
     // Human_ID id;
-    C_Building_ID building_id;
+    Building_ID building_id;
 };
 
-template <typename T>
-struct C_Human_Transporter {
+struct Human_Transporter {
     Graph_Segment* segment;
-    //
 };
 
-template <typename T>
-struct C_Human_Constructor {
-    //
+struct Human_Constructor {
+    Building_ID targeted_building;
 };
 
 constexpr Entity_ID Component_Mask(Entity_ID component_number) {
     return component_number << 22;
 }
 
-struct C_Building {
+struct Building {
     static const Entity_ID component_mask = Component_Mask(1);
 
     v2i16                  pos;
     Scriptable_Building_ID scriptable;
 };
 
-struct C_Not_Constructed_Building {
-    C_Human_Constructor_ID constructor;  // optional
-    f32                    construction_points;
+struct Not_Constructed_Building {
+    Human_Constructor_ID constructor;  // optional
+    f32                  construction_points;
     // Vector<Resource_To_Book> resources_to_book;
 };
 
-struct C_City_Hall {
+struct City_Hall {
     f32 time_since_human_was_created;
 };
 
@@ -530,22 +479,6 @@ struct Game_Map : public Non_Copyable {
 
     // Bucket_Array<Building>      buildings;
     Bucket_Array<Graph_Segment> segments;
-    Bucket_Array<Human>         humans;
-
-    Bucket_Array<Human> humans_to_add;
-
-    struct Human_To_Remove {
-        Human_Removal_Reason reason;
-        Human*               human;
-        Bucket_Locator       locator;
-    };
-    std::vector<Human_To_Remove> humans_to_remove;
-
-    // NOTE: Выделяем pool, т.к. эти ресурсы могут перемещаться из контейнера
-    // карты к чувачкам в руки, в здания, а также обратно в `resources`.
-    // TODO: !!! Pool
-    Bucket_Array<Map_Resource>     resources_pool;
-    Grid_Of_Vectors<Map_Resource*> resources;
 
     Queue<Graph_Segment*> segments_wo_humans;
 
@@ -554,9 +487,15 @@ struct Game_Map : public Non_Copyable {
 
     Vector<Map_Resource_To_Book> resources_booking_queue;
 
-    Sparse_Array<C_Building, C_Building_ID>                 buildings;
-    Sparse_Array<C_Not_Constructed_Building, C_Building_ID> not_constructed_buildings;
-    Sparse_Array<C_City_Hall, C_Building_ID>                city_halls;
+    Sparse_Array<Building, Building_ID>                 buildings;
+    Sparse_Array<Not_Constructed_Building, Building_ID> not_constructed_buildings;
+    Sparse_Array<City_Hall, Building_ID>                city_halls;
+    Sparse_Array<Human, Human_ID>                       humans;
+    Sparse_Array<Human_Transporter, Human_ID>           transporters;
+    Sparse_Array<Human_Constructor, Human_ID>           constructors;
+    Sparse_Array<Human, Human_ID>                       humans_to_add;
+    Sparse_Array<Human_Removal_Reason, Human_ID>        humans_to_remove;
+    Sparse_Array<Map_Resource, Map_Resource_ID>         resources;
 };
 
 template <typename T>
@@ -642,7 +581,7 @@ Get_Scriptable_Building(Game_State& state, Scriptable_Building_ID id) {
     return state.scriptable_buildings + id;
 }
 
-C_Building* Get_Building(Game_Map& game_map, C_Building_ID id) {
+Building* Get_Building(Game_Map& game_map, Building_ID id) {
     return Sparse_Array_Find(game_map.buildings, id);
 }
 

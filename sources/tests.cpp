@@ -230,7 +230,7 @@ TEST_CASE ("As_Offset") {
     CHECK(As_Offset(Direction::Down) == v2i16(0, -1));
 }
 
-C_Building* Global_Make_Building(
+Building* Global_Make_Building(
     Element_Tile*& element_tiles,
     Arena&         trash_arena,
     Building_Type  type,
