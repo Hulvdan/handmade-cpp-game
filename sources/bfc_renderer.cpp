@@ -1052,7 +1052,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // --- Drawing Element Tiles End ---
 
     // NOTE: Рисование зданий.
-    for (auto building_ptr : Iter(&game_map.buildings)) {
+    for (auto [id, building_ptr] : Iter(&game_map.buildings)) {
         auto& building            = *building_ptr;
         auto& scriptable_building = Assert_Deref(building.scriptable);
 

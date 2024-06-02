@@ -106,12 +106,6 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
 struct Scriptable_Resource;
 struct Graph_Segment;
 
-using Scriptable_Resource_ID                           = u16;
-const Scriptable_Resource_ID No_Scriptable_Resource_ID = 0;
-
-using Scriptable_Building_ID                           = u16;
-const Scriptable_Building_ID No_Scriptable_Building_ID = 0;
-
 // using Graph_Segment_ID = Bucket_Locator;
 // const Graph_Segment_ID No_Graph_Segment_ID(-1, -1);
 // using Map_Resource_ID = Bucket_Locator;
@@ -123,26 +117,25 @@ const Graph_Segment_ID Graph_Segment_ID_Mising = Entity_ID_Missing;
 using Map_Resource_ID                         = Entity_ID;
 const Map_Resource_ID Map_Resource_ID_Missing = Entity_ID_Missing;
 
-using Map_Resource_Booking_ID                            = u16;
-const Map_Resource_Booking_ID No_Map_Resource_Booking_ID = 0;
+using Map_Resource_Booking_ID                                 = u16;
+const Map_Resource_Booking_ID Map_Resource_Booking_ID_Missing = 0;
 
 enum class Map_Resource_Booking_Type {
     Construction,
-    Processing,
+    // Processing,
 };
 
 struct Map_Resource_Booking {
-    Map_Resource_Booking_ID   id;
+    static const Entity_ID component_mask = Component_Mask(4);
+
     Map_Resource_Booking_Type type;
     Building_ID               building_id;
-    i32                       priority;
 };
 
 struct Map_Resource {
     static const Entity_ID component_mask = Component_Mask(3);
 
-    // Map_Resource_ID        id;
-    Scriptable_Resource_ID scriptable;
+    Scriptable_Resource* scriptable;
 
     v2i16 pos;
 
@@ -193,7 +186,7 @@ struct Map_Resource {
 //             При замене флага (F) на дорогу (r) эти 2 сегмента сольются в один - BrrrB.
 //
 struct Graph_Segment : public Non_Copyable {
-    Graph_Segment_ID id;
+    Bucket_Locator locator;
 
     Graph_Nodes_Count vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
@@ -269,14 +262,14 @@ struct Scriptable_Building : public Non_Copyable {
     Loaded_Texture* texture;
 #endif  // BF_CLIENT
 
-    Scriptable_Resource_ID harvestable_resource_id;
+    Scriptable_Resource* harvestable_resource;
 
     f32 human_spawning_delay;
     f32 required_construction_points;
 
     bool can_be_built;
 
-    Vector<std::tuple<Scriptable_Resource_ID, i16>> construction_resources;
+    Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
 };
 
 enum class Human_Type {
@@ -326,23 +319,23 @@ enum class Human_Main_State {
 };
 
 struct Map_Resource_To_Book : public Non_Copyable {
-    Scriptable_Resource_ID scriptable_id;
-    u8                     count;
-    Building_ID            building_id;
+    Scriptable_Resource* scriptable;
+    u8                   count;
+    Building_ID          building_id;
 
     Map_Resource_To_Book(
-        Scriptable_Resource_ID a_scriptable_id,
-        u8                     a_count,
-        Building_ID            a_building_id
+        Scriptable_Resource* a_scriptable,
+        u8                   a_count,
+        Building_ID          a_building_id
     )
-        : scriptable_id(a_scriptable_id)  //
+        : scriptable(a_scriptable)  //
         , count(a_count)
         , building_id(a_building_id) {}
 };
 
 struct Resource_To_Book : public Non_Copyable {
-    Scriptable_Resource_ID scriptable_id;
-    u8                     count;
+    Scriptable_Resource* scriptable;
+    u8                   count;
 };
 
 enum class Terrain {
@@ -384,8 +377,6 @@ void Validate_Element_Tile(Element_Tile& tile) {
 }
 
 struct Scriptable_Resource : public Non_Copyable {
-    Scriptable_Resource_ID id;
-
     const char* code;
 
 #ifdef BF_CLIENT
@@ -398,7 +389,7 @@ struct Scriptable_Resource : public Non_Copyable {
 
 // NOTE: `scriptable` is `null` when `amount` = 0
 struct Terrain_Resource {
-    Scriptable_Resource_ID scriptable_id;
+    Scriptable_Resource* scriptable;
 
     u8 amount;
 };
@@ -411,18 +402,16 @@ enum class Item_To_Build_Type {
 };
 
 struct Item_To_Build : public Non_Copyable {
-    Item_To_Build_Type     type;
-    Scriptable_Building_ID scriptable_building;
+    Item_To_Build_Type   type;
+    Scriptable_Building* scriptable_building;
 
-    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building_ID a_scriptable_building)
+    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building* a_scriptable_building)
         : type(a_type)
         , scriptable_building(a_scriptable_building) {}
 };
 
-static const Item_To_Build
-    Item_To_Build_Road(Item_To_Build_Type::Road, No_Scriptable_Building_ID);
-static const Item_To_Build
-    Item_To_Build_Flag(Item_To_Build_Type::Flag, No_Scriptable_Building_ID);
+static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
+static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
 
 enum class Human_Removal_Reason {
     Transporter_Returned_To_City_Hall,
@@ -455,9 +444,9 @@ struct Human {
 struct Building {
     static const Entity_ID component_mask = Component_Mask(2);
 
-    v2i16                  pos;
-    Scriptable_Building_ID scriptable;
-    Player_ID              player_id;
+    v2i16                pos;
+    Scriptable_Building* scriptable;
+    Player_ID            player_id;
 };
 
 struct Not_Constructed_Building {
@@ -496,15 +485,16 @@ struct Game_Map : public Non_Copyable {
 
     Vector<Map_Resource_To_Book> resources_booking_queue;
 
-    Sparse_Array<Building, Building_ID>                 buildings;
-    Sparse_Array<Not_Constructed_Building, Building_ID> not_constructed_buildings;
-    Sparse_Array<City_Hall, Building_ID>                city_halls;
-    Sparse_Array<Human, Human_ID>                       humans;
-    // Sparse_Array<Human_Transporter, Human_ID>           transporters;
-    // Sparse_Array<Human_Constructor, Human_ID>           constructors;
-    Sparse_Array<Human, Human_ID>                humans_to_add;
-    Sparse_Array<Human_Removal_Reason, Human_ID> humans_to_remove;
-    Sparse_Array<Map_Resource, Map_Resource_ID>  resources;
+    Sparse_Array<Building_ID, Building>                 buildings;
+    Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings;
+    Sparse_Array<Building_ID, City_Hall>                city_halls;
+    Sparse_Array<Human_ID, Human>                       humans;
+    Sparse_Array_Of_Ids<Human_ID>                       humans_going_to_the_city_hall;
+    // Sparse_Array<Human_ID, Human_Transporter>           transporters;
+    // Sparse_Array<Human_ID, Human_Constructor>           constructors;
+    Sparse_Array<Human_ID, Human>                humans_to_add;
+    Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove;
+    Sparse_Array<Map_Resource_ID, Map_Resource>  resources;
 };
 
 template <typename T>
@@ -583,22 +573,8 @@ enum class Tile_Updated_Type {
     Building_Removed,
 };
 
-Scriptable_Building*
-Get_Scriptable_Building(Game_State& state, Scriptable_Building_ID id) {
-    Assert(id >= 0);
-    Assert(id < state.scriptable_buildings_count);
-    return state.scriptable_buildings + id;
-}
-
 Building* Get_Building(Game_Map& game_map, Building_ID id) {
-    return Sparse_Array_Find(game_map.buildings, id);
-}
-
-Scriptable_Resource*
-Get_Scriptable_Resource(Game_State& state, Scriptable_Resource_ID id) {
-    Assert(id >= 0);
-    Assert(id < state.scriptable_resources_count);
-    return state.scriptable_resources + id;
+    return game_map.buildings.Find(id);
 }
 
 #ifdef BF_CLIENT
@@ -740,5 +716,3 @@ struct Game_Renderer_State : public Non_Copyable {
 //     Vector<BF_Texture_ID> textures;
 // };
 #endif  // BF_CLIENT
-
-global_var Scriptable_Resource_ID global_forest_resource_id = 1;

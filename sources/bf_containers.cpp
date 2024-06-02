@@ -55,62 +55,28 @@ struct Sparse_Array_Of_Ids {
     T*  ids;
     i32 count;
     i32 max_count;
-};
 
-template <typename T, typename U>
-struct Sparse_Array {
-    T*  base  = nullptr;
-    U*  ids   = nullptr;
-    i32 count = 0;
-    i32 max_count;
-
-    Sparse_Array(i32 _max_count, MCTX)
+    Sparse_Array_Of_Ids(i32 _max_count, MCTX)
         : max_count(_max_count) {
         CTX_ALLOCATOR;
-        base  = rcast<T*>(ALLOC(sizeof(T) * max_count));
-        ids   = rcast<U*>(ALLOC(sizeof(U) * max_count));
+        ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
         count = 0;
     }
 
-    T* Add(const U id, const T& value, MCTX) {
+    void Add(const T id, MCTX) {
         Assert(!Contains(this, id));
 
         if (max_count == count)
             Enlarge(ctx);
 
-        *(base + count) = value;
-        *(ids + count)  = id;
+        *(ids + count) = id;
         count += 1;
-        return base + count - 1;
     }
 
-    T* Add(const U id, T&& value, MCTX) {
-        Assert(!Sparse_Array_Contains(this, id));
-
-        if (max_count == count)
-            Enlarge(ctx);
-
-        *(base + count) = value;
-        *(ids + count)  = id;
-        count += 1;
-
-        return base + count - 1;
-    }
-
-    T* Find(const U id) {
-        FOR_RANGE (i32, i, count) {
-            if (ids[i] == id)
-                return base + i;
-        }
-        Assert(false);
-        return nullptr;
-    }
-
-    void Unstable_Remove(const U id) {
+    void Unstable_Remove(const T id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
                 if (i != count - 1) {
-                    std::swap(base[i], base[count - 1]);
                     std::swap(ids[i], ids[count - 1]);
                 }
                 count--;
@@ -120,7 +86,7 @@ struct Sparse_Array {
         Assert(false);
     }
 
-    bool Contains(const U id) {
+    bool Contains(const T id) {
         FOR_RANGE (int, i, count) {
             if (ids[i] == id)
                 return true;
@@ -134,17 +100,109 @@ struct Sparse_Array {
         u32 new_max_count = max_count * 2;
         Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto old_base_size = sizeof(T) * max_count;
-        auto old_ids_size  = sizeof(U) * max_count;
-        auto old_base_ptr  = base;
-        auto old_ids_ptr   = ids;
+        auto old_ids_size = sizeof(T) * max_count;
+        auto old_ids_ptr  = ids;
 
-        base = rcast<T*>(ALLOC(old_base_size * 2));
-        ids  = rcast<T*>(ALLOC(old_ids_size * 2));
-        memcpy(base, old_base_ptr, old_base_size);
+        ids = rcast<T*>(ALLOC(old_ids_size * 2));
         memcpy(ids, old_ids_ptr, old_ids_size);
-        FREE(old_base_ptr, old_base_size);
         FREE(old_ids_ptr, old_ids_size);
+
+        max_count = new_max_count;
+    }
+
+    void Reset() {
+        count = 0;
+    }
+};
+
+template <typename T, typename U>
+struct Sparse_Array {
+    T*  ids   = nullptr;
+    U*  base  = nullptr;
+    i32 count = 0;
+    i32 max_count;
+
+    Sparse_Array(i32 _max_count, MCTX)
+        : max_count(_max_count) {
+        CTX_ALLOCATOR;
+        ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
+        base  = rcast<U*>(ALLOC(sizeof(U) * max_count));
+        count = 0;
+    }
+
+    U* Add(const T id, const U& value, MCTX) {
+        Assert(!Contains(this, id));
+
+        if (max_count == count)
+            Enlarge(ctx);
+
+        *(ids + count)  = id;
+        *(base + count) = value;
+        count += 1;
+        return base + count - 1;
+    }
+
+    U* Add(const T id, U&& value, MCTX) {
+        Assert(!Sparse_Array_Contains(this, id));
+
+        if (max_count == count)
+            Enlarge(ctx);
+
+        *(ids + count)  = id;
+        *(base + count) = value;
+        count += 1;
+
+        return base + count - 1;
+    }
+
+    U* Find(const T id) {
+        FOR_RANGE (i32, i, count) {
+            if (ids[i] == id)
+                return base + i;
+        }
+        Assert(false);
+        return nullptr;
+    }
+
+    void Unstable_Remove(const T id) {
+        FOR_RANGE (i32, i, count) {
+            if (ids[i] == id) {
+                if (i != count - 1) {
+                    std::swap(ids[i], ids[count - 1]);
+                    std::swap(base[i], base[count - 1]);
+                }
+                count--;
+                return;
+            }
+        }
+        Assert(false);
+    }
+
+    bool Contains(const T id) {
+        FOR_RANGE (int, i, count) {
+            if (ids[i] == id)
+                return true;
+        }
+        return false;
+    }
+
+    void Enlarge(MCTX) {
+        CTX_ALLOCATOR;
+
+        u32 new_max_count = max_count * 2;
+        Assert(max_count < new_max_count);  // NOTE: Ловим overflow
+
+        auto old_ids_size  = sizeof(T) * max_count;
+        auto old_base_size = sizeof(U) * max_count;
+        auto old_ids_ptr   = ids;
+        auto old_base_ptr  = base;
+
+        ids  = rcast<T*>(ALLOC(old_ids_size * 2));
+        base = rcast<U*>(ALLOC(old_base_size * 2));
+        memcpy(ids, old_ids_ptr, old_ids_size);
+        memcpy(base, old_base_ptr, old_base_size);
+        FREE(old_ids_ptr, old_ids_size);
+        FREE(old_base_ptr, old_base_size);
 
         max_count = new_max_count;
     }
@@ -941,7 +999,7 @@ struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U
         return {_container, _container->count};
     }
 
-    std::tuple<U, T*> Dereference() const {
+    std::tuple<T, U*> Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
         return std::tuple(_container->ids[_current], _container->base[_current]);

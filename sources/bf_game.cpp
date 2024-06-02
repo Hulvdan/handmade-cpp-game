@@ -467,17 +467,17 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         if (first_time_initializing) {
             auto& resources = *state.gamelib->resources();
 
-            auto newresources
+            auto new_resources
                 = Allocate_Array(arena, Scriptable_Resource, resources.size());
 
             FOR_RANGE (int, i, resources.size()) {
                 const auto& resource     = *resources[i];
-                auto&       new_resource = newresources[i];
+                auto&       new_resource = new_resources[i];
                 new_resource.code        = resource.code()->c_str();
             }
 
             state.scriptable_resources_count = resources.size();
-            state.scriptable_resources       = newresources;
+            state.scriptable_resources       = new_resources;
         }
 
         auto s = state.gamelib->buildings()->size();

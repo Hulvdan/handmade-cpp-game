@@ -281,6 +281,38 @@ void Deinit_Queue(Queue<T>& container, MCTX) {
 }
 
 template <typename T>
+void Deinit_Sparse_Array(Sparse_Array_Of_Ids<T> container, MCTX) {
+    CTX_ALLOCATOR;
+
+    if (container.ids != nullptr) {
+        Assert(container.max_count != 0);
+        FREE(container.ids, container.max_count * sizeof(T));
+    }
+
+    container.count     = 0;
+    container.max_count = 0;
+}
+
+template <typename T, typename U>
+void Deinit_Sparse_Array(Sparse_Array<T, U> container, MCTX) {
+    CTX_ALLOCATOR;
+
+    if (container.ids != nullptr) {
+        Assert(container.base != nullptr);
+    }
+
+    if (container.base != nullptr) {
+        Assert(container.max_count != 0);
+        Assert(container.ids != nullptr);
+
+        FREE(container.ids, container.max_count * sizeof(T));
+        FREE(container.base, container.max_count * sizeof(U));
+    }
+    container.count     = 0;
+    container.max_count = 0;
+}
+
+template <typename T>
 void Deinit_Grid_Of_Queues(Grid_Of_Queues<T>& container, const v2i16 gsize, MCTX) {
     CTX_ALLOCATOR;
 
@@ -372,40 +404,37 @@ Map_Resource_ID Next_Map_Resource_ID(Game_Map& game_map) {
 }
 
 void Place_Building(
-    Game_State&            state,
-    v2i16                  pos,
-    Scriptable_Building_ID scriptable_id,
-    bool                   built,
+    Game_State&          state,
+    v2i16                pos,
+    Scriptable_Building* scriptable_building,
+    bool                 built,
     MCTX
 ) {
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
-    auto scriptable = Get_Scriptable_Building(state, scriptable_id);
-
-    Building b;
     auto     bid = Next_Building_ID(game_map);
+    Building b   = {};
     b.pos        = pos;
-    b.scriptable = scriptable_id;
-    game_map.buildings.Add(bid, b, ctx);
+    b.scriptable = scriptable_building;
+
+    game_map.buildings.Add(bid, std::move(b), ctx);
 
     if (built) {
-        Assert(scriptable->type == Building_Type::City_Hall);
+        Assert(scriptable_building->type == Building_Type::City_Hall);
 
         City_Hall c;
         c.time_since_human_was_created = f32_inf;
         game_map.city_halls.Add(bid, c, ctx);
     }
     else {
-        for (auto pair_ptr : Iter(&scriptable->construction_resources)) {
+        for (auto pair_ptr : Iter(&scriptable_building->construction_resources)) {
             auto& [resource, count] = *pair_ptr;
-
-            auto& scriptable_resource = *Get_Scriptable_Resource(state, resource);
 
             Vector_Add(
                 game_map.resources_booking_queue,
-                Map_Resource_To_Book(scriptable_resource.id, count, bid),
+                Map_Resource_To_Book(resource, count, bid),
                 ctx
             );
         }
@@ -484,9 +513,21 @@ void Human_Moving_Component_Add_Path(
 Building* Query_Building(Game_State& state, Building_ID id) {
     Assert(id != Building_ID_Missing);
 
-    for (auto [building_id, building] : Iter(&state.game_map.buildings)) {
-        if (building_id == id)
-            return building;
+    for (auto [instance_id, instance] : Iter(&state.game_map.buildings)) {
+        if (instance_id == id)
+            return instance;
+    }
+
+    Assert(false);
+    return nullptr;
+}
+
+Human* Query_Human(Game_State& state, Human_ID id) {
+    Assert(id != Human_ID_Missing);
+
+    for (auto [instance_id, instance] : Iter(&state.game_map.humans)) {
+        if (instance_id == id)
+            return instance;
     }
 
     Assert(false);
@@ -957,6 +998,7 @@ void Human_Root_Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
 }
 
 void Root_On_Human_Current_Segment_Changed(
+    Human_ID          id,
     Human&            human,
     const Human_Data& data,
     Graph_Segment*    old_segment,
@@ -1185,8 +1227,7 @@ void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX)
     Map_Buildings_With_City_Halls(
         game_map,
         [&](Building_ID id, Building* building, City_Hall* city_hall) {
-            auto& scriptable = *Get_Scriptable_Building(state, building->scriptable);
-            auto  delay      = scriptable.human_spawning_delay;
+            auto delay = building->scriptable->human_spawning_delay;
 
             auto& since_created = city_hall->time_since_human_was_created;
             since_created += dt;
@@ -1415,33 +1456,22 @@ void Add_Map_Resource(
     const v2i16          pos,
     MCTX
 ) {
+    CTX_ALLOCATOR;
     auto& game_map    = state.game_map;
     auto  gsize       = game_map.size;
     auto& trash_arena = state.trash_arena;
 
     Map_Resource resource = {};
-    resource.scriptable   = scriptable_id;
+    resource.scriptable   = scriptable;
     resource.pos          = pos;
-    resource.booking      = nullptr;
-    PUSH_CONTEXT(
-        Context(
-            ctx.thread_index,
-            nullptr,
-            nullptr,
-            ctx.logger_routine,
-            ctx.logger_tracing_routine,
-            ctx.logger_data
-        ),
-        {
-            Init_Vector(resource.transportation_segments, ctx);
-            Init_Vector(resource.transportation_vertices, ctx);
-        }
-    );
-    resource.targeted_human = nullptr;
-    resource.carrying_human = nullptr;
+    resource.booking      = Map_Resource_Booking_ID_Missing;
+    Init_Vector(resource.transportation_segments, ctx);
+    Init_Vector(resource.transportation_vertices, ctx);
+    resource.targeted_human = Human_ID_Missing;
+    resource.carrying_human = Human_ID_Missing;
 
     auto id           = Next_Map_Resource_ID(game_map);
-    auto resource_ptr = game_map.resources.Add(id, std::move(resource));
+    auto resource_ptr = game_map.resources.Add(id, std::move(resource), ctx);
 }
 
 void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
@@ -1453,15 +1483,13 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
 
     const auto tiles_count = game_map.size.x * game_map.size.y;
 
-    Init_Bucket_Array(game_map.buildings, 32, 128, ctx);
-    Init_Bucket_Array(game_map.segments, 32, 128, ctx);
-    Init_Bucket_Array(game_map.humans, 32, 128, ctx);
-    Init_Bucket_Array(game_map.humans_to_add, 32, 128, ctx);
-    Init_Bucket_Array(game_map.resources_pool, 32, 512, ctx);
-
-    std::construct_at(&game_map.humans_to_remove);
-
-    Init_Grid_Of_Vectors(game_map.resources, game_map.size, ctx);
+    std::construct_at(&game_map.buildings, 32, ctx);
+    std::construct_at(&game_map.segments);
+    std::construct_at(&game_map.humans, 32, ctx);
+    std::construct_at(&game_map.humans_to_add, 32, ctx);
+    // std::construct_at(&game_map.resources_pool, 32, ctx);
+    std::construct_at(&game_map.humans_to_remove, 8, ctx);
+    // Init_Grid_Of_Vectors(game_map.resources, game_map.size, ctx);
 
     {
         auto& container     = game_map.segments_wo_humans;
@@ -1471,32 +1499,33 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     }
 
     bool built = true;
-    Place_Building(state, {2, 2}, 0, state.scriptable_buildings + 0, built, ctx);
+    Place_Building(state, {2, 2}, state.scriptable_buildings + 0, built, ctx);
 
     {
         const int players_count = 1;
-        const
-            // int        city_halls_count = 0;
-            // Building** city_halls       = Allocate_Array(arena, Building*,
-            // players_count);
-            //
-            // {  // NOTE: Доставание всех City Hall.
-            //     for (auto building_ptr : Iter(&game_map.buildings)) {
-            //         auto& building = *building_ptr;
-            //         if (building.scriptable->type == Building_Type::City_Hall)
-            //             Array_Push(city_halls, city_halls_count, players_count,
-            //             building_ptr);
-            //
-            //         if (city_halls_count == players_count)
-            //             break;
-            //     }
-            //     Assert(city_halls_count == players_count);
-            // }
+        // const int city_halls_count = 0;
+        // Building** city_halls       = Allocate_Array(arena, Building*,
+        // players_count);
+        //
+        // {  // NOTE: Доставание всех City Hall.
+        //     for (auto building_ptr : Iter(&game_map.buildings)) {
+        //         auto& building = *building_ptr;
+        //         if (building.scriptable->type == Building_Type::City_Hall)
+        //             Array_Push(city_halls, city_halls_count, players_count,
+        //             building_ptr);
+        //
+        //         if (city_halls_count == players_count)
+        //             break;
+        //     }
+        //     Assert(city_halls_count == players_count);
+        // }
 
-            game_map.human_data
-            = Human_Data{
-                Allocate_For(arena, Human_Data), &state.game_map, &state.trash_arena
-            };
+        auto human_data         = Allocate_For(arena, Human_Data);
+        human_data->game_map    = &state.game_map;
+        human_data->trash_arena = &state.trash_arena;
+        human_data->state       = &state;
+
+        game_map.human_data = human_data;
     }
 
     // TODO: !!!
@@ -1507,8 +1536,6 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
 void Deinit_Game_Map(Game_State& state, MCTX) {
     CTX_ALLOCATOR;
     auto& game_map = state.game_map;
-
-    Deinit_Bucket_Array(game_map.buildings, ctx);
 
     for (auto segment_ptr : Iter(&game_map.segments)) {
         FREE(segment_ptr->vertices, segment_ptr->vertices_count);
@@ -1532,20 +1559,23 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
         FREE(data.dist, n * n);
         FREE(data.prev, n * n);
     }
-
     Deinit_Bucket_Array(game_map.segments, ctx);
-    Deinit_Bucket_Array(game_map.humans, ctx);
-    Deinit_Bucket_Array(game_map.humans_to_add, ctx);
-    Deinit_Bucket_Array(game_map.resources_pool, ctx);
 
-    // TODO: деинициалиация game_map.humans_to_remove
+    Deinit_Sparse_Array(game_map.buildings, ctx);
+    Deinit_Sparse_Array(game_map.not_constructed_buildings, ctx);
+    Deinit_Sparse_Array(game_map.city_halls, ctx);
 
-    Deinit_Grid_Of_Vectors(game_map.resources, game_map.size, ctx);
+    for (auto [_, human] : Iter(&game_map.humans))
+        Deinit_Queue(human->moving.path, ctx);
+    Deinit_Sparse_Array(game_map.humans, ctx);
 
-    game_map.humans_to_remove.Reset();
+    Deinit_Sparse_Array(game_map.humans_going_to_the_city_hall, ctx);
+    Deinit_Sparse_Array(game_map.humans_to_add, ctx);
+    Deinit_Sparse_Array(game_map.humans_to_remove, ctx);
+    Deinit_Sparse_Array(game_map.resources, ctx);
     Deinit_Queue(game_map.segments_wo_humans, ctx);
 
-    for (auto human_ptr : Iter(&game_map.humans)) {
+    for (auto [_, human_ptr] : Iter(&game_map.humans)) {
         auto& human = *human_ptr;
         Deinit_Queue(human.moving.path, ctx);
     }
@@ -1645,8 +1675,9 @@ void Regenerate_Terrain_Tiles(
             auto noise    = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
             bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
-            resource.scriptable_id = global_forest_resource_id * generate;
-            resource.amount        = data.forest_max_amount * generate;
+            // TODO: прикрутить terrain-ресурс леса
+            // resource.scriptable = global_forest_resource_id * generate;
+            resource.amount = data.forest_max_amount * generate;
         }
     }
 
@@ -1707,7 +1738,7 @@ void Regenerate_Element_Tiles(
         Element_Tile& tile = *(game_map.element_tiles + o.y * gsize.x + o.x);
 
         tile.type = Element_Tile_Type::Road;
-        Assert(tile.building == nullptr);
+        Assert(tile.building_id == Building_ID_Missing);
     }
 
     FOR_RANGE (int, y, gsize.y) {
@@ -2033,7 +2064,7 @@ Graph_Segment* Add_And_Link_Segment(
         Calculate_Graph_Data(segment.graph, trash_arena, ctx);
 
         segment.locator        = locator;
-        segment.assigned_human = nullptr;
+        segment.assigned_human = Human_ID_Missing;
 
         std::construct_at(&segment.linked_segments);
 
@@ -2066,6 +2097,7 @@ Graph_Segment* Add_And_Link_Segment(
 
 BF_FORCE_INLINE void Update_Segments_Function(
     Arena&          trash_arena,
+    Game_State&     state,
     Game_Map&       game_map,
     u32             segments_to_delete_count,
     Graph_Segment** segments_to_delete,
@@ -2092,7 +2124,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     // PERF: можем кешировать количество чувачков,
     // которые уже не имеют сегмента и идут в ратушу.
     auto humans_moving_to_city_hall = 0;
-    for (auto human_ptr : Iter(&game_map.humans)) {
+    for (auto [_, human_ptr] : Iter(&game_map.humans)) {
         auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
         if (human_ptr->state_moving_in_the_world == state)
             humans_moving_to_city_hall++;
@@ -2101,7 +2133,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     // PERF: Мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее.
     i32 humans_wo_segment_count = 0;
     // NOTE: `Graph_Segment*` is nullable, `Human*` is not.
-    using tttt = ttuple<Graph_Segment*, Human*>;
+    using tttt = ttuple<Graph_Segment*, std::tuple<Human_ID, Human*>>;
     const i32 humans_wo_segment_max_count
         = segments_to_delete_count + humans_moving_to_city_hall;
 
@@ -2111,14 +2143,14 @@ BF_FORCE_INLINE void Update_Segments_Function(
         humans_wo_segment
             = Allocate_Array(trash_arena, tttt, humans_wo_segment_max_count);
 
-        for (auto human_ptr : Iter(&game_map.humans)) {
+        for (auto [id, human_ptr] : Iter(&game_map.humans)) {
             auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
             if (human_ptr->state_moving_in_the_world == state) {
                 Array_Push(
                     humans_wo_segment,
                     humans_wo_segment_count,
                     humans_wo_segment_max_count,
-                    tttt(nullptr, human_ptr)
+                    tttt(nullptr, {id, human_ptr})
                 );
             }
         }
@@ -2131,15 +2163,15 @@ BF_FORCE_INLINE void Update_Segments_Function(
         auto&          segment     = *segment_ptr;
 
         // NOTE: Настекиваем чувачков без сегментов (сегменты которых удалили только что).
-        auto human_ptr = segment.assigned_human;
-        if (human_ptr != nullptr) {
+        if (segment.assigned_human != Human_ID_Missing) {
+            auto human_ptr         = Query_Human(state, segment.assigned_human);
             human_ptr->segment     = nullptr;
-            segment.assigned_human = nullptr;
+            segment.assigned_human = Human_ID_Missing;
             Array_Push(
                 humans_wo_segment,
                 humans_wo_segment_count,
                 humans_wo_segment_max_count,
-                tttt(segment_ptr, human_ptr)
+                tttt(segment_ptr, {segment.assigned_human, human_ptr})
             );
         }
 
@@ -2191,14 +2223,15 @@ BF_FORCE_INLINE void Update_Segments_Function(
     // NOTE: По возможности назначаем чувачков на старые сегменты без них.
     while (humans_wo_segment_count > 0 && game_map.segments_wo_humans.count > 0) {
         auto segment_ptr = Assert_Not_Null(Dequeue(game_map.segments_wo_humans));
-        auto [old_segment, human_ptr]
+        auto [old_segment, human_p]
             = Array_Pop(humans_wo_segment, humans_wo_segment_count);
+        auto [hid, human_ptr] = human_p;
 
         human_ptr->segment          = segment_ptr;
-        segment_ptr->assigned_human = human_ptr;
+        segment_ptr->assigned_human = hid;
 
         Root_On_Human_Current_Segment_Changed(
-            *human_ptr, *game_map.human_data, old_segment, ctx
+            hid, *human_ptr, *game_map.human_data, old_segment, ctx
         );
     }
 
@@ -2212,14 +2245,15 @@ BF_FORCE_INLINE void Update_Segments_Function(
             continue;
         }
 
-        auto [old_segment, human_ptr]
+        auto [old_segment, human_p]
             = Array_Pop(humans_wo_segment, humans_wo_segment_count);
+        auto [hid, human_ptr] = human_p;
 
         human_ptr->segment          = segment_ptr;
-        segment_ptr->assigned_human = human_ptr;
+        segment_ptr->assigned_human = hid;
 
         Root_On_Human_Current_Segment_Changed(
-            *human_ptr, *game_map.human_data, old_segment, ctx
+            hid, *human_ptr, *game_map.human_data, old_segment, ctx
         );
     }
 }
@@ -2313,7 +2347,7 @@ void Update_Graphs(
                 bool new_is_vertex   = new_is_building || new_is_flag;
 
                 if (is_vertex && new_is_vertex) {
-                    if (tile.building != new_tile.building)
+                    if (tile.building_id != new_tile.building_id)
                         continue;
 
                     if (!Graph_Node_Has(new_visited_value, opposite_dir_index)) {
@@ -2763,6 +2797,7 @@ ttuple<int, int> Update_Tiles(
             ) {                                           \
                 Update_Segments_Function(                 \
                     trash_arena,                          \
+                    state,                                \
                     game_map,                             \
                     segments_to_delete_count,             \
                     segments_to_delete,                   \
@@ -2803,7 +2838,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         else
             return false;
 
-        Assert(tile.building == nullptr);
+        Assert(tile.building_id == Building_ID_Missing);
     } break;
 
     case Item_To_Build_Type::Road: {
@@ -2812,7 +2847,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         if (tile.type != Element_Tile_Type::None)
             return false;
 
-        Assert(tile.building == nullptr);
+        Assert(tile.building_id == Building_ID_Missing);
         tile.type = Element_Tile_Type::Road;
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Road_Placed);

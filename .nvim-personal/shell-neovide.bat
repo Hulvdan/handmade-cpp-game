@@ -4,6 +4,6 @@ call "c:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build
 pushd %0\..\..
 
 
-start nvim-qt .
+start c:\Users\user\Downloads\neovide.exe\neovide.exe .
 
 sleep 2
