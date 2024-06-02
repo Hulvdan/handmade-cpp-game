@@ -10,22 +10,10 @@ vim.fn.execute(":set nowritebackup")
 -- Helper Functions --
 -- ================ --
 local overseer = require("overseer")
-local formatter_util  = require("formatter.util")
-
-function launch_background(command, callback)
-    vim.fn.jobstart(command, { on_exit = callback })
-end
-
-function save_files()
-    vim.fn.execute(":wa")
-end
-
-function reload_file()
-    vim.fn.execute(":e")
-end
 
 function overseer_run(cmd)
-    save_files()
+    vim.fn.execute(":wa")
+
     overseer
         .new_task({
             cmd = cmd,
@@ -70,26 +58,6 @@ vim.keymap.set("n", "<A-t>", function()
     overseer_run(cli_command("test"))
 end, opts)
 
-vim.keymap.set("n", "<leader>w", function()
-    save_files()
-
-    -- TODO: Переписать на formatter.nvim?
-    if vim.bo.filetype == "cpp" or vim.bo.filetype == "h" then
-        local view = vim.fn.winsaveview()
-        local buf_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
-
-        -- NOTE: Python's startup time is so fuken slow it's barely usable
-        -- local cmd = cli_command("format " .. formatter_util.escape_path(buf_path))
-        local cmd = '"C:/Program Files/LLVM/bin/clang-format.exe" -i ' .. formatter_util.escape_path(buf_path)
-        launch_background(cmd, function()
-            reload_file()
-            vim.fn.winrestview(view)
-            -- NOTE: костыль для нормального отображения nvim-treesitter-context
-            vim.api.nvim_input("mzhllhjkkj`z")
-        end)
-    end
-end, opts)
-
 -- Thanks to https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
 -- error message formats
 -- Microsoft MSBuild
@@ -101,3 +69,10 @@ vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]
 
 -- NOTE: Для обработки ошибок FlatBuffers
 vim.fn.execute([[set errorformat+=\ \ %f(%l\\,\ %c\\):\ %m]])
+
+require("conform").setup({
+    formatters = {
+        black = { command = [[.venv\Scripts\black.exe]] },
+        isort = { command = [[.venv\Scripts\isort.exe]] },
+    },
+})
