@@ -330,8 +330,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     Context _ctx(
         0,
-        Root_Allocator_Routine,
-        root_allocator,
+        nullptr,
+        nullptr,
         (root_logger != nullptr) ? Tracing_Logger_Routine : nullptr,
         (root_logger != nullptr) ? Tracing_Logger_Tracing_Routine : nullptr,
         root_logger

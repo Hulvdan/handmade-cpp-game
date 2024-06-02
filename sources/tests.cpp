@@ -28,15 +28,14 @@
 // ============================================================= //
 //                         Memory Setup                          //
 // ============================================================= //
-global_var Context _ctx(0, Root_Allocator_Routine, nullptr, nullptr, nullptr, nullptr);
+global_var Context _ctx(0, nullptr, nullptr, nullptr, nullptr, nullptr);
 
 #define INITIALIZE_CTX                                                          \
     Assert(root_allocator == nullptr);                                          \
     root_allocator = (Root_Allocator_Type*)malloc(sizeof(Root_Allocator_Type)); \
     std::construct_at(root_allocator);                                          \
                                                                                 \
-    auto ctx            = &_ctx;                                                \
-    _ctx.allocator_data = root_allocator;                                       \
+    auto ctx = &_ctx;                                                           \
                                                                                 \
     defer {                                                                     \
         CTX_ALLOCATOR;                                                          \

@@ -1,11 +1,15 @@
 #pragma once
 
+#define COALESCE(value, fallback) (((value) != nullptr) ? (value) : (fallback))
+
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
-#define ALLOC(n) \
-    Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
+#define ALLOC(n)                                                  \
+    (COALESCE(allocator, Root_Allocator_Routine)(                 \
+        Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0 \
+    ))
 
 #define ALLOC_ZEROS(n)        \
-    [&] {                     \
+    [&]() {                   \
         auto addr = ALLOC(n); \
         memset(addr, 0, n);   \
         return addr;          \

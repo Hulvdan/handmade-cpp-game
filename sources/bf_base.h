@@ -165,7 +165,7 @@ struct _Defer {
 };
 
 template <typename F>
-_Defer<F> _makeDefer(F f) {
+BF_FORCE_INLINE _Defer<F> _makeDefer(F f) {
     return _Defer<F>(f);
 };
 
@@ -174,7 +174,7 @@ _Defer<F> _makeDefer(F f) {
 
 struct _defer_dummy {};
 template <typename F>
-_Defer<F> operator+(_defer_dummy, F&& f) {
+BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
     return _makeDefer<F>(std::forward<F>(f));
 }
 
