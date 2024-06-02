@@ -51,18 +51,107 @@ struct Vector {
 };
 
 template <typename T>
-struct Sparse_Array_Of_Pks {
-    T*  pks;
+struct Sparse_Array_Of_Ids {
+    T*  ids;
     i32 count;
     i32 max_count;
 };
 
 template <typename T, typename U>
 struct Sparse_Array {
-    T*  base;
-    U*  pks;
-    i32 count;
+    T*  base  = nullptr;
+    U*  ids   = nullptr;
+    i32 count = 0;
     i32 max_count;
+
+    Sparse_Array(i32 _max_count, MCTX)
+        : max_count(_max_count) {
+        CTX_ALLOCATOR;
+        base  = rcast<T*>(ALLOC(sizeof(T) * max_count));
+        ids   = rcast<U*>(ALLOC(sizeof(U) * max_count));
+        count = 0;
+    }
+
+    T* Add(const U id, const T& value, MCTX) {
+        Assert(!Contains(this, id));
+
+        if (max_count == count)
+            Enlarge(ctx);
+
+        *(base + count) = value;
+        *(ids + count)  = id;
+        count += 1;
+        return base + count - 1;
+    }
+
+    T* Add(const U id, T&& value, MCTX) {
+        Assert(!Sparse_Array_Contains(this, id));
+
+        if (max_count == count)
+            Enlarge(ctx);
+
+        *(base + count) = value;
+        *(ids + count)  = id;
+        count += 1;
+
+        return base + count - 1;
+    }
+
+    T* Find(const U id) {
+        FOR_RANGE (i32, i, count) {
+            if (ids[i] == id)
+                return base + i;
+        }
+        Assert(false);
+        return nullptr;
+    }
+
+    void Unstable_Remove(const U id) {
+        FOR_RANGE (i32, i, count) {
+            if (ids[i] == id) {
+                if (i != count - 1) {
+                    std::swap(base[i], base[count - 1]);
+                    std::swap(ids[i], ids[count - 1]);
+                }
+                count--;
+                return;
+            }
+        }
+        Assert(false);
+    }
+
+    bool Contains(const U id) {
+        FOR_RANGE (int, i, count) {
+            if (ids[i] == id)
+                return true;
+        }
+        return false;
+    }
+
+    void Enlarge(MCTX) {
+        CTX_ALLOCATOR;
+
+        u32 new_max_count = max_count * 2;
+        Assert(max_count < new_max_count);  // NOTE: Ловим overflow
+
+        auto old_base_size = sizeof(T) * max_count;
+        auto old_ids_size  = sizeof(U) * max_count;
+        auto old_base_ptr  = base;
+        auto old_ids_ptr   = ids;
+
+        base = rcast<T*>(ALLOC(old_base_size * 2));
+        ids  = rcast<T*>(ALLOC(old_ids_size * 2));
+        memcpy(base, old_base_ptr, old_base_size);
+        memcpy(ids, old_ids_ptr, old_ids_size);
+        FREE(old_base_ptr, old_base_size);
+        FREE(old_ids_ptr, old_ids_size);
+
+        max_count = new_max_count;
+    }
+
+    void Reset() {
+        count = 0;
+    }
 };
 
 // NOTE: Изменение максимального количества элементов,
@@ -136,7 +225,8 @@ struct Bucket_Locator : Equatable<Bucket_Locator> {
     constexpr Bucket_Locator(const Bucket_Locator& other) = default;
 
     constexpr Bucket_Locator(Bucket_Index a_bucket_index, u32 a_slot_index)
-        : bucket_index(a_bucket_index), slot_index(a_slot_index) {}
+        : bucket_index(a_bucket_index)
+        , slot_index(a_slot_index) {}
     constexpr Bucket_Locator& operator=(const Bucket_Locator&) = default;
 
     // Bucket_Locator(Bucket_Locator&& other)
@@ -755,7 +845,8 @@ template <typename T>
 struct Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> {
     Bucket_Array_Iterator() = delete;
 
-    Bucket_Array_Iterator(Bucket_Array<T>* arr) : Bucket_Array_Iterator(arr, 0, 0) {}
+    Bucket_Array_Iterator(Bucket_Array<T>* arr)
+        : Bucket_Array_Iterator(arr, 0, 0) {}
 
     Bucket_Array_Iterator(
         Bucket_Array<T>* arr,
@@ -853,7 +944,7 @@ struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U
     std::tuple<U, T*> Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
-        return std::tuple(_container->pks[_current], _container->base[_current]);
+        return std::tuple(_container->ids[_current], _container->base[_current]);
     }
 
     void Increment() {
@@ -955,7 +1046,8 @@ private:
 template <typename T>
 struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
     Vector_Iterator() = delete;
-    Vector_Iterator(Vector<T>* container) : Vector_Iterator(container, 0) {}
+    Vector_Iterator(Vector<T>* container)
+        : Vector_Iterator(container, 0) {}
     Vector_Iterator(Vector<T>* container, i32 current)
         : _current(current)
         , _container(container)  //
@@ -992,9 +1084,11 @@ private:
 template <typename T>
 struct TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
     TVector_Iterator() = delete;
-    TVector_Iterator(tvector<T>* container) : TVector_Iterator(container, 0) {}
+    TVector_Iterator(tvector<T>* container)
+        : TVector_Iterator(container, 0) {}
     TVector_Iterator(tvector<T>* container, u64 current)
-        : _current(current), _container(container) {
+        : _current(current)
+        , _container(container) {
         Assert(container != nullptr);
     }
 
@@ -1149,78 +1243,9 @@ BF_FORCE_INLINE void Container_Reset(Bucket_Array<T>& container) {
 }
 
 template <typename T, typename U>
-Sparse_Array<T, U> Sparse_Array_Create(i32 max_count, MCTX) {
-    CTX_ALLOCATOR;
-    Sparse_Array<T, U> res;
-    res.base      = rcast<T*>(ALLOC(sizeof(T) * max_count));
-    res.pks       = rcast<U*>(ALLOC(sizeof(U) * max_count));
-    res.count     = 0;
-    res.max_count = max_count;
-    return res;
-}
-
-template <typename T, typename U>
-void Enlarge_Sparse_Array(Sparse_Array<T, U>& container, MCTX) {
-    CTX_ALLOCATOR;
-
-    u32 new_max_count = container.max_count * 2;
-    Assert(container.max_count < new_max_count);  // NOTE: Ловим overflow
-
-    auto old_base_size = sizeof(T) * container.max_count;
-    auto old_pks_size  = sizeof(U) * container.max_count;
-    auto old_base_ptr  = container.base;
-    auto old_pks_ptr   = container.pks;
-
-    container.base = rcast<T*>(ALLOC(old_base_size * 2));
-    container.pks  = rcast<T*>(ALLOC(old_pks_size * 2));
-    memcpy(container.base, old_base_ptr, old_base_size);
-    memcpy(container.pks, old_pks_ptr, old_pks_size);
-    FREE(old_base_ptr, old_base_size);
-    FREE(old_pks_ptr, old_pks_size);
-
-    container.max_count = new_max_count;
-}
-
-template <typename T, typename U>
-void Sparse_Array_Add(Sparse_Array<T, U>& container, U pk, const T& value, MCTX) {
-    if (container.max_count == container.count)
-        Enlarge_Sparse_Array(container, ctx);
-
-    *(container.base + container.count) = value;
-    *(container.pks + container.count)  = pk;
-    container.count += 1;
-}
-
-template <typename T, typename U>
-void Sparse_Array_Add(Sparse_Array<T, U>& container, U pk, T&& value, MCTX) {
-    if (container.max_count == container.count)
-        Enlarge_Sparse_Array(container, ctx);
-
-    *(container.base + container.count) = value;
-    *(container.pks + container.count)  = pk;
-    container.count += 1;
-}
-
-template <typename T, typename U>
-void Sparse_Array_Unordered_Remove(Sparse_Array<T, U>& container, U pk) {
-    FOR_RANGE (i32, i, container.count) {
-        if (container.pks[i] == pk) {
-            if (i != container.count - 1) {
-                std::swap(container.base[i], container.base[container.count - 1]);
-                std::swap(container.pks[i], container.pks[container.count - 1]);
-            }
-            container.count--;
-            return;
-        }
-    }
-    // NOTE: Элемент с указанным id не находился в этом массиве.
-    Assert(false);
-}
-
-template <typename T, typename U>
 T* Sparse_Array_Find(Sparse_Array<T, U>& arr, U id) {
     FOR_RANGE (int, i, arr.count) {
-        if (arr.pks[i] == id)
+        if (arr.ids[i] == id)
             return i.base[i];
     }
     Assert(false);

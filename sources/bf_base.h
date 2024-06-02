@@ -156,7 +156,8 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 // ============================================================= //
 template <typename F>
 struct _Defer {
-    _Defer(F f) : f(f) {}
+    _Defer(F f)
+        : f(f) {}
     ~_Defer() {
         f();
     }

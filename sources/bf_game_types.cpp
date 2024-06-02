@@ -14,6 +14,12 @@ struct Loaded_Texture;
 using Entity_ID                   = u32;
 const Entity_ID Entity_ID_Missing = 1 << 31;
 
+constexpr Entity_ID Component_Mask(Entity_ID component_number) {
+    return component_number << 22;
+}
+
+using Player_ID = u8;
+
 using Human_ID                  = Entity_ID;
 const Human_ID Human_ID_Missing = Entity_ID_Missing;
 
@@ -133,7 +139,9 @@ struct Map_Resource_Booking {
 };
 
 struct Map_Resource {
-    Map_Resource_ID        id;
+    static const Entity_ID component_mask = Component_Mask(3);
+
+    // Map_Resource_ID        id;
     Scriptable_Resource_ID scriptable;
 
     v2i16 pos;
@@ -407,7 +415,8 @@ struct Item_To_Build : public Non_Copyable {
     Scriptable_Building_ID scriptable_building;
 
     Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building_ID a_scriptable_building)
-        : type(a_type), scriptable_building(a_scriptable_building) {}
+        : type(a_type)
+        , scriptable_building(a_scriptable_building) {}
 };
 
 static const Item_To_Build
@@ -421,34 +430,34 @@ enum class Human_Removal_Reason {
 };
 
 struct Human {
+    static const Entity_ID component_mask = Component_Mask(1);
+
     Human_Moving_Component moving;
 
+    Player_ID  player_id;
     Human_Type type;
 
     Human_Main_State          state;
     Moving_In_The_World_State state_moving_in_the_world;
 
-    // Human_ID id;
-    Building_ID building_id;
-};
-
-struct Human_Transporter {
     Graph_Segment* segment;
+    Building_ID    building_id;
 };
 
-struct Human_Constructor {
-    Building_ID targeted_building;
-};
-
-constexpr Entity_ID Component_Mask(Entity_ID component_number) {
-    return component_number << 22;
-}
+// struct Human_Transporter {
+//     Graph_Segment* segment;
+// };
+//
+// struct Human_Constructor {
+//     Building_ID targeted_building;
+// };
 
 struct Building {
-    static const Entity_ID component_mask = Component_Mask(1);
+    static const Entity_ID component_mask = Component_Mask(2);
 
     v2i16                  pos;
     Scriptable_Building_ID scriptable;
+    Player_ID              player_id;
 };
 
 struct Not_Constructed_Building {
@@ -491,11 +500,11 @@ struct Game_Map : public Non_Copyable {
     Sparse_Array<Not_Constructed_Building, Building_ID> not_constructed_buildings;
     Sparse_Array<City_Hall, Building_ID>                city_halls;
     Sparse_Array<Human, Human_ID>                       humans;
-    Sparse_Array<Human_Transporter, Human_ID>           transporters;
-    Sparse_Array<Human_Constructor, Human_ID>           constructors;
-    Sparse_Array<Human, Human_ID>                       humans_to_add;
-    Sparse_Array<Human_Removal_Reason, Human_ID>        humans_to_remove;
-    Sparse_Array<Map_Resource, Map_Resource_ID>         resources;
+    // Sparse_Array<Human_Transporter, Human_ID>           transporters;
+    // Sparse_Array<Human_Constructor, Human_ID>           constructors;
+    Sparse_Array<Human, Human_ID>                humans_to_add;
+    Sparse_Array<Human_Removal_Reason, Human_ID> humans_to_remove;
+    Sparse_Array<Map_Resource, Map_Resource_ID>  resources;
 };
 
 template <typename T>

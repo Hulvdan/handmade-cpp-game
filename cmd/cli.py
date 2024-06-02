@@ -2,15 +2,17 @@
 
 Как использовать:
 
-- python cmd\cli.py generate
-- python cmd\cli.py cmake_vs_files
-- python cmd\cli.py build
-- python cmd\cli.py run
-- python cmd\cli.py stoopid_windows_visual_studio_run
-- python cmd\cli.py test
-- python cmd\cli.py format
-- python cmd\cli.py format file1 file2 ...
-- python cmd\cli.py lint
+(из корня проекта)
+
+- poetry run python cmd\cli.py generate
+- poetry run python cmd\cli.py cmake_vs_files
+- poetry run python cmd\cli.py build
+- poetry run python cmd\cli.py run
+- poetry run python cmd\cli.py stoopid_windows_visual_studio_run
+- poetry run python cmd\cli.py test
+- poetry run python cmd\cli.py format
+- poetry run python cmd\cli.py format file1 file2 ...
+- poetry run python cmd\cli.py lint
 """
 
 import glob

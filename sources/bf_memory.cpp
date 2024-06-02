@@ -101,7 +101,9 @@ struct Blk {
     void*  ptr;
     size_t length;
 
-    Blk(void* a_ptr, size_t a_length) : ptr(a_ptr), length(a_length) {}
+    Blk(void* a_ptr, size_t a_length)
+        : ptr(a_ptr)
+        , length(a_length) {}
 
     friend bool operator==(const Blk& a, const Blk& b) {
         return a.ptr == b.ptr && a.length == b.length;
@@ -160,7 +162,9 @@ struct Null_Allocator {
 
 template <size_t s>
 struct Stack_Allocator {
-    Stack_Allocator() : _buffer(), _current(_buffer) {}
+    Stack_Allocator()
+        : _buffer()
+        , _current(_buffer) {}
 
     Blk Allocate(size_t n) {
         Blk result(_current, n);
@@ -369,7 +373,8 @@ private:
 struct Size_Affix {
     size_t n;
 
-    Size_Affix(size_t an) : n(an) {}
+    Size_Affix(size_t an)
+        : n(an) {}
 
     bool Validate() {
         return true;

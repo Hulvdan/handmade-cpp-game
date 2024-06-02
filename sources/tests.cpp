@@ -187,8 +187,14 @@ struct Test_Node {
     u32    id;
     bool   active;
 
-    Test_Node() : id(0), next(0), active(false) {}
-    Test_Node(u32 a_id) : id(a_id), next(0), active(false) {}
+    Test_Node()
+        : id(0)
+        , next(0)
+        , active(false) {}
+    Test_Node(u32 a_id)
+        : id(a_id)
+        , next(0)
+        , active(false) {}
 };
 
 #define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
