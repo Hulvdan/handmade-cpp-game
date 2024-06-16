@@ -569,7 +569,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.On_Item_Built, callbacks, non_persistent_arena
         );
 
-        Initialize_Renderer(state, arena, non_persistent_arena, trash_arena);
+        Init_Renderer(state, arena, non_persistent_arena, trash_arena);
 
         memory.is_initialized = true;
     }

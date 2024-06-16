@@ -2,6 +2,15 @@
 
 #define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 
+template <typename T>
+T Abs(T value) {
+    return std::abs(value);
+}
+
+int Ceil(f32 value) {
+    return std::ceil(value);
+}
+
 u16 Assert_Truncate_To_u16(size_t value) {
     Assert(value <= u16_max);
     return (u16)value;

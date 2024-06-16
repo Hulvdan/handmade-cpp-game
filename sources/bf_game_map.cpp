@@ -421,12 +421,18 @@ void Place_Building(
 
     game_map.buildings.Add(bid, std::move(b), ctx);
 
+    C_Sprite sprite = {};
+    sprite.anchor   = {0.5f, 0};
+    sprite.pos      = pos;
+
     if (built) {
         Assert(scriptable_building->type == Building_Type::City_Hall);
 
         City_Hall c;
         c.time_since_human_was_created = f32_inf;
         game_map.city_halls.Add(bid, c, ctx);
+
+        sprite.texture_id = scriptable_building->texture_id;
     }
     else {
         for (auto pair_ptr : Iter(&scriptable_building->construction_resources)) {
@@ -444,7 +450,11 @@ void Place_Building(
         c.construction_points = 0;
         // Init_Vector(c.resources_to_book, ctx);
         game_map.not_constructed_buildings.Add(bid, c, ctx);
+
+        sprite.texture_id = state.renderer_state->not_built_building_texture_id;
     }
+
+    state.renderer_state->sprites.Add(bid, sprite, ctx);
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);

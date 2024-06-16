@@ -16,6 +16,7 @@
 """
 
 import glob
+import hashlib
 import logging
 import os
 import shutil
@@ -26,9 +27,11 @@ from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
 from time import time
-from typing import NoReturn
+from typing import Callable, NoReturn
 
+import pyjson5 as json
 import typer
+from PIL import Image
 
 global_timing_manager_instance = None
 
@@ -116,6 +119,9 @@ log.addHandler(console_handler)
 # ======================================== #
 #            Library Functions             #
 # ======================================== #
+def super_json_dump(data, path):
+    with open(path, "wb") as out_file:
+        json.dump(data, out_file, indent="\t", ensure_ascii=False)
 
 
 def replace_double_spaces(string: str) -> str:
@@ -146,6 +152,11 @@ def run_command(cmd: list[str] | str) -> None:
         exit(p.returncode)
 
 
+def hash32(value: str) -> int:
+    sha = hashlib.sha256(value.encode(encoding="ascii"))
+    return int(sha.hexdigest()[:8], 16)
+
+
 # ======================================== #
 #          Индивидуальные задачи           #
 # ======================================== #
@@ -165,8 +176,85 @@ def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
     return res
 
 
+def make_gamelib(callback: Callable[[str], None]) -> str | None:
+    with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
+        data = json.load(in_file)
+
+    transform_fields = [
+        ("buildings", "texture"),
+    ]
+
+    for building in data["buildings"]:
+        building["texture"] = hash32(building["texture"])
+
+    with tempfile.TemporaryDirectory(prefix="handmade_cpp_game_cli_") as dir:
+        p = Path(dir) / "temp_gamelib.jsonc"
+        super_json_dump(data, p)
+        callback(p)
+
+
+def make_atlas(path: Path) -> set[int]:
+    """Создание атласа из .ftpp (free texture packer) файла.
+
+    Герярится .bmp (текстура) и .json (спецификация) для использования внутри игры.
+
+    Возвращает множество хешей названий использованных в этом атласе текстур,
+    которое используются для валидации того, что текстуры,
+    указанные в различных сущностях в gamelib-е существуют.
+    """
+    assert str(path).endswith(".ftpp")
+
+    directory = path.parent
+    filename_wo_extension = path.name.rsplit(".", 1)[0]
+
+    texture_name_hashes: set[int] = set()
+
+    # NOTE: Генерируем атлас из .ftpp файла.
+    # Во время этого создаются .json спецификация и .png текстура.
+    log.debug("Generating {} atlas".format(path))
+    run_command("free-tex-packer-cli --project {} --output {}".format(path, path.parent))
+
+    # NOTE: Подгоняем спецификация под наш формат.
+    json_path = directory / (filename_wo_extension + ".json")
+    with open(json_path) as json_file:
+        json_data = json.load(json_file)
+
+    textures = []
+    for name, data in json_data["frames"].items():
+        texture_name_hashes.add(hash32(name))
+
+        texture_data = {
+            "id": hash32(name),
+            "debug_name": name,
+            "size_x": data["frame"]["w"],
+            "size_y": data["frame"]["h"],
+            "pos_x": data["frame"]["x"],
+            "pos_y": data["frame"]["y"],
+        }
+        textures.append(texture_data)
+
+    super_json_dump({"textures": textures}, json_path)
+
+    # NOTE: Конвертируем .png to .bmp
+    png_path = directory / (filename_wo_extension + ".png")
+    bmp_path = directory / (filename_wo_extension + ".bmp")
+    log.debug("Converting {} to {}".format(png_path, bmp_path))
+
+    img = Image.open(png_path)
+    img.save(bmp_path)
+
+    # with open()
+    # with open(path.)
+
+    return texture_name_hashes
+
+
 def do_generate() -> None:
-    hashes = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
+    # NOTE: Алтас.
+    texture_name_hashes: set[int] = set()
+    texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
+
+    hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
 
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
@@ -183,11 +271,13 @@ def do_generate() -> None:
         ]
 
         for file, file_hash in listfiles_with_hashes_in_dir(td).items():
-            if file_hash != hashes.get(file):
+            if file_hash != hashes_for_msbuild.get(file):
                 shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
 
     # NOTE: Конвертим gamelib.jsonc в бинарю.
-    run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", "gamelib.jsonc"])
+    make_gamelib(
+        lambda path: run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", path])
+    )
 
 
 def do_run() -> None:

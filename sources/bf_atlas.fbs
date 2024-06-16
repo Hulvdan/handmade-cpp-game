@@ -1,0 +1,52 @@
+// Example:
+// https://raw.githubusercontent.com/google/flatbuffers/master/samples/monster.fbs
+
+namespace BFGame;
+
+// enum Building_Type:byte {
+//     Undefined = 0,
+//     City_Hall,
+//     Harvest,
+//     Plant,
+//     Fish,
+//     Produce,
+// }
+//
+// table Resource {
+//     code:          string (key);
+//     texture:       string (required);
+//     small_texture: string (required);
+// }
+//
+// table Construction_Resource_Pair {
+//     resource_code: string (required);
+//     count: int;
+// }
+//
+// table Building {
+//     code:    string         (key);
+//     type:    Building_Type = Undefined;
+//     texture: uint;
+//
+//     human_spawning_delay:         float;
+//     required_construction_points: float;
+//     can_be_built:                 bool;
+//
+//     construction_resources: [Construction_Resource_Pair];
+// }
+
+table Texture {
+    id:         uint (key);
+    debug_name: string;
+    atlas_x:    uint;
+    atlas_y:    uint;
+    size_x:     uint;
+    size_y:     uint;
+}
+
+table Atlas {
+    textures: [Texture];
+}
+
+file_identifier "GLIB";
+root_type Atlas;

@@ -50,6 +50,63 @@ struct Vector {
     void* allocator_data;
 };
 
+template <typename T, typename U>
+struct HashMap {
+    i32 allocated = 0;
+    i32 count     = 0;
+
+    struct Slot {
+        bool occupied;
+        u32  hash;
+        T    key;
+        U    value;
+    };
+
+    Vector<Slot> slots;
+
+    static constexpr int SIZE_MIN = 32;
+
+    HashMap(MCTX)
+        : slots() {
+        CTX_ALLOCATOR;
+    }
+
+    void Set(const T& key, const U& value) {
+        // TODO
+    }
+    void Set(const T&& key, const U& value) {
+        // TODO
+    }
+    void Set(const T& key, U&& value) {
+        // TODO
+    }
+    void Set(const T&& key, U&& value) {
+        // TODO
+    }
+
+    void Remove(const T& key) {
+        // TODO
+    }
+
+    void Remove(const T&& key) {
+        // TODO
+    }
+
+    bool Contains(const T& key) {
+        // TODO
+        return false;
+    }
+
+    bool Contains(const T&& key) {
+        // TODO
+        return false;
+    }
+
+    void Reset() {
+        // TODO
+    }
+};
+
 template <typename T>
 struct Sparse_Array_Of_Ids {
     T*  ids;

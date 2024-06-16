@@ -29,6 +29,8 @@ const Human_Constructor_ID Human_Constructor_ID_Missing = Entity_ID_Missing;
 using Building_ID                     = Entity_ID;
 const Building_ID Building_ID_Missing = Entity_ID_Missing;
 
+using Texture_ID = i16;
+
 // TODO: Куда-то перенести эту функцию
 template <>
 struct std::hash<v2i16> {
@@ -258,10 +260,6 @@ struct Scriptable_Building : public Non_Copyable {
     const char*   code;
     Building_Type type;
 
-#ifdef BF_CLIENT
-    Loaded_Texture* texture;
-#endif  // BF_CLIENT
-
     Scriptable_Resource* harvestable_resource;
 
     f32 human_spawning_delay;
@@ -270,6 +268,10 @@ struct Scriptable_Building : public Non_Copyable {
     bool can_be_built;
 
     Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
+
+#ifdef BF_CLIENT
+    Texture_ID texture_id;
+#endif  // BF_CLIENT
 };
 
 enum class Human_Type {
@@ -618,6 +620,43 @@ struct Tilemap {
     Tile_ID* tiles;
 };
 
+struct C_Texture {
+    v2f   pos_inside_atlas;
+    v2i16 size;
+};
+
+struct C_Sprite {
+    v2f        pos;
+    v2f        scale;
+    v2f        anchor;
+    f32        rotation;
+    Texture_ID texture_id;
+    i8         z;
+    // left   = pos.x + texture.size.x * (anchor.x - 1)
+    // right  = pos.x + texture.size.x *  anchor.x
+    // bottom = pos.y + texture.size.y * (anchor.y - 1)
+    // top    = pos.y + texture.size.y *  anchor.y
+    // max_scaled_off = MAX(t.size.x, t.size.y) * MAX(scale.x, scale.y)
+};
+
+// SELECT
+// FROM sprites s
+// JOIN texture t ON s.texture_id = t.id
+// WHERE
+//     -- Bounding box cutting
+//         s.pos_x + (0 - s.anchor_x) * max_scaled_off >= arg_screen_left
+//     AND s.pos_x + (1 - s.anchor_x) * max_scaled_off <= arg_screen_right
+//     AND s.pos_y + (0 - s.anchor_y) * max_scaled_off >= arg_screen_bottom
+//     AND s.pos_y + (1 - s.anchor_y) * max_scaled_off <= arg_screen_top
+//
+//     -- Without anchor multiplications
+//         s.pos_x + max_scaled_off >= arg_screen_left
+//     AND s.pos_x - max_scaled_off <= arg_screen_right
+//     AND s.pos_y + max_scaled_off >= arg_screen_bottom
+//     AND s.pos_y - max_scaled_off <= arg_screen_top
+//
+// ORDER BY s.z ASC
+
 struct UI_Sprite_Params {
     bool smart_stretchable;
     v2i  stretch_paddings_h;
@@ -664,9 +703,13 @@ struct Game_Renderer_State : public Non_Copyable {
     Game_UI_State* ui_state;
     Game_Bitmap*   bitmap;
 
+    Sparse_Array<Entity_ID, C_Sprite> sprites;
+
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
     Tile_ID    forest_top_tile_id;
+
+    Texture_ID not_built_building_texture_id;
 
     Loaded_Texture human_texture;
     Loaded_Texture grass_textures[17];
@@ -674,6 +717,9 @@ struct Game_Renderer_State : public Non_Copyable {
     Loaded_Texture road_textures[16];
     Loaded_Texture flag_textures[4];
     Loaded_Texture in_progress_building_texture;
+
+    v2i atlas_size;  // количество тайлов в ширину и в высоту
+    Loaded_Texture atlas_texture;
 
     int      tilemaps_count;
     Tilemap* tilemaps;
@@ -693,8 +739,12 @@ struct Game_Renderer_State : public Non_Copyable {
 
     f32 cell_size;
 
-    bool  shaders_compilation_failed;
-    GLint ui_shader_program;
+    bool   shaders_compilation_failed;
+    GLuint sprites_shader_program;
+    GLuint tilemap_shader_program;
+
+    size_t rendering_indices_buffer_size;
+    void*  rendering_indices_buffer;
 };
 
 // struct Texture_Meta_Info {

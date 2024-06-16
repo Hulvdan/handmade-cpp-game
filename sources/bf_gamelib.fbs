@@ -14,8 +14,8 @@ enum Building_Type:byte {
 
 table Resource {
     code:          string (key);
-    texture:       string (required);
-    small_texture: string (required);
+    texture:       uint;
+    small_texture: uint;
 }
 
 table Construction_Resource_Pair {
@@ -24,13 +24,13 @@ table Construction_Resource_Pair {
 }
 
 table Building {
-    code:          string         (key);
-    type:          Building_Type = Undefined;
-    texture:       string         (required);
+    code:    string         (key);
+    type:    Building_Type = Undefined;
+    texture: uint;
 
     human_spawning_delay:         float;
     required_construction_points: float;
-    can_be_built: bool;
+    can_be_built:                 bool;
 
     construction_resources: [Construction_Resource_Pair];
 }

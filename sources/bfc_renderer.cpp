@@ -114,6 +114,30 @@ void DEBUG_Load_Texture(
     Send_Texture_To_GPU(out_texture);
 }
 
+struct Atlas {
+    Vector<C_Texture> textures;
+};
+
+Atlas Load_Atlas(const char* atlas_name, MCTX) {
+    char filepath[512];
+    sprintf(filepath, "assets/art/%s.bmp", texture_name);
+
+    Load_BMP_RGBA_Result bmp_result = {};
+    {
+        TEMP_USAGE(trash_arena);
+        auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
+        Assert(load_result.success);
+
+        bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
+        Assert(bmp_result.success);
+    }
+
+    out_texture.id   = scast<BF_Texture_ID>(Hash32_String(texture_name));
+    out_texture.size = {bmp_result.width, bmp_result.height};
+    out_texture.base = bmp_result.output;
+    Send_Texture_To_GPU(out_texture);
+}
+
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize) {
     Element_Tile& tile             = *(element_tiles + pos.y * gsize.x + pos.x);
     bool          tile_is_flag     = tile.type == Element_Tile_Type::Flag;
@@ -175,7 +199,79 @@ void Debug_Print_Shader_Info_Log(
         DEBUG_Error("ERROR:\t%s failed: %s\n", aboba, info_log);
 }
 
-void Initialize_Renderer(
+// Создаёт программу и запихивает её в program, если успешно скомпилилось.
+// Если неуспешно - значение program остаётся прежним.
+void Create_Shader_Program(
+    GLuint&     program,
+    const char* vertex_code,
+    const char* fragment_code,
+    Arena&      trash_arena
+) {
+    TEMP_USAGE(trash_arena);
+
+    auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    defer {
+        glDeleteShader(vertex_shader);
+    };
+
+    glShaderSource(vertex_shader, 1, scast<const GLchar* const*>(&vertex_code), nullptr);
+    glCompileShader(vertex_shader);
+
+    GLint vertex_success = 0;
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
+    Debug_Print_Shader_Info_Log(vertex_shader, trash_arena, "Vertex shader compilation");
+
+    // Similiar for Fragment Shader
+    auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    defer {
+        glDeleteShader(fragment_shader);
+    };
+
+    glShaderSource(
+        fragment_shader, 1, scast<const GLchar* const*>(&fragment_code), nullptr
+    );
+    glCompileShader(fragment_shader);
+
+    GLint fragment_success = 0;
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &fragment_success);
+    Debug_Print_Shader_Info_Log(
+        fragment_shader, trash_arena, "Fragment shader compilation"
+    );
+
+    if (!fragment_success || !vertex_success)
+        return;
+
+    // shader Program
+    auto new_program_id = glCreateProgram();
+    glAttachShader(new_program_id, vertex_shader);
+    glAttachShader(new_program_id, fragment_shader);
+    glLinkProgram(new_program_id);
+    // print linking errors if any
+    GLint log_length;
+    glGetProgramiv(new_program_id, GL_INFO_LOG_LENGTH, &log_length);
+
+    GLint program_success = 0;
+    glGetProgramiv(new_program_id, GL_LINK_STATUS, &program_success);
+
+    auto    zero     = GLchar(0);
+    GLchar* info_log = &zero;
+    if (log_length) {
+        info_log = Allocate_Array(trash_arena, GLchar, log_length);
+        glGetProgramInfoLog(new_program_id, log_length, nullptr, info_log);
+    }
+
+    if (program_success)
+        DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
+    else
+        DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
+
+    if (program)
+        glDeleteProgram(program);
+
+    program = new_program_id;
+}
+
+void Init_Renderer(
     Game_State& state,
     Arena&      arena,
     Arena&      non_persistent_arena,
@@ -204,99 +300,83 @@ void Initialize_Renderer(
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    // NOTE: Reloading shaders
-    {
-        GLint fragment_success = 0;
-        GLint vertex_success   = 0;
-        GLint program_success  = 0;
+    DEBUG_Load_Texture(non_persistent_arena, trash_arena, "atlas", rstate.atlas_texture);
+    rstate.atlas_size = {8, 8};
 
-        // Vertex Shader
-        auto vertex_code = R"Shader(
+    // Перезагрузка шейдеров.
+    Create_Shader_Program(
+        rstate.sprites_shader_program,
+        R"Shader(
 #version 330 core
 
 layout (location = 0) in vec3 a_pos;
-layout (location = 1) in vec3 a_sprite_color;
+layout (location = 1) in vec3 a_color;
 layout (location = 2) in vec2 a_tex_coord;
 
-out vec3 sprite_color;
+out vec3 color;
 out vec2 tex_coord;
 
 void main() {
     gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
-    sprite_color = a_sprite_color;
+    color = a_color;
     tex_coord = a_tex_coord;
 }
-)Shader";
-
-        auto vertex = glCreateShader(GL_VERTEX_SHADER);
-        defer {
-            glDeleteShader(vertex);
-        };
-
-        glShaderSource(vertex, 1, &vertex_code, nullptr);
-        glCompileShader(vertex);
-        glGetShaderiv(vertex, GL_COMPILE_STATUS, &vertex_success);
-        Debug_Print_Shader_Info_Log(vertex, trash_arena, "Vertex shader compilation");
-
-        // Similiar for Fragment Shader
-        auto fragment_code = R"Shader(
+)Shader",
+        R"Shader(
 #version 330 core
 out vec4 frag_color;
 
-in vec3 sprite_color;
+in vec3 color;
 in vec2 tex_coord;
 
 uniform sampler2D ourTexture;
 
 void main() {
-    frag_color = texture(ourTexture, tex_coord) * vec4(sprite_color, 1);
+    frag_color = texture(ourTexture, tex_coord) * vec4(color, 1);
 }
-)Shader";
+)Shader",
+        trash_arena
+    );
+    Create_Shader_Program(
+        rstate.tilemap_shader_program,
+        R"Shader(
+#version 330 core
 
-        auto fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        defer {
-            glDeleteShader(fragment);
-        };
+layout (location = 0) in vec3 a_pos;
+layout (location = 1) in vec3 a_color;
 
-        glShaderSource(fragment, 1, &fragment_code, nullptr);
-        glCompileShader(fragment);
-        glGetShaderiv(fragment, GL_COMPILE_STATUS, &fragment_success);
-        Debug_Print_Shader_Info_Log(fragment, trash_arena, "Fragment shader compilation");
+out vec3 color;
 
-        if (fragment_success && vertex_success) {
-            TEMP_USAGE(trash_arena);
+void main() {
+    gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
+    color = a_color;
+}
+)Shader",
+        R"Shader(
+#version 330 core
 
-            // shader Program
-            auto program_id = glCreateProgram();
-            glAttachShader(program_id, vertex);
-            glAttachShader(program_id, fragment);
-            glLinkProgram(program_id);
-            // print linking errors if any
-            GLint log_length;
-            glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &log_length);
-            glGetProgramiv(program_id, GL_LINK_STATUS, &program_success);
+layout(location = 0) uniform vec4 visible_area_rect;
+layout(location = 1) uniform ivec2 atlas_size;
 
-            auto    zero     = GLchar(0);
-            GLchar* info_log = &zero;
-            if (log_length) {
-                info_log = Allocate_Array(trash_arena, GLchar, log_length);
-                glGetProgramInfoLog(program_id, log_length, nullptr, info_log);
-            }
+layout(std430, binding = 1) buffer layoutName
+{
+    vec2 tile_indices[];
+};
 
-            if (program_success)
-                DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
-            else
-                DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
+in vec3 color;
 
-            if (rstate.ui_shader_program)
-                glDeleteProgram(rstate.ui_shader_program);
-            rstate.ui_shader_program          = program_id;
-            rstate.shaders_compilation_failed = false;
-        }
-        else {
-            rstate.shaders_compilation_failed = true;
-        }
-    }
+out vec4 frag_color;
+
+uniform sampler2D ourTexture;
+
+void main() {
+    vec2 ;
+    vec2 tex_coord = tile_indices[];
+    frag_color = texture(ourTexture, tex_coord) * vec4(color, 1);
+}
+)Shader",
+        trash_arena
+    );
 
     glEnable(GL_TEXTURE_2D);
 
@@ -403,8 +483,8 @@ void main() {
         FOR_RANGE (int, i, state.scriptable_buildings_count) {
             const auto& libbuilding = *(*state.gamelib->buildings())[i];
 
-            auto& building   = state.scriptable_buildings[i];
-            building.texture = Allocate_For(arena, Loaded_Texture);
+            auto& building      = state.scriptable_buildings[i];
+            building.texture_id = Allocate_For(arena, Loaded_Texture);
             DEBUG_Load_Texture(
                 non_persistent_arena,
                 trash_arena,
@@ -567,6 +647,15 @@ void main() {
     ui_state.selected_buildable_color.b     = 176.0f / 255.0f;
 }
 
+void Deinit_Renderer(Game_State& state, MCTX) {
+    CTX_ALLOCATOR;
+
+    auto& rstate = state.renderer_state;
+
+    if (rstate.rendering_indices_buffer_size)
+        FREE(rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
+}
+
 void Draw_Sprite(
     f32              x0,
     f32              y0,
@@ -654,7 +743,7 @@ void Draw_UI_Sprite(
     glEnableVertexAttribArray(2);
 
     // ..:: Drawing code (in render loop) :: ..
-    glUseProgram(rstate.ui_shader_program);
+    glUseProgram(rstate.sprites_shader_program);
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -819,6 +908,7 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
 }
 
 void Render(Game_State& state, f32 dt, MCTX) {
+    CTX_ALLOCATOR;
     ZoneScoped;
 
     Arena& trash_arena = state.trash_arena;
@@ -924,6 +1014,76 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // projection = glm::scale(projection, v2f(2, 2) / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // NOTE: Рисование tilemap
+    {
+        glUseProgram(rstate.tilemap_shader_program);
+        glBindTexture(rstate.atlas_texture.id);
+
+        auto projection_inv = glm::inverse(projection);
+
+        auto p1 = projection_inv * v2f(-1, -1);
+        auto p2 = projection_inv * v2f(1, 1);
+        glUniform4f(0, p1.x, p1.y, p2.x, p2.y);
+        glUniform2i(1, rstate.atlas_size.x, rstate.atlas_size.y);
+
+        int index_l = int(p1.x);
+        int index_u = int(p1.y);
+        int index_r = Ceil(p2.x);
+        int index_b = Ceil(p2.y);
+
+        if (index_l > index_r)
+            std::swap(index_l, index_r);
+        if (index_b > index_u)
+            std::swap(index_b, index_u);
+
+        int w = index_r - index_l + 1;
+        int h = index_u - index_b + 1;
+
+        int visible_tiles_count = w * h;
+
+        auto required_memory = sizeof(GLint) * visible_tiles_count;
+
+        if (rstate.rendering_indices_buffer == nullptr) {
+            rstate.rendering_indices_buffer      = ALLOC(required_memory);
+            rstate.rendering_indices_buffer_size = required_memory;
+        }
+        else if (rstate.rendering_indices_buffer_size < required_memory) {
+            rstate.rendering_indices_buffer = REALLOC(
+                required_memory,
+                rstate.rstate.rendering_indices_buffer_size,
+                rstate.rendering_indices_buffer
+            );
+            rstate.rendering_indices_buffer_size = required_memory;
+        }
+
+        const auto stride = index_r - index_l + 1;
+        FOR_RANGE (int, y, index_u - index_b + 1) {
+            FOR_RANGE (int, x, index_r - index_l + 1) {
+                // for (int y = index_b; y < index_t + 1; y++) {
+                // for (int x = index_l; x < index_r + 1; x++) {
+                auto t = y * stride + x;
+                // TODO: для каждой клетки нужно проставить
+                // в этот буфер свои координаты в атласе
+                (GL) rstate.rendering_indices_buffer[]
+            }
+        }
+
+        glUniform2fv(1, visible_tiles_count, rstate.rendering_indices_buffer);
+    }
+
+    for (auto [sprite_id, sprite] : Iter(&rstate.sprites)) {
+        Sprite_ID         tilemap_sprite_exists = 0;
+        C_Tilemap_Sprite* tilemap_sprite        = nullptr;
+
+        for (auto [tilemap_sprite_id] : Iter(&rstate.tilemap_sprites)) {
+            if (tilemap_sprite_id == sprite_id) {
+                // TODO
+                break;
+            }
+        }
+    }
+
     // NOTE: Рисование поверхности (травы).
     FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
         auto& tilemap = *(rstate.tilemaps + h);
