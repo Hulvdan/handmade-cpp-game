@@ -178,9 +178,7 @@ def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
     return res
 
 
-def make_gamelib(
-    callback: Callable[[str], None], *, texture_name_hashes: set[int]
-) -> str | None:
+def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> str | None:
     with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
         data = json.load(in_file)
 
@@ -194,10 +192,13 @@ def make_gamelib(
         hashify_texture(i, "texture")
         hashify_texture(i, "small_texture")
 
-    with tempfile.TemporaryDirectory(prefix="handmade_cpp_game_cli_") as dir:
-        p = Path(dir) / "temp_gamelib.jsonc"
-        better_json_dump(data, p)
-        callback(p)
+    intermediate_path = PROJECT_DIR / "gamelib.intermediate.jsonc"
+    better_json_dump(data, intermediate_path)
+    run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", intermediate_path])
+
+    intermediate_binary_path = str(intermediate_path).rsplit(".", 1)[0] + ".bin"
+    final_binary_path = PROJECT_DIR / "gamelib.bin"
+    os.rename(intermediate_binary_path, final_binary_path)
 
 
 def make_atlas(path: Path) -> set[int]:
@@ -253,13 +254,18 @@ def make_atlas(path: Path) -> set[int]:
     return texture_name_hashes
 
 
+def remove_intermediate_generation_files() -> None:
+    glob_pattern = PROJECT_DIR / "**" / "*.intermediate*"
+    files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
+
+    for file in files:
+        os.remove(file)
+
+
 def do_generate() -> None:
-    # NOTE: Алтас.
-    texture_name_hashes: set[int] = set()
-    texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
+    remove_intermediate_generation_files()
 
     hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
-
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
     # NOTE: Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
@@ -278,20 +284,20 @@ def do_generate() -> None:
             if file_hash != hashes_for_msbuild.get(file):
                 shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
 
+    # NOTE: Алтас.
+    texture_name_hashes: set[int] = set()
+    texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
+
     # NOTE: Конвертим gamelib.jsonc в бинарю.
-    make_gamelib(
-        lambda path: run_command(
-            [FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", path]
-        ),
-        texture_name_hashes=texture_name_hashes,
-    )
+    convert_gamelib_json_to_binary(texture_name_hashes=texture_name_hashes)
 
 
 def hashify_texture_with_check(
     data: dict[str, Any], key: str, hashes_set: set[int]
 ) -> None:
-    hashed_value = hash32(data[key])
-    assert hashed_value in hashes_set
+    texture_name = data[key]
+    hashed_value = hash32(texture_name)
+    assert hashed_value in hashes_set, f"Texture '{texture_name}' not found in atlas!"
     data[key] = hashed_value
 
 
