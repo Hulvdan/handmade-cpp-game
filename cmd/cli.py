@@ -214,7 +214,7 @@ def make_atlas(path: Path) -> set[int]:
     log.debug("Generating {} atlas".format(path))
     run_command("free-tex-packer-cli --project {} --output {}".format(path, path.parent))
 
-    # NOTE: Подгоняем спецификация под наш формат.
+    # NOTE: Подгоняем спецификацию под наш формат.
     json_path = directory / (filename_wo_extension + ".json")
     with open(json_path) as json_file:
         json_data = json.load(json_file)
@@ -233,7 +233,7 @@ def make_atlas(path: Path) -> set[int]:
         }
         textures.append(texture_data)
 
-    super_json_dump({"textures": textures}, json_path)
+    better_json_dump({"textures": textures}, json_path)
 
     # NOTE: Конвертируем .png to .bmp
     png_path = directory / (filename_wo_extension + ".png")
@@ -242,9 +242,6 @@ def make_atlas(path: Path) -> set[int]:
 
     img = Image.open(png_path)
     img.save(bmp_path)
-
-    # with open()
-    # with open(path.)
 
     return texture_name_hashes
 
