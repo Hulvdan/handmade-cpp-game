@@ -27,11 +27,13 @@ from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
 from time import time
-from typing import Callable, NoReturn
+from typing import Any, Callable, NoReturn, TypeVar
 
 import pyjson5 as json
 import typer
 from PIL import Image
+
+T = TypeVar("T")
 
 global_timing_manager_instance = None
 
@@ -119,7 +121,7 @@ log.addHandler(console_handler)
 # ======================================== #
 #            Library Functions             #
 # ======================================== #
-def super_json_dump(data, path):
+def better_json_dump(data, path):
     with open(path, "wb") as out_file:
         json.dump(data, out_file, indent="\t", ensure_ascii=False)
 
@@ -176,20 +178,25 @@ def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
     return res
 
 
-def make_gamelib(callback: Callable[[str], None]) -> str | None:
+def make_gamelib(
+    callback: Callable[[str], None], *, texture_name_hashes: set[int]
+) -> str | None:
     with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
         data = json.load(in_file)
 
-    transform_fields = [
-        ("buildings", "texture"),
-    ]
+    hashify_texture = lambda data, key: hashify_texture_with_check(
+        data, key, hashes_set=texture_name_hashes
+    )
 
-    for building in data["buildings"]:
-        building["texture"] = hash32(building["texture"])
+    for i in data["buildings"]:
+        hashify_texture(i, "texture")
+    for i in data["resources"]:
+        hashify_texture(i, "texture")
+        hashify_texture(i, "small_texture")
 
     with tempfile.TemporaryDirectory(prefix="handmade_cpp_game_cli_") as dir:
         p = Path(dir) / "temp_gamelib.jsonc"
-        super_json_dump(data, p)
+        better_json_dump(data, p)
         callback(p)
 
 
@@ -235,7 +242,7 @@ def make_atlas(path: Path) -> set[int]:
 
     better_json_dump({"textures": textures}, json_path)
 
-    # NOTE: Конвертируем .png to .bmp
+    # NOTE: Конвертируем .png to .bmp.
     png_path = directory / (filename_wo_extension + ".png")
     bmp_path = directory / (filename_wo_extension + ".bmp")
     log.debug("Converting {} to {}".format(png_path, bmp_path))
@@ -273,8 +280,27 @@ def do_generate() -> None:
 
     # NOTE: Конвертим gamelib.jsonc в бинарю.
     make_gamelib(
-        lambda path: run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", path])
+        lambda path: run_command(
+            [FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", path]
+        ),
+        texture_name_hashes=texture_name_hashes,
     )
+
+
+def hashify_texture_with_check(
+    data: dict[str, Any], key: str, hashes_set: set[int]
+) -> None:
+    hashed_value = hash32(data[key])
+    assert hashed_value in hashes_set
+    data[key] = hashed_value
+
+
+def assert_contains(value: T, container) -> T:
+    if value not in container:
+        log.critical("")
+        exit(1)
+
+    return value
 
 
 def do_run() -> None:
