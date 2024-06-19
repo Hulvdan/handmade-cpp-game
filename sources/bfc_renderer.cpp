@@ -118,9 +118,9 @@ struct Atlas {
     Vector<C_Texture> textures;
 };
 
-Atlas Load_Atlas(const char* atlas_name, MCTX) {
+Atlas Load_Atlas(const char* atlas_name, Arena& destination_arena, MCTX) {
     char filepath[512];
-    sprintf(filepath, "assets/art/%s.bmp", texture_name);
+    sprintf(filepath, "assets/art/%s.bmp", atlas_name);
 
     Load_BMP_RGBA_Result bmp_result = {};
     {

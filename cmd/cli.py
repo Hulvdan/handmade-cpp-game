@@ -38,7 +38,7 @@ T = TypeVar("T")
 global_timing_manager_instance = None
 
 
-# NOTE: При вызове exit отображаем затраченное время.
+# При вызове exit отображаем затраченное время.
 old_exit = exit
 
 
@@ -179,9 +179,11 @@ def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
 
 
 def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> str | None:
+    # Загрузка json
     with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
         data = json.load(in_file)
 
+    # Хеширование названий текстур с проверкой на то, что они есть в атласе
     hashify_texture = lambda data, key: hashify_texture_with_check(
         data, key, hashes_set=texture_name_hashes
     )
@@ -192,12 +194,15 @@ def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> str | None:
         hashify_texture(i, "texture")
         hashify_texture(i, "small_texture")
 
+    # Создание файла
     intermediate_path = PROJECT_DIR / "gamelib.intermediate.jsonc"
     better_json_dump(data, intermediate_path)
     run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", intermediate_path])
 
     intermediate_binary_path = str(intermediate_path).rsplit(".", 1)[0] + ".bin"
     final_binary_path = PROJECT_DIR / "gamelib.bin"
+    if os.path.exists(final_binary_path):
+        os.remove(final_binary_path)
     os.rename(intermediate_binary_path, final_binary_path)
 
 
@@ -217,12 +222,12 @@ def make_atlas(path: Path) -> set[int]:
 
     texture_name_hashes: set[int] = set()
 
-    # NOTE: Генерируем атлас из .ftpp файла.
+    # Генерируем атлас из .ftpp файла.
     # Во время этого создаются .json спецификация и .png текстура.
     log.debug("Generating {} atlas".format(path))
     run_command("free-tex-packer-cli --project {} --output {}".format(path, path.parent))
 
-    # NOTE: Подгоняем спецификацию под наш формат.
+    # Подгоняем спецификацию под наш формат.
     json_path = directory / (filename_wo_extension + ".json")
     with open(json_path) as json_file:
         json_data = json.load(json_file)
@@ -243,7 +248,7 @@ def make_atlas(path: Path) -> set[int]:
 
     better_json_dump({"textures": textures}, json_path)
 
-    # NOTE: Конвертируем .png to .bmp.
+    # Конвертируем .png to .bmp.
     png_path = directory / (filename_wo_extension + ".png")
     bmp_path = directory / (filename_wo_extension + ".bmp")
     log.debug("Converting {} to {}".format(png_path, bmp_path))
@@ -268,7 +273,7 @@ def do_generate() -> None:
     hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
-    # NOTE: Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
+    # Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
     flatbuffer_files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
 
     # NOTE: Мудацкий костыль, чтобы MSBuild не ребилдился каждый раз.
@@ -284,11 +289,11 @@ def do_generate() -> None:
             if file_hash != hashes_for_msbuild.get(file):
                 shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
 
-    # NOTE: Алтас.
+    # Собираем алтас.
     texture_name_hashes: set[int] = set()
     texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
 
-    # NOTE: Конвертим gamelib.jsonc в бинарю.
+    # Конвертим gamelib.jsonc в бинарю.
     convert_gamelib_json_to_binary(texture_name_hashes=texture_name_hashes)
 
 
@@ -344,7 +349,7 @@ def do_lint() -> None:
             sources\win32_platform.cpp
             sources\bf_game.cpp
         """
-        # NOTE: Убираем абсолютный путь к проекту из выдачи линтинга.
+        # Убираем абсолютный путь к проекту из выдачи линтинга.
         # Тут куча экранирования происходит, поэтому нужно дублировать обратные слеши.
         + r'| sed "s/{}//"'.format(
             str(PROJECT_DIR).replace(os.path.sep, os.path.sep * 3) + os.path.sep * 3
@@ -478,12 +483,12 @@ def timing_manager():
 
 
 def main() -> None:
-    # NOTE: Всегда исполняем файл относительно корня проекта.
+    # Всегда исполняем файл относительно корня проекта.
     os.chdir(PROJECT_DIR)
 
     caught_exc = None
 
-    # NOTE: При выпадении exception-а отображаем затраченное время.
+    # При выпадении exception-а отображаем затраченное время.
     global global_timing_manager_instance
     global_timing_manager_instance = timing_manager()
 
