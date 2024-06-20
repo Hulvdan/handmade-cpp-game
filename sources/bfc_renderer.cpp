@@ -114,15 +114,24 @@ void DEBUG_Load_Texture(
     Send_Texture_To_GPU(out_texture);
 }
 
-struct Atlas {
-    Vector<C_Texture> textures;
-};
+const BFGame::Atlas* Load_Atlas_From_Binary(Arena& arena) {
+    auto result = Debug_Load_File_To_Arena("assets/art/atlas.bin", arena);
+    Assert(result.success);
+    return BFGame::GetAtlas(result.output);
+}
 
-Atlas Load_Atlas(const char* atlas_name, Arena& destination_arena, MCTX) {
+Atlas Load_Atlas(
+    const char* atlas_name,
+    Arena&      destination_arena,
+    Arena&      trash_arena,
+    MCTX
+) {
+    TEMP_USAGE(trash_arena);
+
     char filepath[512];
     sprintf(filepath, "assets/art/%s.bmp", atlas_name);
 
-    Load_BMP_RGBA_Result bmp_result = {};
+    Load_BMP_RGBA_Result bmp_result{};
     {
         TEMP_USAGE(trash_arena);
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
@@ -132,14 +141,38 @@ Atlas Load_Atlas(const char* atlas_name, Arena& destination_arena, MCTX) {
         Assert(bmp_result.success);
     }
 
-    out_texture.id   = scast<BF_Texture_ID>(Hash32_String(texture_name));
-    out_texture.size = {bmp_result.width, bmp_result.height};
-    out_texture.base = bmp_result.output;
-    Send_Texture_To_GPU(out_texture);
+    auto atlas_spec = Load_Atlas_From_Binary(trash_arena);
+
+    Atlas atlas{};
+    Init_Vector(atlas.textures, ctx);
+    const auto textures_count = atlas_spec->textures()->size();
+    Vector_Reserve(atlas.textures, textures_count, ctx);
+
+    FOR_RANGE (int, i, textures_count) {
+        auto& texture = *atlas_spec->textures()->Get(i);
+
+        C_Texture t{
+            {
+                f32(texture.atlas_x()) / texture.size_x(),
+                f32(texture.atlas_y()) / texture.size_y(),
+            },
+            {texture.size_x(), texture.size_y()},
+        };
+
+        Vector_Add(atlas.textures, std::move(t), ctx);
+    }
+
+    auto& atlas_texture = atlas.texture;
+    atlas_texture.id    = scast<BF_Texture_ID>(Hash32_String(atlas_name));
+    atlas_texture.size  = {bmp_result.width, bmp_result.height};
+    atlas_texture.base  = bmp_result.output;
+    Send_Texture_To_GPU(atlas_texture);
+
+    return atlas;
 }
 
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize) {
-    Element_Tile& tile             = *(element_tiles + pos.y * gsize.x + pos.x);
+    Element_Tile& tile             = element_tiles[pos.y * gsize.x + pos.x];
     bool          tile_is_flag     = tile.type == Element_Tile_Type::Flag;
     bool          tile_is_road     = tile.type == Element_Tile_Type::Road;
     bool          tile_is_building = tile.type == Element_Tile_Type::Building;
@@ -150,7 +183,7 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
 
-        Element_Tile& adjacent_tile = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
+        Element_Tile& adjacent_tile    = element_tiles[new_pos.y * gsize.x + new_pos.x];
         bool          adj_tile_is_flag = adjacent_tile.type == Element_Tile_Type::Flag;
         bool          adj_tile_is_road = adjacent_tile.type == Element_Tile_Type::Road;
         bool adj_tile_is_building = adjacent_tile.type == Element_Tile_Type::Building;
@@ -275,8 +308,11 @@ void Init_Renderer(
     Game_State& state,
     Arena&      arena,
     Arena&      non_persistent_arena,
-    Arena&      trash_arena
+    Arena&      trash_arena,
+    MCTX
 ) {
+    CTX_ALLOCATOR;
+
     auto hot_reloaded            = state.hot_reloaded;
     auto first_time_initializing = state.renderer_state == nullptr;
 
@@ -300,7 +336,7 @@ void Init_Renderer(
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    DEBUG_Load_Texture(non_persistent_arena, trash_arena, "atlas", rstate.atlas_texture);
+    rstate.atlas      = Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx);
     rstate.atlas_size = {8, 8};
 
     // Перезагрузка шейдеров.
@@ -324,6 +360,10 @@ void main() {
 )Shader",
         R"Shader(
 #version 330 core
+
+layout (location = 0) in vec2 a_atlas_size;
+layout (location = 1) in vec2 a_tile_size;
+
 out vec4 frag_color;
 
 in vec3 color;
@@ -385,47 +425,22 @@ void main() {
     rstate.forest_top_tile_id   = 3;
 
     {
-        DEBUG_Load_Texture(
-            non_persistent_arena, trash_arena, "human", rstate.human_texture
-        );
+        auto art = state.gamelib->art();
 
-        char texture_name[512] = {};
-        FOR_RANGE (int, i, 17) {
-            sprintf(texture_name, "tiles/grass_%d", i);
-            DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.grass_textures[i]
-            );
-        }
+        rstate.human_texture                = art->human();
+        rstate.building_in_progress_texture = art->building_in_progress();
 
         FOR_RANGE (int, i, 3) {
-            sprintf(texture_name, "tiles/forest_%d", i);
-            DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.forest_textures[i]
-            );
+            rstate.forest_textures[i] = art->flag()->Get(i);
         }
-
+        FOR_RANGE (int, i, 17) {
+            rstate.grass_textures[i] = art->grass()->Get(i);
+        }
         FOR_RANGE (int, i, 16) {
-            sprintf(texture_name, "tiles/road_%d", i);
-            DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.road_textures[i]
-            );
+            rstate.road_textures[i] = art->road()->Get(i);
         }
-
         FOR_RANGE (int, i, 4) {
-            sprintf(texture_name, "tiles/flag_%d", i);
-            DEBUG_Load_Texture(
-                non_persistent_arena, trash_arena, texture_name, rstate.flag_textures[i]
-            );
-        }
-
-        {
-            sprintf(texture_name, "tiles/building_in_progress");
-            DEBUG_Load_Texture(
-                non_persistent_arena,
-                trash_arena,
-                texture_name,
-                rstate.in_progress_building_texture
-            );
+            rstate.flag_textures[i] = art->flag()->Get(i);
         }
 
         {
@@ -461,43 +476,25 @@ void main() {
         Assert(state.gamelib->resources()->size() == state.scriptable_resources_count);
 
         FOR_RANGE (int, i, state.scriptable_resources_count) {
-            const auto& libresource = *(*state.gamelib->resources())[i];
+            const auto& lib_instance = *state.gamelib->resources()->Get(i);
 
             auto& resource         = state.scriptable_resources[i];
-            resource.texture       = Allocate_For(arena, Loaded_Texture);
-            resource.small_texture = Allocate_For(arena, Loaded_Texture);
-            DEBUG_Load_Texture(
-                non_persistent_arena,
-                trash_arena,
-                libresource.texture()->c_str(),
-                *resource.texture
-            );
-            DEBUG_Load_Texture(
-                non_persistent_arena,
-                trash_arena,
-                libresource.small_texture()->c_str(),
-                *resource.small_texture
-            );
+            resource.texture       = lib_instance.texture();
+            resource.small_texture = lib_instance.small_texture();
         }
 
         FOR_RANGE (int, i, state.scriptable_buildings_count) {
-            const auto& libbuilding = *(*state.gamelib->buildings())[i];
+            const auto& lib_instance = *state.gamelib->buildings()->Get(i);
 
-            auto& building      = state.scriptable_buildings[i];
-            building.texture_id = Allocate_For(arena, Loaded_Texture);
-            DEBUG_Load_Texture(
-                non_persistent_arena,
-                trash_arena,
-                libbuilding.texture()->c_str(),
-                *building.texture
-            );
+            auto& building   = state.scriptable_buildings[i];
+            building.texture = lib_instance.texture();
         }
     }
 
     i32 max_height = 0;
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
-            auto& terrain_tile = *(game_map.terrain_tiles + y * gsize.x + x);
+            auto& terrain_tile = game_map.terrain_tiles[y * gsize.x + x];
             max_height         = MAX(max_height, terrain_tile.height);
         }
     }
@@ -508,14 +505,12 @@ void main() {
     rstate.tilemaps_count += rstate.terrain_tilemaps_count;
 
     // NOTE: Terrain Resources (forests, stones, etc.)
-    // Currently use 2 tilemaps:
     // 1) Forests
     // 2) Tree's top tiles
     rstate.resources_tilemap_index = rstate.tilemaps_count;
     rstate.tilemaps_count += 2;
 
     // NOTE: Element Tiles (roads, buildings, etc.)
-    // Currently use 2 tilemaps:
     // 1) Roads
     // 2) Flags above roads
     rstate.element_tilemap_index = rstate.tilemaps_count;
@@ -530,8 +525,8 @@ void main() {
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
-                auto& tile         = *(game_map.terrain_tiles + y * gsize.x + x);
-                auto& tilemap_tile = *(tilemap.tiles + y * gsize.x + x);
+                auto& tile         = game_map.terrain_tiles[y * gsize.x + x];
+                auto& tilemap_tile = tilemap.tiles[y * gsize.x + x];
 
                 bool grass   = tile.terrain == Terrain::Grass && tile.height >= h;
                 tilemap_tile = grass * rstate.grass_smart_tile.id;
@@ -544,9 +539,9 @@ void main() {
     FOR_RANGE (i32, y, gsize.y) {
         auto is_last_row = y == gsize.y - 1;
         FOR_RANGE (i32, x, gsize.x) {
-            auto& resource = *(game_map.terrain_resources + y * gsize.x + x);
+            auto& resource = game_map.terrain_resources[y * gsize.x + x];
 
-            auto& tile = *(resources_tilemap.tiles + y * gsize.x + x);
+            auto& tile = resources_tilemap.tiles[y * gsize.x + x];
             if (tile)
                 continue;
 
@@ -558,12 +553,12 @@ void main() {
 
             bool forest_above = false;
             if (!is_last_row) {
-                auto& tile_above = *(resources_tilemap.tiles + (y + 1) * gsize.x + x);
+                auto& tile_above = resources_tilemap.tiles[(y + 1) * gsize.x + x];
                 forest_above     = tile_above == rstate.forest_smart_tile.id;
             }
 
             if (!forest_above)
-                *(resources_tilemap2.tiles + y * gsize.x + x) = rstate.forest_top_tile_id;
+                resources_tilemap2.tiles[y * gsize.x + x] = rstate.forest_top_tile_id;
         }
     }
 
@@ -571,13 +566,13 @@ void main() {
     auto& element_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
-            Element_Tile& element_tile = *(game_map.element_tiles + y * gsize.x + x);
+            Element_Tile& element_tile = game_map.element_tiles[y * gsize.x + x];
             if (element_tile.type != Element_Tile_Type::Road)
                 continue;
 
             auto tex
                 = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
-            auto& tile_id = *(element_tilemap.tiles + y * gsize.x + x);
+            auto& tile_id = element_tilemap.tiles[y * gsize.x + x];
             tile_id       = global_road_starting_tile_id + tex;
         }
     }
@@ -650,10 +645,10 @@ void main() {
 void Deinit_Renderer(Game_State& state, MCTX) {
     CTX_ALLOCATOR;
 
-    auto& rstate = state.renderer_state;
+    auto& rstate = *state.renderer_state;
 
-    if (rstate.rendering_indices_buffer_size)
-        FREE(rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
+    if (rstate.rendering_indices_buffer_size > 0)
+        FREE((u8*)rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
 }
 
 void Draw_Sprite(
@@ -892,11 +887,11 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
         auto& buildable = *(ui_state.buildables + i);
         switch (buildable.type) {
         case Item_To_Build_Type::Road: {
-            *(res.textures + i) = (rstate.road_textures + 15)->id;
+            *(res.textures + i) = rstate.road_textures[15];
         } break;
 
         case Item_To_Build_Type::Building: {
-            *(res.textures + i) = buildable.scriptable_building->texture->id;
+            *(res.textures + i) = buildable.scriptable_building->texture;
         } break;
 
         default:
@@ -905,6 +900,24 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     }
 
     return res;
+}
+
+v2f Query_Texture_Pos_Inside_Atlas(
+    Atlas&   atlas,
+    i16      gsize_width,
+    Tilemap& tilemap,
+    i16      x,
+    i16      y
+) {
+    auto id = tilemap.textures[y * gsize_width + x];
+
+    for (auto& texture : Iter(&atlas.textures)) {
+        if (texture.id == id)
+            return texture.pos_inside_atlas;
+    }
+
+    Assert(false);
+    return v2f_zero;
 }
 
 void Render(Game_State& state, f32 dt, MCTX) {
@@ -1018,12 +1031,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // NOTE: Рисование tilemap
     {
         glUseProgram(rstate.tilemap_shader_program);
-        glBindTexture(rstate.atlas_texture.id);
+        glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
         auto projection_inv = glm::inverse(projection);
 
-        auto p1 = projection_inv * v2f(-1, -1);
-        auto p2 = projection_inv * v2f(1, 1);
+        auto p1 = projection_inv * v3f(-1, -1, 1);
+        auto p2 = projection_inv * v3f(1, 1, 1);
         glUniform4f(0, p1.x, p1.y, p2.x, p2.y);
         glUniform2i(1, rstate.atlas_size.x, rstate.atlas_size.y);
 
@@ -1042,7 +1055,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         int visible_tiles_count = w * h;
 
-        auto required_memory = sizeof(GLint) * visible_tiles_count;
+        auto required_memory = 2 * sizeof(GLfloat) * visible_tiles_count;
 
         if (rstate.rendering_indices_buffer == nullptr) {
             rstate.rendering_indices_buffer      = ALLOC(required_memory);
@@ -1051,23 +1064,36 @@ void Render(Game_State& state, f32 dt, MCTX) {
         else if (rstate.rendering_indices_buffer_size < required_memory) {
             rstate.rendering_indices_buffer = REALLOC(
                 required_memory,
-                rstate.rstate.rendering_indices_buffer_size,
-                rstate.rendering_indices_buffer
+                rstate.rendering_indices_buffer_size,
+                (u8*)rstate.rendering_indices_buffer
             );
             rstate.rendering_indices_buffer_size = required_memory;
         }
 
-        const auto stride = index_r - index_l + 1;
-        FOR_RANGE (int, y, index_u - index_b + 1) {
-            FOR_RANGE (int, x, index_r - index_l + 1) {
-                // for (int y = index_b; y < index_t + 1; y++) {
-                // for (int x = index_l; x < index_r + 1; x++) {
-                auto t = y * stride + x;
-                // TODO: для каждой клетки нужно проставить
-                // в этот буфер свои координаты в атласе
-                (GL) rstate.rendering_indices_buffer[]
+        memset(rstate.rendering_indices_buffer, 0, rstate.rendering_indices_buffer_size);
+
+        FOR_RANGE (int, i, rstate.tilemaps_count) {
+            auto& tilemap = rstate.tilemaps[i];
+
+            const auto stride = index_r - index_l + 1;
+            FOR_RANGE (int, y, index_u - index_b + 1) {
+                FOR_RANGE (int, x, index_r - index_l + 1) {
+                    auto t = y * stride + x;
+
+                    auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2];
+                    auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2 + 1];
+
+                    auto& pos = Query_Texture_Pos_Inside_Atlas(
+                        rstate.atlas, game_map.gsize.x, tilemap, x, y
+                    );
+
+                    px = pos.x;
+                    py = pos.y;
+                }
             }
         }
+
+        // C_Texture& Query_Texture(rstate, )
 
         glUniform2fv(1, visible_tiles_count, rstate.rendering_indices_buffer);
     }
@@ -1120,7 +1146,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto& tile = *(resources_tilemap.tiles + y * gsize.x + x);
+            auto& tile = resources_tilemap.tiles[y * gsize.x + x];
             if (tile == 0)
                 continue;
 
@@ -1146,7 +1172,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto& tile = *(resources_tilemap2.tiles + y * gsize.x + x);
+            auto& tile = resources_tilemap2.tiles[y * gsize.x + x];
             if (tile == 0)
                 continue;
 
@@ -1172,7 +1198,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto& tile = *(element_tilemap.tiles + y * gsize.x + x);
+            auto& tile = element_tilemap.tiles[y * gsize.x + x];
             if (tile < global_road_starting_tile_id)
                 continue;
 
@@ -1194,7 +1220,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // NOTE: Рисование флагов.
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto& tile = *(element_tilemap_2.tiles + y * gsize.x + x);
+            auto& tile = element_tilemap_2.tiles[y * gsize.x + x];
             if (tile < global_flag_starting_tile_id)
                 continue;
 
@@ -1505,12 +1531,11 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     switch (element_tile.type) {
     case Element_Tile_Type::Building:
     case Element_Tile_Type::Road: {
-        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x) = 0;
+        element_tilemap_2.tiles[pos.y * gsize.x + pos.x] = 0;
     } break;
 
     case Element_Tile_Type::Flag: {
-        *(element_tilemap_2.tiles + pos.y * gsize.x + pos.x)
-            = global_flag_starting_tile_id;
+        element_tilemap_2.tiles[pos.y * gsize.x + pos.x] = global_flag_starting_tile_id;
     } break;
 
     default:
@@ -1526,19 +1551,19 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
             continue;
 
         auto          element_tiles = game_map.element_tiles;
-        Element_Tile& element_tile  = *(element_tiles + new_pos.y * gsize.x + new_pos.x);
+        Element_Tile& element_tile  = element_tiles[new_pos.y * gsize.x + new_pos.x];
 
         switch (element_tile.type) {
         case Element_Tile_Type::Flag: {
             auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
+            auto& tile_id = element_tilemap.tiles[new_pos.y * gsize.x + new_pos.x];
             tile_id       = global_road_starting_tile_id + tex;
         } break;
 
         case Element_Tile_Type::Building:
         case Element_Tile_Type::Road: {
             auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id = *(element_tilemap.tiles + new_pos.y * gsize.x + new_pos.x);
+            auto& tile_id = element_tilemap.tiles[new_pos.y * gsize.x + new_pos.x];
             tile_id       = global_road_starting_tile_id + tex;
         } break;
 

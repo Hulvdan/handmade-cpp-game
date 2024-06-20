@@ -432,7 +432,7 @@ void Place_Building(
         c.time_since_human_was_created = f32_inf;
         game_map.city_halls.Add(bid, c, ctx);
 
-        sprite.texture_id = scriptable_building->texture_id;
+        sprite.texture = scriptable_building->texture;
     }
     else {
         for (auto pair_ptr : Iter(&scriptable_building->construction_resources)) {
@@ -445,13 +445,13 @@ void Place_Building(
             );
         }
 
-        Not_Constructed_Building c;
+        Not_Constructed_Building c{};
         c.constructor         = Human_Constructor_ID_Missing;
         c.construction_points = 0;
         // Init_Vector(c.resources_to_book, ctx);
         game_map.not_constructed_buildings.Add(bid, c, ctx);
 
-        sprite.texture_id = state.renderer_state->not_built_building_texture_id;
+        sprite.texture = state.renderer_state->building_in_progress_texture;
     }
 
     state.renderer_state->sprites.Add(bid, sprite, ctx);

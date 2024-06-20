@@ -37,6 +37,7 @@ using tunordered_map = std::unordered_map<Args...>;
 global_var OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 
+#include "generated/bf_atlas_generated.h"
 #include "generated/bf_gamelib_generated.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
@@ -569,7 +570,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.On_Item_Built, callbacks, non_persistent_arena
         );
 
-        Init_Renderer(state, arena, non_persistent_arena, trash_arena);
+        Init_Renderer(state, arena, non_persistent_arena, trash_arena, ctx);
 
         memory.is_initialized = true;
     }

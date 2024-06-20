@@ -270,7 +270,7 @@ struct Scriptable_Building : public Non_Copyable {
     Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
 
 #ifdef BF_CLIENT
-    Texture_ID texture_id;
+    Texture_ID texture;
 #endif  // BF_CLIENT
 };
 
@@ -382,10 +382,8 @@ struct Scriptable_Resource : public Non_Copyable {
     const char* code;
 
 #ifdef BF_CLIENT
-    // TODO: Исползовать handle-ы текстур? Что-то вроде хешей,
-    // а игра бы подгружала бы эти текстуры асинхронно
-    Loaded_Texture* texture;
-    Loaded_Texture* small_texture;
+    Texture_ID texture;
+    Texture_ID small_texture;
 #endif  // BF_CLIENT
 };
 
@@ -600,13 +598,13 @@ enum class Tile_State_Check {
 };
 
 struct Tile_Rule {
-    BF_Texture_ID    texture_id;
+    Texture_ID       texture;
     Tile_State_Check states[8];
 };
 
 struct Smart_Tile {
-    Tile_ID       id;
-    BF_Texture_ID fallback_texture_id;
+    Tile_ID    id;
+    Texture_ID fallback_texture;
 
     int        rules_count;
     Tile_Rule* rules;
@@ -617,11 +615,11 @@ struct Load_Smart_Tile_Result {
 };
 
 struct Tilemap {
-    Tile_ID* tiles;
+    Texture_ID* textures;
 };
 
 struct C_Texture {
-    v2f   pos_inside_atlas;
+    v2f   pos_inside_atlas;  // значения x, y ограничены [0, 1)
     v2i16 size;
 };
 
@@ -630,7 +628,7 @@ struct C_Sprite {
     v2f        scale;
     v2f        anchor;
     f32        rotation;
-    Texture_ID texture_id;
+    Texture_ID texture;
     i8         z;
     // left   = pos.x + texture.size.x * (anchor.x - 1)
     // right  = pos.x + texture.size.x *  anchor.x
@@ -699,6 +697,11 @@ struct Game_UI_State : public Non_Copyable {
     i16 placeholders_gap;
 };
 
+struct Atlas {
+    Loaded_Texture    texture;
+    Vector<C_Texture> textures;
+};
+
 struct Game_Renderer_State : public Non_Copyable {
     Game_UI_State* ui_state;
     Game_Bitmap*   bitmap;
@@ -709,17 +712,15 @@ struct Game_Renderer_State : public Non_Copyable {
     Smart_Tile forest_smart_tile;
     Tile_ID    forest_top_tile_id;
 
-    Texture_ID not_built_building_texture_id;
-
-    Loaded_Texture human_texture;
-    Loaded_Texture grass_textures[17];
-    Loaded_Texture forest_textures[3];
-    Loaded_Texture road_textures[16];
-    Loaded_Texture flag_textures[4];
-    Loaded_Texture in_progress_building_texture;
+    Texture_ID human_texture;
+    Texture_ID building_in_progress_texture;
+    Texture_ID forest_textures[3];
+    Texture_ID grass_textures[17];
+    Texture_ID road_textures[16];
+    Texture_ID flag_textures[4];
 
     v2i atlas_size;  // количество тайлов в ширину и в высоту
-    Loaded_Texture atlas_texture;
+    Atlas atlas;
 
     int      tilemaps_count;
     Tilemap* tilemaps;
