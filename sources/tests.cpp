@@ -304,9 +304,9 @@ int Process_Segments(
 
             case 'S': {
                 if (building_sawmill == nullptr) {
-                    auto [a, b]              = Make_Building(Building_Type::Produce, pos);
-                    auto building_sawmill_id = a;
-                    building_sawmill         = b;
+                    auto [a, b]         = Make_Building(Building_Type::Produce, pos);
+                    building_sawmill_id = a;
+                    building_sawmill    = b;
                 }
 
                 tile.type        = Element_Tile_Type::Building;

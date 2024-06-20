@@ -16,21 +16,23 @@
     }()
 
 #define REALLOC(n, old_size, old_ptr)                                        \
-    Assert_Not_Null(allocator)(                                              \
+    (COALESCE(allocator, Root_Allocator_Routine))(                                              \
         Allocator_Mode::Resize, (n), 1, old_size, old_ptr, allocator_data, 0 \
     )
 
 #define FREE(ptr, n)                                                             \
-    Assert_Not_Null(allocator)(                                                  \
+    (COALESCE(allocator, Root_Allocator_Routine))(                                                  \
         Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
     )
 
 #define FREE_ALL \
-    Assert_Not_Null(allocator)(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
+    (COALESCE(allocator, Root_Allocator_Routine))(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
 
 #if 1
 #define SANITIZE \
-    Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
+    (COALESCE(allocator, Root_Allocator_Routine))(            \
+        Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \
+    )
 #else
 #define SANITIZE (void)0
 #endif
@@ -896,13 +898,15 @@ struct Stoopid_Affix {
 global_var Root_Allocator_Type* root_allocator = nullptr;
 
 Allocator__Function(Root_Allocator_Routine) {
+    Assert(allocator_data == nullptr);
+
     switch (mode) {
     case Allocator_Mode::Allocate: {
         Assert(old_memory_ptr == nullptr);
         Assert(size > 0);
         Assert(old_size == 0);
 
-        return Assert_Deref((Root_Allocator_Type*)allocator_data).Allocate(size).ptr;
+        return root_allocator->Allocate(size).ptr;
     } break;
 
     case Allocator_Mode::Resize: {
@@ -913,13 +917,12 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_memory_ptr != nullptr);
         Assert(size > 0);
 
-        Assert_Deref((Root_Allocator_Type*)allocator_data)
-            .Deallocate(Blk(old_memory_ptr, size));
+        root_allocator->Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
 
     case Allocator_Mode::Free_All: {
-        Assert_Deref((Root_Allocator_Type*)allocator_data).Deallocate_All();
+        root_allocator->Deallocate_All();
     } break;
 
     case Allocator_Mode::Sanity: {
@@ -928,7 +931,7 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_size == 0);
         Assert(alignment == 0);
 
-        Assert_Deref((Root_Allocator_Type*)allocator_data).Sanity_Check();
+        root_allocator->Sanity_Check();
     } break;
 
     default:
