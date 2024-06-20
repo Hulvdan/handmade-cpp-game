@@ -24,6 +24,9 @@ struct Construction_Resource_PairBuilder;
 struct Building;
 struct BuildingBuilder;
 
+struct Art;
+struct ArtBuilder;
+
 struct Game_Library;
 struct Game_LibraryBuilder;
 
@@ -360,17 +363,138 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
       construction_resources__);
 }
 
+struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ArtBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_HUMAN = 4,
+    VT_GRASS = 6,
+    VT_FOREST = 8,
+    VT_BUILDING_IN_PROGRESS = 10,
+    VT_ROAD = 12,
+    VT_FLAG = 14
+  };
+  uint32_t human() const {
+    return GetField<uint32_t>(VT_HUMAN, 0);
+  }
+  const ::flatbuffers::Vector<uint32_t> *grass() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_GRASS);
+  }
+  const ::flatbuffers::Vector<uint32_t> *forest() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FOREST);
+  }
+  uint32_t building_in_progress() const {
+    return GetField<uint32_t>(VT_BUILDING_IN_PROGRESS, 0);
+  }
+  const ::flatbuffers::Vector<uint32_t> *road() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_ROAD);
+  }
+  const ::flatbuffers::Vector<uint32_t> *flag() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FLAG);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_HUMAN, 4) &&
+           VerifyOffset(verifier, VT_GRASS) &&
+           verifier.VerifyVector(grass()) &&
+           VerifyOffset(verifier, VT_FOREST) &&
+           verifier.VerifyVector(forest()) &&
+           VerifyField<uint32_t>(verifier, VT_BUILDING_IN_PROGRESS, 4) &&
+           VerifyOffset(verifier, VT_ROAD) &&
+           verifier.VerifyVector(road()) &&
+           VerifyOffset(verifier, VT_FLAG) &&
+           verifier.VerifyVector(flag()) &&
+           verifier.EndTable();
+  }
+};
+
+struct ArtBuilder {
+  typedef Art Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_human(uint32_t human) {
+    fbb_.AddElement<uint32_t>(Art::VT_HUMAN, human, 0);
+  }
+  void add_grass(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> grass) {
+    fbb_.AddOffset(Art::VT_GRASS, grass);
+  }
+  void add_forest(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest) {
+    fbb_.AddOffset(Art::VT_FOREST, forest);
+  }
+  void add_building_in_progress(uint32_t building_in_progress) {
+    fbb_.AddElement<uint32_t>(Art::VT_BUILDING_IN_PROGRESS, building_in_progress, 0);
+  }
+  void add_road(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road) {
+    fbb_.AddOffset(Art::VT_ROAD, road);
+  }
+  void add_flag(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag) {
+    fbb_.AddOffset(Art::VT_FLAG, flag);
+  }
+  explicit ArtBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Art> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Art>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Art> CreateArt(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t human = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> grass = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest = 0,
+    uint32_t building_in_progress = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag = 0) {
+  ArtBuilder builder_(_fbb);
+  builder_.add_flag(flag);
+  builder_.add_road(road);
+  builder_.add_building_in_progress(building_in_progress);
+  builder_.add_forest(forest);
+  builder_.add_grass(grass);
+  builder_.add_human(human);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<Art> CreateArtDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t human = 0,
+    const std::vector<uint32_t> *grass = nullptr,
+    const std::vector<uint32_t> *forest = nullptr,
+    uint32_t building_in_progress = 0,
+    const std::vector<uint32_t> *road = nullptr,
+    const std::vector<uint32_t> *flag = nullptr) {
+  auto grass__ = grass ? _fbb.CreateVector<uint32_t>(*grass) : 0;
+  auto forest__ = forest ? _fbb.CreateVector<uint32_t>(*forest) : 0;
+  auto road__ = road ? _fbb.CreateVector<uint32_t>(*road) : 0;
+  auto flag__ = flag ? _fbb.CreateVector<uint32_t>(*flag) : 0;
+  return BFGame::CreateArt(
+      _fbb,
+      human,
+      grass__,
+      forest__,
+      building_in_progress,
+      road__,
+      flag__);
+}
+
 struct Game_Library FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef Game_LibraryBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_BUILDINGS = 4,
-    VT_RESOURCES = 6
+    VT_RESOURCES = 6,
+    VT_ART = 8
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>> *buildings() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>> *>(VT_BUILDINGS);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Resource>> *resources() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Resource>> *>(VT_RESOURCES);
+  }
+  const BFGame::Art *art() const {
+    return GetPointer<const BFGame::Art *>(VT_ART);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -380,6 +504,8 @@ struct Game_Library FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_RESOURCES) &&
            verifier.VerifyVector(resources()) &&
            verifier.VerifyVectorOfTables(resources()) &&
+           VerifyOffset(verifier, VT_ART) &&
+           verifier.VerifyTable(art()) &&
            verifier.EndTable();
   }
 };
@@ -393,6 +519,9 @@ struct Game_LibraryBuilder {
   }
   void add_resources(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Resource>>> resources) {
     fbb_.AddOffset(Game_Library::VT_RESOURCES, resources);
+  }
+  void add_art(::flatbuffers::Offset<BFGame::Art> art) {
+    fbb_.AddOffset(Game_Library::VT_ART, art);
   }
   explicit Game_LibraryBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -408,8 +537,10 @@ struct Game_LibraryBuilder {
 inline ::flatbuffers::Offset<Game_Library> CreateGame_Library(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>>> buildings = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Resource>>> resources = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Resource>>> resources = 0,
+    ::flatbuffers::Offset<BFGame::Art> art = 0) {
   Game_LibraryBuilder builder_(_fbb);
+  builder_.add_art(art);
   builder_.add_resources(resources);
   builder_.add_buildings(buildings);
   return builder_.Finish();
@@ -418,13 +549,15 @@ inline ::flatbuffers::Offset<Game_Library> CreateGame_Library(
 inline ::flatbuffers::Offset<Game_Library> CreateGame_LibraryDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     std::vector<::flatbuffers::Offset<BFGame::Building>> *buildings = nullptr,
-    std::vector<::flatbuffers::Offset<BFGame::Resource>> *resources = nullptr) {
+    std::vector<::flatbuffers::Offset<BFGame::Resource>> *resources = nullptr,
+    ::flatbuffers::Offset<BFGame::Art> art = 0) {
   auto buildings__ = buildings ? _fbb.CreateVectorOfSortedTables<BFGame::Building>(buildings) : 0;
   auto resources__ = resources ? _fbb.CreateVectorOfSortedTables<BFGame::Resource>(resources) : 0;
   return BFGame::CreateGame_Library(
       _fbb,
       buildings__,
-      resources__);
+      resources__,
+      art);
 }
 
 inline const BFGame::Game_Library *GetGame_Library(const void *buf) {

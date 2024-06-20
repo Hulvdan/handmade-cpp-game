@@ -27,7 +27,7 @@ function overseer_run(cmd)
 end
 
 function cli_command(cmd)
-    return [[.venv\Scripts\python.exe -OO cmd\cli.py ]] .. cmd
+    return [[.venv\Scripts\python.exe cmd\cli.py ]] .. cmd
 end
 
 -- Keyboard Shortcuts --

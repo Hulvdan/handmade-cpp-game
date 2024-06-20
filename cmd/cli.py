@@ -187,12 +187,21 @@ def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> str | None:
     hashify_texture = lambda data, key: hashify_texture_with_check(
         data, key, hashes_set=texture_name_hashes
     )
+    hashify_textures_list = lambda data, key: hashify_textures_list_with_check(
+        data, key, hashes_set=texture_name_hashes
+    )
 
-    for i in data["buildings"]:
-        hashify_texture(i, "texture")
-    for i in data["resources"]:
-        hashify_texture(i, "texture")
-        hashify_texture(i, "small_texture")
+    for instance in data["buildings"]:
+        hashify_texture(instance, "texture")
+    for instance in data["resources"]:
+        hashify_texture(instance, "texture")
+        hashify_texture(instance, "small_texture")
+    hashify_texture(data["art"], "human")
+    hashify_texture(data["art"], "building_in_progress")
+    hashify_textures_list(data["art"], "forest")
+    hashify_textures_list(data["art"], "grass")
+    hashify_textures_list(data["art"], "road")
+    hashify_textures_list(data["art"], "flag")
 
     # Создание файла
     intermediate_path = PROJECT_DIR / "gamelib.intermediate.jsonc"
@@ -209,7 +218,8 @@ def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> str | None:
 def make_atlas(path: Path) -> set[int]:
     """Создание атласа из .ftpp (free texture packer) файла.
 
-    Герярится .bmp (текстура) и .json (спецификация) для использования внутри игры.
+    Генерятся .bmp (текстура) и .bin (переведённая в бинарный формат спецификация
+    - хеши названий текстур, их размеры и положение в атласе).
 
     Возвращает множество хешей названий использованных в этом атласе текстур,
     которое используются для валидации того, что текстуры,
@@ -234,19 +244,46 @@ def make_atlas(path: Path) -> set[int]:
 
     textures = []
     for name, data in json_data["frames"].items():
-        texture_name_hashes.add(hash32(name))
+        name = name.removeprefix("sources/")
+
+        hashed_name = hash32(name)
+        assert hashed_name not in texture_name_hashes
+        texture_name_hashes.add(hashed_name)
 
         texture_data = {
             "id": hash32(name),
             "debug_name": name,
             "size_x": data["frame"]["w"],
             "size_y": data["frame"]["h"],
-            "pos_x": data["frame"]["x"],
-            "pos_y": data["frame"]["y"],
+            "atlas_x": data["frame"]["x"],
+            "atlas_y": data["frame"]["y"],
         }
         textures.append(texture_data)
 
-    better_json_dump({"textures": textures}, json_path)
+    # NOTE: Сортировка по хешу в теории бы позволила в бинарный поиск.
+    textures.sort(key=lambda x: x["id"])
+
+    json_intermediate_path = directory / (filename_wo_extension + ".intermediate.json")
+    better_json_dump({"textures": textures}, json_intermediate_path)
+
+    # Конвертируем спецификацию атласа в бинарный формат.
+    run_command(
+        [
+            FLATC_PATH,
+            "-o",
+            "assets/art",
+            "-b",
+            SOURCES_DIR / "bf_atlas.fbs",
+            json_intermediate_path,
+        ]
+    )
+
+    # Переименовываем сгенерированную бинарную спецификацию.
+    itermediate_binary_path = directory / (filename_wo_extension + ".intermediate.bin")
+    final_binary_path = directory / (filename_wo_extension + ".bin")
+    if os.path.exists(final_binary_path):
+        os.remove(final_binary_path)
+    os.rename(itermediate_binary_path, final_binary_path)
 
     # Конвертируем .png to .bmp.
     png_path = directory / (filename_wo_extension + ".png")
@@ -289,7 +326,7 @@ def do_generate() -> None:
             if file_hash != hashes_for_msbuild.get(file):
                 shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
 
-    # Собираем алтас.
+    # Собираем атлас.
     texture_name_hashes: set[int] = set()
     texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
 
@@ -297,10 +334,26 @@ def do_generate() -> None:
     convert_gamelib_json_to_binary(texture_name_hashes=texture_name_hashes)
 
 
+def hashify_textures_list_with_check(
+    data: dict[str, Any],
+    key: str,
+    hashes_set: set[int],
+) -> None:
+    textures = data[key]
+    assert isinstance(textures, list)
+
+    for i, texture_name in enumerate(textures):
+        hashed_value = hash32(texture_name)
+        assert hashed_value in hashes_set, f"Texture '{texture_name}' not found in atlas!"
+        textures[i] = hashed_value
+
+
 def hashify_texture_with_check(
     data: dict[str, Any], key: str, hashes_set: set[int]
 ) -> None:
     texture_name = data[key]
+    assert isinstance(texture_name, str)
+
     hashed_value = hash32(texture_name)
     assert hashed_value in hashes_set, f"Texture '{texture_name}' not found in atlas!"
     data[key] = hashed_value
@@ -308,7 +361,7 @@ def hashify_texture_with_check(
 
 def assert_contains(value: T, container) -> T:
     if value not in container:
-        log.critical("")
+        log.critical("value '{}' not found inside '{}'".format(value, container))
         exit(1)
 
     return value

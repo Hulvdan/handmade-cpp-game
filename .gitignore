@@ -53,3 +53,7 @@ cython_debug/
 
 *.intermediate
 *.intermediate.*
+
+/assets/art/atlas.bmp
+/assets/art/atlas.png
+/assets/art/atlas.json

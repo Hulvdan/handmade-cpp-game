@@ -35,9 +35,31 @@ table Building {
     construction_resources: [Construction_Resource_Pair];
 }
 
+// enum Tile_State_Check:byte {
+//     Skip = 0,
+//     Excluded,
+//     Included,
+// }
+//
+// table Tile_Rule {
+//     texture: uint;
+//     states:  uint64;
+// }
+
+table Art {
+    human:                uint;
+    grass:                [uint];
+    forest:               [uint];
+    building_in_progress: uint;
+    road:                 [uint];
+    flag:                 [uint];
+    // grass_tile_rule:      Tile_Rule;
+}
+
 table Game_Library {
     buildings: [Building];
     resources: [Resource];
+    art: Art;
 }
 
 file_identifier "GLIB";

@@ -2,11 +2,10 @@
   "meta": {
     "version": "0.6.7"
   },
-  "savePath": "C:\\Users\\user\\dev\\home\\handmade-cpp-game\\assets\\art",
+  "savePath": "assets/art",
   "images": [],
   "folders": [
-    "C:/Users/user/dev/home/handmade-cpp-game/assets/art/sources/items",
-    "C:/Users/user/dev/home/handmade-cpp-game/assets/art/sources/tiles"
+    "assets/art/sources"
   ],
   "packOptions": {
     "textureName": "atlas",
@@ -20,9 +19,9 @@
     "filter": "none",
     "exporter": "JSON (hash)",
     "fileName": "pack-result",
-    "savePath": "C:\\Users\\user\\dev\\home\\handmade-cpp-game\\assets\\art",
-    "width": 128,
-    "height": 512,
+    "savePath": "assets/art",
+    "width": 2048,
+    "height": 2048,
     "fixedSize": false,
     "powerOfTwo": true,
     "padding": 0,
@@ -32,7 +31,7 @@
     "trimMode": "trim",
     "alphaThreshold": "0",
     "detectIdentical": true,
-    "packer": "OptimalPacker",
-    "packerMethod": "Automatic"
+    "packer": "MaxRectsPacker",
+    "packerMethod": "SmartArea"
   }
 }
