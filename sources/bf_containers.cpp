@@ -9,6 +9,17 @@
         }                                            \
     }
 
+#define CONTAINER_MEMBER_ALLOCATOR                \
+    auto  allocator      = allocator_;            \
+    void* allocator_data = allocator_data_;       \
+    {                                             \
+        if (allocator == nullptr) {               \
+            Assert(allocator_data == nullptr);    \
+            allocator      = ctx->allocator;      \
+            allocator_data = ctx->allocator_data; \
+        }                                         \
+    }
+
 // PERF: Переписать на ring buffer!
 template <typename T>
 struct Fixed_Size_Queue {
@@ -50,6 +61,82 @@ struct Vector {
     void* allocator_data;
 };
 
+struct Memory_Buffer {
+    void*  base      = 0;
+    size_t count     = 0;
+    size_t max_count = 0;
+
+    Allocator__Function((*allocator_)) = nullptr;
+    void* allocator_data_              = nullptr;
+
+    Memory_Buffer(MCTX) {
+        if (ctx->allocator != nullptr) {
+            allocator_      = ctx->allocator;
+            allocator_data_ = ctx->allocator_data;
+        }
+    }
+
+    void Add(void* ptr, size_t size, MCTX) {
+        Assert(size > 0);
+        Assert(ptr != nullptr);
+
+        CONTAINER_MEMBER_ALLOCATOR;
+
+        if (base == nullptr) {
+            max_count = MAX(64, Ceil_To_Power_Of_2(size));
+            base      = ALLOC(max_count);
+        }
+        else if (count + size > max_count) {
+            auto old_max_count = max_count;
+            max_count          = Ceil_To_Power_Of_2(count + size);
+            base               = REALLOC(max_count, old_max_count, base);
+        }
+
+        memcpy((void*)((u8*)(base) + count), (u8*)ptr, size);
+        count += size;
+    }
+
+    void Add_Unsafe(void* ptr, size_t size) {
+        Assert(size > 0);
+        Assert(ptr != nullptr);
+
+        memcpy((void*)((u8*)(base) + count), (u8*)ptr, size);
+        count += size;
+    }
+
+    void Reset() {
+        count = 0;
+    }
+
+    void Deinit(MCTX) {
+        CONTAINER_MEMBER_ALLOCATOR;
+
+        if (base != nullptr)
+            FREE((u8*)base, max_count);
+
+        count     = 0;
+        max_count = 0;
+        base      = nullptr;
+    }
+
+    void Reserve(size_t size, MCTX) {
+        Assert(size > 0);
+
+        CONTAINER_MEMBER_ALLOCATOR;
+
+        if (base == nullptr) {
+            auto ceiled_size = Ceil_To_Power_Of_2(size);
+            base             = (void*)ALLOC(ceiled_size);
+            max_count        = ceiled_size;
+        }
+        else if (count + size > max_count) {
+            auto ceiled_size = Ceil_To_Power_Of_2(size);
+            base             = (void*)REALLOC(ceiled_size, size, base);
+            max_count        = ceiled_size;
+        }
+    }
+};
+
 template <typename T, typename U>
 struct HashMap {
     i32 allocated = 0;
@@ -66,9 +153,15 @@ struct HashMap {
 
     static constexpr int SIZE_MIN = 32;
 
+    Allocator__Function((*allocator_)) = nullptr;
+    void* allocator_data_              = nullptr;
+
     HashMap(MCTX)
         : slots() {
-        CTX_ALLOCATOR;
+        if (ctx->allocator != nullptr) {
+            allocator_      = ctx->allocator;
+            allocator_data_ = ctx->allocator_data;
+        }
     }
 
     void Set(const T& key, const U& value) {
@@ -188,7 +281,7 @@ struct Sparse_Array {
     }
 
     U* Add(const T id, const U& value, MCTX) {
-        Assert(!Contains(this, id));
+        Assert(!Contains(id));
 
         if (max_count == count)
             Enlarge(ctx);
@@ -200,7 +293,7 @@ struct Sparse_Array {
     }
 
     U* Add(const T id, U&& value, MCTX) {
-        Assert(!Sparse_Array_Contains(this, id));
+        Assert(!Contains(id));
 
         if (max_count == count)
             Enlarge(ctx);
@@ -625,7 +718,8 @@ i32 Vector_Add(Vector<T>& container, T&& value, MCTX) {
         container.max_count = new_max_count;
     }
 
-    *(container.base + container.count) = value;
+    memcpy(container.base + container.count, &value, sizeof(value));
+    // *(container.base + container.count) = value;
     container.count += 1;
 
     return locator;
@@ -910,7 +1004,7 @@ ttuple<Bucket_Locator, T*> Find_And_Occupy_Empty_Slot(Bucket_Array<T>& arr, MCTX
         arr.unfull_buckets_count -= 1;
     }
 
-    Bucket_Locator locator{bucket_ptr->bucket_index, index};
+    Bucket_Locator locator{bucket_ptr->bucket_index, (u32)index};
     return {locator, scast<T*>(bucket_ptr->data) + index};
 }
 
@@ -1059,7 +1153,7 @@ struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U
     std::tuple<T, U*> Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
-        return std::tuple(_container->ids[_current], _container->base[_current]);
+        return std::tuple(_container->ids[_current], _container->base + _current);
     }
 
     void Increment() {

@@ -454,7 +454,7 @@ void Place_Building(
         sprite.texture = state.renderer_state->building_in_progress_texture;
     }
 
-    state.renderer_state->sprites.Add(bid, sprite, ctx);
+    // state.renderer_state->sprites.Add(bid, sprite, ctx);
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
@@ -1270,7 +1270,7 @@ void Map_Humans_To_Remove(
     std::invocable<Human_ID, Human&, Human_Removal_Reason> auto&& func
 ) {
     for (auto [id, reason] : Iter(&state.game_map.humans_to_remove)) {
-        func(id, Query_Human(state.game_map, id), *reason);
+        func(id, *Query_Human(state.game_map, id), *reason);
     }
 }
 

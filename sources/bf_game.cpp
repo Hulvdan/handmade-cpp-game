@@ -457,14 +457,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.game_map.element_tiles
             = Allocate_Zeros_Array(non_persistent_arena, Element_Tile, tiles_count);
 
-        state.scriptable_resources_count = 1;
-        state.scriptable_resources
-            = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
-        {
-            auto& r = Assert_Deref(Get_Scriptable_Resource(state, 1));
-            r.code  = "forest";
-        }
-
         if (first_time_initializing) {
             auto& resources = *state.gamelib->resources();
 
@@ -489,9 +481,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             auto& building    = state.scriptable_buildings[i];
             auto& libbuilding = *state.gamelib->buildings()->Get(i);
 
-            building.code                    = libbuilding.code()->c_str();
-            building.type                    = (Building_Type)libbuilding.type();
-            building.harvestable_resource_id = 0;
+            building.code                 = libbuilding.code()->c_str();
+            building.type                 = (Building_Type)libbuilding.type();
+            building.harvestable_resource = nullptr;
 
             building.human_spawning_delay  //
                 = libbuilding.human_spawning_delay();

@@ -144,6 +144,7 @@ Atlas Load_Atlas(
     auto atlas_spec = Load_Atlas_From_Binary(trash_arena);
 
     Atlas atlas{};
+    atlas.size = {atlas_spec->size_x(), atlas_spec->size_y()};
     Init_Vector(atlas.textures, ctx);
     const auto textures_count = atlas_spec->textures()->size();
     Vector_Reserve(atlas.textures, textures_count, ctx);
@@ -152,6 +153,7 @@ Atlas Load_Atlas(
         auto& texture = *atlas_spec->textures()->Get(i);
 
         C_Texture t{
+            scast<Texture_ID>(texture.id()),
             {
                 f32(texture.atlas_x()) / texture.size_x(),
                 f32(texture.atlas_y()) / texture.size_y(),
@@ -519,9 +521,12 @@ void main() {
     rstate.tilemaps
         = Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
+    // Проставление текстур тайлов в tilemap-е terrain-а.
     FOR_RANGE (i32, h, rstate.tilemaps_count) {
-        auto& tilemap = *(rstate.tilemaps + h);
-        tilemap.tiles = Allocate_Array(non_persistent_arena, Tile_ID, gsize.x * gsize.y);
+        auto& tilemap     = *(rstate.tilemaps + h);
+        auto  tiles_count = gsize.x * gsize.y;
+        tilemap.tiles     = Allocate_Array(non_persistent_arena, Tile_ID, tiles_count);
+        tilemap.textures  = Allocate_Array(non_persistent_arena, Texture_ID, tiles_count);
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
@@ -530,6 +535,14 @@ void main() {
 
                 bool grass   = tile.terrain == Terrain::Grass && tile.height >= h;
                 tilemap_tile = grass * rstate.grass_smart_tile.id;
+            }
+        }
+
+        FOR_RANGE (i32, y, gsize.y) {
+            FOR_RANGE (i32, x, gsize.x) {
+                tilemap.textures[y * gsize.x + x] = Test_Smart_Tile(
+                    tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
+                );
             }
         }
     }
@@ -743,7 +756,6 @@ void Draw_UI_Sprite(
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindVertexArray(0);
-    glUseProgram(0);
     glDeleteVertexArrays(1, &vao);
 };
 
@@ -911,13 +923,28 @@ v2f Query_Texture_Pos_Inside_Atlas(
 ) {
     auto id = tilemap.textures[y * gsize_width + x];
 
-    for (auto& texture : Iter(&atlas.textures)) {
+    for (auto texture_ptr : Iter(&atlas.textures)) {
+        auto& texture = *texture_ptr;
         if (texture.id == id)
             return texture.pos_inside_atlas;
     }
 
     Assert(false);
     return v2f_zero;
+}
+
+void Map_Sprites_With_Textures(
+    Game_Renderer_State&                                    rstate,
+    std::invocable<C_Texture&, Entity_ID, C_Sprite&> auto&& func
+) {
+    for (auto [entity_id, sprite] : Iter(&rstate.sprites)) {
+        for (auto texture : Iter(&rstate.atlas.textures)) {
+            if (sprite->texture != texture->id)
+                continue;
+
+            func(*texture, entity_id, *sprite);
+        }
+    }
 }
 
 void Render(Game_State& state, f32 dt, MCTX) {
@@ -1055,7 +1082,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         int visible_tiles_count = w * h;
 
-        auto required_memory = 2 * sizeof(GLfloat) * visible_tiles_count;
+        auto bytes_per_tile  = 2 * sizeof(GLfloat);
+        auto required_memory = bytes_per_tile * visible_tiles_count;
 
         if (rstate.rendering_indices_buffer == nullptr) {
             rstate.rendering_indices_buffer      = ALLOC(required_memory);
@@ -1083,8 +1111,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
                     auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2];
                     auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2 + 1];
 
-                    auto& pos = Query_Texture_Pos_Inside_Atlas(
-                        rstate.atlas, game_map.gsize.x, tilemap, x, y
+                    auto pos = Query_Texture_Pos_Inside_Atlas(
+                        rstate.atlas, gsize.x, tilemap, x, y
                     );
 
                     px = pos.x;
@@ -1095,20 +1123,24 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         // C_Texture& Query_Texture(rstate, )
 
-        glUniform2fv(1, visible_tiles_count, rstate.rendering_indices_buffer);
+        glUniform2fv(
+            1,
+            visible_tiles_count * bytes_per_tile,
+            (GLfloat*)rstate.rendering_indices_buffer
+        );
     }
 
-    for (auto [sprite_id, sprite] : Iter(&rstate.sprites)) {
-        Sprite_ID         tilemap_sprite_exists = 0;
-        C_Tilemap_Sprite* tilemap_sprite        = nullptr;
-
-        for (auto [tilemap_sprite_id] : Iter(&rstate.tilemap_sprites)) {
-            if (tilemap_sprite_id == sprite_id) {
-                // TODO
-                break;
-            }
-        }
-    }
+    // for (auto [sprite_id, sprite] : Iter(&rstate.sprites)) {
+    //     auto              tilemap_sprite_exists = (Sprite_ID)0;
+    //     C_Tilemap_Sprite* tilemap_sprite        = nullptr;
+    //
+    //     for (auto [tilemap_sprite_id] : Iter(&rstate.tilemap_sprites)) {
+    //         if (tilemap_sprite_id == sprite_id) {
+    //             // TODO
+    //             break;
+    //         }
+    //     }
+    // }
 
     // NOTE: Рисование поверхности (травы).
     FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
@@ -1177,7 +1209,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 continue;
 
             if (tile == rstate.forest_top_tile_id) {
-                glBindTexture(GL_TEXTURE_2D, rstate.forest_textures[0].id);
+                glBindTexture(GL_TEXTURE_2D, rstate.forest_textures[0]);
 
                 auto sprite_pos  = v2i(x, y + 1) * cell_size;
                 auto sprite_size = v2i(1, 1) * cell_size;
@@ -1205,7 +1237,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             auto road_texture_offset = tile - global_road_starting_tile_id;
             Assert(road_texture_offset >= 0);
 
-            auto tex_id = rstate.road_textures[road_texture_offset].id;
+            auto tex_id = rstate.road_textures[road_texture_offset];
             glBindTexture(GL_TEXTURE_2D, tex_id);
 
             auto sprite_pos  = v2i(x, y) * cell_size;
@@ -1224,7 +1256,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             if (tile < global_flag_starting_tile_id)
                 continue;
 
-            auto tex_id = rstate.flag_textures[tile - global_flag_starting_tile_id].id;
+            auto tex_id = rstate.flag_textures[tile - global_flag_starting_tile_id];
             glBindTexture(GL_TEXTURE_2D, tex_id);
 
             auto sprite_pos  = v2i(x, y) * cell_size;
@@ -1237,84 +1269,123 @@ void Render(Game_State& state, f32 dt, MCTX) {
     }
     // --- Drawing Element Tiles End ---
 
-    // NOTE: Рисование зданий.
-    for (auto [id, building_ptr] : Iter(&game_map.buildings)) {
-        auto& building            = *building_ptr;
-        auto& scriptable_building = Assert_Deref(building.scriptable);
+    // NOTE: Рисование спрайтов.
+    Memory_Buffer vertices{ctx};
+    defer {
+        vertices.Deinit(ctx);
+    };
 
-        auto tex_id = scriptable_building.texture->id;
+    auto    sprites_count = 0;
+    GLfloat zero          = 0;
+    GLfloat one           = 1;
+    Map_Sprites_With_Textures(
+        rstate,
+        [&](C_Texture& tex,
+            Entity_ID  sprite_id,
+            C_Sprite&  s  //
+        ) {
+            auto texture_id   = tex.id;
+            auto required_mem = 8 * 6 * sizeof(GLfloat);
+            vertices.Reserve(vertices.max_count + required_mem, ctx);
 
-        auto constructed = building.construction_points
-                           >= building.scriptable->required_construction_points;
-        if (!constructed)
-            tex_id = rstate.in_progress_building_texture.id;
+            // TODO: rotation
+            // TODO: filter out not visible sprites
+            auto x0 = s.pos.x + s.scale.x * (s.anchor.x - 1);
+            auto x1 = s.pos.x + s.scale.x * (s.anchor.x - 0);
+            auto y0 = s.pos.y + s.scale.y * (s.anchor.y - 1);
+            auto y1 = s.pos.y + s.scale.y * (s.anchor.y - 0);
 
-        glBindTexture(GL_TEXTURE_2D, tex_id);
+            auto ax0 = tex.pos_inside_atlas.x;
+            auto ax1 = tex.pos_inside_atlas.x + (f32(tex.size.x) / rstate.atlas.size.x);
+            auto ay0 = tex.pos_inside_atlas.y;
+            auto ay1 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
 
-        auto sprite_pos  = v2i(building.pos) * cell_size;
-        auto sprite_size = v2i(1, 1) * cell_size;
+            vertices.Add_Unsafe((void*)&x0, sizeof(GLfloat));
+            vertices.Add_Unsafe((void*)&y0, sizeof(GLfloat));
+            vertices.Add_Unsafe(&zero, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ax0, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ay0, sizeof(GLfloat));
 
-        glBegin(GL_TRIANGLES);
-        Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-        glEnd();
-    }
+            vertices.Add_Unsafe((void*)&x1, sizeof(GLfloat));
+            vertices.Add_Unsafe((void*)&y0, sizeof(GLfloat));
+            vertices.Add_Unsafe(&zero, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ax1, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ay0, sizeof(GLfloat));
 
-    // NOTE: Рисование чувачков.
-    {
-        i32 i = 0;
-        for (auto human_ptr : Iter(&game_map.humans)) {
-            auto& human  = Assert_Deref(human_ptr);
-            auto  tex_id = rstate.human_texture.id;
-            glBindTexture(GL_TEXTURE_2D, tex_id);
+            vertices.Add_Unsafe((void*)&x0, sizeof(GLfloat));
+            vertices.Add_Unsafe((void*)&y1, sizeof(GLfloat));
+            vertices.Add_Unsafe(&zero, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ax0, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ay1, sizeof(GLfloat));
 
-            v2f pos = human.moving.pos;
-            if (human.moving.to.has_value()) {
-                f32 t = human.moving.progress;
-                pos = v2f(human.moving.to.value()) * t + v2f(human.moving.pos) * (1 - t);
-            }
+            vertices.Add_Unsafe((void*)&x0, sizeof(GLfloat));
+            vertices.Add_Unsafe((void*)&y1, sizeof(GLfloat));
+            vertices.Add_Unsafe(&zero, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ax0, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ay1, sizeof(GLfloat));
 
-            // ImGui::Text("human %d pos %f.%f", i, pos.x, pos.y);
+            vertices.Add_Unsafe((void*)&x1, sizeof(GLfloat));
+            vertices.Add_Unsafe((void*)&y0, sizeof(GLfloat));
+            vertices.Add_Unsafe(&zero, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ax1, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ay0, sizeof(GLfloat));
 
-            auto sprite_pos  = pos * v2f(cell_size);
-            auto sprite_size = v2i(1, 1) * cell_size;
+            vertices.Add_Unsafe((void*)&x1, sizeof(GLfloat));
+            vertices.Add_Unsafe((void*)&y1, sizeof(GLfloat));
+            vertices.Add_Unsafe(&zero, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&one, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ax1, sizeof(GLfloat));
+            vertices.Add_Unsafe(&ay1, sizeof(GLfloat));
 
-            glBegin(GL_TRIANGLES);
-            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-            glEnd();
+            sprites_count++;
         }
+    );
 
-        i++;
-    }
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
 
-    // NOTE: Рисование ресурсов-предметов на карте (которые, например,
-    // сразу идут на старте игры или же были положены чувачками на карту).
-    {
-        i32 i = 0;
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(void*), vertices.base, GL_STATIC_DRAW);
 
-        FOR_RANGE (int, y, gsize.y) {
-            FOR_RANGE (int, x, gsize.x) {
-                for (auto resource_pptr :
-                     Iter(&game_map.resources, {x, y}, game_map.size.x)) {
-                    auto& resource   = Assert_Deref(Assert_Deref(resource_pptr));
-                    auto& scriptable = Assert_Deref(resource.scriptable);
-                    auto  tex_id     = Assert_Deref(scriptable.small_texture).id;
+    // 3. then set our vertex attributes pointers
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
+    glVertexAttribPointer(
+        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+    );
+    glVertexAttribPointer(
+        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+    );
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
-                    glBindTexture(GL_TEXTURE_2D, tex_id);
+    // ..:: Drawing code (in render loop) :: ..
+    glUseProgram(rstate.sprites_shader_program);
+    glBindVertexArray(vao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-                    v2f  pos         = {x, y};
-                    auto sprite_pos  = pos * v2f(cell_size);
-                    auto sprite_size = v2i_one * cell_size;
-
-                    glBegin(GL_TRIANGLES);
-                    Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-                    glEnd();
-                }
-            }
-        }
-    }
-
-    glDeleteTextures(1, (GLuint*)&texture_name);
-    Check_OpenGL_Errors();
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &vao);
 
     // NOTE: Рисование UI плашки слева.
     auto& ui_state = *rstate.ui_state;
@@ -1410,7 +1481,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     // NOTE: Дебаг-рисование штук для чувачков.
     {
-        for (auto human_ptr : Iter(&game_map.humans)) {
+        for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
             auto& human = Assert_Deref(human_ptr);
 
 #if 0
@@ -1543,7 +1614,7 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     }
 
     if (element_tile.type != Element_Tile_Type::Building)
-        Assert(element_tile.building == nullptr);
+        Assert(element_tile.building_id == (Building_ID)0);
 
     for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;

@@ -615,12 +615,14 @@ struct Load_Smart_Tile_Result {
 };
 
 struct Tilemap {
+    Tile_ID*    tiles;
     Texture_ID* textures;
 };
 
 struct C_Texture {
-    v2f   pos_inside_atlas;  // значения x, y ограничены [0, 1)
-    v2i16 size;
+    Texture_ID id;
+    v2f        pos_inside_atlas;  // значения x, y ограничены [0, 1)
+    v2i16      size;
 };
 
 struct C_Sprite {
@@ -698,6 +700,7 @@ struct Game_UI_State : public Non_Copyable {
 };
 
 struct Atlas {
+    v2f               size;
     Loaded_Texture    texture;
     Vector<C_Texture> textures;
 };

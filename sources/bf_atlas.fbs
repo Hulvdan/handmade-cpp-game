@@ -45,6 +45,8 @@ table Texture {
 }
 
 table Atlas {
+    size_x:   uint;
+    size_y:   uint;
     textures: [Texture];
 }
 

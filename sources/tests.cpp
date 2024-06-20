@@ -235,17 +235,20 @@ TEST_CASE ("As_Offset") {
     CHECK(As_Offset(Direction::Down) == v2i16(0, -1));
 }
 
-Building* Global_Make_Building(
+global_var i32 last_entity_id = 0;
+
+std::tuple<Building_ID, Building*> Global_Make_Building(
     Element_Tile*& element_tiles,
     Arena&         trash_arena,
     Building_Type  type,
-    v2i            pos  //
+    v2i            pos
 ) {
     auto sb              = Allocate_Zeros_For(trash_arena, Scriptable_Building);
     sb->type             = type;
     auto building        = Allocate_Zeros_For(trash_arena, Building);
     building->scriptable = sb;
-    return building;
+    last_entity_id++;
+    return {(Building_ID)last_entity_id, building};
 }
 
 int Process_Segments(
@@ -253,6 +256,7 @@ int Process_Segments(
     Element_Tile*&                element_tiles,
     Bucket_Array<Graph_Segment>*& segments,
     Arena&                        trash_arena,
+    Building_ID&                  building_sawmill_id,
     Building*&                    building_sawmill,
     tvector<const char*>&         strings,
     MCTX
@@ -275,7 +279,7 @@ int Process_Segments(
     }
 
     auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
-    auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
+    auto Make_Building = [&](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
     };
 
@@ -287,39 +291,41 @@ int Process_Segments(
             const char symbol = *(strings[gsize.y - y - 1] + x);
             switch (symbol) {
             case 'C': {
-                auto building = Make_Building(Building_Type::City_Hall, pos);
-                // new (tile) Element_Tile(Element_Tile_Type::Building, building);
-                tile.type     = Element_Tile_Type::Building;
-                tile.building = building;
+                auto [building_id, _] = Make_Building(Building_Type::City_Hall, pos);
+                tile.type             = Element_Tile_Type::Building;
+                tile.building_id      = building_id;
             } break;
 
             case 'B': {
-                auto building = Make_Building(Building_Type::Produce, pos);
-                tile.type     = Element_Tile_Type::Building;
-                tile.building = building;
+                auto [building_id, _] = Make_Building(Building_Type::Produce, pos);
+                tile.type             = Element_Tile_Type::Building;
+                tile.building_id      = building_id;
             } break;
 
             case 'S': {
-                if (building_sawmill == nullptr)
-                    building_sawmill = Make_Building(Building_Type::Produce, pos);
+                if (building_sawmill == nullptr) {
+                    auto [a, b]              = Make_Building(Building_Type::Produce, pos);
+                    auto building_sawmill_id = a;
+                    building_sawmill         = b;
+                }
 
-                tile.type     = Element_Tile_Type::Building;
-                tile.building = building_sawmill;
+                tile.type        = Element_Tile_Type::Building;
+                tile.building_id = building_sawmill_id;
             } break;
 
             case 'r': {
-                tile.type     = Element_Tile_Type::Road;
-                tile.building = nullptr;
+                tile.type        = Element_Tile_Type::Road;
+                tile.building_id = Building_ID_Missing;
             } break;
 
             case 'F': {
-                tile.type     = Element_Tile_Type::Flag;
-                tile.building = nullptr;
+                tile.type        = Element_Tile_Type::Flag;
+                tile.building_id = Building_ID_Missing;
             } break;
 
             case '.': {
-                tile.type     = Element_Tile_Type::None;
-                tile.building = nullptr;
+                tile.type        = Element_Tile_Type::None;
+                tile.building_id = Building_ID_Missing;
             } break;
 
             default:
@@ -342,10 +348,17 @@ int Process_Segments(
     return segments_count;
 };
 
-#define Process_Segments_Macro(...)                                                               \
-    std::vector<const char*> _strings = {__VA_ARGS__};                                            \
-    auto(segments_count)              = Process_Segments(                                         \
-        gsize, element_tiles, segments, trash_arena, building_sawmill, _strings, ctx \
+#define Process_Segments_Macro(...)                       \
+    std::vector<const char*> _strings = {__VA_ARGS__};    \
+    auto(segments_count)              = Process_Segments( \
+        gsize,                               \
+        element_tiles,                       \
+        segments,                            \
+        trash_arena,                         \
+        building_sawmill_id,                 \
+        building_sawmill,                    \
+        _strings,                            \
+        ctx                                  \
     );
 
 #define Update_Tiles_Macro(updated_tiles)                                        \
@@ -472,10 +485,11 @@ TEST_CASE ("Update_Tiles") {
         pages.total_count_cap = pages_count;
     }
 
-    Building*                    building_sawmill = nullptr;
-    v2i                          gsize            = -v2i_one;
-    Element_Tile*                element_tiles    = nullptr;
-    Bucket_Array<Graph_Segment>* segments         = nullptr;
+    Building*                    building_sawmill    = nullptr;
+    Building_ID                  building_sawmill_id = Building_ID_Missing;
+    v2i                          gsize               = -v2i_one;
+    Element_Tile*                element_tiles       = nullptr;
+    Bucket_Array<Graph_Segment>* segments            = nullptr;
 
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
@@ -949,10 +963,10 @@ TEST_CASE ("Update_Tiles") {
             "CF"
         );
 
-        auto pos      = v2i(0, 1);
-        auto building = Make_Building(Building_Type::Produce, pos);
-        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::Building;
-        GRID_PTR_VALUE(element_tiles, pos).building = building;
+        auto pos             = v2i(0, 1);
+        auto [bid, building] = Make_Building(Building_Type::Produce, pos);
+        GRID_PTR_VALUE(element_tiles, pos).type        = Element_Tile_Type::Building;
+        GRID_PTR_VALUE(element_tiles, pos).building_id = bid;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
         Update_Tiles_Macro(updated_tiles);
@@ -969,9 +983,9 @@ TEST_CASE ("Update_Tiles") {
         CHECK(segments_count == 0);
 
         auto pos      = v2i(1, 1);
-        auto building = Make_Building(Building_Type::Produce, pos);
-        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::Building;
-        GRID_PTR_VALUE(element_tiles, pos).building = building;
+        auto [bid, _] = Make_Building(Building_Type::Produce, pos);
+        GRID_PTR_VALUE(element_tiles, pos).type        = Element_Tile_Type::Building;
+        GRID_PTR_VALUE(element_tiles, pos).building_id = bid;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
         Update_Tiles_Macro(updated_tiles);
@@ -988,9 +1002,9 @@ TEST_CASE ("Update_Tiles") {
         CHECK(segments_count == 0);
 
         auto pos      = v2i(1, 1);
-        auto building = Make_Building(Building_Type::Produce, pos);
-        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::Building;
-        GRID_PTR_VALUE(element_tiles, pos).building = building;
+        auto [bid, _] = Make_Building(Building_Type::Produce, pos);
+        GRID_PTR_VALUE(element_tiles, pos).type        = Element_Tile_Type::Building;
+        GRID_PTR_VALUE(element_tiles, pos).building_id = bid;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Placed});
         Update_Tiles_Macro(updated_tiles);
@@ -1006,9 +1020,9 @@ TEST_CASE ("Update_Tiles") {
         );
         CHECK(segments_count == 1);
 
-        auto pos                                    = v2i(1, 1);
-        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::None;
-        GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
+        auto pos                                       = v2i(1, 1);
+        GRID_PTR_VALUE(element_tiles, pos).type        = Element_Tile_Type::None;
+        GRID_PTR_VALUE(element_tiles, pos).building_id = Building_ID_Missing;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Removed});
         Update_Tiles_Macro(updated_tiles);
@@ -1024,9 +1038,9 @@ TEST_CASE ("Update_Tiles") {
         );
         CHECK(segments_count == 1);
 
-        auto pos                                    = v2i(1, 1);
-        GRID_PTR_VALUE(element_tiles, pos).type     = Element_Tile_Type::None;
-        GRID_PTR_VALUE(element_tiles, pos).building = nullptr;
+        auto pos                                       = v2i(1, 1);
+        GRID_PTR_VALUE(element_tiles, pos).type        = Element_Tile_Type::None;
+        GRID_PTR_VALUE(element_tiles, pos).building_id = Building_ID_Missing;
 
         Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Building_Removed});
         Update_Tiles_Macro(updated_tiles);

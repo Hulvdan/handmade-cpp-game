@@ -141,13 +141,23 @@ inline ::flatbuffers::Offset<Texture> CreateTextureDirect(
 struct Atlas FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef AtlasBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_TEXTURES = 4
+    VT_SIZE_X = 4,
+    VT_SIZE_Y = 6,
+    VT_TEXTURES = 8
   };
+  uint32_t size_x() const {
+    return GetField<uint32_t>(VT_SIZE_X, 0);
+  }
+  uint32_t size_y() const {
+    return GetField<uint32_t>(VT_SIZE_Y, 0);
+  }
   const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Texture>> *textures() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Texture>> *>(VT_TEXTURES);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_SIZE_X, 4) &&
+           VerifyField<uint32_t>(verifier, VT_SIZE_Y, 4) &&
            VerifyOffset(verifier, VT_TEXTURES) &&
            verifier.VerifyVector(textures()) &&
            verifier.VerifyVectorOfTables(textures()) &&
@@ -159,6 +169,12 @@ struct AtlasBuilder {
   typedef Atlas Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
+  void add_size_x(uint32_t size_x) {
+    fbb_.AddElement<uint32_t>(Atlas::VT_SIZE_X, size_x, 0);
+  }
+  void add_size_y(uint32_t size_y) {
+    fbb_.AddElement<uint32_t>(Atlas::VT_SIZE_Y, size_y, 0);
+  }
   void add_textures(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Texture>>> textures) {
     fbb_.AddOffset(Atlas::VT_TEXTURES, textures);
   }
@@ -175,18 +191,26 @@ struct AtlasBuilder {
 
 inline ::flatbuffers::Offset<Atlas> CreateAtlas(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t size_x = 0,
+    uint32_t size_y = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Texture>>> textures = 0) {
   AtlasBuilder builder_(_fbb);
   builder_.add_textures(textures);
+  builder_.add_size_y(size_y);
+  builder_.add_size_x(size_x);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<Atlas> CreateAtlasDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t size_x = 0,
+    uint32_t size_y = 0,
     std::vector<::flatbuffers::Offset<BFGame::Texture>> *textures = nullptr) {
   auto textures__ = textures ? _fbb.CreateVectorOfSortedTables<BFGame::Texture>(textures) : 0;
   return BFGame::CreateAtlas(
       _fbb,
+      size_x,
+      size_y,
       textures__);
 }
 
