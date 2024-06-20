@@ -330,8 +330,27 @@ def do_generate() -> None:
     texture_name_hashes: set[int] = set()
     texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
 
+    validate_tilerules(texture_name_hashes)
+
     # Конвертим gamelib.jsonc в бинарю.
-    convert_gamelib_json_to_binary(texture_name_hashes=texture_name_hashes)
+    convert_gamelib_json_to_binary(texture_name_hashes)
+
+
+def validate_tilerules(hashes_set: set[int]) -> None:
+    glob_pattern = PROJECT_DIR / "assets" / "art" / "tiles" / "tilerule_*.txt"
+    files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
+
+    for filepath in files:
+        with open(filepath) as in_file:
+            lines = in_file.readlines()
+
+        for line in lines:
+            line = line.strip()
+            if line.startswith("|"):
+                continue
+
+            hashed_value = hash32(line)
+            assert hashed_value in hashes_set, f"Texture '{line}' not found in atlas!"
 
 
 def hashify_textures_list_with_check(
