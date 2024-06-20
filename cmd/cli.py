@@ -159,13 +159,17 @@ def hash32(value: str) -> int:
     return int(sha.hexdigest()[:8], 16)
 
 
-# ======================================== #
-#          Индивидуальные задачи           #
-# ======================================== #
-def do_build() -> None:
-    run_command(r"MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3")
+def assert_contains(value: T, container) -> T:
+    if value not in container:
+        log.critical("value '{}' not found inside '{}'".format(value, container))
+        exit(1)
+
+    return value
 
 
+# ======================================== #
+#  Всякая хрень для индивидуальных задач   #
+# ======================================== #
 def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
     files = glob.glob(str(Path(path) / "**" / "*"), recursive=True, include_hidden=True)
 
@@ -264,7 +268,14 @@ def make_atlas(path: Path) -> set[int]:
     textures.sort(key=lambda x: x["id"])
 
     json_intermediate_path = directory / (filename_wo_extension + ".intermediate.json")
-    better_json_dump({"textures": textures}, json_intermediate_path)
+    better_json_dump(
+        {
+            "textures": textures,
+            "size_x": json_data["meta"]["size"]["w"],
+            "size_y": json_data["meta"]["size"]["h"],
+        },
+        json_intermediate_path,
+    )
 
     # Конвертируем спецификацию атласа в бинарный формат.
     run_command(
@@ -302,38 +313,6 @@ def remove_intermediate_generation_files() -> None:
 
     for file in files:
         os.remove(file)
-
-
-def do_generate() -> None:
-    remove_intermediate_generation_files()
-
-    hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
-    glob_pattern = SOURCES_DIR / "**" / "*.fbs"
-
-    # Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
-    flatbuffer_files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
-
-    # NOTE: Мудацкий костыль, чтобы MSBuild не ребилдился каждый раз.
-    with tempfile.TemporaryDirectory() as td:
-        run_command([FLATC_PATH, "-o", td, "--cpp", *flatbuffer_files])
-
-        generated_file_paths = [
-            SOURCES_DIR / "generated" / (file.stem + "_generated.h")
-            for file in map(Path, flatbuffer_files)
-        ]
-
-        for file, file_hash in listfiles_with_hashes_in_dir(td).items():
-            if file_hash != hashes_for_msbuild.get(file):
-                shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
-
-    # Собираем атлас.
-    texture_name_hashes: set[int] = set()
-    texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
-
-    validate_tilerules(texture_name_hashes)
-
-    # Конвертим gamelib.jsonc в бинарю.
-    convert_gamelib_json_to_binary(texture_name_hashes)
 
 
 def validate_tilerules(hashes_set: set[int]) -> None:
@@ -378,12 +357,43 @@ def hashify_texture_with_check(
     data[key] = hashed_value
 
 
-def assert_contains(value: T, container) -> T:
-    if value not in container:
-        log.critical("value '{}' not found inside '{}'".format(value, container))
-        exit(1)
+# ======================================== #
+#          Индивидуальные задачи           #
+# ======================================== #
+def do_build() -> None:
+    run_command(r"MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3")
 
-    return value
+
+def do_generate() -> None:
+    remove_intermediate_generation_files()
+
+    hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
+    glob_pattern = SOURCES_DIR / "**" / "*.fbs"
+
+    # Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
+    flatbuffer_files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
+
+    # NOTE: Мудацкий костыль, чтобы MSBuild не ребилдился каждый раз.
+    with tempfile.TemporaryDirectory() as td:
+        run_command([FLATC_PATH, "-o", td, "--cpp", *flatbuffer_files])
+
+        generated_file_paths = [
+            SOURCES_DIR / "generated" / (file.stem + "_generated.h")
+            for file in map(Path, flatbuffer_files)
+        ]
+
+        for file, file_hash in listfiles_with_hashes_in_dir(td).items():
+            if file_hash != hashes_for_msbuild.get(file):
+                shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
+
+    # Собираем атлас.
+    texture_name_hashes: set[int] = set()
+    texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
+
+    validate_tilerules(texture_name_hashes)
+
+    # Конвертим gamelib.jsonc в бинарю.
+    convert_gamelib_json_to_binary(texture_name_hashes)
 
 
 def do_run() -> None:
