@@ -575,12 +575,23 @@ struct Sparse_Array {
         return base + count - 1;
     }
 
+    U* Occupy(const T id, MCTX) {
+        Assert(!Contains(id));
+
+        if (max_count == count)
+            Enlarge(ctx);
+
+        *(ids + count) = id;
+        count += 1;
+
+        return base + count - 1;
+    }
+
     U* Find(const T id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id)
                 return base + i;
         }
-        Assert(false);
         return nullptr;
     }
 

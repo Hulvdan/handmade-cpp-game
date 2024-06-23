@@ -460,6 +460,10 @@ Human* Query_Human(Game_State& state, Human_ID id) {
     return nullptr;
 }
 
+Graph_Segment* Query_Graph_Segment(Game_Map& game_map, Graph_Segment_ID id) {
+    return game_map.segments.Find(id);
+}
+
 struct Human_Moving_In_The_World_Controller {
     static void On_Enter(Human& human, const Human_Data& data, MCTX) {
         CTX_LOGGER;
@@ -563,7 +567,7 @@ struct Human_Moving_In_The_World_Controller {
         if (human.segment_id != Graph_Segment_ID_Missing) {
             Assert(human.type == Human_Type::Transporter);
 
-            auto& segment = Query_Graph_Segment(game_map, human.segment_id);
+            auto& segment = *Query_Graph_Segment(game_map, human.segment_id);
 
             // NOTE: Следующая клетка, на которую перейдёт (или уже находится) чувак,
             // - это клетка его сегмента. Нам уже не нужно помнить его путь.
@@ -591,7 +595,7 @@ struct Human_Moving_In_The_World_Controller {
             }
 
             auto moving_to_destination = Moving_In_The_World_State::Moving_To_Destination;
-            if (old_segment_id != human.segment
+            if (old_segment_id != human.segment_id
                 || human.state_moving_in_the_world != moving_to_destination  //
             ) {
                 LOG_DEBUG(
@@ -694,13 +698,15 @@ struct Human_Moving_Inside_Segment {
         CTX_LOGGER;
         LOG_TRACING_SCOPE;
 
-        Assert(human.segment != nullptr);
+        Assert(human.segment_id != Graph_Segment_ID_Missing);
         Assert(!human.moving.to.has_value());
         Assert(human.moving.path.count == 0);
 
         auto& game_map = *data.game_map;
 
-        if (human.segment->resources_to_transport.count == 0) {
+        auto& segment = *Query_Graph_Segment(game_map, human.segment_id);
+
+        if (segment.resources_to_transport.count == 0) {
             TEMP_USAGE(*data.trash_arena);
             LOG_DEBUG("Calculating path to the center of the segment");
 
@@ -710,7 +716,7 @@ struct Human_Moving_Inside_Segment {
                 game_map.terrain_tiles,
                 game_map.element_tiles,
                 human.moving.to.value_or(human.moving.pos),
-                Assert_Deref(Assert_Deref(human.segment).graph.data).center,
+                Assert_Deref(segment.graph.data).center,
                 true
             );
 
@@ -728,7 +734,9 @@ struct Human_Moving_Inside_Segment {
     }
 
     static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-        Update_States(human, data, nullptr, Building_ID_Missing, nullptr, ctx);
+        Update_States(
+            human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
+        );
     }
 
     static void On_Human_Current_Segment_Changed(
@@ -763,13 +771,15 @@ struct Human_Moving_Inside_Segment {
         CTX_LOGGER;
         LOG_TRACING_SCOPE;
 
-        if (human.segment == nullptr) {
+        if (human.segment_id == Graph_Segment_ID_Missing) {
             human.moving.path.Reset();
             Root_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
             return;
         }
 
-        if (human.segment->resources_to_transport.count > 0) {
+        auto& segment = *Query_Graph_Segment(*data.game_map, human.segment_id);
+
+        if (segment.resources_to_transport.count > 0) {
             if (!human.moving.to.has_value()) {
                 // TODO:
                 // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
@@ -1187,10 +1197,6 @@ Human* Query_Human(Game_Map& game_map, Human_ID id) {
     return game_map.humans.Find(id);
 }
 
-Graph_Segment* Query_Graph_Segment(Game_Map& game_map, Graph_Segment_ID id) {
-    return game_map.segments.Find(id);
-}
-
 void Map_Humans_To_Remove(
     Game_State&                                                   state,
     std::invocable<Human_ID, Human&, Human_Removal_Reason> auto&& func
@@ -1329,10 +1335,13 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     auto prev_count = game_map.humans_to_add.count;
     for (auto [id, human_to_move] : Iter(&game_map.humans_to_add)) {
         LOG_DEBUG("Update_Humans: moving human from humans_to_add to humans");
-        auto human_ptr = game_map.humans.Add(id, std::move(*human_to_move), ctx);
+        auto  human_ptr = game_map.humans.Add(id, std::move(*human_to_move), ctx);
+        auto& human     = *human_ptr;
 
-        if (human_ptr->segment != nullptr)
-            human_ptr->segment->assigned_human_id = id;
+        if (human.segment_id != Graph_Segment_ID_Missing) {
+            auto& segment             = *Query_Graph_Segment(game_map, human.segment_id);
+            segment.assigned_human_id = id;
+        }
 
         Update_Human(game_map, id, human_ptr, dt, data, ctx);
     }
@@ -1454,14 +1463,15 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
     CTX_ALLOCATOR;
     auto& game_map = state.game_map;
 
-    for (auto segment_ptr : Iter(&game_map.segments)) {
-        FREE(segment_ptr->vertices, segment_ptr->vertices_count);
-        FREE(segment_ptr->graph.nodes, segment_ptr->graph.nodes_allocation_count);
-
-        segment_ptr->linked_segments.Reset();
-        Deinit_Queue(segment_ptr->resources_to_transport, ctx);
-
+    for (auto [id, segment_ptr] : Iter(&game_map.segments)) {
         auto& segment = *segment_ptr;
+
+        FREE(segment.vertices, segment.vertices_count);
+        FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
+
+        segment.linked_segments.Reset();
+        Deinit_Queue(segment.resources_to_transport, ctx);
+
         Assert(segment.graph.nodes != nullptr);
         Assert(segment.graph.data != nullptr);
 
@@ -1477,7 +1487,7 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
         FREE(data.prev, n * n);
     }
 
-    Deinit_Vector(game_map.segments, ctx);
+    Deinit_Sparse_Array(game_map.segments, ctx);
     Deinit_Queue(game_map.segments_wo_humans, ctx);
 
     Deinit_Sparse_Array(game_map.buildings, ctx);
@@ -1952,14 +1962,15 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 }
 
 Graph_Segment* Add_And_Link_Segment(
-    Bucket_Array<Graph_Segment>& segments,
-    Graph_Segment&               added_segment,
-    Arena&                       trash_arena,
+    Game_Map&                                      game_map,
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>& segments,
+    Graph_Segment&                                 added_segment,
+    Arena&                                         trash_arena,
     MCTX
 ) {
     CTX_ALLOCATOR;
 
-    auto [locator, segment1_ptr] = segments.Find_And_Occupy_Empty_Slot(ctx);
+    auto segment1_ptr = segments.Occupy(Next_Graph_Segment_ID(game_map), ctx);
 
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
@@ -1979,7 +1990,7 @@ Graph_Segment* Add_And_Link_Segment(
 
         Calculate_Graph_Data(segment.graph, trash_arena, ctx);
 
-        segment.id                = locator;
+        segment.id                = Next_Graph_Segment_ID(game_map);
         segment.assigned_human_id = Human_ID_Missing;
 
         Init_Vector(segment.linked_segments, ctx);
@@ -1989,8 +2000,8 @@ Graph_Segment* Add_And_Link_Segment(
         segment.resources_to_transport.base      = nullptr;
     }
 
-    for (auto segment2_ptr : Iter(&segments)) {
-        if (segment2_ptr == segment1_ptr)
+    for (auto [segment2_id, segment2_ptr] : Iter(&segments)) {
+        if (segment2_id == segment1_ptr->id)
             continue;
 
         // PERF: Мб тут стоит что-то из разряда
@@ -1998,11 +2009,11 @@ Graph_Segment* Add_And_Link_Segment(
         auto& segment1 = *segment1_ptr;
         auto& segment2 = *segment2_ptr;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
-            if (segment2.linked_segments.Find(segment1_ptr) == -1)
-                segment2.linked_segments.Add(segment1_ptr, ctx);
+            if (segment2.linked_segments.Find(segment1.id) == -1)
+                segment2.linked_segments.Add(segment1.id, ctx);
 
-            if (segment1.linked_segments.Find(segment2_ptr) == -1)
-                segment1.linked_segments.Add(segment2_ptr, ctx);
+            if (segment1.linked_segments.Find(segment2_id) == -1)
+                segment1.linked_segments.Add(segment2_id, ctx);
         }
     }
 
@@ -2081,7 +2092,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // NOTE: Настекиваем чувачков без сегментов (сегменты которых удалили только что).
         if (segment.assigned_human_id != Human_ID_Missing) {
             auto human_ptr            = Query_Human(state, segment.assigned_human_id);
-            human_ptr->segment        = nullptr;
+            human_ptr->segment_id     = Graph_Segment_ID_Missing;
             segment.assigned_human_id = Human_ID_Missing;
             Array_Push(
                 humans_wo_segment,
@@ -2092,9 +2103,11 @@ BF_FORCE_INLINE void Update_Segments_Function(
         }
 
         // NOTE: Отвязываем сегмент от других сегментов.
-        for (auto linked_segment_pptr : Iter(&segment.linked_segments)) {
+        for (auto linked_segment_id_ptr : Iter(&segment.linked_segments)) {
+            auto linked_segment_id = *linked_segment_id_ptr;
+
             Graph_Segment& linked_segment
-                = Assert_Deref(Assert_Deref(linked_segment_pptr));
+                = *Query_Graph_Segment(game_map, linked_segment_id);
 
             auto found_index = linked_segment.linked_segments.Find(segment_ptr);
             if (found_index != -1)
@@ -2130,7 +2143,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     FOR_RANGE (u32, i, segments_to_add_count) {
         added_calculated_segments[i] = Add_And_Link_Segment(
-            game_map.segments, segments_to_add[i], trash_arena, ctx
+            game_map, game_map.segments, segments_to_add[i], trash_arena, ctx
         );
     }
 
@@ -2471,7 +2484,7 @@ void Build_Graph_Segments(
     Update_Segments_Lambda(0, nullptr, segments_to_add_count, segments_to_add, ctx);
 
     FOR_RANGE (u32, i, segments_to_add_count) {
-        Add_And_Link_Segment(segments, *(segments_to_add + i), trash_arena, ctx);
+        Add_And_Link_Segment(game_map, segments, segments_to_add[i], trash_arena, ctx);
     }
 
     SANITIZE;
