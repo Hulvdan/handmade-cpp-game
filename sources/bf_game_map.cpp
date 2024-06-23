@@ -387,20 +387,20 @@ void Deinit_Vector(Vector<T>& container, MCTX) {
 
 Human_ID Next_Human_ID(Game_Map& game_map) {
     auto ent = ++game_map.last_entity_id;
-    Assert(!(ent && Human::component_mask));
-    return ent || Human::component_mask;
+    Assert_False(ent & Human::component_mask);
+    return ent | Human::component_mask;
 }
 
 Building_ID Next_Building_ID(Game_Map& game_map) {
     auto ent = ++game_map.last_entity_id;
-    Assert(!(ent && Building::component_mask));
-    return ent || Building::component_mask;
+    Assert_False(ent & Building::component_mask);
+    return ent | Building::component_mask;
 }
 
 Map_Resource_ID Next_Map_Resource_ID(Game_Map& game_map) {
     auto ent = ++game_map.last_entity_id;
-    Assert(!(ent && Map_Resource::component_mask));
-    return ent || Map_Resource::component_mask;
+    Assert_False(ent & Map_Resource::component_mask);
+    return ent | Map_Resource::component_mask;
 }
 
 void Place_Building(
@@ -1493,12 +1493,17 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
 
     const auto tiles_count = game_map.size.x * game_map.size.y;
 
-    std::construct_at(&game_map.buildings, 32, ctx);
     std::construct_at(&game_map.segments);
+
+    std::construct_at(&game_map.buildings, 32, ctx);
+    std::construct_at(&game_map.not_constructed_buildings, 32, ctx);
+    std::construct_at(&game_map.city_halls, 32, ctx);
     std::construct_at(&game_map.humans, 32, ctx);
+    std::construct_at(&game_map.humans_going_to_the_city_hall, 32, ctx);
     std::construct_at(&game_map.humans_to_add, 32, ctx);
     // std::construct_at(&game_map.resources_pool, 32, ctx);
     std::construct_at(&game_map.humans_to_remove, 8, ctx);
+    std::construct_at(&game_map.resources, 8, ctx);
     // Init_Grid_Of_Vectors(game_map.resources, game_map.size, ctx);
 
     {
@@ -1507,9 +1512,6 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
         container.max_count = 0;
         container.base      = nullptr;
     }
-
-    bool built = true;
-    Place_Building(state, {2, 2}, state.scriptable_buildings + 0, built, ctx);
 
     {
         const int players_count = 1;
@@ -1537,6 +1539,11 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
 
         game_map.human_data = human_data;
     }
+}
+
+void Post_Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
+    bool built = true;
+    Place_Building(state, {2, 2}, state.scriptable_buildings + 0, built, ctx);
 
     // TODO: !!!
     Assert(state.scriptable_resources_count > 0);
@@ -1747,13 +1754,14 @@ void Regenerate_Element_Tiles(
         auto          o    = offset + base_offset;
         Element_Tile& tile = *(game_map.element_tiles + o.y * gsize.x + o.x);
 
-        tile.type = Element_Tile_Type::Road;
-        Assert(tile.building_id == Building_ID_Missing);
+        tile.type        = Element_Tile_Type::Road;
+        tile.building_id = Building_ID_Missing;
     }
 
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
             Element_Tile& tile = *(game_map.element_tiles + y * gsize.x + x);
+            tile.building_id   = Building_ID_Missing;
             Validate_Element_Tile(tile);
         }
     }

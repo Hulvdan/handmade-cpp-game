@@ -438,10 +438,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         if (first_time_initializing) {
             auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / OS_DATA.page_size;
+
             state.pages.base
                 = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
+
             state.pages.in_use
                 = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
+
             state.pages.total_count_cap = pages_count_that_fit_2GB;
         }
 
@@ -458,18 +461,18 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             = Allocate_Zeros_Array(non_persistent_arena, Element_Tile, tiles_count);
 
         if (first_time_initializing) {
-            auto& resources = *state.gamelib->resources();
+            auto resources = state.gamelib->resources();
 
             auto new_resources
-                = Allocate_Array(arena, Scriptable_Resource, resources.size());
+                = Allocate_Array(arena, Scriptable_Resource, resources->size());
 
-            FOR_RANGE (int, i, resources.size()) {
-                const auto& resource     = *resources[i];
-                auto&       new_resource = new_resources[i];
-                new_resource.code        = resource.code()->c_str();
+            FOR_RANGE (int, i, resources->size()) {
+                auto  resource     = resources->Get(i);
+                auto& new_resource = new_resources[i];
+                new_resource.code  = resource->code()->c_str();
             }
 
-            state.scriptable_resources_count = resources.size();
+            state.scriptable_resources_count = resources->size();
             state.scriptable_resources       = new_resources;
         }
 
@@ -548,6 +551,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         // }
 
         Init_Game_Map(state, non_persistent_arena, ctx);
+        Init_Renderer(state, arena, non_persistent_arena, trash_arena, ctx);
+
         Regenerate_Terrain_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
@@ -562,7 +567,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.On_Item_Built, callbacks, non_persistent_arena
         );
 
-        Init_Renderer(state, arena, non_persistent_arena, trash_arena, ctx);
+        Post_Init_Game_Map(state, non_persistent_arena, ctx);
+        Post_Init_Renderer(state, arena, non_persistent_arena, trash_arena, ctx);
 
         memory.is_initialized = true;
     }

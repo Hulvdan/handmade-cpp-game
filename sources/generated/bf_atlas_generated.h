@@ -223,7 +223,7 @@ inline const BFGame::Atlas *GetSizePrefixedAtlas(const void *buf) {
 }
 
 inline const char *AtlasIdentifier() {
-  return "GLIB";
+  return "ATLS";
 }
 
 inline bool AtlasBufferHasIdentifier(const void *buf) {

@@ -108,6 +108,7 @@ target_sources(win32 PRIVATE
 )
 target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 target_link_libraries(win32 PRIVATE glew glm tracy)
+add_dependencies(win32 bf_game)
 
 # === Building win32_noise_sandbox.exe ===
 # add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)

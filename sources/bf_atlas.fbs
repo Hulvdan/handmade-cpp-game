@@ -50,5 +50,5 @@ table Atlas {
     textures: [Texture];
 }
 
-file_identifier "GLIB";
+file_identifier "ATLS";
 root_type Atlas;

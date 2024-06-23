@@ -333,6 +333,22 @@ void Init_Renderer(
 
     if (first_time_initializing)
         state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+}
+
+void Post_Init_Renderer(
+    Game_State& state,
+    Arena&      arena,
+    Arena&      non_persistent_arena,
+    Arena&      trash_arena,
+    MCTX
+) {
+    CTX_ALLOCATOR;
+
+    auto hot_reloaded            = state.hot_reloaded;
+    auto first_time_initializing = state.renderer_state == nullptr;
+
+    if (!first_time_initializing && !hot_reloaded)
+        return;
 
     auto& rstate   = Assert_Deref(state.renderer_state);
     auto& game_map = state.game_map;
@@ -340,6 +356,8 @@ void Init_Renderer(
 
     rstate.atlas      = Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx);
     rstate.atlas_size = {8, 8};
+
+    std::construct_at(&rstate.sprites, 32, ctx);
 
     // Перезагрузка шейдеров.
     Create_Shader_Program(
