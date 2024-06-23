@@ -113,8 +113,8 @@ struct Graph_Segment;
 // using Map_Resource_ID = Bucket_Locator;
 // const Map_Resource_ID No_Map_Resource_ID(-1, -1);
 
-using Graph_Segment_ID                         = Entity_ID;
-const Graph_Segment_ID Graph_Segment_ID_Mising = Entity_ID_Missing;
+using Graph_Segment_ID                          = Entity_ID;
+const Graph_Segment_ID Graph_Segment_ID_Missing = Entity_ID_Missing;
 
 using Map_Resource_ID                         = Entity_ID;
 const Map_Resource_ID Map_Resource_ID_Missing = Entity_ID_Missing;
@@ -143,8 +143,8 @@ struct Map_Resource {
 
     Map_Resource_Booking_ID booking;
 
-    Vector<Graph_Segment*> transportation_segments;
-    Vector<v2i16>          transportation_vertices;
+    Vector<Graph_Segment_ID> transportation_segments;
+    Vector<v2i16>            transportation_vertices;
 
     Human_ID targeted_human;  // optional
     Human_ID carrying_human;  // optional
@@ -187,16 +187,20 @@ struct Map_Resource {
 // 9)  BrFrB - это уже 2 разных сегмента. Первый - BrF, второй - FrB.
 //             При замене флага (F) на дорогу (r) эти 2 сегмента сольются в один - BrrrB.
 //
+using Graph_Segment_ID = u32;
+
 struct Graph_Segment : public Non_Copyable {
-    Bucket_Locator locator;
+    static const Entity_ID component_mask = Component_Mask(1);
+
+    Graph_Segment_ID id;
 
     Graph_Nodes_Count vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
 
     Graph graph;
 
-    Human_ID                    assigned_human;  // optional
-    std::vector<Graph_Segment*> linked_segments;
+    Human_ID                 assigned_human_id;  // optional
+    Vector<Graph_Segment_ID> linked_segments;
 
     Queue<Map_Resource> resources_to_transport;
 };
@@ -429,17 +433,9 @@ struct Human {
     Human_Main_State          state;
     Moving_In_The_World_State state_moving_in_the_world;
 
-    Graph_Segment* segment;
-    Building_ID    building_id;
+    Graph_Segment_ID segment_id;
+    Building_ID      building_id;
 };
-
-// struct Human_Transporter {
-//     Graph_Segment* segment;
-// };
-//
-// struct Human_Constructor {
-//     Building_ID targeted_building;
-// };
 
 struct Building {
     static const Entity_ID component_mask = Component_Mask(2);
@@ -465,6 +461,7 @@ struct Game_Map_Data {
     Game_Map_Data(f32 a_human_moving_one_tile_duration)
         : human_moving_one_tile_duration(a_human_moving_one_tile_duration) {}
 };
+
 struct Human_Data;
 
 struct Game_Map : public Non_Copyable {
@@ -475,16 +472,10 @@ struct Game_Map : public Non_Copyable {
     Terrain_Resource* terrain_resources;
     Element_Tile*     element_tiles;
 
-    // Bucket_Array<Building>      buildings;
-    Bucket_Array<Graph_Segment> segments;
-
-    Queue<Graph_Segment*> segments_wo_humans;
-
     Game_Map_Data* data;
     Human_Data*    human_data;
 
-    Vector<Map_Resource_To_Book> resources_booking_queue;
-
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments;
     Sparse_Array<Building_ID, Building>                 buildings;
     Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings;
     Sparse_Array<Building_ID, City_Hall>                city_halls;
@@ -495,6 +486,9 @@ struct Game_Map : public Non_Copyable {
     Sparse_Array<Human_ID, Human>                humans_to_add;
     Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove;
     Sparse_Array<Map_Resource_ID, Map_Resource>  resources;
+
+    Queue<Graph_Segment_ID>      segments_wo_humans;
+    Vector<Map_Resource_To_Book> resources_booking_queue;
 };
 
 template <typename T>
