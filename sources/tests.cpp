@@ -44,8 +44,8 @@ global_var Context _ctx(0, nullptr, nullptr, nullptr, nullptr, nullptr);
         root_allocator = nullptr;                                               \
     }
 
-global_var tvector<u8*> virtual_allocations;
-global_var tvector<void*> heap_allocations;
+global_var std::vector<u8*> virtual_allocations;
+global_var std::vector<void*> heap_allocations;
 
 void* heap_allocate(size_t n, size_t alignment) {
     void* result = _aligned_malloc(n, alignment);
@@ -252,13 +252,14 @@ std::tuple<Building_ID, Building*> Global_Make_Building(
 }
 
 int Process_Segments(
+    Entity_ID&                    last_entity_id,
     v2i&                          gsize,
     Element_Tile*&                element_tiles,
     Bucket_Array<Graph_Segment>*& segments,
     Arena&                        trash_arena,
     Building_ID&                  building_sawmill_id,
     Building*&                    building_sawmill,
-    tvector<const char*>&         strings,
+    std::vector<const char*>&     strings,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -336,7 +337,7 @@ int Process_Segments(
 
     // NOTE: Counting segments
     Build_Graph_Segments(
-        gsize, element_tiles, *segments, trash_arena, [](...) {}, ctx
+        last_entity_id, gsize, element_tiles, *segments, trash_arena, [](...) {}, ctx
     );
 
     int segments_count = 0;
@@ -401,7 +402,7 @@ int Process_Segments(
 #define Test_Declare_Updated_Tiles(...)                                            \
     Updated_Tiles updated_tiles = {};                                              \
     {                                                                              \
-        tvector<ttuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};              \
+        std::vector<std::tuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};      \
         updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i16, data.size()); \
         updated_tiles.type                                                         \
             = Allocate_Zeros_Array(trash_arena, Tile_Updated_Type, data.size());   \
@@ -415,7 +416,7 @@ int Process_Segments(
 
 TEST_CASE ("Bit operations") {
     {
-        tvector<ttuple<u8, u8, u8>> marks = {
+        std::vector<std::tuple<u8, u8, u8>> marks = {
             {0b00000000, 0, 0b00000001},
             {0b00000000, 1, 0b00000010},
             {0b00000000, 2, 0b00000100},
@@ -432,7 +433,7 @@ TEST_CASE ("Bit operations") {
     }
 
     {
-        tvector<ttuple<u8, u8, u8>> unmarks = {
+        std::vector<std::tuple<u8, u8, u8>> unmarks = {
             {0b11111111, 0, 0b11111110},
             {0b11111111, 1, 0b11111101},
             {0b11111111, 2, 0b11111011},

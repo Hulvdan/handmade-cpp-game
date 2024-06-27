@@ -147,7 +147,6 @@ Atlas Load_Atlas(
     atlas.size = {atlas_spec->size_x(), atlas_spec->size_y()};
     Init_Vector(atlas.textures, ctx);
     const auto textures_count = atlas_spec->textures()->size();
-    Vector_Reserve(atlas.textures, textures_count, ctx);
 
     FOR_RANGE (int, i, textures_count) {
         auto& texture = *atlas_spec->textures()->Get(i);
@@ -161,7 +160,7 @@ Atlas Load_Atlas(
             {texture.size_x(), texture.size_y()},
         };
 
-        Vector_Add(atlas.textures, std::move(t), ctx);
+        atlas.textures.Add(std::move(t), ctx);
     }
 
     auto& atlas_texture = atlas.texture;
@@ -354,7 +353,9 @@ void Post_Init_Renderer(
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    rstate.atlas      = Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx);
+    std::construct_at(
+        &rstate.atlas, Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx)
+    );
     rstate.atlas_size = {8, 8};
 
     std::construct_at(&rstate.sprites, 32, ctx);

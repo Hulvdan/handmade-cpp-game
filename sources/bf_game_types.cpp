@@ -148,6 +148,18 @@ struct Map_Resource {
 
     Human_ID targeted_human;  // optional
     Human_ID carrying_human;  // optional
+
+    Map_Resource() {}
+
+    Map_Resource(Map_Resource&& other)
+        : scriptable(other.scriptable)
+        , pos(other.pos)
+        , booking(other.booking)
+        , transportation_segments(std::move(other.transportation_segments))
+        , transportation_vertices(std::move(other.transportation_vertices))
+        , targeted_human(other.targeted_human)
+        , carrying_human(other.carrying_human)  //
+    {}
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -189,10 +201,8 @@ struct Map_Resource {
 //
 using Graph_Segment_ID = u32;
 
-struct Graph_Segment : public Non_Copyable {
+struct Graph_Segment {
     static const Entity_ID component_mask = Component_Mask(1);
-
-    Graph_Segment_ID id;
 
     Graph_Nodes_Count vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
@@ -290,8 +300,8 @@ struct Human_Moving_Component {
     f32   progress;
     v2f   from;
 
-    toptional<v2i16> to;
-    Queue<v2i16>     path;
+    std::optional<v2i16> to;
+    Queue<v2i16>         path;
 };
 
 enum class Moving_In_The_World_State {

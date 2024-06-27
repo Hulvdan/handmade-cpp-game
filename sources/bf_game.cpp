@@ -17,20 +17,6 @@
 #include "bf_game.h"
 
 #include <optional>
-template <typename T>
-using toptional = std::optional<T>;
-
-#include <tuple>
-template <typename... Args>
-using ttuple = std::tuple<Args...>;
-
-#include <vector>
-template <typename... Args>
-using tvector = std::vector<Args...>;
-
-#include <unordered_map>
-template <typename... Args>
-using tunordered_map = std::unordered_map<Args...>;
 
 #include "fmt/compile.h"
 
@@ -498,12 +484,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             Init_Vector(building.construction_resources, ctx);
 
             if (libbuilding.construction_resources() != nullptr) {
-                Vector_Reserve(
-                    building.construction_resources,
-                    libbuilding.construction_resources()->size(),
-                    ctx
-                );
-
                 FOR_RANGE (int, i, libbuilding.construction_resources()->size()) {
                     auto resource = libbuilding.construction_resources()->Get(i);
                     auto code     = resource->resource_code()->c_str();
@@ -517,9 +497,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                             break;
                         }
                     }
+
                     Assert(scriptable_resource != nullptr);
-                    Vector_Add(
-                        building.construction_resources, {scriptable_resource, count}, ctx
+                    building.construction_resources.Add(
+                        {scriptable_resource, count}, ctx
                     );
                 }
             }

@@ -53,11 +53,11 @@ struct Path_Find_Result {
     i32    path_count;
 };
 
-ttuple<v2i16*, i32> Build_Path(
-    Arena&            trash_arena,
-    v2i16             gsize,
-    toptional<v2i16>* bfs_parents_mtx,
-    v2i16             destination
+std::tuple<v2i16*, i32> Build_Path(
+    Arena&                trash_arena,
+    v2i16                 gsize,
+    std::optional<v2i16>* bfs_parents_mtx,
+    v2i16                 destination
 ) {
 #if 0
     // NOTE: Двойной проход, но без RAM overhead-а на `trash_arena`.
@@ -118,8 +118,8 @@ Path_Find_Result Find_Path(
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
     GRID_PTR_VALUE(visited_mtx, source) = true;
 
-    toptional<v2i16>* bfs_parents_mtx
-        = Allocate_Array(trash_arena, toptional<v2i16>, tiles_count);
+    std::optional<v2i16>* bfs_parents_mtx
+        = Allocate_Array(trash_arena, std::optional<v2i16>, tiles_count);
 
     FOR_RANGE (int, i, tiles_count) {
         std::construct_at(bfs_parents_mtx + i);
@@ -297,26 +297,26 @@ void Deinit_Vector(Vector<T>& container, MCTX) {
     container.max_count = 0;
 }
 
-Human_ID Next_Human_ID(Game_Map& game_map) {
-    auto ent = ++game_map.last_entity_id;
+Human_ID Next_Human_ID(Entity_ID& last_entity_id) {
+    auto ent = ++last_entity_id;
     Assert_False(ent & Human::component_mask);
     return ent | Human::component_mask;
 }
 
-Building_ID Next_Building_ID(Game_Map& game_map) {
-    auto ent = ++game_map.last_entity_id;
+Building_ID Next_Building_ID(Entity_ID& last_entity_id) {
+    auto ent = ++last_entity_id;
     Assert_False(ent & Building::component_mask);
     return ent | Building::component_mask;
 }
 
-Graph_Segment_ID Next_Graph_Segment_ID(Game_Map& game_map) {
-    auto ent = ++game_map.last_entity_id;
+Graph_Segment_ID Next_Graph_Segment_ID(Entity_ID& last_entity_id) {
+    auto ent = ++last_entity_id;
     Assert_False(ent & Graph_Segment::component_mask);
     return ent | Graph_Segment::component_mask;
 }
 
-Map_Resource_ID Next_Map_Resource_ID(Game_Map& game_map) {
-    auto ent = ++game_map.last_entity_id;
+Map_Resource_ID Next_Map_Resource_ID(Entity_ID& last_entity_id) {
+    auto ent = ++last_entity_id;
     Assert_False(ent & Map_Resource::component_mask);
     return ent | Map_Resource::component_mask;
 }
@@ -332,7 +332,7 @@ void Place_Building(
     auto  gsize    = game_map.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
-    auto     bid = Next_Building_ID(game_map);
+    auto     bid = Next_Building_ID(game_map.last_entity_id);
     Building b   = {};
     b.pos        = pos;
     b.scriptable = scriptable_building;
@@ -436,10 +436,10 @@ void Human_Moving_Component_Add_Path(
         Advance_Moving_To(moving, ctx);
 }
 
-Building* Query_Building(Game_State& state, Building_ID id) {
+Building* Query_Building(Game_Map& game_map, Building_ID id) {
     Assert(id != Building_ID_Missing);
 
-    for (auto [instance_id, instance] : Iter(&state.game_map.buildings)) {
+    for (auto [instance_id, instance] : Iter(&game_map.buildings)) {
         if (instance_id == id)
             return instance;
     }
@@ -448,10 +448,10 @@ Building* Query_Building(Game_State& state, Building_ID id) {
     return nullptr;
 }
 
-Human* Query_Human(Game_State& state, Human_ID id) {
+Human* Query_Human(Game_Map& game_map, Human_ID id) {
     Assert(id != Human_ID_Missing);
 
-    for (auto [instance_id, instance] : Iter(&state.game_map.humans)) {
+    for (auto [instance_id, instance] : Iter(&game_map.humans)) {
         if (instance_id == id)
             return instance;
     }
@@ -671,8 +671,7 @@ struct Human_Moving_In_The_World_Controller {
             human.state_moving_in_the_world
                 = Moving_In_The_World_State::Moving_To_The_City_Hall;
 
-            Building& city_hall
-                = Assert_Deref(Query_Building(*data.state, human.player_id));
+            Building& city_hall = Assert_Deref(Query_Building(game_map, human.player_id));
 
             TEMP_USAGE(*data.trash_arena);
             auto [success, path, path_count] = Find_Path(
@@ -1083,19 +1082,17 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     human.moving.to.reset();
     human.moving.path.count     = 0;
     human.moving.path.max_count = 0;
-    human.moving.path.base      = nullptr;
-
-    auto human_id  = Next_Human_ID(game_map);
-    auto human_ptr = game_map.humans_to_add.Add(human_id, human, ctx);
-    Set_Container_Allocator_Context(human.moving.path, ctx);
-
+    human.moving.path.base          = nullptr;
     human.segment_id                = segment_id;
     human.type                      = Human_Type::Transporter;
     human.state                     = Human_Main_State::None;
     human.state_moving_in_the_world = Moving_In_The_World_State::None;
     human.building_id               = Building_ID_Missing;
 
-    Root_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
+    auto human_id  = Next_Human_ID(game_map.last_entity_id);
+    auto human_ptr = game_map.humans_to_add.Add(human_id, std::move(human), ctx);
+
+    Root_Set_Human_State(*human_ptr, Human_Main_State::Moving_In_The_World, data, ctx);
 
     // TODO:
     // onHumanCreated.OnNext(new() { human = human });
@@ -1193,24 +1190,17 @@ void Process_Humans_Moving_To_City_Halls() {
     // TODO:
 }
 
-Human* Query_Human(Game_Map& game_map, Human_ID id) {
-    return game_map.humans.Find(id);
-}
-
 void Map_Humans_To_Remove(
-    Game_State&                                                   state,
+    Game_Map&                                                     game_map,
     std::invocable<Human_ID, Human&, Human_Removal_Reason> auto&& func
 ) {
-    for (auto [id, reason] : Iter(&state.game_map.humans_to_remove)) {
-        func(id, *Query_Human(state.game_map, id), *reason);
-    }
+    for (auto [id, reason] : Iter(&game_map.humans_to_remove))
+        func(id, *Query_Human(game_map, id), *reason);
 }
 
-void Remove_Humans(Game_State& state) {
-    auto& game_map = state.game_map;
-
+void Remove_Humans(Game_Map& game_map) {
     Map_Humans_To_Remove(
-        state,
+        game_map,
         [&](Human_ID id, Human& human, Human_Removal_Reason reason) {
             if (reason == Human_Removal_Reason::Transporter_Returned_To_City_Hall) {
                 // TODO: on_Human_Reached_City_Hall.On_Next(new (){human = human});
@@ -1298,7 +1288,7 @@ void Update_Human(
 
     auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
     if (human.state_moving_in_the_world == state && !human.moving.to.has_value()
-        && human.moving.pos == Query_Building(*data.state, human.building_id)->pos) {
+        && human.moving.pos == Query_Building(game_map, human.building_id)->pos) {
         // TODO: auto rem = Game_Map::Human_To_Remove{
         //     Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator
         // };
@@ -1322,15 +1312,13 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 
     auto& game_map = state.game_map;
 
-    for (auto [id, reason_ptr] : Iter(&game_map.humans_to_remove)) {
+    for (auto [id, reason_ptr] : Iter(&game_map.humans_to_remove))
         Assert(*reason_ptr != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
-    }
 
-    Remove_Humans(state);
+    Remove_Humans(game_map);
 
-    for (auto [id, human_ptr] : Iter(&game_map.humans)) {
+    for (auto [id, human_ptr] : Iter(&game_map.humans))
         Update_Human(game_map, id, human_ptr, dt, data, ctx);
-    }
 
     auto prev_count = game_map.humans_to_add.count;
     for (auto [id, human_to_move] : Iter(&game_map.humans_to_add)) {
@@ -1349,7 +1337,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     Assert(prev_count == game_map.humans_to_add.count);
     game_map.humans_to_add.Reset();
 
-    Remove_Humans(state);
+    Remove_Humans(game_map);
 
     {  // NOTE: Debug shiet.
         int humans                         = 0;
@@ -1415,7 +1403,7 @@ void Add_Map_Resource(
     resource.targeted_human = Human_ID_Missing;
     resource.carrying_human = Human_ID_Missing;
 
-    auto id           = Next_Map_Resource_ID(game_map);
+    auto id           = Next_Map_Resource_ID(game_map.last_entity_id);
     auto resource_ptr = game_map.resources.Add(id, std::move(resource), ctx);
 }
 
@@ -1961,8 +1949,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     SANITIZE;
 }
 
-Graph_Segment* Add_And_Link_Segment(
-    Game_Map&                                      game_map,
+std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
+    Entity_ID&                                     last_entity_id,
     Sparse_Array<Graph_Segment_ID, Graph_Segment>& segments,
     Graph_Segment&                                 added_segment,
     Arena&                                         trash_arena,
@@ -1970,7 +1958,8 @@ Graph_Segment* Add_And_Link_Segment(
 ) {
     CTX_ALLOCATOR;
 
-    auto segment1_ptr = segments.Occupy(Next_Graph_Segment_ID(game_map), ctx);
+    auto id           = Next_Graph_Segment_ID(last_entity_id);
+    auto segment1_ptr = segments.Occupy(id, ctx);
 
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
@@ -1990,7 +1979,6 @@ Graph_Segment* Add_And_Link_Segment(
 
         Calculate_Graph_Data(segment.graph, trash_arena, ctx);
 
-        segment.id                = Next_Graph_Segment_ID(game_map);
         segment.assigned_human_id = Human_ID_Missing;
 
         Init_Vector(segment.linked_segments, ctx);
@@ -2001,7 +1989,7 @@ Graph_Segment* Add_And_Link_Segment(
     }
 
     for (auto [segment2_id, segment2_ptr] : Iter(&segments)) {
-        if (segment2_id == segment1_ptr->id)
+        if (segment2_id == id)
             continue;
 
         // PERF: Мб тут стоит что-то из разряда
@@ -2009,27 +1997,27 @@ Graph_Segment* Add_And_Link_Segment(
         auto& segment1 = *segment1_ptr;
         auto& segment2 = *segment2_ptr;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
-            if (segment2.linked_segments.Find(segment1.id) == -1)
-                segment2.linked_segments.Add(segment1.id, ctx);
+            if (segment2.linked_segments.Index_Of(id) == -1)
+                segment2.linked_segments.Add(id, ctx);
 
-            if (segment1.linked_segments.Find(segment2_id) == -1)
+            if (segment1.linked_segments.Index_Of(segment2_id) == -1)
                 segment1.linked_segments.Add(segment2_id, ctx);
         }
     }
 
     SANITIZE;
 
-    return segment1_ptr;
+    return {id, segment1_ptr};
 }
 
 BF_FORCE_INLINE void Update_Segments_Function(
-    Arena&          trash_arena,
-    Game_State&     state,
-    Game_Map&       game_map,
-    u32             segments_to_delete_count,
-    Graph_Segment** segments_to_delete,
-    u32             segments_to_add_count,
-    Graph_Segment*  segments_to_add,
+    Arena&                                        trash_arena,
+    Game_State&                                   state,
+    Game_Map&                                     game_map,
+    u32                                           segments_to_delete_count,
+    std::tuple<Graph_Segment_ID, Graph_Segment*>* segments_to_delete,
+    u32                                           segments_to_add_count,
+    Graph_Segment*                                segments_to_add,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -2060,7 +2048,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
     // PERF: Мб стоит переделать так, чтобы мы лишнего не аллоцировали заранее.
     i32 humans_wo_segment_count = 0;
     // NOTE: `Graph_Segment*` is nullable, `Human*` is not.
-    using tttt = ttuple<Graph_Segment*, std::tuple<Human_ID, Human*>>;
+    using tttt
+        = std::tuple<Graph_Segment_ID, Graph_Segment*, std::tuple<Human_ID, Human*>>;
     const i32 humans_wo_segment_max_count
         = segments_to_delete_count + humans_moving_to_city_hall;
 
@@ -2077,7 +2066,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
                     humans_wo_segment,
                     humans_wo_segment_count,
                     humans_wo_segment_max_count,
-                    tttt(nullptr, {id, human_ptr})
+                    tttt(Graph_Segment_ID_Missing, nullptr, {id, human_ptr})
                 );
             }
         }
@@ -2086,19 +2075,19 @@ BF_FORCE_INLINE void Update_Segments_Function(
     // NOTE: Удаление сегментов (отвязка от чувачков,
     // от других сегментов и высвобождение памяти).
     FOR_RANGE (u32, i, segments_to_delete_count) {
-        Graph_Segment* segment_ptr = segments_to_delete[i];
-        auto&          segment     = *segment_ptr;
+        auto [id, segment_ptr] = segments_to_delete[i];
+        auto& segment          = *segment_ptr;
 
         // NOTE: Настекиваем чувачков без сегментов (сегменты которых удалили только что).
         if (segment.assigned_human_id != Human_ID_Missing) {
-            auto human_ptr            = Query_Human(state, segment.assigned_human_id);
+            auto human_ptr            = Query_Human(game_map, segment.assigned_human_id);
             human_ptr->segment_id     = Graph_Segment_ID_Missing;
             segment.assigned_human_id = Human_ID_Missing;
             Array_Push(
                 humans_wo_segment,
                 humans_wo_segment_count,
                 humans_wo_segment_max_count,
-                tttt(segment_ptr, {segment.assigned_human_id, human_ptr})
+                tttt(id, segment_ptr, {segment.assigned_human_id, human_ptr})
             );
         }
 
@@ -2109,7 +2098,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
             Graph_Segment& linked_segment
                 = *Query_Graph_Segment(game_map, linked_segment_id);
 
-            auto found_index = linked_segment.linked_segments.Find(segment_ptr);
+            auto found_index = linked_segment.linked_segments.Index_Of(id);
             if (found_index != -1)
                 linked_segment.linked_segments.Remove_At(found_index);
         }
@@ -2120,30 +2109,34 @@ BF_FORCE_INLINE void Update_Segments_Function(
         // если этот сегмент ранее был в неё добавлен.
         // PERF: Много memmove происходит.
         auto& queue = game_map.segments_wo_humans;
-        auto  index = queue.Find(segment_ptr);
+        auto  index = queue.Index_Of(id);
         if (index != -1)
             queue.Remove_At(index);
 
         // NOTE: Уничтожаем сегмент.
-        auto segment_index
-            = segments.Find(segment, [](Graph_Segment& segment) { return segment.id; });
-        segments.Unordered_Remove_At(segment_index);
+        segments.Unstable_Remove(id);
 
-        Bucket_Array_Remove(segments, segment.locator);
         FREE(segment.vertices, segment.vertices_count);
         FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
     }
 
     // NOTE: Вносим созданные сегменты. Если будут свободные чувачки - назначим им.
-    Graph_Segment** added_calculated_segments = nullptr;
+    using Added_Calculated_Segment_Type = std::tuple<Graph_Segment_ID, Graph_Segment*>;
+    Added_Calculated_Segment_Type* added_calculated_segments = nullptr;
+
     if (segments_to_add_count > 0) {
-        added_calculated_segments
-            = Allocate_Array(trash_arena, Graph_Segment*, segments_to_add_count);
+        added_calculated_segments = Allocate_Array(
+            trash_arena, Added_Calculated_Segment_Type, segments_to_add_count
+        );
     }
 
     FOR_RANGE (u32, i, segments_to_add_count) {
         added_calculated_segments[i] = Add_And_Link_Segment(
-            game_map, game_map.segments, segments_to_add[i], trash_arena, ctx
+            game_map.last_entity_id,
+            game_map.segments,
+            segments_to_add[i],
+            trash_arena,
+            ctx
         );
     }
 
@@ -2154,34 +2147,37 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     // NOTE: По возможности назначаем чувачков на старые сегменты без них.
     while (humans_wo_segment_count > 0 && game_map.segments_wo_humans.count > 0) {
-        auto segment_ptr = Assert_Not_Null(Dequeue(game_map.segments_wo_humans));
-        auto [old_segment_id, human_p]
+        auto  segment_id = game_map.segments_wo_humans.Dequeue();
+        auto& segment    = *Query_Graph_Segment(game_map, segment_id);
+        auto [old_segment_id, old_segment, human_p]
             = Array_Pop(humans_wo_segment, humans_wo_segment_count);
-        auto [hid, human_ptr] = human_p;
 
-        human_ptr->segment             = segment_ptr;
-        segment_ptr->assigned_human_id = hid;
+        auto [hid, human_ptr] = human_p;
+        auto& human           = *human_ptr;
+
+        human.segment_id          = segment_id;
+        segment.assigned_human_id = hid;
 
         Root_On_Human_Current_Segment_Changed(
-            hid, *human_ptr, *game_map.human_data, old_segment_id, ctx
+            hid, human, *game_map.human_data, old_segment_id, ctx
         );
     }
 
     // NOTE: По возможности назначаем чувачков на новые сегменты.
     // Если нет чувачков - сохраняем сегменты как те, которым нужны чувачки.
     FOR_RANGE (int, i, segments_to_add_count) {
-        Graph_Segment* segment_ptr = Assert_Deref(added_calculated_segments + i);
+        auto [id, segment_ptr] = added_calculated_segments[i];
 
         if (humans_wo_segment_count == 0) {
-            Enqueue(game_map.segments_wo_humans, segment_ptr, ctx);
+            game_map.segments_wo_humans.Enqueue(id, ctx);
             continue;
         }
 
-        auto [old_segment_id, human_p]
+        auto [old_segment_id, old_segment, human_p]
             = Array_Pop(humans_wo_segment, humans_wo_segment_count);
         auto [hid, human_ptr] = human_p;
 
-        human_ptr->segment             = segment_ptr;
+        human_ptr->segment_id          = id;
         segment_ptr->assigned_human_id = hid;
 
         Root_On_Human_Current_Segment_Changed(
@@ -2190,7 +2186,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     }
 }
 
-typedef ttuple<Direction, v2i16> Dir_v2i16;
+typedef std::tuple<Direction, v2i16> Dir_v2i16;
 
 #define QUEUES_SCALE 4
 
@@ -2219,8 +2215,8 @@ void Update_Graphs(
     while (big_queue.count) {
         TEMP_USAGE(trash_arena);
 
-        auto p = Dequeue(big_queue);
-        Enqueue(queue, p);
+        auto p = big_queue.Dequeue();
+        queue.Enqueue_Unsafe(p);
 
         auto [_, p_pos] = p;
         if (full_graph_build) {
@@ -2240,7 +2236,7 @@ void Update_Graphs(
         temp_graph.size.y = gsize.y;
 
         while (queue.count) {
-            auto [dir, pos] = Dequeue(queue);
+            auto [dir, pos] = queue.Dequeue();
             if (full_graph_build)
                 GRID_PTR_VALUE(vis, pos) = true;
 
@@ -2287,9 +2283,8 @@ void Update_Graphs(
                             new_visited_value, opposite_dir_index, true
                         );
                         FOR_DIRECTION (new_dir_index) {
-                            if (!Graph_Node_Has(new_visited_value, new_dir_index)) {
-                                Enqueue(big_queue, {new_dir_index, new_pos});
-                            }
+                            if (!Graph_Node_Has(new_visited_value, new_dir_index))
+                                big_queue.Enqueue_Unsafe({new_dir_index, new_pos});
                         }
                     }
                     continue;
@@ -2304,7 +2299,7 @@ void Update_Graphs(
                 if (full_graph_build && new_is_vertex) {
                     FOR_DIRECTION (new_dir_index) {
                         if (!Graph_Node_Has(new_visited_value, new_dir_index))
-                            Enqueue(big_queue, {new_dir_index, new_pos});
+                            big_queue.Enqueue_Unsafe({new_dir_index, new_pos});
                     }
                 }
 
@@ -2318,7 +2313,7 @@ void Update_Graphs(
                     );
                 }
                 else {
-                    Enqueue(queue, {(Direction)0, new_pos});
+                    queue.Enqueue_Unsafe({(Direction)0, new_pos});
                 }
             }
 
@@ -2340,7 +2335,7 @@ void Update_Graphs(
 
                     if (is_vertex && !v1 && !v2) {
                         FOR_DIRECTION (dir_index) {
-                            Enqueue(big_queue, {dir_index, pos});
+                            big_queue.Enqueue_Unsafe({dir_index, pos});
                         }
                     }
                 }
@@ -2408,17 +2403,22 @@ void Update_Graphs(
 }
 
 void Build_Graph_Segments(
-    v2i16                        gsize,
-    Element_Tile*                element_tiles,
-    Bucket_Array<Graph_Segment>& segments,
-    Arena&                       trash_arena,
-    std::invocable<u32, Graph_Segment**, u32, Graph_Segment*, Context*> auto&&
-        Update_Segments_Lambda,
+    Entity_ID&                                     last_entity_id,
+    v2i16                                          gsize,
+    Element_Tile*                                  element_tiles,
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>& segments,
+    Arena&                                         trash_arena,
+    std::invocable<
+        u32,
+        std::tuple<Graph_Segment_ID, Graph_Segment*>*,
+        u32,
+        Graph_Segment*,
+        Context*> auto&& Update_Segments_Lambda,
     MCTX
 ) {
     CTX_ALLOCATOR;
 
-    Assert(segments.used_buckets_count == 0);
+    Assert(segments.count == 0);
     TEMP_USAGE(trash_arena);
 
     auto tiles_count = gsize.x * gsize.y;
@@ -2457,7 +2457,7 @@ void Build_Graph_Segments(
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
 
     FOR_DIRECTION (dir) {
-        Enqueue(big_queue, {dir, pos});
+        big_queue.Enqueue_Unsafe({dir, pos});
     }
 
     Fixed_Size_Queue<Dir_v2i16> queue = {};
@@ -2484,20 +2484,26 @@ void Build_Graph_Segments(
     Update_Segments_Lambda(0, nullptr, segments_to_add_count, segments_to_add, ctx);
 
     FOR_RANGE (u32, i, segments_to_add_count) {
-        Add_And_Link_Segment(game_map, segments, segments_to_add[i], trash_arena, ctx);
+        Add_And_Link_Segment(
+            last_entity_id, segments, segments_to_add[i], trash_arena, ctx
+        );
     }
 
     SANITIZE;
 }
 
-ttuple<int, int> Update_Tiles(
-    v2i16                        gsize,
-    Element_Tile*                element_tiles,
-    Bucket_Array<Graph_Segment>* segments,
-    Arena&                       trash_arena,
-    const Updated_Tiles&         updated_tiles,
-    std::invocable<u32, Graph_Segment**, u32, Graph_Segment*, Context*> auto&&
-        Update_Segments_Lambda,
+std::tuple<int, int> Update_Tiles(
+    v2i16                                          gsize,
+    Element_Tile*                                  element_tiles,
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>* segments,
+    Arena&                                         trash_arena,
+    const Updated_Tiles&                           updated_tiles,
+    std::invocable<
+        u32,
+        std::tuple<Graph_Segment_ID, Graph_Segment*>*,
+        u32,
+        Graph_Segment*,
+        Context*> auto&& Update_Segments_Lambda,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -2511,12 +2517,15 @@ ttuple<int, int> Update_Tiles(
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE: Ищем сегменты для удаления.
-    auto            segments_to_delete_allocate = updated_tiles.count * 4;
-    u32             segments_to_delete_count    = 0;
-    Graph_Segment** segments_to_delete
-        = Allocate_Zeros_Array(trash_arena, Graph_Segment*, segments_to_delete_allocate);
+    auto segments_to_delete_allocate = updated_tiles.count * 4;
+    u32  segments_to_delete_count    = 0;
 
-    for (auto segment_ptr : Iter(segments)) {
+    using Segment_To_Delete = std::tuple<Graph_Segment_ID, Graph_Segment*>;
+    auto segments_to_delete = Allocate_Zeros_Array(
+        trash_arena, Segment_To_Delete, segments_to_delete_allocate
+    );
+
+    for (auto [id, segment_ptr] : Iter(segments)) {
         auto& segment = *segment_ptr;
         if (!Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, segment))
             continue;
@@ -2525,7 +2534,7 @@ ttuple<int, int> Update_Tiles(
             segments_to_delete,
             segments_to_delete_count,
             segments_to_delete_allocate,
-            segment_ptr
+            Segment_To_Delete(id, segment_ptr)
         );
     };
 
@@ -2554,7 +2563,7 @@ ttuple<int, int> Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
-                Enqueue(big_queue, {dir, pos});
+                big_queue.Enqueue_Unsafe({dir, pos});
             }
         } break;
 
@@ -2566,7 +2575,7 @@ ttuple<int, int> Update_Tiles(
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road)
-                    Enqueue(big_queue, {dir, pos});
+                    big_queue.Enqueue_Unsafe({dir, pos});
             }
         } break;
 
@@ -2578,7 +2587,7 @@ ttuple<int, int> Update_Tiles(
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type != Element_Tile_Type::None)
-                    Enqueue(big_queue, {dir, pos});
+                    big_queue.Enqueue_Unsafe({dir, pos});
             }
         } break;
 
@@ -2593,7 +2602,7 @@ ttuple<int, int> Update_Tiles(
                     continue;
 
                 FOR_DIRECTION (dir) {
-                    Enqueue(big_queue, {dir, new_pos});
+                    big_queue.Enqueue_Unsafe({dir, new_pos});
                 }
             }
         } break;
@@ -2615,7 +2624,7 @@ ttuple<int, int> Update_Tiles(
                     continue;
 
                 FOR_DIRECTION (dir) {
-                    Enqueue(big_queue, {dir, new_pos});
+                    big_queue.Enqueue_Unsafe({dir, new_pos});
                 }
             }
         } break;
@@ -2629,7 +2638,7 @@ ttuple<int, int> Update_Tiles(
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road) {
                     FOR_DIRECTION (new_dir) {
-                        Enqueue(big_queue, {new_dir, new_pos});
+                        big_queue.Enqueue_Unsafe({new_dir, new_pos});
                     }
                 }
             }
@@ -2712,34 +2721,34 @@ ttuple<int, int> Update_Tiles(
     auto type__                   = (type_);               \
     (variable_name_).type         = &type__;
 
-#define INVOKE_UPDATE_TILES                               \
-    do {                                                  \
-        Update_Tiles(                                     \
-            state.game_map.size,                          \
-            state.game_map.element_tiles,                 \
-            &state.game_map.segments,                     \
-            trash_arena,                                  \
-            updated_tiles,                                \
-            [&game_map, &trash_arena, &state](            \
-                u32             segments_to_delete_count, \
-                Graph_Segment** segments_to_delete,       \
-                u32             segments_to_add_count,    \
-                Graph_Segment*  segments_to_add,          \
-                MCTX                                      \
-            ) {                                           \
-                Update_Segments_Function(                 \
-                    trash_arena,                          \
-                    state,                                \
-                    game_map,                             \
-                    segments_to_delete_count,             \
-                    segments_to_delete,                   \
-                    segments_to_add_count,                \
-                    segments_to_add,                      \
-                    ctx                                   \
-                );                                        \
-            },                                            \
-            ctx                                           \
-        );                                                \
+#define INVOKE_UPDATE_TILES                                                             \
+    do {                                                                                \
+        Update_Tiles(                                                                   \
+            state.game_map.size,                                                        \
+            state.game_map.element_tiles,                                               \
+            &state.game_map.segments,                                                   \
+            trash_arena,                                                                \
+            updated_tiles,                                                              \
+            [&game_map, &trash_arena, &state](                                          \
+                u32                                           segments_to_delete_count, \
+                std::tuple<Graph_Segment_ID, Graph_Segment*>* segments_to_delete,       \
+                u32                                           segments_to_add_count,    \
+                Graph_Segment*                                segments_to_add,          \
+                MCTX                                                                    \
+            ) {                                                                         \
+                Update_Segments_Function(                                               \
+                    trash_arena,                                                        \
+                    state,                                                              \
+                    game_map,                                                           \
+                    segments_to_delete_count,                                           \
+                    segments_to_delete,                                                 \
+                    segments_to_add_count,                                              \
+                    segments_to_add,                                                    \
+                    ctx                                                                 \
+                );                                                                      \
+            },                                                                          \
+            ctx                                                                         \
+        );                                                                              \
     } while (0)
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {

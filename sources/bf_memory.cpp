@@ -16,20 +16,22 @@
     }()
 
 #define REALLOC(n, old_size, old_ptr)                                        \
-    (COALESCE(allocator, Root_Allocator_Routine))(                                              \
+    (COALESCE(allocator, Root_Allocator_Routine))(                           \
         Allocator_Mode::Resize, (n), 1, old_size, old_ptr, allocator_data, 0 \
     )
 
 #define FREE(ptr, n)                                                             \
-    (COALESCE(allocator, Root_Allocator_Routine))(                                                  \
+    (COALESCE(allocator, Root_Allocator_Routine))(                               \
         Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
     )
 
-#define FREE_ALL \
-    (COALESCE(allocator, Root_Allocator_Routine))(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
+#define FREE_ALL                                                \
+    (COALESCE(allocator, Root_Allocator_Routine))(              \
+        Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0 \
+    )
 
 #if 1
-#define SANITIZE \
+#define SANITIZE                                              \
     (COALESCE(allocator, Root_Allocator_Routine))(            \
         Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \
     )
@@ -724,7 +726,7 @@ struct Cascading_Allocator {
 private:
     // TODO: убрать vector. Добавить новый аллокатор-параметр шаблона,
     // который будет аллоцировать и реаллоцировать массив
-    tvector<A> _allocators;
+    std::vector<A> _allocators;
 };
 
 // auto a = Cascading_Allocator({

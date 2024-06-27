@@ -51,16 +51,41 @@ struct Fixed_Size_Queue {
 
 // PERF: Переписать на ring buffer!
 template <typename T>
-    requires std::is_trivially_copyable_v<T>
 struct Queue {
-    u32 max_count = 0;
-    i32 count     = 0;
     T*  base      = nullptr;
+    i32 count     = 0;
+    u32 max_count = 0;
 
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    i32 Find(T value) {
+    Queue() {}
+
+    Queue(Queue&& other)
+        : base(other.base)
+        , count(other.count)
+        , max_count(other.max_count)
+        , allocator_(other.allocator_)
+        , allocator_data_(other.allocator_data_)  //
+    {
+        other.base            = nullptr;
+        other.count           = 0;
+        other.max_count       = 0;
+        other.allocator_      = nullptr;
+        other.allocator_data_ = nullptr;
+    }
+
+    i32 Index_Of(const T& value) {
+        FOR_RANGE (i32, i, count) {
+            auto& v = base[i];
+            if (v == value)
+                return i;
+        }
+
+        return -1;
+    }
+
+    i32 Index_Of(T&& value) {
         FOR_RANGE (i32, i, count) {
             auto& v = base[i];
             if (v == value)
@@ -163,7 +188,14 @@ struct Vector {
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    i32 Find(T value) {
+    Vector() {}
+
+    Vector(Vector&& other)
+        : base(other.base)
+        , count(other.count)
+        , max_count(other.max_count) {}
+
+    i32 Index_Of(T value) {
         FOR_RANGE (i32, i, count) {
             auto& v = base[i];
             if (v == value)
@@ -173,11 +205,11 @@ struct Vector {
         return -1;
     }
 
-    template <typename U>
-    inline i32 Find(T value, std::invocable<T&, U> auto&& func) {
-        auto key = func(value);
+    inline i32 Index_Of(T value, std::invocable<const T&, const T&, bool&> auto&& func) {
+        bool found = false;
         FOR_RANGE (i32, i, count) {
-            if (func(base[i]) == key)
+            func(value, base[i], found);
+            if (found)
                 return i;
         }
 
@@ -568,8 +600,8 @@ struct Sparse_Array {
         if (max_count == count)
             Enlarge(ctx);
 
-        *(ids + count)  = id;
-        *(base + count) = value;
+        ids[count] = id;
+        std::construct_at(base + count, std::move(value));
         count += 1;
 
         return base + count - 1;
@@ -581,7 +613,7 @@ struct Sparse_Array {
         if (max_count == count)
             Enlarge(ctx);
 
-        *(ids + count) = id;
+        ids[count] = id;
         count += 1;
 
         return base + count - 1;
@@ -595,12 +627,27 @@ struct Sparse_Array {
         return nullptr;
     }
 
+    i32 Index_Of(T value, std::invocable<const T&, const T&, bool&> auto&& func) {
+        bool found = false;
+        FOR_RANGE (i32, i, count) {
+            func(value, base[i], found);
+            if (found)
+                return i;
+        }
+
+        return -1;
+    }
+
     void Unstable_Remove(const T id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
                 if (i != count - 1) {
                     std::swap(ids[i], ids[count - 1]);
-                    std::swap(base[i], base[count - 1]);
+
+                    U b;
+                    memcpy(&b, base + i, sizeof(U));
+                    memcpy(base + i, base + count - 1, sizeof(U));
+                    memcpy(&base + count - 1, &b, sizeof(U));
                 }
                 count--;
                 return;
@@ -1020,7 +1067,7 @@ struct Bucket_Array_With_Locator_Iterator
         return {_arr, 0, _arr->used_buckets_count};
     }
 
-    ttuple<Bucket_Locator, T*> Dereference() const {
+    std::tuple<Bucket_Locator, T*> Dereference() const {
         Assert(_current_bucket < _arr->used_buckets_count);
         Assert(_current < _arr->items_per_bucket);
         Assert(_current >= 0);
@@ -1107,43 +1154,6 @@ private:
 };
 
 template <typename T>
-struct TVector_Iterator : public Iterator_Facade<TVector_Iterator<T>> {
-    TVector_Iterator() = delete;
-    TVector_Iterator(tvector<T>* container)
-        : TVector_Iterator(container, 0) {}
-    TVector_Iterator(tvector<T>* container, u64 current)
-        : _current(current)
-        , _container(container) {
-        Assert(container != nullptr);
-    }
-
-    TVector_Iterator begin() const {
-        return {_container, _current};
-    }
-    TVector_Iterator end() const {
-        return {_container, scast<u64>(_container->size())};
-    }
-
-    T* Dereference() const {
-        Assert(_current >= 0);
-        Assert(_current < _container->size());
-        return scast<T*>(_container->data()) + _current;
-    }
-
-    void Increment() {
-        _current++;
-    }
-
-    bool Equal_To(const TVector_Iterator& o) const {
-        return _current == o._current;
-    }
-
-private:
-    tvector<T>* _container;
-    u64         _current = 0;
-};
-
-template <typename T>
 BF_FORCE_INLINE auto Iter(Bucket_Array<T>* container) {
     return Bucket_Array_Iterator(container);
 }
@@ -1158,18 +1168,8 @@ BF_FORCE_INLINE auto Iter(Vector<T>* container) {
 }
 
 template <typename T>
-BF_FORCE_INLINE auto Iter(tvector<T>* container) {
-    return TVector_Iterator(container);
-}
-
-template <typename T>
 BF_FORCE_INLINE auto Iter_With_ID(Bucket_Array<T>* arr) {
     return Bucket_Array_With_Locator_Iterator(arr);
-}
-
-template <typename T>
-BF_FORCE_INLINE void Container_Reset(tvector<T>& container) {
-    container.clear();
 }
 
 template <typename T>
