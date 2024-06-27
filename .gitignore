@@ -57,3 +57,5 @@ cython_debug/
 /assets/art/atlas.bmp
 /assets/art/atlas.png
 /assets/art/atlas.json
+
+/Testing/
