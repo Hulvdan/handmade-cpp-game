@@ -335,7 +335,7 @@ int Process_Segments(
         }
     }
 
-    // NOTE: Counting segments
+    // NOTE: Counting segments.
     Build_Graph_Segments(
         last_entity_id, gsize, element_tiles, *segments, trash_arena, [](...) {}, ctx
     );

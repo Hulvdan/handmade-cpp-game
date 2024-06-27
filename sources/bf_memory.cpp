@@ -15,14 +15,20 @@
         return addr;          \
     }()
 
-#define REALLOC(n, old_size, old_ptr)                                        \
-    (COALESCE(allocator, Root_Allocator_Routine))(                           \
-        Allocator_Mode::Resize, (n), 1, old_size, old_ptr, allocator_data, 0 \
+#define REALLOC(new_bytes_size, old_bytes_size, old_ptr) \
+    (COALESCE(allocator, Root_Allocator_Routine))(       \
+        Allocator_Mode::Resize,                          \
+        (new_bytes_size),                                \
+        1,                                               \
+        (old_bytes_size),                                \
+        (old_ptr),                                       \
+        allocator_data,                                  \
+        0                                                \
     )
 
-#define FREE(ptr, n)                                                             \
-    (COALESCE(allocator, Root_Allocator_Routine))(                               \
-        Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
+#define FREE(ptr, bytes_size)                                              \
+    (COALESCE(allocator, Root_Allocator_Routine))(                         \
+        Allocator_Mode::Free, (bytes_size), 1, 0, (ptr), allocator_data, 0 \
     )
 
 #define FREE_ALL                                                \
@@ -602,7 +608,7 @@ class Bitmapped_Allocator {
             }
 
             if (available == required_blocks) {
-                void* ptr = (void*)_blocks + block_size * location;
+                void* ptr = (void*)((u8*)_blocks + block_size * location);
 
                 Assert(!QUERY_BIT(_allocation_bits, location));
                 MARK_BIT(_allocation_bits, location);

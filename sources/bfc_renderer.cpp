@@ -31,10 +31,10 @@ struct Load_BMP_RGBA_Result {
     u16  height;
 };
 
-Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
+Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* data) {
     Load_BMP_RGBA_Result res = {};
 
-    auto& header = *(Debug_BMP_Header*)filedata;
+    auto& header = *(Debug_BMP_Header*)data;
 
     if (header.signature != *(u16*)"BM") {
         // TODO: Diagnostic. Not a BMP file
@@ -60,7 +60,7 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* filedata) {
     Assert(header.bits_per_pixel == 32);
     Assert(header.file_size - header.data_offset == total_bytes);
 
-    memcpy(res.output, filedata + header.data_offset, total_bytes);
+    memcpy(res.output, data + header.data_offset, total_bytes);
 
     res.success = true;
     return res;
@@ -154,8 +154,8 @@ Atlas Load_Atlas(
         C_Texture t{
             scast<Texture_ID>(texture.id()),
             {
-                f32(texture.atlas_x()) / texture.size_x(),
-                f32(texture.atlas_y()) / texture.size_y(),
+                f32(texture.atlas_x()) / f32(texture.size_x()),
+                f32(texture.atlas_y()) / f32(texture.size_y()),
             },
             {texture.size_x(), texture.size_y()},
         };

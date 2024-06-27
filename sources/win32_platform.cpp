@@ -180,9 +180,8 @@ DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
 
-bool               controller_support_loaded = false;
-XInputGetStateType XInputGetState_           = XInputGetStateStub;
-XInputSetStateType XInputSetState_           = XInputSetStateStub;
+XInputGetStateType XInputGetState_ = XInputGetStateStub;
+XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
 void Load_XInput_Dll() {
     auto library = LoadLibraryA("xinput1_4.dll");
@@ -192,8 +191,6 @@ void Load_XInput_Dll() {
     if (library) {
         XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
         XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
-
-        controller_support_loaded = true;
     }
 }
 // -- CONTROLLER STUFF END

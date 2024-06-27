@@ -61,7 +61,7 @@ std::tuple<v2i16*, i32> Build_Path(
 ) {
 #if 0
     // NOTE: Двойной проход, но без RAM overhead-а на `trash_arena`.
-    i32 path_max_count = 1;
+    auto path_max_count = 1;
     {
         v2i16 dest = destination;
         while (GRID_PTR_VALUE(bfs_parents_mtx, dest).has_value()) {
@@ -72,11 +72,11 @@ std::tuple<v2i16*, i32> Build_Path(
     }
 #else
     // NOTE: Одинарный проход. С RAM overhead-ом.
-    i32 path_max_count = Longest_Meaningful_Path(gsize);
+    auto path_max_count = Longest_Meaningful_Path(gsize);
 #endif
 
-    i32    path_count = 0;
-    v2i16* path       = Allocate_Array(trash_arena, v2i16, path_max_count);
+    i32  path_count = 0;
+    auto path       = Allocate_Array(trash_arena, v2i16, path_max_count);
 
 #ifdef SHIT_MEMORY_DEBUG
     memset(path, SHIT_BYTE_MASK, sizeof(v2i16) * path_max_count);
@@ -118,8 +118,7 @@ Path_Find_Result Find_Path(
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
     GRID_PTR_VALUE(visited_mtx, source) = true;
 
-    std::optional<v2i16>* bfs_parents_mtx
-        = Allocate_Array(trash_arena, std::optional<v2i16>, tiles_count);
+    auto bfs_parents_mtx = Allocate_Array(trash_arena, std::optional<v2i16>, tiles_count);
 
     FOR_RANGE (int, i, tiles_count) {
         std::construct_at(bfs_parents_mtx + i);
@@ -197,8 +196,8 @@ void Init_Bucket_Array(
 
 template <typename T>
 void Set_Container_Allocator_Context(T& container, MCTX) {
-    container.allocator      = ctx->allocator;
-    container.allocator_data = ctx->allocator_data;
+    container.allocator_      = ctx->allocator;
+    container.allocator_data_ = ctx->allocator_data;
 }
 
 template <typename T>
@@ -224,8 +223,8 @@ void Init_Queue(Queue<T>& container, MCTX) {
     container.max_count = 0;
     container.base      = nullptr;
 
-    container.allocator      = ctx->allocator;
-    container.allocator_data = ctx->allocator_data;
+    container.allocator_      = ctx->allocator;
+    container.allocator_data_ = ctx->allocator_data;
 }
 
 template <typename T>
@@ -234,8 +233,8 @@ void Init_Vector(Vector<T>& container, MCTX) {
     container.max_count = 0;
     container.base      = nullptr;
 
-    container.allocator      = ctx->allocator;
-    container.allocator_data = ctx->allocator_data;
+    container.allocator_      = ctx->allocator;
+    container.allocator_data_ = ctx->allocator_data;
 }
 
 template <typename T>
@@ -253,7 +252,7 @@ void Deinit_Queue(Queue<T>& container, MCTX) {
 }
 
 template <typename T>
-void Deinit_Sparse_Array(Sparse_Array_Of_Ids<T> container, MCTX) {
+void Deinit_Sparse_Array(Sparse_Array_Of_Ids<T>& container, MCTX) {
     CTX_ALLOCATOR;
 
     if (container.ids != nullptr) {
@@ -266,7 +265,7 @@ void Deinit_Sparse_Array(Sparse_Array_Of_Ids<T> container, MCTX) {
 }
 
 template <typename T, typename U>
-void Deinit_Sparse_Array(Sparse_Array<T, U> container, MCTX) {
+void Deinit_Sparse_Array(Sparse_Array<T, U>& container, MCTX) {
     CTX_ALLOCATOR;
 
     if (container.ids != nullptr) {
@@ -1080,8 +1079,8 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     human.moving.progress = 0;
     human.moving.from     = pos;
     human.moving.to.reset();
-    human.moving.path.count     = 0;
-    human.moving.path.max_count = 0;
+    human.moving.path.count         = 0;
+    human.moving.path.max_count     = 0;
     human.moving.path.base          = nullptr;
     human.segment_id                = segment_id;
     human.type                      = Human_Type::Transporter;
@@ -2681,15 +2680,16 @@ std::tuple<int, int> Update_Tiles(
     SANITIZE;
 
 #ifdef ASSERT_SLOW
-    for (auto segment1_ptr : Iter(segments)) {
+    for (auto [segment1_id, segment1_ptr] : Iter(segments)) {
         auto& segment1  = *segment1_ptr;
         auto& g1        = segment1.graph;
         v2i16 g1_offset = {g1.offset.x, g1.offset.y};
 
-        for (auto segment2_ptr : Iter(segments)) {
-            auto& segment2 = *segment2_ptr;
-            if (segment1_ptr == segment2_ptr)
+        for (auto [segment2_id, segment2_ptr] : Iter(segments)) {
+            if (segment1_id == segment2_id)
                 continue;
+
+            auto& segment2 = *segment2_ptr;
 
             auto& g2        = segment2.graph;
             v2i16 g2_offset = {g2.offset.x, g2.offset.y};

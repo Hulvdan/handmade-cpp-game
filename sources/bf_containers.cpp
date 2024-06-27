@@ -1,12 +1,12 @@
-#define CONTAINER_ALLOCATOR                          \
-    auto  allocator      = container.allocator;      \
-    void* allocator_data = container.allocator_data; \
-    {                                                \
-        if (allocator == nullptr) {                  \
-            Assert(allocator_data == nullptr);       \
-            allocator      = ctx->allocator;         \
-            allocator_data = ctx->allocator_data;    \
-        }                                            \
+#define CONTAINER_ALLOCATOR                           \
+    auto  allocator      = container.allocator_;      \
+    void* allocator_data = container.allocator_data_; \
+    {                                                 \
+        if (allocator == nullptr) {                   \
+            Assert(allocator_data == nullptr);        \
+            allocator      = ctx->allocator;          \
+            allocator_data = ctx->allocator_data;     \
+        }                                             \
     }
 
 #define CONTAINER_MEMBER_ALLOCATOR                \
@@ -59,9 +59,10 @@ struct Queue {
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    Queue() {}
+    Queue()                            = default;
+    Queue(const Queue& other) noexcept = delete;
 
-    Queue(Queue&& other)
+    Queue(Queue&& other) noexcept
         : base(other.base)
         , count(other.count)
         , max_count(other.max_count)
@@ -188,12 +189,10 @@ struct Vector {
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    Vector() {}
+    Vector()               = default;
+    Vector(Vector&& other) = default;
 
-    Vector(Vector&& other)
-        : base(other.base)
-        , count(other.count)
-        , max_count(other.max_count) {}
+    Vector(const Vector& other) = delete;
 
     i32 Index_Of(T value) {
         FOR_RANGE (i32, i, count) {
@@ -364,14 +363,14 @@ struct Vector {
 };
 
 struct Memory_Buffer {
-    void*  base      = 0;
+    void*  base      = nullptr;
     size_t count     = 0;
     size_t max_count = 0;
 
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    Memory_Buffer(MCTX) {
+    explicit Memory_Buffer(MCTX) {
         if (ctx->allocator != nullptr) {
             allocator_      = ctx->allocator;
             allocator_data_ = ctx->allocator_data;
@@ -508,8 +507,9 @@ struct Sparse_Array_Of_Ids {
     i32 count     = 0;
     i32 max_count = 0;
 
-    Sparse_Array_Of_Ids(i32 _max_count, MCTX)
-        : max_count(_max_count) {
+    Sparse_Array_Of_Ids(i32 max_count_, MCTX)
+        : max_count(max_count_)  //
+    {
         CTX_ALLOCATOR;
         ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
         count = 0;
@@ -549,13 +549,12 @@ struct Sparse_Array_Of_Ids {
     void Enlarge(MCTX) {
         CTX_ALLOCATOR;
 
-        u32 new_max_count = max_count * 2;
+        auto new_max_count = max_count * 2;
         Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
         auto old_ids_size = sizeof(T) * max_count;
         auto old_ids_ptr  = ids;
 
-        ids = rcast<T*>(ALLOC(old_ids_size * 2));
         memcpy(ids, old_ids_ptr, old_ids_size);
         FREE(old_ids_ptr, old_ids_size);
 
@@ -574,13 +573,16 @@ struct Sparse_Array {
     i32 count = 0;
     i32 max_count;
 
-    Sparse_Array(i32 _max_count, MCTX)
-        : max_count(_max_count) {
+    Sparse_Array(i32 max_count_, MCTX)
+        : max_count(max_count_)  //
+    {
         CTX_ALLOCATOR;
         ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
         base  = rcast<U*>(ALLOC(sizeof(U) * max_count));
         count = 0;
     }
+    Sparse_Array(const Sparse_Array& other) = delete;
+    Sparse_Array(Sparse_Array&& other)      = delete;
 
     U* Add(const T id, const U& value, MCTX) {
         Assert(!Contains(id));
@@ -588,8 +590,8 @@ struct Sparse_Array {
         if (max_count == count)
             Enlarge(ctx);
 
-        *(ids + count)  = id;
-        *(base + count) = value;
+        ids[count]  = id;
+        base[count] = value;
         count += 1;
         return base + count - 1;
     }
@@ -1197,7 +1199,7 @@ template <typename T, typename U>
 T* Sparse_Array_Find(Sparse_Array<T, U>& arr, U id) {
     FOR_RANGE (int, i, arr.count) {
         if (arr.ids[i] == id)
-            return i.base[i];
+            return arr.base[i];
     }
     Assert(false);
     return nullptr;
