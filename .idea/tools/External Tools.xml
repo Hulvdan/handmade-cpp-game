@@ -1,0 +1,9 @@
+<toolSet name="External Tools">
+  <tool name="game.sln" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
+    <exec>
+      <option name="COMMAND" value="c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe" />
+      <option name="PARAMETERS" value=".cmake\vs17\game.sln -v:minimal -property:WarningLevel=3" />
+      <option name="WORKING_DIRECTORY" value="C:/Users/user/dev/home/handmade-cpp-game" />
+    </exec>
+  </tool>
+</toolSet>
