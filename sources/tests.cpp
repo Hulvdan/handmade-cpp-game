@@ -339,7 +339,13 @@ int Process_Segments(
 
     // NOTE: Counting segments.
     Build_Graph_Segments(
-        last_entity_id, gsize, element_tiles, *segments, trash_arena, [](...) {}, ctx
+        last_entity_id,
+        gsize,
+        element_tiles,
+        *segments,
+        trash_arena,
+        [](Graph_Segments_To_Add&, Graph_Segments_To_Delete&, Context*) {},
+        ctx
     );
 
     int segments_count = 0;
