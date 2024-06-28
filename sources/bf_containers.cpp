@@ -20,12 +20,39 @@
         }                                         \
     }
 
+template <typename T>
+struct Fixed_Size_Slice {
+    i32 count     = 0;
+    i32 max_count = 0;
+    T*  items     = nullptr;
+
+    Fixed_Size_Slice()                           = default;
+    Fixed_Size_Slice(const Fixed_Size_Slice<T>&) = delete;
+    Fixed_Size_Slice(Fixed_Size_Slice<T>&&)      = default;
+
+    void Add_Unsafe(T&& value) {
+        Assert(count < max_count);
+        items[count] = value;
+        count++;
+    }
+
+    void Add_Unsafe(const T& value) {
+        Assert(count < max_count);
+        items[count] = value;
+        count++;
+    }
+};
+
 // PERF: Переписать на ring buffer!
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size = 0;
     i32    count       = 0;
     T*     base        = nullptr;
+
+    Fixed_Size_Queue()                           = default;
+    Fixed_Size_Queue(const Fixed_Size_Queue<T>&) = delete;
+    Fixed_Size_Queue(Fixed_Size_Queue<T>&&)      = default;
 
     void Enqueue_Unsafe(const T value) {
         Assert(memory_size >= (count + 1) * sizeof(T));

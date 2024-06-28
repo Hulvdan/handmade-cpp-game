@@ -252,14 +252,14 @@ std::tuple<Building_ID, Building*> Global_Make_Building(
 }
 
 int Process_Segments(
-    Entity_ID&                    last_entity_id,
-    v2i&                          gsize,
-    Element_Tile*&                element_tiles,
-    Bucket_Array<Graph_Segment>*& segments,
-    Arena&                        trash_arena,
-    Building_ID&                  building_sawmill_id,
-    Building*&                    building_sawmill,
-    std::vector<const char*>&     strings,
+    Entity_ID&                                      last_entity_id,
+    v2i&                                            gsize,
+    Element_Tile*&                                  element_tiles,
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>*& segments,
+    Arena&                                          trash_arena,
+    Building_ID&                                    building_sawmill_id,
+    Building*&                                      building_sawmill,
+    std::vector<const char*>&                       strings,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -275,8 +275,10 @@ int Process_Segments(
     element_tiles    = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
 
     {
-        segments = Allocate_For(trash_arena, Bucket_Array<Graph_Segment>);
-        Init_Bucket_Array(*segments, 32, 128, ctx);
+        using segments_type
+            = std::remove_pointer<std::remove_reference<decltype(segments)>::type>::type;
+        segments = Allocate_For(trash_arena, segments_type);
+        std::construct_at(segments, 32, ctx);
     }
 
     auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -352,6 +354,7 @@ int Process_Segments(
 #define Process_Segments_Macro(...)                       \
     std::vector<const char*> _strings = {__VA_ARGS__};    \
     auto(segments_count)              = Process_Segments( \
+        last_entity_id,                      \
         gsize,                               \
         element_tiles,                       \
         segments,                            \
@@ -370,27 +373,29 @@ int Process_Segments(
         segments,                                                                \
         trash_arena,                                                             \
         (updated_tiles),                                                         \
-        [&segments, &trash_arena](                                               \
-            u32             segments_to_delete_count,                            \
-            Graph_Segment** segments_to_delete,                                  \
-            u32             segments_to_add_count,                               \
-            Graph_Segment*  segments_to_add,                                     \
+        [&segments, &trash_arena, &last_entity_id](                              \
+            Graph_Segments_To_Add&    segments_to_add,                           \
+            Graph_Segments_To_Delete& segments_to_delete,                        \
             MCTX                                                                 \
         ) {                                                                      \
             CTX_ALLOCATOR;                                                       \
                                                                                  \
-            FOR_RANGE (u32, i, segments_to_delete_count) {                       \
-                Graph_Segment* segment_ptr = *(segments_to_delete + i);          \
-                auto&          segment     = Assert_Deref(segment_ptr);          \
+            FOR_RANGE (u32, i, segments_to_delete.count) {                       \
+                auto [id, segment_ptr] = segments_to_delete.items[i];            \
+                auto& segment          = *segment_ptr;                           \
                                                                                  \
                 FREE(segment.vertices, segment.vertices_count);                  \
                 FREE(segment.graph.nodes, segment.graph.nodes_allocation_count); \
-                Bucket_Array_Remove(*segments, segment.locator);                 \
+                segments->Unstable_Remove(id);                                   \
             }                                                                    \
                                                                                  \
-            FOR_RANGE (u32, i, segments_to_add_count) {                          \
+            FOR_RANGE (u32, i, segments_to_add.count) {                          \
                 Add_And_Link_Segment(                                            \
-                    *segments, *(segments_to_add + i), trash_arena, ctx          \
+                    last_entity_id,                                              \
+                    *segments,                                                   \
+                    segments_to_add.items[i],                                    \
+                    trash_arena,                                                 \
+                    ctx                                                          \
                 );                                                               \
             }                                                                    \
                                                                                  \
@@ -486,11 +491,12 @@ TEST_CASE ("Update_Tiles") {
         pages.total_count_cap = pages_count;
     }
 
-    Building*                    building_sawmill    = nullptr;
-    Building_ID                  building_sawmill_id = Building_ID_Missing;
-    v2i                          gsize               = -v2i_one;
-    Element_Tile*                element_tiles       = nullptr;
-    Bucket_Array<Graph_Segment>* segments            = nullptr;
+    auto          last_entity_id                            = (Entity_ID)0;
+    Building*     building_sawmill                          = nullptr;
+    Building_ID   building_sawmill_id                       = Building_ID_Missing;
+    v2i           gsize                                     = -v2i_one;
+    Element_Tile* element_tiles                             = nullptr;
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>* segments = nullptr;
 
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
@@ -1199,51 +1205,51 @@ TEST_CASE ("Queue") {
 
     SUBCASE("Enqueue") {
         REQUIRE(queue.count == 0);
-        Enqueue(queue, 10, ctx);
+        queue.Enqueue(10, ctx);
         REQUIRE(queue.count == 1);
-        auto val = Dequeue(queue);
+        auto val = queue.Dequeue();
         CHECK(val == 10);
         REQUIRE(queue.count == 0);
 
         REQUIRE(queue.max_count == 8);
-        Enqueue(queue, 1, ctx);
+        queue.Enqueue(1, ctx);
         REQUIRE(queue.count == 1);
-        Enqueue(queue, 2, ctx);
+        queue.Enqueue(2, ctx);
         REQUIRE(queue.count == 2);
-        Enqueue(queue, 3, ctx);
+        queue.Enqueue(3, ctx);
         REQUIRE(queue.count == 3);
-        Enqueue(queue, 4, ctx);
+        queue.Enqueue(4, ctx);
         REQUIRE(queue.count == 4);
-        Enqueue(queue, 5, ctx);
+        queue.Enqueue(5, ctx);
         REQUIRE(queue.count == 5);
-        Enqueue(queue, 6, ctx);
+        queue.Enqueue(6, ctx);
         REQUIRE(queue.count == 6);
-        Enqueue(queue, 7, ctx);
+        queue.Enqueue(7, ctx);
         REQUIRE(queue.count == 7);
-        Enqueue(queue, 8, ctx);
+        queue.Enqueue(8, ctx);
         REQUIRE(queue.count == 8);
         REQUIRE(queue.max_count == 8);
-        Enqueue(queue, 9, ctx);
+        queue.Enqueue(9, ctx);
         REQUIRE(queue.max_count == 16);
         REQUIRE(queue.count == 9);
 
-        REQUIRE(Dequeue(queue) == 1);
+        REQUIRE(queue.Dequeue() == 1);
         REQUIRE(queue.count == 8);
-        REQUIRE(Dequeue(queue) == 2);
+        REQUIRE(queue.Dequeue() == 2);
         REQUIRE(queue.count == 7);
-        REQUIRE(Dequeue(queue) == 3);
+        REQUIRE(queue.Dequeue() == 3);
         REQUIRE(queue.count == 6);
-        REQUIRE(Dequeue(queue) == 4);
+        REQUIRE(queue.Dequeue() == 4);
         REQUIRE(queue.count == 5);
-        REQUIRE(Dequeue(queue) == 5);
+        REQUIRE(queue.Dequeue() == 5);
         REQUIRE(queue.count == 4);
-        REQUIRE(Dequeue(queue) == 6);
+        REQUIRE(queue.Dequeue() == 6);
         REQUIRE(queue.count == 3);
-        REQUIRE(Dequeue(queue) == 7);
+        REQUIRE(queue.Dequeue() == 7);
         REQUIRE(queue.count == 2);
-        REQUIRE(Dequeue(queue) == 8);
+        REQUIRE(queue.Dequeue() == 8);
         REQUIRE(queue.count == 1);
-        REQUIRE(Dequeue(queue) == 9);
+        REQUIRE(queue.Dequeue() == 9);
         REQUIRE(queue.count == 0);
     }
 
@@ -1253,30 +1259,30 @@ TEST_CASE ("Queue") {
         constexpr auto n          = sizeof(numbers_) / sizeof(numbers_[0]);
         int*           numbers    = numbers_;
         REQUIRE(n == 10);
-        Bulk_Enqueue(queue, numbers, 10, ctx);
+        queue.Bulk_Enqueue(numbers, 10, ctx);
         REQUIRE(queue.count == 10);
         REQUIRE(queue.max_count == 16);
 
         REQUIRE(queue.count == 10);
-        CHECK(Dequeue(queue) == 1);
+        CHECK(queue.Dequeue() == 1);
         REQUIRE(queue.count == 9);
-        CHECK(Dequeue(queue) == 2);
+        CHECK(queue.Dequeue() == 2);
         REQUIRE(queue.count == 8);
-        CHECK(Dequeue(queue) == 3);
+        CHECK(queue.Dequeue() == 3);
         REQUIRE(queue.count == 7);
-        CHECK(Dequeue(queue) == 4);
+        CHECK(queue.Dequeue() == 4);
         REQUIRE(queue.count == 6);
-        CHECK(Dequeue(queue) == 5);
+        CHECK(queue.Dequeue() == 5);
         REQUIRE(queue.count == 5);
-        CHECK(Dequeue(queue) == 6);
+        CHECK(queue.Dequeue() == 6);
         REQUIRE(queue.count == 4);
-        CHECK(Dequeue(queue) == 7);
+        CHECK(queue.Dequeue() == 7);
         REQUIRE(queue.count == 3);
-        CHECK(Dequeue(queue) == 8);
+        CHECK(queue.Dequeue() == 8);
         REQUIRE(queue.count == 2);
-        CHECK(Dequeue(queue) == 9);
+        CHECK(queue.Dequeue() == 9);
         REQUIRE(queue.count == 1);
-        CHECK(Dequeue(queue) == 10);
+        CHECK(queue.Dequeue() == 10);
         REQUIRE(queue.count == 0);
     }
 
@@ -1315,51 +1321,4 @@ TEST_CASE ("Longest_Meaningful_Path") {
     CHECK(Longest_Meaningful_Path({4, 3}) == 9);
     CHECK(Longest_Meaningful_Path({5, 3}) == 11);
     CHECK(Longest_Meaningful_Path({5, 5}) == 17);
-}
-
-TEST_CASE ("Grid_Of_Vectors") {
-    INITIALIZE_CTX;
-
-    const auto gsize  = v2i16(20, 10);
-    const auto stride = gsize.x;
-
-    Grid_Of_Vectors<i16> container;
-    Init_Grid_Of_Vectors(container, gsize, ctx);
-
-    {
-        Vector_Add(container, (i16)10, v2i16(0, 0), stride, ctx);
-        CHECK(container.bases[0][0] == 10);
-        CHECK(container.counts[0] == 1);
-
-        Vector_Add(container, (i16)20, v2i16(0, 0), stride, ctx);
-        CHECK(container.bases[0][0] == 10);
-        CHECK(container.bases[0][1] == 20);
-        CHECK(container.counts[0] == 2);
-
-        Vector_Add(container, (i16)30, v2i16(0, 0), stride, ctx);
-        CHECK(container.bases[0][0] == 10);
-        CHECK(container.bases[0][1] == 20);
-        CHECK(container.bases[0][2] == 30);
-        CHECK(container.counts[0] == 3);
-
-        Vector_Unordered_Remove_At(container, 0, v2i16(0, 0), stride);
-        CHECK(container.bases[0][0] == 30);
-        CHECK(container.bases[0][1] == 20);
-        CHECK(container.counts[0] == 2);
-    }
-
-    {
-        Vector_Add(container, (i16)30, v2i16(1, 0), stride, ctx);
-        CHECK(container.bases[1][0] == 30);
-        CHECK(container.counts[1] == 1);
-    }
-
-    {
-        Vector_Add(container, (i16)40, v2i16(1, 1), stride, ctx);
-        CHECK(container.bases[stride + 1][0] == 40);
-        CHECK(container.counts[stride + 1] == 1);
-
-        Vector_Unordered_Remove_At(container, 0, v2i16(1, 1), stride);
-        CHECK(container.counts[stride + 1] == 0);
-    }
 }

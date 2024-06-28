@@ -44,8 +44,8 @@ bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment
     return false;
 }
 
-global_var int global_last_segments_to_delete_count = 0;
 global_var int global_last_segments_to_add_count    = 0;
+global_var int global_last_segments_to_delete_count = 0;
 
 struct Path_Find_Result {
     bool   success;
@@ -296,27 +296,31 @@ void Deinit_Vector(Vector<T>& container, MCTX) {
     container.max_count = 0;
 }
 
+void Assert_No_Collision(Entity_ID id, Entity_ID mask) {
+    Assert((id & mask) == 0);
+}
+
 Human_ID Next_Human_ID(Entity_ID& last_entity_id) {
     auto ent = ++last_entity_id;
-    Assert_False(ent & Human::component_mask);
+    Assert_No_Collision(ent, Human::component_mask);
     return ent | Human::component_mask;
 }
 
 Building_ID Next_Building_ID(Entity_ID& last_entity_id) {
     auto ent = ++last_entity_id;
-    Assert_False(ent & Building::component_mask);
+    Assert_No_Collision(ent, Building::component_mask);
     return ent | Building::component_mask;
 }
 
 Graph_Segment_ID Next_Graph_Segment_ID(Entity_ID& last_entity_id) {
     auto ent = ++last_entity_id;
-    Assert_False(ent & Graph_Segment::component_mask);
+    Assert_No_Collision(ent, Graph_Segment::component_mask);
     return ent | Graph_Segment::component_mask;
 }
 
 Map_Resource_ID Next_Map_Resource_ID(Entity_ID& last_entity_id) {
     auto ent = ++last_entity_id;
-    Assert_False(ent & Map_Resource::component_mask);
+    Assert_No_Collision(ent, Map_Resource::component_mask);
     return ent | Map_Resource::component_mask;
 }
 
@@ -659,9 +663,8 @@ struct Human_Moving_In_The_World_Controller {
                 Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
             }
         }
-        else if (
-            human.state_moving_in_the_world
-            != Moving_In_The_World_State::Moving_To_The_City_Hall  //
+        else if (human.state_moving_in_the_world
+                 != Moving_In_The_World_State::Moving_To_The_City_Hall  //
         ) {
             LOG_DEBUG(
                 "human.state_moving_in_the_world = "
@@ -1352,9 +1355,8 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
                     == Moving_In_The_World_State::Moving_To_The_City_Hall) {
                     humans_moving_to_the_city_hall++;
                 }
-                else if (human.state_moving_in_the_world //
-                        == Moving_In_The_World_State::Moving_To_Destination)
-                {
+                else if (human.state_moving_in_the_world  //
+                         == Moving_In_The_World_State::Moving_To_Destination) {
                     humans_moving_to_destination++;
                 }
             }
@@ -1374,8 +1376,8 @@ void Update_Game_Map(Game_State& state, float dt, MCTX) {
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
 
-    ImGui::Text("last_segments_to_delete_count %d", global_last_segments_to_delete_count);
     ImGui::Text("last_segments_to_add_count %d", global_last_segments_to_add_count);
+    ImGui::Text("last_segments_to_delete_count %d", global_last_segments_to_delete_count);
     ImGui::Text("game_map.segments.count %d", game_map.segments.count);
 
     Process_City_Halls(state, dt, Assert_Deref(state.game_map.human_data), ctx);
@@ -2009,29 +2011,32 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
     return {id, segment1_ptr};
 }
 
-BF_FORCE_INLINE void Update_Segments_Function(
-    Arena&                                        trash_arena,
-    Game_State&                                   state,
-    Game_Map&                                     game_map,
-    u32                                           segments_to_delete_count,
-    std::tuple<Graph_Segment_ID, Graph_Segment*>* segments_to_delete,
-    u32                                           segments_to_add_count,
-    Graph_Segment*                                segments_to_add,
+using Graph_Segments_To_Add = Fixed_Size_Slice<Graph_Segment>;
+
+using Segment_To_Delete        = std::tuple<Graph_Segment_ID, Graph_Segment*>;
+using Graph_Segments_To_Delete = Fixed_Size_Slice<Segment_To_Delete>;
+
+BF_FORCE_INLINE void Update_Segments(
+    Arena&                    trash_arena,
+    Game_State&               state,
+    Game_Map&                 game_map,
+    Graph_Segments_To_Add&    segments_to_add,
+    Graph_Segments_To_Delete& segments_to_delete,
     MCTX
 ) {
     CTX_ALLOCATOR;
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
     LOG_DEBUG("game_map.segments.count = {}", game_map.segments.count);
-    LOG_DEBUG("segments_to_delete_count = {}", segments_to_delete_count);
-    LOG_DEBUG("segments_to_add_count = {}", segments_to_add_count);
+    LOG_DEBUG("segments_to_add.count = {}", segments_to_add.count);
+    LOG_DEBUG("segments_to_delete.count = {}", segments_to_delete.count);
 
     TEMP_USAGE(trash_arena);
 
     auto& segments = game_map.segments;
 
-    global_last_segments_to_delete_count = segments_to_delete_count;
-    global_last_segments_to_add_count    = segments_to_add_count;
+    global_last_segments_to_add_count    = segments_to_add.count;
+    global_last_segments_to_delete_count = segments_to_delete.count;
 
     // NOTE: Подсчёт максимального количества чувачков, которые были бы без сегментов
     // (с учётом тех, которые уже не имеют сегмент).
@@ -2050,7 +2055,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
     using tttt
         = std::tuple<Graph_Segment_ID, Graph_Segment*, std::tuple<Human_ID, Human*>>;
     const i32 humans_wo_segment_max_count
-        = segments_to_delete_count + humans_moving_to_city_hall;
+        = segments_to_delete.count + humans_moving_to_city_hall;
 
     // NOTE: Настекиваем чувачков без сегментов (которые идут в ратушу).
     tttt* humans_wo_segment = nullptr;
@@ -2073,8 +2078,8 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     // NOTE: Удаление сегментов (отвязка от чувачков,
     // от других сегментов и высвобождение памяти).
-    FOR_RANGE (u32, i, segments_to_delete_count) {
-        auto [id, segment_ptr] = segments_to_delete[i];
+    FOR_RANGE (u32, i, segments_to_delete.count) {
+        auto [id, segment_ptr] = segments_to_delete.items[i];
         auto& segment          = *segment_ptr;
 
         // NOTE: Настекиваем чувачков без сегментов (сегменты которых удалили только что).
@@ -2123,17 +2128,17 @@ BF_FORCE_INLINE void Update_Segments_Function(
     using Added_Calculated_Segment_Type = std::tuple<Graph_Segment_ID, Graph_Segment*>;
     Added_Calculated_Segment_Type* added_calculated_segments = nullptr;
 
-    if (segments_to_add_count > 0) {
+    if (segments_to_add.count > 0) {
         added_calculated_segments = Allocate_Array(
-            trash_arena, Added_Calculated_Segment_Type, segments_to_add_count
+            trash_arena, Added_Calculated_Segment_Type, segments_to_add.count
         );
     }
 
-    FOR_RANGE (u32, i, segments_to_add_count) {
+    FOR_RANGE (u32, i, segments_to_add.count) {
         added_calculated_segments[i] = Add_And_Link_Segment(
             game_map.last_entity_id,
             game_map.segments,
-            segments_to_add[i],
+            segments_to_add.items[i],
             trash_arena,
             ctx
         );
@@ -2164,7 +2169,7 @@ BF_FORCE_INLINE void Update_Segments_Function(
 
     // NOTE: По возможности назначаем чувачков на новые сегменты.
     // Если нет чувачков - сохраняем сегменты как те, которым нужны чувачки.
-    FOR_RANGE (int, i, segments_to_add_count) {
+    FOR_RANGE (int, i, segments_to_add.count) {
         auto [id, segment_ptr] = added_calculated_segments[i];
 
         if (humans_wo_segment_count == 0) {
@@ -2192,8 +2197,7 @@ typedef std::tuple<Direction, v2i16> Dir_v2i16;
 void Update_Graphs(
     const v2i16                  gsize,
     const Element_Tile* const    element_tiles,
-    Graph_Segment* const         added_segments,
-    u32&                         added_segments_count,
+    Graph_Segments_To_Add&       added_segments,
     Fixed_Size_Queue<Dir_v2i16>& big_queue,
     Fixed_Size_Queue<Dir_v2i16>& queue,
     Arena&                       trash_arena,
@@ -2347,9 +2351,9 @@ void Update_Graphs(
         // NOTE: Adding a new segment.
         Assert(temp_graph.nodes_count > 0);
 
-        auto& segment          = *(added_segments + added_segments_count);
+        auto& segment          = added_segments.items[added_segments.count];
         segment.vertices_count = vertices_count;
-        added_segments_count++;
+        added_segments.count += 1;
 
         segment.vertices = (v2i16*)ALLOC(sizeof(v2i16) * vertices_count);
         memcpy(segment.vertices, vertices, sizeof(v2i16) * vertices_count);
@@ -2407,12 +2411,8 @@ void Build_Graph_Segments(
     Element_Tile*                                  element_tiles,
     Sparse_Array<Graph_Segment_ID, Graph_Segment>& segments,
     Arena&                                         trash_arena,
-    std::invocable<
-        u32,
-        std::tuple<Graph_Segment_ID, Graph_Segment*>*,
-        u32,
-        Graph_Segment*,
-        Context*> auto&& Update_Segments_Lambda,
+    std::invocable<Graph_Segments_To_Add&, Graph_Segments_To_Delete&, Context*> auto&&
+        Update_Segments_Lambda,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -2423,9 +2423,10 @@ void Build_Graph_Segments(
     auto tiles_count = gsize.x * gsize.y;
 
     // NOTE: Создание новых сегментов.
-    auto           segments_to_add_allocate = tiles_count * 4;
-    u32            segments_to_add_count    = 0;
-    Graph_Segment* segments_to_add
+    auto                  segments_to_add_allocate = tiles_count * 4;
+    Graph_Segments_To_Add segments_to_add{};
+    segments_to_add.max_count = segments_to_add_allocate;
+    segments_to_add.items
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, segments_to_add_allocate);
 
     v2i16 pos   = -v2i16_one;
@@ -2471,7 +2472,6 @@ void Build_Graph_Segments(
         gsize,
         element_tiles,
         segments_to_add,
-        segments_to_add_count,
         big_queue,
         queue,
         trash_arena,
@@ -2480,11 +2480,12 @@ void Build_Graph_Segments(
         ctx
     );
 
-    Update_Segments_Lambda(0, nullptr, segments_to_add_count, segments_to_add, ctx);
+    Graph_Segments_To_Delete no_segments_to_delete{};
+    Update_Segments_Lambda(segments_to_add, no_segments_to_delete, ctx);
 
-    FOR_RANGE (u32, i, segments_to_add_count) {
+    FOR_RANGE (u32, i, segments_to_add.count) {
         Add_And_Link_Segment(
-            last_entity_id, segments, segments_to_add[i], trash_arena, ctx
+            last_entity_id, segments, segments_to_add.items[i], trash_arena, ctx
         );
     }
 
@@ -2497,12 +2498,8 @@ std::tuple<int, int> Update_Tiles(
     Sparse_Array<Graph_Segment_ID, Graph_Segment>* segments,
     Arena&                                         trash_arena,
     const Updated_Tiles&                           updated_tiles,
-    std::invocable<
-        u32,
-        std::tuple<Graph_Segment_ID, Graph_Segment*>*,
-        u32,
-        Graph_Segment*,
-        Context*> auto&& Update_Segments_Lambda,
+    std::invocable<Graph_Segments_To_Add&, Graph_Segments_To_Delete&, Context*> auto&&
+        Update_Segments_Lambda,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -2519,29 +2516,23 @@ std::tuple<int, int> Update_Tiles(
     auto segments_to_delete_allocate = updated_tiles.count * 4;
     u32  segments_to_delete_count    = 0;
 
-    using Segment_To_Delete = std::tuple<Graph_Segment_ID, Graph_Segment*>;
-    auto segments_to_delete = Allocate_Zeros_Array(
+    Graph_Segments_To_Delete segments_to_delete{};
+    segments_to_delete.max_count = segments_to_delete_allocate;
+    segments_to_delete.items     = Allocate_Zeros_Array(
         trash_arena, Segment_To_Delete, segments_to_delete_allocate
     );
 
     for (auto [id, segment_ptr] : Iter(segments)) {
-        auto& segment = *segment_ptr;
-        if (!Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, segment))
-            continue;
-
-        Array_Push(
-            segments_to_delete,
-            segments_to_delete_count,
-            segments_to_delete_allocate,
-            Segment_To_Delete(id, segment_ptr)
-        );
+        if (Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, *segment_ptr))
+            segments_to_delete.Add_Unsafe(Segment_To_Delete(id, segment_ptr));
     };
 
     // NOTE: Создание новых сегментов.
-    auto           added_segments_allocate = updated_tiles.count * 4;
-    u32            segments_to_add_count   = 0;
-    Graph_Segment* segments_to_add
-        = Allocate_Zeros_Array(trash_arena, Graph_Segment, added_segments_allocate);
+    auto                  segments_to_add_allocate = updated_tiles.count * 4;
+    Graph_Segments_To_Add segments_to_add{};
+    segments_to_add.max_count = segments_to_add_allocate;
+    segments_to_add.items
+        = Allocate_Zeros_Array(trash_arena, Graph_Segment, segments_to_add_allocate);
 
     Fixed_Size_Queue<Dir_v2i16> big_queue = {};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
@@ -2660,7 +2651,6 @@ std::tuple<int, int> Update_Tiles(
         gsize,
         element_tiles,
         segments_to_add,
-        segments_to_add_count,
         big_queue,
         queue,
         trash_arena,
@@ -2669,13 +2659,7 @@ std::tuple<int, int> Update_Tiles(
         ctx
     );
 
-    Update_Segments_Lambda(
-        segments_to_delete_count,
-        segments_to_delete,
-        segments_to_add_count,
-        segments_to_add,
-        ctx
-    );
+    Update_Segments_Lambda(segments_to_add, segments_to_delete, ctx);
 
     SANITIZE;
 
@@ -2711,7 +2695,7 @@ std::tuple<int, int> Update_Tiles(
     }
 #endif  // ASSERT_SLOW
 
-    return {segments_to_add_count, segments_to_delete_count};
+    return {segments_to_add.count, segments_to_delete_count};
 }
 
 #define Declare_Updated_Tiles(variable_name_, pos_, type_) \
@@ -2721,34 +2705,30 @@ std::tuple<int, int> Update_Tiles(
     auto type__                   = (type_);               \
     (variable_name_).type         = &type__;
 
-#define INVOKE_UPDATE_TILES                                                             \
-    do {                                                                                \
-        Update_Tiles(                                                                   \
-            state.game_map.size,                                                        \
-            state.game_map.element_tiles,                                               \
-            &state.game_map.segments,                                                   \
-            trash_arena,                                                                \
-            updated_tiles,                                                              \
-            [&game_map, &trash_arena, &state](                                          \
-                u32                                           segments_to_delete_count, \
-                std::tuple<Graph_Segment_ID, Graph_Segment*>* segments_to_delete,       \
-                u32                                           segments_to_add_count,    \
-                Graph_Segment*                                segments_to_add,          \
-                MCTX                                                                    \
-            ) {                                                                         \
-                Update_Segments_Function(                                               \
-                    trash_arena,                                                        \
-                    state,                                                              \
-                    game_map,                                                           \
-                    segments_to_delete_count,                                           \
-                    segments_to_delete,                                                 \
-                    segments_to_add_count,                                              \
-                    segments_to_add,                                                    \
-                    ctx                                                                 \
-                );                                                                      \
-            },                                                                          \
-            ctx                                                                         \
-        );                                                                              \
+#define INVOKE_UPDATE_TILES                                   \
+    do {                                                      \
+        Update_Tiles(                                         \
+            state.game_map.size,                              \
+            state.game_map.element_tiles,                     \
+            &state.game_map.segments,                         \
+            trash_arena,                                      \
+            updated_tiles,                                    \
+            [&game_map, &trash_arena, &state](                \
+                Graph_Segments_To_Add&    segments_to_add,    \
+                Graph_Segments_To_Delete& segments_to_delete, \
+                MCTX                                          \
+            ) {                                               \
+                Update_Segments(                              \
+                    trash_arena,                              \
+                    state,                                    \
+                    game_map,                                 \
+                    segments_to_add,                          \
+                    segments_to_delete,                       \
+                    ctx                                       \
+                );                                            \
+            },                                                \
+            ctx                                               \
+        );                                                    \
     } while (0)
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
