@@ -2,11 +2,7 @@
 <project version="4">
   <component name="CLionExternalBuildManager">
     <target id="927b614d-6046-44d0-9d2a-0741ed6e6691" name="game.sln MSBuild" defaultType="TOOL">
-      <configuration id="e2aa824b-91f1-4c87-a74f-4af721733eb0" name="game.sln MSBuild" toolchainName="Visual Studio">
-        <build type="TOOL">
-          <tool actionId="Tool_External Tools_game.sln" />
-        </build>
-      </configuration>
+      <configuration id="e2aa824b-91f1-4c87-a74f-4af721733eb0" name="game.sln MSBuild" toolchainName="Visual Studio" />
     </target>
   </component>
 </project>

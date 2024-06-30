@@ -72,6 +72,7 @@ CMAKE_DEBUG_BUILD_DIR = Path(".cmake") / "vs17" / "Debug"
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
 FLATC_PATH = CMD_DIR / "flatc.exe"
+MSBUILD_PATH = r'c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe'
 
 
 # ======================================== #
@@ -361,7 +362,7 @@ def hashify_texture_with_check(
 #          Индивидуальные задачи           #
 # ======================================== #
 def do_build() -> None:
-    run_command(r"MSBuild .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3")
+    run_command(rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3')
 
 
 def do_generate() -> None:
