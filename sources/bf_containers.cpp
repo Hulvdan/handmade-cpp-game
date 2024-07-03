@@ -1166,7 +1166,7 @@ struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
     T* Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
-        return _container->base + _current * sizeof(T);
+        return _container->base + _current;
     }
 
     void Increment() {

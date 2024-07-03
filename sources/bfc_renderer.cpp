@@ -536,14 +536,15 @@ void main() {
     rstate.tilemaps_count += 2;
 
     rstate.tilemaps
-        = Allocate_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
+        = Allocate_Zeros_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
     // Проставление текстур тайлов в tilemap-е terrain-а.
     FOR_RANGE (i32, h, rstate.tilemaps_count) {
         auto& tilemap     = *(rstate.tilemaps + h);
         auto  tiles_count = gsize.x * gsize.y;
-        tilemap.tiles     = Allocate_Array(non_persistent_arena, Tile_ID, tiles_count);
-        tilemap.textures  = Allocate_Array(non_persistent_arena, Texture_ID, tiles_count);
+        tilemap.tiles = Allocate_Zeros_Array(non_persistent_arena, Tile_ID, tiles_count);
+        tilemap.textures
+            = Allocate_Zeros_Array(non_persistent_arena, Texture_ID, tiles_count);
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
@@ -586,7 +587,8 @@ void main() {
             if (!forest)
                 continue;
 
-            tile = rstate.forest_smart_tile.id;
+            tile                                         = rstate.forest_smart_tile.id;
+            resources_tilemap.textures[y * gsize.x + x] = rstate.forest_textures[1];
 
             bool forest_above = false;
             if (!is_last_row) {
@@ -594,8 +596,11 @@ void main() {
                 forest_above     = tile_above == rstate.forest_smart_tile.id;
             }
 
-            if (!forest_above)
+            if (!forest_above) {
                 resources_tilemap2.tiles[y * gsize.x + x] = rstate.forest_top_tile_id;
+                resources_tilemap2.textures[y * gsize.x + x] = rstate.forest_textures[0];
+            }
+
         }
     }
 
@@ -611,6 +616,7 @@ void main() {
                 = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
             auto& tile_id = element_tilemap.tiles[y * gsize.x + x];
             tile_id       = global_road_starting_tile_id + tex;
+            element_tilemap.textures[y * gsize.x + x] = rstate.road_textures[tex];
         }
     }
     // --- Element Tiles End ---
@@ -950,6 +956,7 @@ v2f Query_Texture_Pos_Inside_Atlas(
     i16      y
 ) {
     auto id = tilemap.textures[y * gsize_width + x];
+    Assert(id != Texture_ID_Missing);
 
     for (auto texture_ptr : Iter(&atlas.textures)) {
         auto& texture = *texture_ptr;
@@ -1105,8 +1112,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
         if (index_b > index_u)
             std::swap(index_b, index_u);
 
-        int w = index_r - index_l + 1;
-        int h = index_u - index_b + 1;
+        int w = MIN(gsize.x, index_r - index_l + 1);
+        int h = MIN(gsize.y, index_u - index_b + 1);
 
         int visible_tiles_count = w * h;
 
@@ -1131,20 +1138,28 @@ void Render(Game_State& state, f32 dt, MCTX) {
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
 
-            const auto stride = index_r - index_l + 1;
-            FOR_RANGE (int, y, index_u - index_b + 1) {
-                FOR_RANGE (int, x, index_r - index_l + 1) {
+            const auto stride = w;
+            FOR_RANGE (int, y, h) {
+                FOR_RANGE (int, x, w) {
                     auto t = y * stride + x;
-
-                    auto pos = Query_Texture_Pos_Inside_Atlas(
-                        rstate.atlas, gsize.x, tilemap, x, y
-                    );
+                    Assert(t >= 0);
+                    Assert(t < gsize.x * gsize.y);
 
                     auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2];
                     auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2 + 1];
 
-                    px = pos.x;
-                    py = pos.y;
+                    auto tile = tilemap.tiles[y * gsize.x + x];
+                    if (tile) {
+                        auto pos = Query_Texture_Pos_Inside_Atlas(
+                            rstate.atlas, gsize.x, tilemap, x, y
+                        );
+                        px = pos.x;
+                        py = pos.y;
+                    }
+                    else {
+                        px = -1;
+                        py = -1;
+                    }
                 }
             }
         }
@@ -1183,8 +1198,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 if (tile.height < h)
                     continue;
 
-                // TODO: Spritesheets! Vertices array,
-                // texture vertices array, indices array
                 auto texture_id = Test_Smart_Tile(
                     tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
                 );
