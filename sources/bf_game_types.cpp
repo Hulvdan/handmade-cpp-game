@@ -731,6 +731,9 @@ struct Game_Renderer_State : public Non_Copyable {
     v2i atlas_size;  // количество тайлов в ширину и в высоту
     Atlas atlas;
 
+    int visible_area_rect_uniform_location;
+    int rendering_indices_uniform_location;
+
     int      tilemaps_count;
     Tilemap* tilemaps;
 
