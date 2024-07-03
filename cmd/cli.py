@@ -27,7 +27,7 @@ from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
 from time import time
-from typing import Any, Callable, NoReturn, TypeVar
+from typing import Any, NoReturn, TypeVar
 
 import pyjson5 as json
 import typer
@@ -39,21 +39,21 @@ global_timing_manager_instance = None
 
 
 # При вызове exit отображаем затраченное время.
-old_exit = exit
+old_exit = exit  # noqa
 
 
 def timed_exit(code: int) -> NoReturn:
     global global_timing_manager_instance
     if global_timing_manager_instance is not None:
-        global_timing_manager_instance.__exit__(None, None, None)
+        global_timing_manager_instance.__exit__(None, None, None)  # noqa
         console_handler.flush()
 
     old_exit(code)
 
 
 def hook_exit():
-    global exit
-    exit = timed_exit
+    global exit  # noqa
+    exit = timed_exit  # noqa
 
 
 app = typer.Typer(callback=hook_exit, result_callback=timed_exit)
@@ -72,7 +72,7 @@ CMAKE_DEBUG_BUILD_DIR = Path(".cmake") / "vs17" / "Debug"
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
 FLATC_PATH = CMD_DIR / "flatc.exe"
-MSBUILD_PATH = r'c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe'
+MSBUILD_PATH = r"c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe"
 
 
 # ======================================== #
@@ -85,6 +85,7 @@ class CustomLoggingFormatter(logging.Formatter):
     _red = "\x1b[31;20m"
     _bold_red = "\x1b[31;1m"
 
+    @staticmethod
     def _get_format(color: str | None) -> str:
         reset = "\x1b[0m"
         if color is None:
@@ -124,7 +125,7 @@ log.addHandler(console_handler)
 # ======================================== #
 def better_json_dump(data, path):
     with open(path, "wb") as out_file:
-        json.dump(data, out_file, indent="\t", ensure_ascii=False)
+        json.dump(data, out_file, indent="\t", ensure_ascii=False)  # noqa
 
 
 def replace_double_spaces(string: str) -> str:
@@ -171,7 +172,7 @@ def assert_contains(value: T, container) -> T:
 # ======================================== #
 #  Всякая хрень для индивидуальных задач   #
 # ======================================== #
-def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
+def listfiles_with_hashes_in_dir(path: str | Path) -> dict[str, int]:
     files = glob.glob(str(Path(path) / "**" / "*"), recursive=True, include_hidden=True)
 
     res = {}
@@ -183,7 +184,7 @@ def listfiles_with_hashes_in_dir(path: Path) -> dict[str, int]:
     return res
 
 
-def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> str | None:
+def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> None:
     # Загрузка json
     with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
         data = json.load(in_file)
@@ -362,7 +363,9 @@ def hashify_texture_with_check(
 #          Индивидуальные задачи           #
 # ======================================== #
 def do_build() -> None:
-    run_command(rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3')
+    run_command(
+        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3'
+    )
 
 
 def do_generate() -> None:
@@ -377,11 +380,6 @@ def do_generate() -> None:
     # NOTE: Мудацкий костыль, чтобы MSBuild не ребилдился каждый раз.
     with tempfile.TemporaryDirectory() as td:
         run_command([FLATC_PATH, "-o", td, "--cpp", *flatbuffer_files])
-
-        generated_file_paths = [
-            SOURCES_DIR / "generated" / (file.stem + "_generated.h")
-            for file in map(Path, flatbuffer_files)
-        ]
 
         for file, file_hash in listfiles_with_hashes_in_dir(td).items():
             if file_hash != hashes_for_msbuild.get(file):
