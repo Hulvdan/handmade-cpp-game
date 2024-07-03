@@ -732,7 +732,6 @@ struct Game_Renderer_State : public Non_Copyable {
     Atlas atlas;
 
     int visible_area_rect_uniform_location;
-    int rendering_indices_uniform_location;
 
     int      tilemaps_count;
     Tilemap* tilemaps;
