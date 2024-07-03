@@ -1186,11 +1186,11 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         glUniform4f(rstate.visible_area_rect_uniform_location, p1.x, p1.y, p2.x, p2.y);
 
+        // NOTE: Tilemap's fragment shader's SSBO of tile texture bottom left positions.
         GLuint ssbo;
         glGenBuffers(1, &ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
-        // Set the data for the SSBO
         glBufferData(
             GL_SHADER_STORAGE_BUFFER,
             visible_tiles_count * bytes_per_tile,
@@ -1198,7 +1198,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
             GL_DYNAMIC_DRAW
         );
 
-        // Bind the SSBO to binding point 0
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
         Check_OpenGL_Errors();
