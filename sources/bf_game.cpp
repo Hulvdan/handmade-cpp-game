@@ -531,8 +531,18 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         //     );
         // }
 
-        Init_Game_Map(state, non_persistent_arena, ctx);
-        Init_Renderer(state, arena, non_persistent_arena, trash_arena, ctx);
+        Init_Game_Map(
+            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
+        );
+        Init_Renderer(
+            first_time_initializing,
+            state.hot_reloaded,
+            state,
+            arena,
+            non_persistent_arena,
+            trash_arena,
+            ctx
+        );
 
         Regenerate_Terrain_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
@@ -548,8 +558,18 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.On_Item_Built, callbacks, non_persistent_arena
         );
 
-        Post_Init_Game_Map(state, non_persistent_arena, ctx);
-        Post_Init_Renderer(state, arena, non_persistent_arena, trash_arena, ctx);
+        Post_Init_Game_Map(
+            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
+        );
+        Post_Init_Renderer(
+            first_time_initializing,
+            state.hot_reloaded,
+            state,
+            arena,
+            non_persistent_arena,
+            trash_arena,
+            ctx
+        );
 
         memory.is_initialized = true;
     }

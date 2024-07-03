@@ -95,7 +95,7 @@ Game_Update_And_Render__Function(Game_Update_And_Render_Stub) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
 void Load_Or_Update_Game_Dll() {
-    auto path = "bf_game.dll";
+    auto path = R"(.cmake\vs17\Debug\bf_game.dll)";
 
 #if BF_INTERNAL
     auto filetime = Peek_Filetime(path);

@@ -43,7 +43,7 @@ Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* data) {
     }
 
     auto dib_size = header.dib_header_size;
-    if (dib_size != 125 && dib_size != 56) {
+    if (dib_size != 125 && dib_size != 56 && dib_size != 40) {
         // TODO: Is not yet implemented algorithm
         INVALID_PATH;
         return res;
@@ -306,6 +306,8 @@ void Create_Shader_Program(
 }
 
 void Init_Renderer(
+    bool        first_time_initializing,
+    bool        hot_reloaded,
     Game_State& state,
     Arena&      arena,
     Arena&      non_persistent_arena,
@@ -313,9 +315,6 @@ void Init_Renderer(
     MCTX
 ) {
     CTX_ALLOCATOR;
-
-    auto hot_reloaded            = state.hot_reloaded;
-    auto first_time_initializing = state.renderer_state == nullptr;
 
     if (!first_time_initializing && !hot_reloaded)
         return;
@@ -335,6 +334,8 @@ void Init_Renderer(
 }
 
 void Post_Init_Renderer(
+    bool        first_time_initializing,
+    bool        hot_reloaded,
     Game_State& state,
     Arena&      arena,
     Arena&      non_persistent_arena,
@@ -342,9 +343,6 @@ void Post_Init_Renderer(
     MCTX
 ) {
     CTX_ALLOCATOR;
-
-    auto hot_reloaded            = state.hot_reloaded;
-    auto first_time_initializing = state.renderer_state == nullptr;
 
     if (!first_time_initializing && !hot_reloaded)
         return;
@@ -842,10 +840,10 @@ void Draw_Stretchable_Sprite(
     auto& pad_h = sprite_params.stretch_paddings_h;
     auto& pad_v = sprite_params.stretch_paddings_v;
 
-    f32 x1 = (f32)pad_h.x / texture.size.x;
-    f32 x2 = (f32)pad_h.y / texture.size.x;
-    f32 y1 = (f32)pad_v.x / texture.size.y;
-    f32 y2 = (f32)pad_v.y / texture.size.y;
+    f32 x1 = (f32)pad_h.x / (f32)texture.size.x;
+    f32 x2 = (f32)pad_h.y / (f32)texture.size.x;
+    f32 y1 = (f32)pad_v.x / (f32)texture.size.y;
+    f32 y2 = (f32)pad_v.y / (f32)texture.size.y;
     Assert(y1 * in_scale + y2 * in_scale <= 1);
     Assert(x1 * in_scale + x2 * in_scale <= 1);
 
@@ -854,10 +852,14 @@ void Draw_Stretchable_Sprite(
     auto dx  = x3 - x0;
     auto dy  = y3 - y0;
     auto dp1 = v3f(
-        pad_h.x * in_scale * dx / panel_size.x, pad_v.x * in_scale * dy / panel_size.y, 0
+        (f32)pad_h.x * in_scale * dx / (f32)panel_size.x,
+        (f32)pad_v.x * in_scale * dy / (f32)panel_size.y,
+        0
     );
     auto dp2 = v3f(
-        pad_h.y * in_scale * dx / panel_size.x, pad_v.y * in_scale * dy / panel_size.y, 0
+        (f32)pad_h.y * in_scale * dx / (f32)panel_size.x,
+        (f32)pad_v.y * in_scale * dy / (f32)panel_size.y,
+        0
     );
     v3f p1 = p0 + dp1;
     v3f p2 = p3 - dp2;

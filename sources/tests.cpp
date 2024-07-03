@@ -371,43 +371,46 @@ int Process_Segments(
         ctx                                  \
     );
 
-#define Update_Tiles_Macro(updated_tiles)                                        \
-    REQUIRE(segments != nullptr);                                                \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles(          \
-        gsize,                                                                   \
-        element_tiles,                                                           \
-        segments,                                                                \
-        trash_arena,                                                             \
-        (updated_tiles),                                                         \
-        [&segments, &trash_arena, &last_entity_id](                              \
-            Graph_Segments_To_Add&    segments_to_add,                           \
-            Graph_Segments_To_Delete& segments_to_delete,                        \
-            MCTX                                                                 \
-        ) {                                                                      \
-            CTX_ALLOCATOR;                                                       \
-                                                                                 \
-            FOR_RANGE (u32, i, segments_to_delete.count) {                       \
-                auto [id, segment_ptr] = segments_to_delete.items[i];            \
-                auto& segment          = *segment_ptr;                           \
-                                                                                 \
-                FREE(segment.vertices, segment.vertices_count);                  \
-                FREE(segment.graph.nodes, segment.graph.nodes_allocation_count); \
-                segments->Unstable_Remove(id);                                   \
-            }                                                                    \
-                                                                                 \
-            FOR_RANGE (u32, i, segments_to_add.count) {                          \
-                Add_And_Link_Segment(                                            \
-                    last_entity_id,                                              \
-                    *segments,                                                   \
-                    segments_to_add.items[i],                                    \
-                    trash_arena,                                                 \
-                    ctx                                                          \
-                );                                                               \
-            }                                                                    \
-                                                                                 \
-            SANITIZE;                                                            \
-        },                                                                       \
-        ctx                                                                      \
+#define Update_Tiles_Macro(updated_tiles)                                       \
+    REQUIRE(segments != nullptr);                                               \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(         \
+        gsize,                                                                  \
+        element_tiles,                                                          \
+        segments,                                                               \
+        trash_arena,                                                            \
+        (updated_tiles),                                                        \
+        [&segments, &trash_arena, &last_entity_id](                             \
+            Graph_Segments_To_Add&    segments_to_add,                          \
+            Graph_Segments_To_Delete& segments_to_delete,                       \
+            MCTX                                                                \
+        ) {                                                                     \
+            CTX_ALLOCATOR;                                                      \
+                                                                                \
+            FOR_RANGE (u32, i, segments_to_delete.count) {                      \
+                auto [id, segment_ptr] = segments_to_delete.items[i];           \
+                auto& segment          = *segment_ptr;                          \
+                                                                                \
+                FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count); \
+                FREE(                                                           \
+                    segment.graph.nodes,                                        \
+                    sizeof(u8) * segment.graph.nodes_allocation_count           \
+                );                                                              \
+                segments->Unstable_Remove(id);                                  \
+            }                                                                   \
+                                                                                \
+            FOR_RANGE (u32, i, segments_to_add.count) {                         \
+                Add_And_Link_Segment(                                           \
+                    last_entity_id,                                             \
+                    *segments,                                                  \
+                    segments_to_add.items[i],                                   \
+                    trash_arena,                                                \
+                    ctx                                                         \
+                );                                                              \
+            }                                                                   \
+                                                                                \
+            SANITIZE;                                                           \
+        },                                                                      \
+        ctx                                                                     \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \

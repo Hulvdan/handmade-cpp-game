@@ -210,11 +210,11 @@ void Deinit_Bucket_Array(Bucket_Array<T>& container, MCTX) {
     ) {
         auto& bucket = *bucket_ptr;
         FREE((u8*)bucket.occupied, container.items_per_bucket / 8);
-        FREE((T*)bucket.data, container.items_per_bucket);
+        FREE((T*)bucket.data, sizeof(T) * container.items_per_bucket);
     }
 
-    FREE(container.buckets, container.buckets_count);
-    FREE(container.unfull_buckets, container.buckets_count);
+    FREE(container.buckets, sizeof(Bucket<T>) * container.buckets_count);
+    FREE(container.unfull_buckets, sizeof(Bucket<T>) * container.buckets_count);
 }
 
 template <typename T>
@@ -243,7 +243,7 @@ void Deinit_Queue(Queue<T>& container, MCTX) {
 
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
-        FREE(container.base, container.max_count);
+        FREE(container.base, sizeof(T) * container.max_count);
         container.base = nullptr;
     }
 
@@ -257,7 +257,7 @@ void Deinit_Sparse_Array(Sparse_Array_Of_Ids<T>& container, MCTX) {
 
     if (container.ids != nullptr) {
         Assert(container.max_count != 0);
-        FREE(container.ids, container.max_count * sizeof(T));
+        FREE(container.ids, sizeof(T) * container.max_count);
     }
 
     container.count     = 0;
@@ -276,8 +276,8 @@ void Deinit_Sparse_Array(Sparse_Array<T, U>& container, MCTX) {
         Assert(container.max_count != 0);
         Assert(container.ids != nullptr);
 
-        FREE(container.ids, container.max_count * sizeof(T));
-        FREE(container.base, container.max_count * sizeof(U));
+        FREE(container.ids, sizeof(T) * container.max_count);
+        FREE(container.base, sizeof(U) * container.max_count);
     }
     container.count     = 0;
     container.max_count = 0;
@@ -289,7 +289,7 @@ void Deinit_Vector(Vector<T>& container, MCTX) {
 
     if (container.base != nullptr) {
         Assert(container.max_count > 0);
-        FREE(container.base, container.max_count);
+        FREE(container.base, sizeof(T) * container.max_count);
         container.base = nullptr;
     }
     container.count     = 0;
@@ -340,7 +340,7 @@ void Place_Building(
     b.pos        = pos;
     b.scriptable = scriptable_building;
 
-    game_map.buildings.Add(bid, std::move(b), ctx);
+    game_map.buildings.Add(bid, b, ctx);
 
     C_Sprite sprite = {};
     sprite.anchor   = {0.5f, 0};
@@ -349,7 +349,7 @@ void Place_Building(
     if (built) {
         Assert(scriptable_building->type == Building_Type::City_Hall);
 
-        City_Hall c;
+        City_Hall c{};
         c.time_since_human_was_created = f32_inf;
         game_map.city_halls.Add(bid, c, ctx);
 
@@ -610,8 +610,6 @@ struct Human_Moving_In_The_World_Controller {
 
                 Assert(data.trash_arena != nullptr);
 
-                auto& game_map = *data.game_map;
-
                 auto [success, path, path_count] = Find_Path(
                     *data.trash_arena,
                     game_map.size,
@@ -644,7 +642,6 @@ struct Human_Moving_In_The_World_Controller {
 
             if (old_building_id != human.building_id) {
                 Assert(data.trash_arena != nullptr);
-                auto& game_map = *data.game_map;
 
                 TEMP_USAGE(*data.trash_arena);
                 auto [success, path, path_count] = Find_Path(
@@ -1408,7 +1405,13 @@ void Add_Map_Resource(
     auto resource_ptr = game_map.resources.Add(id, std::move(resource), ctx);
 }
 
-void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
+void Init_Game_Map(
+    bool        first_time_initializing,
+    bool        hot_reloaded,
+    Game_State& state,
+    Arena&      arena,
+    MCTX
+) {
     auto& game_map = state.game_map;
 
     game_map.last_entity_id = 0;
@@ -1439,7 +1442,13 @@ void Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
     Init_Vector(game_map.resources_booking_queue, ctx);
 }
 
-void Post_Init_Game_Map(Game_State& state, Arena& arena, MCTX) {
+void Post_Init_Game_Map(
+    bool        first_time_initializing,
+    bool        hot_reloaded,
+    Game_State& state,
+    Arena&      arena,
+    MCTX
+) {
     bool built = true;
     Place_Building(state, {2, 2}, state.scriptable_buildings + 0, built, ctx);
 
@@ -1455,8 +1464,8 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
     for (auto [id, segment_ptr] : Iter(&game_map.segments)) {
         auto& segment = *segment_ptr;
 
-        FREE(segment.vertices, segment.vertices_count);
-        FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
+        FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
+        FREE(segment.graph.nodes, sizeof(u8) * segment.graph.nodes_allocation_count);
 
         segment.linked_segments.Reset();
         Deinit_Queue(segment.resources_to_transport, ctx);
@@ -1472,8 +1481,8 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
         data.pos_2_node_index.clear();
 
         auto n = segment.graph.nodes_count;
-        FREE(data.dist, n * n);
-        FREE(data.prev, n * n);
+        FREE(data.dist, sizeof(i16) * n * n);
+        FREE(data.prev, sizeof(i16) * n * n);
     }
 
     Deinit_Sparse_Array(game_map.segments, ctx);
@@ -2120,8 +2129,8 @@ BF_FORCE_INLINE void Update_Segments(
         // NOTE: Уничтожаем сегмент.
         segments.Unstable_Remove(id);
 
-        FREE(segment.vertices, segment.vertices_count);
-        FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
+        FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
+        FREE(segment.graph.nodes, sizeof(u8) * segment.graph.nodes_allocation_count);
     }
 
     // NOTE: Вносим созданные сегменты. Если будут свободные чувачки - назначим им.

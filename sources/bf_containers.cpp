@@ -137,8 +137,8 @@ struct Queue {
             Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
             auto new_base = (T*)ALLOC(sizeof(T) * new_max_count);
-            memcpy(new_base, base, max_count * sizeof(T));
-            FREE(base, max_count);
+            memcpy(new_base, base, sizeof(T) * max_count);
+            FREE(base, sizeof(T) * max_count);
 
             base      = new_base;
             max_count = new_max_count;
@@ -165,7 +165,7 @@ struct Queue {
 
             auto new_base = (T*)ALLOC(sizeof(T) * new_max_count);
             memcpy(new_base, base, sizeof(T) * count);
-            FREE(base, max_count);
+            FREE(base, sizeof(T) * max_count);
 
             base      = new_base;
             max_count = new_max_count;
@@ -270,7 +270,7 @@ struct Vector {
 
             base = rcast<T*>(ALLOC(old_size * 2));
             memcpy(base, old_ptr, old_size);
-            FREE(old_ptr, max_count);
+            FREE(old_ptr, sizeof(T) * max_count);
 
             max_count = new_max_count;
         }
@@ -302,7 +302,7 @@ struct Vector {
 
             base = rcast<T*>(ALLOC(old_size * 2));
             memcpy(base, old_ptr, old_size);
-            FREE(old_ptr, max_count);
+            FREE(old_ptr, sizeof(T) * max_count);
 
             max_count = new_max_count;
         }
