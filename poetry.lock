@@ -70,6 +70,16 @@ files = [
 ]
 
 [[package]]
+name = "fnvhash"
+version = "0.1.0"
+description = "Pure Python FNV hash implementation"
+optional = false
+python-versions = "*"
+files = [
+    {file = "fnvhash-0.1.0.tar.gz", hash = "sha256:3e82d505054f9f3987b2b5b649f7e7b6f48349f6af8a1b8e4d66779699c85a8e"},
+]
+
+[[package]]
 name = "isort"
 version = "5.13.2"
 description = "A Python utility / library to sort Python imports."
@@ -462,4 +472,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "546d59fa9d19853a3a051ce39ee69036d5b03071665c4e577da1cdd352dfa98a"
+content-hash = "a0e3d9c5a6f5d6899674c15035a03a71f0c4bf3323270780f8a6a54fddea8112"

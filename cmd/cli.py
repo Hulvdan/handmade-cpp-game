@@ -29,6 +29,7 @@ from pathlib import Path
 from time import time
 from typing import Any, NoReturn, TypeVar
 
+import fnvhash
 import pyjson5 as json
 import typer
 from PIL import Image
@@ -157,8 +158,7 @@ def run_command(cmd: list[str] | str) -> None:
 
 
 def hash32(value: str) -> int:
-    sha = hashlib.sha256(value.encode(encoding="ascii"))
-    return int(sha.hexdigest()[:8], 16)
+    return fnvhash.fnv1a_32(value.encode(encoding="ascii"))
 
 
 def assert_contains(value: T, container) -> T:
@@ -584,4 +584,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # assert hash32("") == 2166136261, hash32("")
+    value = hash32("test")
+    assert value == 0xAFD071E5, value
+    # Hash32((u8*)"test", 5) -> 2854439807
+    # assert value == 2854439807, value
     main()

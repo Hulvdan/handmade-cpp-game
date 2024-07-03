@@ -29,7 +29,9 @@ const Human_Constructor_ID Human_Constructor_ID_Missing = Entity_ID_Missing;
 using Building_ID                     = Entity_ID;
 const Building_ID Building_ID_Missing = Entity_ID_Missing;
 
-using Texture_ID = i16;
+using Texture_ID                        = i16;
+constexpr Texture_ID Texture_ID_Missing = std::numeric_limits<Texture_ID>::max();
+// constexpr Texture_ID Texture_ID_Missing = 0;
 
 // TODO: Куда-то перенести эту функцию
 template <>

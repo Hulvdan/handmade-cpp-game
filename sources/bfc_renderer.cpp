@@ -557,9 +557,16 @@ void main() {
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
-                tilemap.textures[y * gsize.x + x] = Test_Smart_Tile(
-                    tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
-                );
+                Texture_ID id;
+
+                if (tilemap.tiles[y * gsize.x + x])
+                    id = Test_Smart_Tile(
+                        tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
+                    );
+                else
+                    id = Texture_ID_Missing;
+
+                tilemap.textures[y * gsize.x + x] = id;
             }
         }
     }
@@ -1129,12 +1136,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 FOR_RANGE (int, x, index_r - index_l + 1) {
                     auto t = y * stride + x;
 
-                    auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2];
-                    auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2 + 1];
-
                     auto pos = Query_Texture_Pos_Inside_Atlas(
                         rstate.atlas, gsize.x, tilemap, x, y
                     );
+
+                    auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2];
+                    auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2 + 1];
 
                     px = pos.x;
                     py = pos.y;

@@ -90,11 +90,11 @@ void Free_Allocations() {
 //                             Tests                             //
 // ============================================================= //
 TEST_CASE ("Hash32, EmptyIsCorrect") {
-    CHECK(Hash32((u8*)"", 0) == 2166136261);
+    CHECK(Hash32((u8*)"", 0) == EMPTY_HASH32);
 }
 
 TEST_CASE ("Hash32, TestValue") {
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+    CHECK(Hash32((u8*)"test", 4) == 0xafd071e5);
 }
 
 TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
