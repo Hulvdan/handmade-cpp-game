@@ -587,7 +587,7 @@ void main() {
             if (!forest)
                 continue;
 
-            tile                                         = rstate.forest_smart_tile.id;
+            tile                                        = rstate.forest_smart_tile.id;
             resources_tilemap.textures[y * gsize.x + x] = rstate.forest_textures[1];
 
             bool forest_above = false;
@@ -597,10 +597,9 @@ void main() {
             }
 
             if (!forest_above) {
-                resources_tilemap2.tiles[y * gsize.x + x] = rstate.forest_top_tile_id;
+                resources_tilemap2.tiles[y * gsize.x + x]    = rstate.forest_top_tile_id;
                 resources_tilemap2.textures[y * gsize.x + x] = rstate.forest_textures[0];
             }
-
         }
     }
 
@@ -1133,20 +1132,15 @@ void Render(Game_State& state, f32 dt, MCTX) {
             rstate.rendering_indices_buffer_size = required_memory;
         }
 
-        memset(rstate.rendering_indices_buffer, 0, rstate.rendering_indices_buffer_size);
-
+        size_t t = 0;
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
 
             const auto stride = w;
             FOR_RANGE (int, y, h) {
                 FOR_RANGE (int, x, w) {
-                    auto t = y * stride + x;
-                    Assert(t >= 0);
-                    Assert(t < gsize.x * gsize.y);
-
-                    auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2];
-                    auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t * 2 + 1];
+                    auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t];
+                    auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t + 1];
 
                     auto tile = tilemap.tiles[y * gsize.x + x];
                     if (tile) {
@@ -1160,155 +1154,20 @@ void Render(Game_State& state, f32 dt, MCTX) {
                         px = -1;
                         py = -1;
                     }
+
+                    t += 2;
                 }
             }
         }
-
-        // C_Texture& Query_Texture(rstate, )
 
         glUniform2fv(
             1,
             visible_tiles_count * bytes_per_tile,
             (GLfloat*)rstate.rendering_indices_buffer
         );
+
+        Check_OpenGL_Errors();
     }
-
-    // for (auto [sprite_id, sprite] : Iter(&rstate.sprites)) {
-    //     auto              tilemap_sprite_exists = (Sprite_ID)0;
-    //     C_Tilemap_Sprite* tilemap_sprite        = nullptr;
-    //
-    //     for (auto [tilemap_sprite_id] : Iter(&rstate.tilemap_sprites)) {
-    //         if (tilemap_sprite_id == sprite_id) {
-    //             // TODO
-    //             break;
-    //         }
-    //     }
-    // }
-
-    // NOTE: Рисование поверхности (травы).
-    FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
-        auto& tilemap = *(rstate.tilemaps + h);
-
-        FOR_RANGE (int, y, gsize.y) {
-            FOR_RANGE (int, x, gsize.x) {
-                auto& tile = Get_Terrain_Tile(game_map, {x, y});
-                if (tile.terrain != Terrain::Grass)
-                    continue;
-
-                if (tile.height < h)
-                    continue;
-
-                auto texture_id = Test_Smart_Tile(
-                    tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
-                );
-
-                glBindTexture(GL_TEXTURE_2D, texture_id);
-
-                auto sprite_pos  = v2i(x, y) * cell_size;
-                auto sprite_size = v2i(1, 1) * cell_size;
-
-                glBegin(GL_TRIANGLES);
-                Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-                glEnd();
-            }
-        }
-    }
-
-    // --- Drawing Resoures ---
-    // NOTE: Рисование деревьев.
-    auto& resources_tilemap = *(rstate.tilemaps + rstate.resources_tilemap_index);
-    FOR_RANGE (int, y, gsize.y) {
-        FOR_RANGE (int, x, gsize.x) {
-            auto& tile = resources_tilemap.tiles[y * gsize.x + x];
-            if (tile == 0)
-                continue;
-
-            if (tile == rstate.forest_smart_tile.id) {
-                auto texture_id = Test_Smart_Tile(
-                    resources_tilemap, game_map.size, {x, y}, rstate.forest_smart_tile
-                );
-
-                glBindTexture(GL_TEXTURE_2D, texture_id);
-
-                auto sprite_pos  = v2i(x, y) * cell_size;
-                auto sprite_size = v2i(1, 1) * cell_size;
-
-                glBegin(GL_TRIANGLES);
-                Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-                glEnd();
-            }
-            else
-                INVALID_PATH;
-        }
-    }
-
-    auto& resources_tilemap2 = *(rstate.tilemaps + rstate.resources_tilemap_index + 1);
-    FOR_RANGE (int, y, gsize.y) {
-        FOR_RANGE (int, x, gsize.x) {
-            auto& tile = resources_tilemap2.tiles[y * gsize.x + x];
-            if (tile == 0)
-                continue;
-
-            if (tile == rstate.forest_top_tile_id) {
-                glBindTexture(GL_TEXTURE_2D, rstate.forest_textures[0]);
-
-                auto sprite_pos  = v2i(x, y + 1) * cell_size;
-                auto sprite_size = v2i(1, 1) * cell_size;
-
-                glBegin(GL_TRIANGLES);
-                Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-                glEnd();
-            }
-            else
-                INVALID_PATH;
-        }
-    }
-    // --- Drawing Resoures End ---
-
-    // --- Drawing Element Tiles ---
-    // NOTE: Рисование дорог.
-    auto& element_tilemap   = *(rstate.tilemaps + rstate.element_tilemap_index);
-    auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
-    FOR_RANGE (int, y, gsize.y) {
-        FOR_RANGE (int, x, gsize.x) {
-            auto& tile = element_tilemap.tiles[y * gsize.x + x];
-            if (tile < global_road_starting_tile_id)
-                continue;
-
-            auto road_texture_offset = tile - global_road_starting_tile_id;
-            Assert(road_texture_offset >= 0);
-
-            auto tex_id = rstate.road_textures[road_texture_offset];
-            glBindTexture(GL_TEXTURE_2D, tex_id);
-
-            auto sprite_pos  = v2i(x, y) * cell_size;
-            auto sprite_size = v2i(1, 1) * cell_size;
-
-            glBegin(GL_TRIANGLES);
-            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-            glEnd();
-        }
-    }
-
-    // NOTE: Рисование флагов.
-    FOR_RANGE (int, y, gsize.y) {
-        FOR_RANGE (int, x, gsize.x) {
-            auto& tile = element_tilemap_2.tiles[y * gsize.x + x];
-            if (tile < global_flag_starting_tile_id)
-                continue;
-
-            auto tex_id = rstate.flag_textures[tile - global_flag_starting_tile_id];
-            glBindTexture(GL_TEXTURE_2D, tex_id);
-
-            auto sprite_pos  = v2i(x, y) * cell_size;
-            auto sprite_size = v2i(1, 1) * cell_size;
-
-            glBegin(GL_TRIANGLES);
-            Draw_Sprite(0, 0, 1, 1, sprite_pos, sprite_size, 0, projection);
-            glEnd();
-        }
-    }
-    // --- Drawing Element Tiles End ---
 
     // NOTE: Рисование спрайтов.
     Memory_Buffer vertices{ctx};
