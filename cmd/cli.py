@@ -395,7 +395,7 @@ def find_and_test_shaders(
     failed = False
 
     found_index = text.find(prefix_text)
-    line_number = sum(i == "\n" for i in text[:found_index])
+    line_number = text[:found_index].count("\n")
 
     while found_index != -1:
         end_index = text.find(suffix_text)
@@ -428,8 +428,8 @@ def find_and_test_shaders(
         text = text[end_index + len(suffix_text) :]
 
         found_index = text.find(prefix_text)
-        line_number += sum(i == "\n" for i in shader_text)
-        line_number += sum(i == "\n" for i in text[:found_index])
+        line_number += shader_text.count("\n")
+        line_number += text[:found_index].count("\n")
 
     return failed
 
