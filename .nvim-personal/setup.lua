@@ -58,6 +58,10 @@ vim.keymap.set("n", "<A-t>", function()
     overseer_run(cli_command("test"))
 end, opts)
 
+vim.keymap.set("n", "<A-S-t>", function()
+    overseer_run(cli_command("test_shaders"))
+end, opts)
+
 -- Thanks to https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
 -- error message formats
 -- Microsoft MSBuild

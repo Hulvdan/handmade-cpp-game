@@ -413,6 +413,45 @@ files = [
 ]
 
 [[package]]
+name = "pyopengl"
+version = "3.1.7"
+description = "Standard OpenGL bindings for Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "PyOpenGL-3.1.7-py3-none-any.whl", hash = "sha256:a6ab19cf290df6101aaf7470843a9c46207789855746399d0af92521a0a92b7a"},
+    {file = "PyOpenGL-3.1.7.tar.gz", hash = "sha256:eef31a3888e6984fd4d8e6c9961b184c9813ca82604d37fe3da80eb000a76c86"},
+]
+
+[[package]]
+name = "pysdl2"
+version = "0.9.16"
+description = "Python SDL2 bindings"
+optional = false
+python-versions = "*"
+files = [
+    {file = "PySDL2-0.9.16.tar.gz", hash = "sha256:1027406badbecdd30fe56e800a5a76ad7d7271a3aec0b7acf780ee26a00f2d40"},
+]
+
+[[package]]
+name = "pysdl2-dll"
+version = "2.30.2"
+description = "Pre-built SDL2 binaries for PySDL2"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pysdl2-dll-2.30.2.tar.gz", hash = "sha256:fdde25cf1863c7cc538da4bb997f5bdf87cbbcf09aa6a736d11e6c3848d04900"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-macosx_10_11_universal2.whl", hash = "sha256:bfab2f1a34a9eced88e9a6846f807596ecdc3a706779763a2e2be014f468da14"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-macosx_10_11_x86_64.whl", hash = "sha256:890233f56f544d3f08c9a6cc1ca1d1ce9e2621983baaff74a949a93dc311ed9f"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-manylinux2014_i686.whl", hash = "sha256:d8534970c452bb0c5b7a2a24c39105e28c69438333be285b7ccdb8edab2e9e90"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-manylinux2014_x86_64.whl", hash = "sha256:e6a3b4fbca88c4a729610bf35a0968a906166441f38479a95214ef6e347b197e"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:dbb9bab74ed72912781523dbcaa537657faf9e3690d5c7f99712aea379dfe652"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:97e16b03b8d0a25c78dabb216ae741d9a2c174186d7544c93a4bce093b60bcca"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-win32.whl", hash = "sha256:2b710986fb7f0c36eebf0d75a8b1d96d47e3b31a926673a72f63d683494efbc9"},
+    {file = "pysdl2_dll-2.30.2-py2.py3-none-win_amd64.whl", hash = "sha256:1f243b9bd3f48a782f9feec26c261b0ae5ffbc3aa78756c5853e992fa5e7dfcf"},
+]
+
+[[package]]
 name = "rich"
 version = "13.7.1"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
@@ -472,4 +511,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "a0e3d9c5a6f5d6899674c15035a03a71f0c4bf3323270780f8a6a54fddea8112"
+content-hash = "86a3ea552b6e5bfa8b80869befca6bb3ea70510bba5a2a42343d4550eb61b20f"

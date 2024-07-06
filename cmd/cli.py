@@ -16,7 +16,6 @@
 """
 
 import glob
-import hashlib
 import logging
 import os
 import shutil
@@ -31,7 +30,9 @@ from typing import Any, NoReturn, TypeVar
 
 import fnvhash
 import pyjson5 as json
+import sdl2
 import typer
+from OpenGL.GL import shaders
 from PIL import Image
 
 T = TypeVar("T")
@@ -359,6 +360,80 @@ def hashify_texture_with_check(
     data[key] = hashed_value
 
 
+class GraphicsContext:
+    def __init__(self):
+        self.window = None
+        self.context = None
+
+    def __enter__(self):
+        sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
+        self.window = sdl2.SDL_CreateWindow(
+            b"Shadertest",
+            sdl2.SDL_WINDOWPOS_UNDEFINED,
+            sdl2.SDL_WINDOWPOS_UNDEFINED,
+            1,
+            1,
+            sdl2.SDL_WINDOW_OPENGL,
+        )
+        sdl2.video.SDL_GL_SetAttribute(sdl2.video.SDL_GL_CONTEXT_MAJOR_VERSION, 4)
+        sdl2.video.SDL_GL_SetAttribute(sdl2.video.SDL_GL_CONTEXT_MINOR_VERSION, 2)
+        sdl2.video.SDL_GL_SetAttribute(
+            sdl2.video.SDL_GL_CONTEXT_PROFILE_MASK,
+            sdl2.video.SDL_GL_CONTEXT_PROFILE_CORE,
+        )
+        self.context = sdl2.SDL_GL_CreateContext(self.window)
+
+    def __exit__(self, *args):
+        sdl2.SDL_GL_DeleteContext(self.context)
+        sdl2.SDL_DestroyWindow(self.window)
+        sdl2.SDL_Quit()
+
+
+def find_and_test_shaders(
+    text: str, prefix_text: str, suffix_text: str, shader_type
+) -> bool:
+    failed = False
+
+    found_index = text.find(prefix_text)
+    line_number = sum(i == "\n" for i in text[:found_index])
+
+    while found_index != -1:
+        end_index = text.find(suffix_text)
+        assert end_index != -1
+
+        shader_text = text[found_index + len(prefix_text) : end_index]
+
+        try:
+            shaders.compileShader(shader_text, shader_type)
+        except Exception as err:
+            failed = True
+            for error_string in err.args[0].split("\\n"):
+                prefix = "ERROR: "
+                if not error_string.startswith(prefix):
+                    continue
+
+                line_number_string = error_string[len(prefix) + 2 :].split(":", 1)[0]
+                if not line_number_string.isdecimal():
+                    continue
+
+                error_string = error_string[len(prefix) + 2 :]
+                error_string = error_string.split(":", 1)[-1]
+                error_string = (
+                    "{}:".format(line_number + int(line_number_string)) + error_string
+                )
+                error_string = str(SOURCES_DIR / "bfc_renderer.cpp:") + error_string
+
+                print(error_string)
+
+        text = text[end_index + len(suffix_text) :]
+
+        found_index = text.find(prefix_text)
+        line_number += sum(i == "\n" for i in shader_text)
+        line_number += sum(i == "\n" for i in text[:found_index])
+
+    return failed
+
+
 # ======================================== #
 #          Индивидуальные задачи           #
 # ======================================== #
@@ -401,6 +476,23 @@ def do_run() -> None:
 
 def do_test() -> None:
     run_command(str(CMAKE_DEBUG_BUILD_DIR / "tests.exe"))
+
+
+def do_test_shaders() -> None:
+    with open(SOURCES_DIR / "bfc_renderer.cpp", encoding="utf-8") as in_file:
+        text = in_file.read()
+
+    failed = False
+
+    with GraphicsContext():
+        for prefix_text, suffix_text, shader_type in (
+            ('R"VertexShader(', ')VertexShader"', shaders.GL_VERTEX_SHADER),  # noqa
+            ('R"FragmentShader(', ')FragmentShader"', shaders.GL_FRAGMENT_SHADER),  # noqa
+        ):
+            failed |= find_and_test_shaders(text, prefix_text, suffix_text, shader_type)
+
+    if failed:
+        exit(1)
 
 
 def do_format(specific_files: list[str]) -> None:
@@ -515,6 +607,7 @@ def action_cmake_vs_files():
 @timing
 def action_build():
     # do_cmake_vs_files()
+    do_test_shaders()
     do_generate()
     do_build()
 
@@ -552,6 +645,11 @@ def action_lint():
     do_lint()
 
 
+@app.command("test_shaders")
+def action_test_shaders() -> None:
+    do_test_shaders()
+
+
 # ======================================== #
 #                   Main                   #
 # ======================================== #
@@ -564,6 +662,9 @@ def timing_manager():
 
 
 def main() -> None:
+    test_value = hash32("test")
+    assert test_value == 0xAFD071E5, test_value
+
     # Всегда исполняем файл относительно корня проекта.
     os.chdir(PROJECT_DIR)
 
@@ -584,9 +685,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # assert hash32("") == 2166136261, hash32("")
-    value = hash32("test")
-    assert value == 0xAFD071E5, value
-    # Hash32((u8*)"test", 5) -> 2854439807
-    # assert value == 2854439807, value
     main()

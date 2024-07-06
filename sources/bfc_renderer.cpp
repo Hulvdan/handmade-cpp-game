@@ -361,7 +361,7 @@ void Post_Init_Renderer(
     // Перезагрузка шейдеров.
     Create_Shader_Program(
         rstate.sprites_shader_program,
-        R"Shader(
+        R"VertexShader(
 #version 330 core
 
 layout (location = 0) in vec3 a_pos;
@@ -376,8 +376,8 @@ void main() {
     color = a_color;
     tex_coord = a_tex_coord;
 }
-)Shader",
-        R"Shader(
+)VertexShader",
+        R"FragmentShader(
 #version 330 core
 
 uniform vec2 a_tile_size_relative_to_atlas;
@@ -392,13 +392,13 @@ uniform sampler2D ourTexture;
 void main() {
     frag_color = texture(ourTexture, tex_coord) * vec4(color, 1);
 }
-)Shader",
+)FragmentShader",
         trash_arena
     );
 
     Create_Shader_Program(
         rstate.tilemap_shader_program,
-        R"Shader(
+        R"VertexShader(
 #version 330 core
 
 layout (location = 0) in vec3 a_pos;
@@ -410,20 +410,19 @@ void main() {
     gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
     color = a_color;
 }
-)Shader",
-        R"Shader(
+)VertexShader",
+        R"FragmentShader(
 #version 430 core
 
-// uniform vec2 a_tile_size_relative_to_atlas;
-// uniform vec4 a_visible_area_rect;
-
-// layout(std140, binding = 0) uniform FloatArray {
-//     float data[];
-// } floatArray;
+uniform vec2 a_tile_size_relative_to_atlas;
+uniform ivec2 a_gsize;
+uniform ivec2 a_resolution;
+uniform ivec2 a_atlas_texture_size;
+uniform vec4 a_visible_area_rect;
 
 layout(std430, binding = 1) buffer floatArray {
     float data[];
-};
+} aboba;
 
 in vec3 color;
 
@@ -431,42 +430,105 @@ out vec4 frag_color;
 
 uniform sampler2D ourTexture;
 
-void main() {
-    discard;
-    // vec2 ;
-    // vec2 tex_coord = tile_indices[];
-    // frag_color = texture(ourTexture, tex_coord) * vec4(color, 1);
+float map(float value, float min1, float max1, float min2, float max2) {
+    return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
-)Shader",
+
+void main() {
+    float sx = a_resolution.x;
+    float sy = a_resolution.y;
+    float px1 = a_visible_area_rect.x;
+    float py1 = a_visible_area_rect.y;
+    float px2 = a_visible_area_rect.z;
+    float py2 = a_visible_area_rect.w;
+
+    float tx = map(gl_FragCoord.x / sx, 0, 1, px1, px2) / (px2 - px1);
+    float ty = map(1 - gl_FragCoord.y / sy, 0, 1, py1, py2) / (py2 - py1);
+
+    if (tx < 0 || ty < 0 || tx > 1 || ty > 1)
+        discard;
+
+    int current_tile_x = int(tx * a_gsize.x);
+    int current_tile_y = int(ty * a_gsize.y);
+
+    if (current_tile_x < 0
+        || current_tile_y < 0
+        || current_tile_x > a_gsize.x
+        || current_tile_y > a_gsize.y) {
+        discard;
+    }
+
+    // int tiles_count = a_gsize.x * a_gsize.y;
+    // int t = clamp(2 * (current_tile_y * a_gsize.x + current_tile_x), 0, 2 * tiles_count);
+
+    // float atlas_texture_x = aboba.data[t];
+    // float atlas_texture_y = aboba.data[t + 1];
+
+    float atlas_texture_x = aboba.data[0];
+    float atlas_texture_y = aboba.data[1];
+    if (atlas_texture_x < 0 || atlas_texture_y < 0)
+        discard;
+
+    float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
+    float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
+
+    frag_color = texture(
+        ourTexture,
+        vec2(
+            clamp((atlas_texture_x + atlas_tile_offset_x) / a_atlas_texture_size.x, 0, 1),
+            clamp((atlas_texture_y + atlas_tile_offset_y) / a_atlas_texture_size.y, 0, 1)
+        )
+    );
+}
+)FragmentShader",
         trash_arena
     );
 
-    glUseProgram(rstate.sprites_shader_program);
-    glEnable(GL_TEXTURE_2D);
-    {
-        auto location = glGetUniformLocation(
-            rstate.sprites_shader_program, "a_tile_size_relative_to_atlas"
-        );
-        auto tile_x = (f32)rstate.atlas.texture.size.x / (f32)rstate.atlas_size.x;
-        auto tile_y = (f32)rstate.atlas.texture.size.y / (f32)rstate.atlas_size.y;
-        glUniform2f(location, tile_x, tile_y);
-    }
+    if (!rstate.shaders_compilation_failed) {
+        glUseProgram(rstate.sprites_shader_program);
+        glEnable(GL_TEXTURE_2D);
+        {
+            auto location = glGetUniformLocation(
+                rstate.sprites_shader_program, "a_tile_size_relative_to_atlas"
+            );
+            auto tile_x = 16.0f / (f32)rstate.atlas.texture.size.x;
+            auto tile_y = 16.0f / (f32)rstate.atlas.texture.size.y;
+            glUniform2f(location, tile_x, tile_y);
+        }
 
-    glUseProgram(rstate.tilemap_shader_program);
-    glEnable(GL_TEXTURE_2D);
-    // {
-    //     auto location = glGetUniformLocation(
-    //         rstate.tilemap_shader_program, "a_tile_size_relative_to_atlas"
-    //     );
-    //     auto tile_x = (f32)rstate.atlas.texture.size.x / (f32)rstate.atlas_size.x;
-    //     auto tile_y = (f32)rstate.atlas.texture.size.y / (f32)rstate.atlas_size.y;
-    //     glUniform2f(location, tile_x, tile_y);
-    // }
-    // {
-    //     rstate.visible_area_rect_uniform_location
-    //         = glGetUniformLocation(rstate.tilemap_shader_program,
-    //         "a_visible_area_rect");
-    // }
+        glUseProgram(rstate.tilemap_shader_program);
+        glEnable(GL_TEXTURE_2D);
+        {
+            auto location = glGetUniformLocation(
+                rstate.tilemap_shader_program, "a_tile_size_relative_to_atlas"
+            );
+            auto tile_x = (f32)rstate.atlas.texture.size.x / (f32)rstate.atlas_size.x;
+            auto tile_y = (f32)rstate.atlas.texture.size.y / (f32)rstate.atlas_size.y;
+            glUniform2f(location, tile_x, tile_y);
+        }
+        {
+            auto location
+                = glGetUniformLocation(rstate.tilemap_shader_program, "a_resolution");
+            GLint viewport[4];
+            glGetIntegerv(GL_VIEWPORT, viewport);
+            glUniform2i(location, viewport[2], viewport[3]);
+        }
+        {
+            auto location
+                = glGetUniformLocation(rstate.tilemap_shader_program, "a_gsize");
+            glUniform2i(location, gsize.x, gsize.y);
+        }
+        {
+            auto location = glGetUniformLocation(
+                rstate.tilemap_shader_program, "a_atlas_texture_size"
+            );
+            glUniform2i(
+                location, rstate.atlas.texture.size.x, rstate.atlas.texture.size.y
+            );
+        }
+        rstate.tilemap_shader_visible_area_rect_location
+            = glGetUniformLocation(rstate.tilemap_shader_program, "a_visible_area_rect");
+    }
 
     rstate.grass_smart_tile.id  = 1;
     rstate.forest_smart_tile.id = 2;
@@ -1122,7 +1184,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // NOTE: Рисование tilemap
-    {
+    if (!rstate.shaders_compilation_failed) {
         glUseProgram(rstate.tilemap_shader_program);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
@@ -1130,8 +1192,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         auto p1 = projection_inv * v3f(-1, -1, 1);
         auto p2 = projection_inv * v3f(1, 1, 1);
-        // glUniform4f(0, p1.x, p1.y, p2.x, p2.y);
-        // glUniform2i(1, rstate.atlas_size.x, rstate.atlas_size.y);
 
         int index_l = int(p1.x);
         int index_u = int(p1.y);
@@ -1164,7 +1224,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
             rstate.rendering_indices_buffer_size = required_memory;
         }
 
-        // glUniform4f(rstate.visible_area_rect_uniform_location, p1.x, p1.y, p2.x, p2.y);
+        glUniform4f(
+            rstate.tilemap_shader_visible_area_rect_location, p1.x, p1.y, p2.x, p2.y
+        );
 
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
@@ -1203,7 +1265,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             );
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-            glDeleteBuffers(1, &ssbo);
+            // glDeleteBuffers(1, &ssbo);
             Check_OpenGL_Errors();
         }
 

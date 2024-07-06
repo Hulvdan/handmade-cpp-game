@@ -12,6 +12,9 @@ typer = "^0.12.3"
 pyjson5 = "^1.6.6"
 pillow = "^10.3.0"
 fnvhash = "^0.1.0"
+pyopengl = "^3.1.7"
+pysdl2 = "^0.9.16"
+pysdl2-dll = "^2.30.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
