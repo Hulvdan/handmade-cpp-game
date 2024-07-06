@@ -414,8 +414,8 @@ void main() {
         R"Shader(
 #version 430 core
 
-uniform vec2 a_tile_size_relative_to_atlas;
-uniform vec4 a_visible_area_rect;
+// uniform vec2 a_tile_size_relative_to_atlas;
+// uniform vec4 a_visible_area_rect;
 
 // layout(std140, binding = 0) uniform FloatArray {
 //     float data[];
@@ -442,6 +442,7 @@ void main() {
     );
 
     glUseProgram(rstate.sprites_shader_program);
+    glEnable(GL_TEXTURE_2D);
     {
         auto location = glGetUniformLocation(
             rstate.sprites_shader_program, "a_tile_size_relative_to_atlas"
@@ -452,20 +453,20 @@ void main() {
     }
 
     glUseProgram(rstate.tilemap_shader_program);
-    {
-        auto location = glGetUniformLocation(
-            rstate.tilemap_shader_program, "a_tile_size_relative_to_atlas"
-        );
-        auto tile_x = (f32)rstate.atlas.texture.size.x / (f32)rstate.atlas_size.x;
-        auto tile_y = (f32)rstate.atlas.texture.size.y / (f32)rstate.atlas_size.y;
-        glUniform2f(location, tile_x, tile_y);
-    }
-    {
-        rstate.visible_area_rect_uniform_location
-            = glGetUniformLocation(rstate.tilemap_shader_program, "a_visible_area_rect");
-    }
-
     glEnable(GL_TEXTURE_2D);
+    // {
+    //     auto location = glGetUniformLocation(
+    //         rstate.tilemap_shader_program, "a_tile_size_relative_to_atlas"
+    //     );
+    //     auto tile_x = (f32)rstate.atlas.texture.size.x / (f32)rstate.atlas_size.x;
+    //     auto tile_y = (f32)rstate.atlas.texture.size.y / (f32)rstate.atlas_size.y;
+    //     glUniform2f(location, tile_x, tile_y);
+    // }
+    // {
+    //     rstate.visible_area_rect_uniform_location
+    //         = glGetUniformLocation(rstate.tilemap_shader_program,
+    //         "a_visible_area_rect");
+    // }
 
     rstate.grass_smart_tile.id  = 1;
     rstate.forest_smart_tile.id = 2;
@@ -719,7 +720,8 @@ void Deinit_Renderer(Game_State& state, MCTX) {
 
     if (rstate.rendering_indices_buffer_size > 0) {
         FREE((u8*)rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
-        rstate.rendering_indices_buffer = nullptr;
+        rstate.rendering_indices_buffer      = nullptr;
+        rstate.rendering_indices_buffer_size = 0;
     }
 }
 
@@ -1162,10 +1164,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
             rstate.rendering_indices_buffer_size = required_memory;
         }
 
-        size_t t = 0;
+        // glUniform4f(rstate.visible_area_rect_uniform_location, p1.x, p1.y, p2.x, p2.y);
+
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
 
+            size_t t = 0;
             FOR_RANGE (int, y, h) {
                 FOR_RANGE (int, x, w) {
                     auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t];
@@ -1187,24 +1191,23 @@ void Render(Game_State& state, f32 dt, MCTX) {
                     t += 2;
                 }
             }
+
+            GLuint ssbo;
+            glGenBuffers(1, &ssbo);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+            glBufferData(
+                GL_SHADER_STORAGE_BUFFER,
+                required_memory,
+                rstate.rendering_indices_buffer,
+                GL_DYNAMIC_DRAW
+            );
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+            glDeleteBuffers(1, &ssbo);
+            Check_OpenGL_Errors();
         }
 
-        // glUniform4f(rstate.visible_area_rect_uniform_location, p1.x, p1.y, p2.x, p2.y);
-
-        // NOTE: Tilemap's fragment shader's SSBO of tile texture bottom left positions.
-        GLuint ssbo;
-        glGenBuffers(1, &ssbo);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-        glBufferData(
-            GL_SHADER_STORAGE_BUFFER,
-            required_memory,
-            rstate.rendering_indices_buffer,
-            GL_DYNAMIC_DRAW
-        );
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-        glDeleteBuffers(1, &ssbo);
-        Check_OpenGL_Errors();
+        SANITIZE;
     }
 
     // // NOTE: Рисование спрайтов.
