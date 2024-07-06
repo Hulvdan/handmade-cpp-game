@@ -660,8 +660,9 @@ struct Human_Moving_In_The_World_Controller {
                 Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
             }
         }
-        else if (human.state_moving_in_the_world
-                 != Moving_In_The_World_State::Moving_To_The_City_Hall  //
+        else if (
+            human.state_moving_in_the_world
+            != Moving_In_The_World_State::Moving_To_The_City_Hall  //
         ) {
             LOG_DEBUG(
                 "human.state_moving_in_the_world = "

@@ -601,18 +601,19 @@ struct Sparse_Array {
     i32 max_count;
 
     Sparse_Array(i32 max_count_, MCTX)
-        : max_count(max_count_)  //
+        : max_count(max_count_)  , count(0)//
     {
         CTX_ALLOCATOR;
         ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
         base  = rcast<U*>(ALLOC(sizeof(U) * max_count));
-        count = 0;
     }
     Sparse_Array(const Sparse_Array& other) = delete;
     Sparse_Array(Sparse_Array&& other)      = delete;
 
     U* Add(const T id, const U& value, MCTX) {
         Assert(!Contains(id));
+        Assert(count >= 0);
+        Assert(max_count >= 0);
 
         if (max_count == count)
             Enlarge(ctx);
@@ -625,6 +626,8 @@ struct Sparse_Array {
 
     U* Add(const T id, U&& value, MCTX) {
         Assert(!Contains(id));
+        Assert(count >= 0);
+        Assert(max_count >= 0);
 
         if (max_count == count)
             Enlarge(ctx);
@@ -638,6 +641,8 @@ struct Sparse_Array {
 
     U* Occupy(const T id, MCTX) {
         Assert(!Contains(id));
+        Assert(count >= 0);
+        Assert(max_count >= 0);
 
         if (max_count == count)
             Enlarge(ctx);

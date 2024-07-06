@@ -505,7 +505,9 @@ TEST_CASE ("Update_Tiles") {
     Building_ID   building_sawmill_id                       = Building_ID_Missing;
     v2i           gsize                                     = -v2i_one;
     Element_Tile* element_tiles                             = nullptr;
-    Sparse_Array<Graph_Segment_ID, Graph_Segment>* segments = nullptr;
+
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>  segments_{32, ctx};
+    auto segments = &segments_;
 
     auto Make_Building = [&element_tiles, &trash_arena](Building_Type type, v2i pos) {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);

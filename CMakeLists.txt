@@ -189,7 +189,7 @@ IF (WIN32)
     )
     file(GLOB files_to_delete
         ${CMAKE_BINARY_DIR}/Debug/bf_game_*.pdb
-        ${CMAKE_BINARY_DIR}/Debug/bf_game_*.dll
+        ${CMAKE_BINARY_DIR}/Debug/game_*.dll
     )
     list(LENGTH files_to_delete files_to_delete_length)
     IF (files_to_delete_length GREATER 0)
