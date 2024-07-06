@@ -443,6 +443,18 @@ def do_build() -> None:
     )
 
 
+def do_build_game() -> None:
+    run_command(
+        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -t:win32'
+    )
+
+
+def do_build_tests() -> None:
+    run_command(
+        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -t:tests'
+    )
+
+
 def do_generate() -> None:
     remove_intermediate_generation_files()
 
@@ -603,31 +615,39 @@ def action_cmake_vs_files():
     do_cmake_vs_files()
 
 
-@app.command("build")
-@timing
-def action_build():
-    # do_cmake_vs_files()
+@app.command("build_game")
+def action_run():
     do_test_shaders()
     do_generate()
-    do_build()
+    do_build_game()
 
 
 @app.command("run")
 def action_run():
-    action_build()
+    do_test_shaders()
+    do_generate()
+    do_build_game()
+
     do_run()
 
 
 @app.command("stoopid_windows_visual_studio_run")
 def action_stoopid_windows_visual_studio_run():
     do_stop_vs_ahk()
-    action_build()
+
+    do_test_shaders()
+    do_generate()
+    do_build_game()
+
     do_run_vs_ahk()
 
 
 @app.command("test")
 def action_test():
-    action_build()
+    do_test_shaders()
+    do_generate()
+    do_build_tests()
+
     do_test()
 
 

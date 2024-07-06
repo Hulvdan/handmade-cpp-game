@@ -39,7 +39,7 @@ vim.keymap.set("n", "<leader>l", function()
 end, opts)
 
 vim.keymap.set("n", "<A-b>", function()
-    overseer_run(cli_command("build"))
+    overseer_run(cli_command("build_game"))
 end, opts)
 
 vim.keymap.set("n", "<A-g>", function()
