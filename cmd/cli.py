@@ -147,7 +147,6 @@ def run_command(cmd: list[str] | str) -> None:
 
     log.debug(f"Executing command: {cmd}")
 
-    # TODO: Стримить напрямую, не дожидаясь завершения работы программы
     p = subprocess.run(
         cmd,
         shell=True,
