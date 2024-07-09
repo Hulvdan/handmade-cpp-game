@@ -18,6 +18,7 @@
 import glob
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -75,6 +76,9 @@ CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
 FLATC_PATH = CMD_DIR / "flatc.exe"
 MSBUILD_PATH = r"c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe"
+
+
+SHADERS_ERROR_PATTERN = re.compile(r"\d+\((\d+)\) : error (.*)")
 
 
 # ======================================== #
@@ -389,6 +393,18 @@ class GraphicsContext:
         sdl2.SDL_Quit()
 
 
+def match_all_errors(shader_compilation_output: list[str]) -> list[tuple[int, str]]:
+    res: list[tuple[int, str]] = []
+
+    for error_string in shader_compilation_output:
+        found_value = re.search(SHADERS_ERROR_PATTERN, error_string)
+        if found_value:
+            ln = int(found_value.group(1))
+            res.append((ln, found_value.group(2)))
+
+    return res
+
+
 def find_and_test_shaders(
     text: str, prefix_text: str, suffix_text: str, shader_type
 ) -> bool:
@@ -407,22 +423,11 @@ def find_and_test_shaders(
             shaders.compileShader(shader_text, shader_type)
         except Exception as err:
             failed = True
-            for error_string in err.args[0].split("\\n"):
-                prefix = "ERROR: "
-                if not error_string.startswith(prefix):
-                    continue
-
-                line_number_string = error_string[len(prefix) + 2 :].split(":", 1)[0]
-                if not line_number_string.isdecimal():
-                    continue
-
-                error_string = error_string[len(prefix) + 2 :]
-                error_string = error_string.split(":", 1)[-1]
+            for ln, error_string in match_all_errors(err.args[0].split("\\n")):
                 error_string = (
-                    "{}:".format(line_number + int(line_number_string)) + error_string
+                    str(SOURCES_DIR / ("bfc_renderer.cpp:{}: ".format(line_number + ln)))
+                    + error_string
                 )
-                error_string = str(SOURCES_DIR / "bfc_renderer.cpp:") + error_string
-
                 print(error_string)
 
         text = text[end_index + len(suffix_text) :]
