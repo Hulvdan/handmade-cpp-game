@@ -154,8 +154,8 @@ Atlas Load_Atlas(
         C_Texture t{
             scast<Texture_ID>(texture.id()),
             {
-                f32(texture.atlas_x()) / f32(texture.size_x()),
-                f32(texture.atlas_y()) / f32(texture.size_y()),
+                f32(texture.atlas_x()) / f32(atlas.size.x),
+                f32(texture.atlas_y()) / f32(atlas.size.y),
             },
             {texture.size_x(), texture.size_y()},
         };
@@ -422,7 +422,7 @@ uniform vec4 a_visible_area_rect;
 
 layout(std430, binding = 1) buffer floatArray {
     float data[];
-} aboba;
+};
 
 in vec3 color;
 
@@ -448,37 +448,104 @@ void main() {
     if (tx < 0 || ty < 0 || tx > 1 || ty > 1)
         discard;
 
+#if 0
+    frag_color = vec4(
+        tx,
+        ty,
+        0,
+        1
+    );
+    return;
+#endif
+
     int current_tile_x = int(tx * a_gsize.x);
     int current_tile_y = int(ty * a_gsize.y);
 
-    if (current_tile_x < 0
+#if 0
+    // TODO: ВЕРНУТЬ ЭТОТ БЛОК!
+    if (
+        current_tile_x < 0
         || current_tile_y < 0
         || current_tile_x > a_gsize.x
-        || current_tile_y > a_gsize.y) {
+        || current_tile_y > a_gsize.y
+    )
         discard;
-    }
+#endif
 
-    // int tiles_count = a_gsize.x * a_gsize.y;
-    // int t = clamp(2 * (current_tile_y * a_gsize.x + current_tile_x), 0, 2 * tiles_count);
+#if 0
+    frag_color = vec4(
+        float(current_tile_x) / float(a_gsize.x),
+        float(current_tile_y) / float(a_gsize.y),
+        0,
+        1
+    );
+    return;
+#endif
 
-    // float atlas_texture_x = aboba.data[t];
-    // float atlas_texture_y = aboba.data[t + 1];
+    int tiles_count = a_gsize.x * a_gsize.y;
+    int tile_number = current_tile_y * a_gsize.x + current_tile_x;
 
-    float atlas_texture_x = aboba.data[0];
-    float atlas_texture_y = aboba.data[1];
+#if 0
+    frag_color = vec4(
+        float(tile_number) / float(tiles_count),
+        0,
+        0,
+        1
+    );
+    return;
+#endif
+
+    float atlas_texture_x = data[2 * tile_number];
+    float atlas_texture_y = data[2 * tile_number + 1];
     if (atlas_texture_x < 0 || atlas_texture_y < 0)
         discard;
+
+#if 0
+    frag_color = vec4(
+        atlas_texture_x,
+        atlas_texture_y,
+        0,
+        1
+    );
+    return;
+#endif
 
     float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
     float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
 
+#if 0
+    frag_color = vec4(
+        atlas_tile_offset_x,
+        atlas_tile_offset_y,
+        0,
+        1
+    );
+    return;
+#endif
+
+#if 0
+    frag_color = vec4(
+        atlas_texture_x + atlas_tile_offset_x,
+        atlas_texture_y + atlas_tile_offset_y,
+        0,
+        1
+    );
+    return;
+#endif
+
+#if 0
     frag_color = texture(
         ourTexture,
         vec2(
-            clamp((atlas_texture_x + atlas_tile_offset_x) / a_atlas_texture_size.x, 0, 1),
-            clamp((atlas_texture_y + atlas_tile_offset_y) / a_atlas_texture_size.y, 0, 1)
+            // clamp(atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x, 0, 1),
+            // clamp(atlas_texture_y + a_tile_size_relative_to_atlas.y * atlas_tile_offset_y, 0, 1)
+            clamp(0.125 * atlas_tile_offset_x, 0, 1),
+            clamp(0.125 * 7 + 0.125 * atlas_tile_offset_y, 0, 1)
         )
     );
+#endif
+
+    frag_color = vec4(1,0,0,1);
 }
 )FragmentShader",
         trash_arena
@@ -975,7 +1042,6 @@ void Draw_Stretchable_Sprite(
     f32 texture_vertices_x[] = {0, x1, 1 - x2, 1};
     f32 texture_vertices_y[] = {0, y1, 1 - y2, 1};
 
-    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id);
 
     FOR_RANGE (int, y, 3) {
@@ -1130,33 +1196,38 @@ void Render(Game_State& state, f32 dt, MCTX) {
     glClear(GL_COLOR_BUFFER_BIT);
     Check_OpenGL_Errors();
 
-    GLuint texture_name = 3;
-    glBindTexture(GL_TEXTURE_2D, texture_name);
-    Check_OpenGL_Errors();
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    Check_OpenGL_Errors();
-
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA8,
-        bitmap.width,
-        bitmap.height,
-        0,
-        GL_BGRA_EXT,
-        GL_UNSIGNED_BYTE,
-        bitmap.memory
-    );
-    Check_OpenGL_Errors();
-
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    Check_OpenGL_Errors();
-
+    // NOTE: Рисование заднего синего фона.
     {
+        glUseProgram(0);
+
+        GLuint texture_name = 3;
+        // glActiveTexture(GL_TEXTURE0);
+
+        glBindTexture(GL_TEXTURE_2D, texture_name);
+        Check_OpenGL_Errors();
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        Check_OpenGL_Errors();
+
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA8,
+            bitmap.width,
+            bitmap.height,
+            0,
+            GL_BGRA_EXT,
+            GL_UNSIGNED_BYTE,
+            bitmap.memory
+        );
+        Check_OpenGL_Errors();
+
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        Check_OpenGL_Errors();
+
         glBlendFunc(GL_ONE, GL_ZERO);
         glBindTexture(GL_TEXTURE_2D, texture_name);
         glBegin(GL_TRIANGLES);
@@ -1185,7 +1256,80 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     // NOTE: Рисование tilemap
     if (!rstate.shaders_compilation_failed) {
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
+
+        glDisable(GL_DEPTH_TEST);
+
+        // NOTE: Build the texture that will serve
+        // as the color attachment for the framebuffer.
+        GLuint framebuffer_texture;
+        glGenTextures(1, &framebuffer_texture);
+        glBindTexture(GL_TEXTURE_2D, framebuffer_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA,
+            viewport[2],
+            viewport[3],
+            0,
+            GL_RGBA,
+            GL_UNSIGNED_BYTE,
+            NULL
+        );
+
+        // Build the framebuffer.
+        GLuint tilemap_framebuffer;
+        glGenFramebuffers(1, &tilemap_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer_texture, 0
+        );
+        {
+            auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            Assert(check == GL_FRAMEBUFFER_COMPLETE);
+            Check_OpenGL_Errors();
+        }
+
+        defer {
+            // glBlendFuncSeparate(
+            // GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA
+            // );
+            // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            glBlendFunc(GL_ONE, GL_ZERO);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+            // glFramebufferTexture2D(
+            //     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0
+            // );
+
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, tilemap_framebuffer);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBlitFramebuffer(
+                0,
+                0,
+                viewport[2],
+                viewport[3],
+                0,
+                0,
+                viewport[2],
+                viewport[3],
+                GL_COLOR_BUFFER_BIT,
+                GL_NEAREST
+            );
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            glDeleteFramebuffers(1, &tilemap_framebuffer);
+            Check_OpenGL_Errors();
+        };
+
         glUseProgram(rstate.tilemap_shader_program);
+        glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
         auto projection_inv = glm::inverse(projection);
@@ -1193,18 +1337,31 @@ void Render(Game_State& state, f32 dt, MCTX) {
         auto p1 = projection_inv * v3f(-1, -1, 1);
         auto p2 = projection_inv * v3f(1, 1, 1);
 
-        int index_l = int(p1.x);
-        int index_u = int(p1.y);
-        int index_r = Ceil(p2.x);
-        int index_b = Ceil(p2.y);
+        int index_l, index_u, index_r, index_b;
+        int w, h;
+        {
+            index_l = int(p1.x);
+            index_u = int(p1.y);
+            index_r = Ceil(p2.x);
+            index_b = Ceil(p2.y);
 
-        if (index_l > index_r)
-            std::swap(index_l, index_r);
-        if (index_b > index_u)
-            std::swap(index_b, index_u);
+            if (index_l > index_r)
+                std::swap(index_l, index_r);
+            if (index_b > index_u)
+                std::swap(index_b, index_u);
 
-        int w = MIN(gsize.x, index_r - index_l + 1);
-        int h = MIN(gsize.y, index_u - index_b + 1);
+            w = MIN(gsize.x, index_r - index_l + 1);
+            h = MIN(gsize.y, index_u - index_b + 1);
+        }
+        ImGui::Text(
+            "indices of edge tiles l:%d r:%d u:%d b:%d (w:%d, h:%d)",
+            index_l,
+            index_r,
+            index_u,
+            index_b,
+            w,
+            h
+        );
 
         int visible_tiles_count = w * h;
 
@@ -1234,20 +1391,25 @@ void Render(Game_State& state, f32 dt, MCTX) {
             size_t t = 0;
             FOR_RANGE (int, y, h) {
                 FOR_RANGE (int, x, w) {
-                    auto& px = ((GLfloat*)rstate.rendering_indices_buffer)[t];
-                    auto& py = ((GLfloat*)rstate.rendering_indices_buffer)[t + 1];
+                    float* px = ((GLfloat*)rstate.rendering_indices_buffer) + t;
+                    float* py = ((GLfloat*)rstate.rendering_indices_buffer) + t + 1;
+
+                    *px = 0;
+                    *py = 7.0f / 8.0f;
+                    t += 2;
+                    continue;
 
                     auto tile = tilemap.tiles[y * gsize.x + x];
                     if (tile) {
                         auto pos = Query_Texture_Pos_Inside_Atlas(
                             rstate.atlas, gsize.x, tilemap, x, y
                         );
-                        px = pos.x;
-                        py = pos.y;
+                        *px = pos.x;
+                        *py = pos.y;
                     }
                     else {
-                        px = -1;
-                        py = -1;
+                        *px = -1;
+                        *py = -1;
                     }
 
                     t += 2;
@@ -1265,11 +1427,66 @@ void Render(Game_State& state, f32 dt, MCTX) {
             );
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-            // glDeleteBuffers(1, &ssbo);
             Check_OpenGL_Errors();
-        }
 
+            SANITIZE;
+
+            if (i == 1)
+                break;
+        }
         SANITIZE;
+
+        f32 verticesss[] = {
+            0,
+            0,  //
+            0,
+            1,  //
+            1,
+            0,  //
+            1,
+            0,  //
+            0,
+            1,  //
+            1,
+            1,  //
+            // 0, 0, 0, 0, 0, 0, 0, 0,  //
+            // 1, 0, 0, 0, 0, 0, 0, 0,  //
+            // 0, 1, 0, 0, 0, 0, 0, 0,  //
+            // 0, 1, 0, 0, 0, 0, 0, 0,  //
+            // 1, 0, 0, 0, 0, 0, 0, 0,  //
+            // 1, 1, 0, 0, 0, 0, 0, 0,  //
+            // xx0, yy0, 0, color.r, color.g, color.b, x0, y0,  //
+            // xx1, yy0, 0, color.r, color.g, color.b, x1, y0,  //
+            // xx0, yy1, 0, color.r, color.g, color.b, x0, y1,  //
+            // xx0, yy1, 0, color.r, color.g, color.b, x0, y1,  //
+            // xx1, yy0, 0, color.r, color.g, color.b, x1, y0,  //
+            // xx1, yy1, 0, color.r, color.g, color.b, x1, y1,  //
+        };
+
+        GLuint vao;
+        glGenVertexArrays(1, &vao);
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+        defer {
+            glDeleteBuffers(1, &vbo);
+            glDeleteVertexArrays(1, &vao);
+        };
+
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_DYNAMIC_DRAW);
+
+        // 3. then set our vertex attributes pointers
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), rcast<void*>(0));
+        // glVertexAttribPointer(
+        //     1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+        // );
+        // glVertexAttribPointer(
+        //     2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+        // );
+        glEnableVertexAttribArray(0);
+        // glEnableVertexAttribArray(1);
+        // glEnableVertexAttribArray(2);
     }
 
     // // NOTE: Рисование спрайтов.
@@ -1592,6 +1809,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //     ImGui::Text(
     //         "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index
     //     );
+
+    SANITIZE;
 }
 
 // NOTE: Game_State& state, v2i16 pos, Item_To_Build item
