@@ -401,14 +401,15 @@ void main() {
         R"VertexShader(
 #version 330 core
 
-layout (location = 0) in vec3 a_pos;
-layout (location = 1) in vec3 a_color;
-
-out vec3 color;
+layout (location = 0) in vec2 a_pos;
+// layout (location = 1) in vec3 a_color;
+//
+// out vec3 color;
 
 void main() {
-    gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
-    color = a_color;
+    // gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
+    gl_Position = vec4(a_pos.x, a_pos.y, 0, 1);
+    // color = a_color;
 }
 )VertexShader",
         R"FragmentShader(
@@ -424,7 +425,7 @@ layout(std430, binding = 1) buffer floatArray {
     float data[];
 };
 
-in vec3 color;
+// in vec3 color;
 
 out vec4 frag_color;
 
@@ -435,118 +436,125 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    float sx = a_resolution.x;
-    float sy = a_resolution.y;
-    float px1 = a_visible_area_rect.x;
-    float py1 = a_visible_area_rect.y;
-    float px2 = a_visible_area_rect.z;
-    float py2 = a_visible_area_rect.w;
-
-    float tx = map(gl_FragCoord.x / sx, 0, 1, px1, px2) / (px2 - px1);
-    float ty = map(1 - gl_FragCoord.y / sy, 0, 1, py1, py2) / (py2 - py1);
-
-    if (tx < 0 || ty < 0 || tx > 1 || ty > 1)
-        discard;
-
-#if 0
-    frag_color = vec4(
-        tx,
-        ty,
-        0,
-        1
-    );
-    return;
-#endif
-
-    int current_tile_x = int(tx * a_gsize.x);
-    int current_tile_y = int(ty * a_gsize.y);
-
-#if 0
-    // TODO: ВЕРНУТЬ ЭТОТ БЛОК!
-    if (
-        current_tile_x < 0
-        || current_tile_y < 0
-        || current_tile_x > a_gsize.x
-        || current_tile_y > a_gsize.y
-    )
-        discard;
-#endif
-
-#if 0
-    frag_color = vec4(
-        float(current_tile_x) / float(a_gsize.x),
-        float(current_tile_y) / float(a_gsize.y),
-        0,
-        1
-    );
-    return;
-#endif
-
-    int tiles_count = a_gsize.x * a_gsize.y;
-    int tile_number = current_tile_y * a_gsize.x + current_tile_x;
-
-#if 0
-    frag_color = vec4(
-        float(tile_number) / float(tiles_count),
-        0,
-        0,
-        1
-    );
-    return;
-#endif
-
-    float atlas_texture_x = data[2 * tile_number];
-    float atlas_texture_y = data[2 * tile_number + 1];
-    if (atlas_texture_x < 0 || atlas_texture_y < 0)
-        discard;
-
-#if 0
-    frag_color = vec4(
-        atlas_texture_x,
-        atlas_texture_y,
-        0,
-        1
-    );
-    return;
-#endif
-
-    float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
-    float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
-
-#if 0
-    frag_color = vec4(
-        atlas_tile_offset_x,
-        atlas_tile_offset_y,
-        0,
-        1
-    );
-    return;
-#endif
-
-#if 0
-    frag_color = vec4(
-        atlas_texture_x + atlas_tile_offset_x,
-        atlas_texture_y + atlas_tile_offset_y,
-        0,
-        1
-    );
-    return;
-#endif
-
-#if 0
-    frag_color = texture(
-        ourTexture,
-        vec2(
-            // clamp(atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x, 0, 1),
-            // clamp(atlas_texture_y + a_tile_size_relative_to_atlas.y * atlas_tile_offset_y, 0, 1)
-            clamp(0.125 * atlas_tile_offset_x, 0, 1),
-            clamp(0.125 * 7 + 0.125 * atlas_tile_offset_y, 0, 1)
-        )
-    );
-#endif
-
-    frag_color = vec4(1,0,0,1);
+    frag_color = vec4(1, 1, 1, 1);
 }
+
+// void main() {
+//     float sx = a_resolution.x;
+//     float sy = a_resolution.y;
+//     float px1 = a_visible_area_rect.x;
+//     float py1 = a_visible_area_rect.y;
+//     float px2 = a_visible_area_rect.z;
+//     float py2 = a_visible_area_rect.w;
+//
+//     float tx = map(gl_FragCoord.x / sx, 0, 1, px1, px2) / (px2 - px1);
+//     float ty = map(1 - gl_FragCoord.y / sy, 0, 1, py1, py2) / (py2 - py1);
+//
+//     if (tx < 0 || ty < 0 || tx > 1 || ty > 1)
+//         discard;
+//
+// #if 0
+//     frag_color = vec4(
+//         tx,
+//         ty,
+//         0,
+//         1
+//     );
+//     return;
+// #endif
+//
+//     int current_tile_x = int(tx * a_gsize.x);
+//     int current_tile_y = int(ty * a_gsize.y);
+//
+// #if 0
+//     // TODO: ВЕРНУТЬ ЭТОТ БЛОК!
+//     if (
+//         current_tile_x < 0
+//         || current_tile_y < 0
+//         || current_tile_x > a_gsize.x
+//         || current_tile_y > a_gsize.y
+//     )
+//         discard;
+// #endif
+//
+// #if 0
+//     frag_color = vec4(
+//         float(current_tile_x) / float(a_gsize.x),
+//         float(current_tile_y) / float(a_gsize.y),
+//         0,
+//         1
+//     );
+//     return;
+// #endif
+//
+//     int tiles_count = a_gsize.x * a_gsize.y;
+//     int tile_number = current_tile_y * a_gsize.x + current_tile_x;
+//
+// #if 0
+//     frag_color = vec4(
+//         float(tile_number) / float(tiles_count),
+//         0,
+//         0,
+//         1
+//     );
+//     return;
+// #endif
+//
+// #if 0
+//     // TODO: венуть этот блок!
+//     float atlas_texture_x = data[2 * tile_number];
+//     float atlas_texture_y = data[2 * tile_number + 1];
+//     if (atlas_texture_x < 0 || atlas_texture_y < 0)
+//         discard;
+// #endif
+//
+// #if 0
+//     frag_color = vec4(
+//         atlas_texture_x,
+//         atlas_texture_y,
+//         0,
+//         1
+//     );
+//     return;
+// #endif
+//
+//     float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
+//     float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
+//
+// #if 0
+//     frag_color = vec4(
+//         atlas_tile_offset_x,
+//         atlas_tile_offset_y,
+//         0,
+//         1
+//     );
+//     return;
+// #endif
+//
+// #if 0
+//     frag_color = vec4(
+//         atlas_texture_x + atlas_tile_offset_x,
+//         atlas_texture_y + atlas_tile_offset_y,
+//         0,
+//         1
+//     );
+//     return;
+// #endif
+//
+// #if 0
+//     frag_color = texture(
+//         ourTexture,
+//         vec2(
+//             // clamp(atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x, 0, 1),
+//             // clamp(atlas_texture_y + a_tile_size_relative_to_atlas.y * atlas_tile_offset_y, 0, 1)
+//             clamp(0.125 * atlas_tile_offset_x, 0, 1),
+//             clamp(0.125 * 7 + 0.125 * atlas_tile_offset_y, 0, 1)
+//         )
+//     );
+// #endif
+//
+//     frag_color = vec4(1, 0, 0, 1);
+// }
 )FragmentShader",
         trash_arena
     );
@@ -929,12 +937,12 @@ void Draw_UI_Sprite(
     glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_STATIC_DRAW);
 
     // 3. then set our vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(0));
     glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32))
     );
     glVertexAttribPointer(
-        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32))
     );
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
@@ -1261,75 +1269,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         glDisable(GL_DEPTH_TEST);
 
-        // NOTE: Build the texture that will serve
-        // as the color attachment for the framebuffer.
-        GLuint framebuffer_texture;
-        glGenTextures(1, &framebuffer_texture);
-        glBindTexture(GL_TEXTURE_2D, framebuffer_texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RGBA,
-            viewport[2],
-            viewport[3],
-            0,
-            GL_RGBA,
-            GL_UNSIGNED_BYTE,
-            NULL
-        );
-
-        // Build the framebuffer.
-        GLuint tilemap_framebuffer;
-        glGenFramebuffers(1, &tilemap_framebuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer);
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer_texture, 0
-        );
-        {
-            auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-            Assert(check == GL_FRAMEBUFFER_COMPLETE);
-            Check_OpenGL_Errors();
-        }
-
-        defer {
-            // glBlendFuncSeparate(
-            // GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA
-            // );
-            // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            glBlendFunc(GL_ONE, GL_ZERO);
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-            // glFramebufferTexture2D(
-            //     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0
-            // );
-
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, tilemap_framebuffer);
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-            glBlitFramebuffer(
-                0,
-                0,
-                viewport[2],
-                viewport[3],
-                0,
-                0,
-                viewport[2],
-                viewport[3],
-                GL_COLOR_BUFFER_BIT,
-                GL_NEAREST
-            );
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-            glDeleteFramebuffers(1, &tilemap_framebuffer);
-            Check_OpenGL_Errors();
-        };
+        auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
 
         glUseProgram(rstate.tilemap_shader_program);
-        glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer.id);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
         auto projection_inv = glm::inverse(projection);
@@ -1337,37 +1280,40 @@ void Render(Game_State& state, f32 dt, MCTX) {
         auto p1 = projection_inv * v3f(-1, -1, 1);
         auto p2 = projection_inv * v3f(1, 1, 1);
 
-        int index_l, index_u, index_r, index_b;
+        // NOTE: лево и право, верх и низ включительно.
+        int index_l, index_r, index_t, index_b;
         int w, h;
         {
             index_l = int(p1.x);
-            index_u = int(p1.y);
+            index_b = int(p1.y);
             index_r = Ceil(p2.x);
-            index_b = Ceil(p2.y);
+            index_t = Ceil(p2.y);
 
             if (index_l > index_r)
                 std::swap(index_l, index_r);
-            if (index_b > index_u)
-                std::swap(index_b, index_u);
+            if (index_b > index_t)
+                std::swap(index_b, index_t);
 
             w = MIN(gsize.x, index_r - index_l + 1);
-            h = MIN(gsize.y, index_u - index_b + 1);
+            h = MIN(gsize.y, index_t - index_b + 1);
+
+            ImGui::Text(
+                "indices of edge tiles l:%d r:%d u:%d b:%d (w:%d, h:%d)",
+                index_l,
+                index_r,
+                index_t,
+                index_b,
+                w,
+                h
+            );
         }
-        ImGui::Text(
-            "indices of edge tiles l:%d r:%d u:%d b:%d (w:%d, h:%d)",
-            index_l,
-            index_r,
-            index_u,
-            index_b,
-            w,
-            h
-        );
 
         int visible_tiles_count = w * h;
 
         auto bytes_per_tile  = 2 * sizeof(GLfloat);
         auto required_memory = bytes_per_tile * visible_tiles_count;
 
+        // NOTE: Выделение памяти под rendering_indices_buffer
         if (rstate.rendering_indices_buffer == nullptr) {
             rstate.rendering_indices_buffer      = ALLOC(required_memory);
             rstate.rendering_indices_buffer_size = required_memory;
@@ -1388,16 +1334,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
 
+            // NOTE: Заполнение rendering_indices_buffer
             size_t t = 0;
             FOR_RANGE (int, y, h) {
                 FOR_RANGE (int, x, w) {
                     float* px = ((GLfloat*)rstate.rendering_indices_buffer) + t;
                     float* py = ((GLfloat*)rstate.rendering_indices_buffer) + t + 1;
-
-                    *px = 0;
-                    *py = 7.0f / 8.0f;
-                    t += 2;
-                    continue;
 
                     auto tile = tilemap.tiles[y * gsize.x + x];
                     if (tile) {
@@ -1436,57 +1378,76 @@ void Render(Game_State& state, f32 dt, MCTX) {
         }
         SANITIZE;
 
-        f32 verticesss[] = {
-            0,
-            0,  //
-            0,
-            1,  //
-            1,
-            0,  //
-            1,
-            0,  //
-            0,
-            1,  //
-            1,
-            1,  //
-            // 0, 0, 0, 0, 0, 0, 0, 0,  //
-            // 1, 0, 0, 0, 0, 0, 0, 0,  //
-            // 0, 1, 0, 0, 0, 0, 0, 0,  //
-            // 0, 1, 0, 0, 0, 0, 0, 0,  //
-            // 1, 0, 0, 0, 0, 0, 0, 0,  //
-            // 1, 1, 0, 0, 0, 0, 0, 0,  //
-            // xx0, yy0, 0, color.r, color.g, color.b, x0, y0,  //
-            // xx1, yy0, 0, color.r, color.g, color.b, x1, y0,  //
-            // xx0, yy1, 0, color.r, color.g, color.b, x0, y1,  //
-            // xx0, yy1, 0, color.r, color.g, color.b, x0, y1,  //
-            // xx1, yy0, 0, color.r, color.g, color.b, x1, y0,  //
-            // xx1, yy1, 0, color.r, color.g, color.b, x1, y1,  //
-        };
+        // NOTE: Рисование квада tilemap.
+        {
+            float vertices[] = {
+                -1.0f,
+                -1.0f,  //
+                1.0f,
+                -1.0f,  //
+                -1.0f,
+                1.0f,  //
+                -1.0f,
+                1.0f,  //
+                1.0f,
+                -1.0f,  //
+                1.0f,
+                1.0f,  //
+            };
 
-        GLuint vao;
-        glGenVertexArrays(1, &vao);
-        GLuint vbo;
-        glGenBuffers(1, &vbo);
-        defer {
-            glDeleteBuffers(1, &vbo);
+            GLuint vao;
+            glGenVertexArrays(1, &vao);
+            GLuint vbo;
+            glGenBuffers(1, &vbo);
+
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+            // 3. then set our vertex attributes pointers
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*)0);
+            glEnableVertexAttribArray(0);
+
+            // ..:: Drawing code (in render loop) :: ..
+            // glUseProgram(rstate.sprites_shader_program);
+            glBindVertexArray(vao);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            glBindVertexArray(0);
             glDeleteVertexArrays(1, &vao);
-        };
+            glDeleteBuffers(1, &vbo);
+        }
+        Check_OpenGL_Errors();
 
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_DYNAMIC_DRAW);
+        glBlendFunc(GL_ONE, GL_ZERO);
 
-        // 3. then set our vertex attributes pointers
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), rcast<void*>(0));
-        // glVertexAttribPointer(
-        //     1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+        glBindTexture(GL_TEXTURE_2D, 0);
+        // glFramebufferTexture2D(
+        //     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0
         // );
-        // glVertexAttribPointer(
-        //     2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
-        // );
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, tilemap_framebuffer.id);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(
+            0,
+            0,
+            tilemap_framebuffer.size.x,
+            tilemap_framebuffer.size.y,
+            0,
+            0,
+            viewport[2],
+            viewport[3],
+            GL_COLOR_BUFFER_BIT,
+            GL_NEAREST
+        );
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         glEnableVertexAttribArray(0);
-        // glEnableVertexAttribArray(1);
-        // glEnableVertexAttribArray(2);
+        glBindVertexArray(0);
+
+        Delete_Framebuffer(tilemap_framebuffer);
+        Check_OpenGL_Errors();
     }
 
     // // NOTE: Рисование спрайтов.
@@ -1509,7 +1470,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //         vertices.Reserve(vertices.max_count + required_mem, ctx);
     //
     //         // TODO: rotation
-    //         // TODO: filter out not visible sprites
+    //         // TODO: filter
     //         auto x0 = s.pos.x + s.scale.x * (s.anchor.x - 1);
     //         auto x1 = s.pos.x + s.scale.x * (s.anchor.x - 0);
     //         auto y0 = s.pos.y + s.scale.y * (s.anchor.y - 1);
