@@ -78,6 +78,7 @@ FLATC_PATH = CMD_DIR / "flatc.exe"
 MSBUILD_PATH = r"c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe"
 
 
+REPLACING_SPACES_PATTERN = re.compile("\s+")
 SHADERS_ERROR_PATTERN = re.compile(r"\d+\((\d+)\) : error (.*)")
 
 
@@ -135,10 +136,7 @@ def better_json_dump(data, path):
 
 
 def replace_double_spaces(string: str) -> str:
-    while "  " in string:
-        string = string.replace("  ", " ")
-
-    return string
+    return re.sub(REPLACING_SPACES_PATTERN, " " , string)
 
 
 def run_command(cmd: list[str] | str) -> None:
