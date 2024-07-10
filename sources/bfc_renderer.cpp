@@ -402,14 +402,14 @@ void main() {
 #version 330 core
 
 layout (location = 0) in vec2 a_pos;
-// layout (location = 1) in vec3 a_color;
-//
-// out vec3 color;
+layout (location = 1) in vec3 a_color;
+
+out vec3 color;
 
 void main() {
     // gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
     gl_Position = vec4(a_pos.x, a_pos.y, 0, 1);
-    // color = a_color;
+    color = a_color;
 }
 )VertexShader",
         R"FragmentShader(
@@ -427,7 +427,7 @@ layout(std430, binding = 1) buffer tiles2AtlasPositionsBuffer {
     float data[];
 };
 
-// in vec3 color;
+in vec3 color;
 
 out vec4 frag_color;
 
@@ -438,9 +438,6 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    float sx = a_resolution.x;
-    float sy = a_resolution.y;
-
     vec2 relative_frag_screen_pos = vec2(gl_FragCoord) / a_resolution;
 
 #if 0
@@ -461,16 +458,9 @@ void main() {
     return;
 #endif
 
-    // vec3 pos = a_gl2w * vec3(
-    //     relative_frag_screen_pos.x * 2 - 1,
-    //     // 1 - 2 * relative_frag_screen_pos.y,
-    //     relative_frag_screen_pos.y * 2 - 1,
-    //     1
-    // );
-
     vec3 pos = a_relscreen2w * vec3(relative_frag_screen_pos, 1);
-    float tx = pos.x;
-    float ty = pos.y;
+    ivec2 tile = ivec2(pos);
+    vec2 offset = vec2(pos) - vec2(tile);
 
 #if 0
     frag_color = vec4(
@@ -482,21 +472,18 @@ void main() {
     return;
 #endif
 
-    int current_tile_x = int(tx);
-    int current_tile_y = int(ty);
-
     if (
-        current_tile_x < 0
-        || current_tile_y < 0
-        || current_tile_x > a_gsize.x
-        || current_tile_y > a_gsize.y
+        tile.x < 0
+        || tile.y < 0
+        || tile.x > a_gsize.x
+        || tile.y > a_gsize.y
     )
         discard;
 
 #if 1
     frag_color = vec4(
-        float(current_tile_x) / float(a_gsize.x),
-        float(current_tile_y) / float(a_gsize.y),
+        float(tile.x) / float(a_gsize.x),
+        float(tile.y) / float(a_gsize.y),
         0,
         1
     );
@@ -504,7 +491,7 @@ void main() {
 #endif
 
     int tiles_count = a_gsize.x * a_gsize.y;
-    int tile_number = current_tile_y * a_gsize.x + current_tile_x;
+    int tile_number = tile.y * a_gsize.x + tile.x;
 
 #if 0
     frag_color = vec4(
@@ -516,9 +503,11 @@ void main() {
     return;
 #endif
 
-    float atlas_texture_x = data[2 * tile_number];
-    float atlas_texture_y = data[2 * tile_number + 1];
-    if (atlas_texture_x < 0 || atlas_texture_y < 0)
+    vec2 atlas_texture = vec2(
+        data[2 * tile_number],
+        data[2 * tile_number + 1]
+    );
+    if (atlas_texture.x < 0 || atlas_texture.y < 0)
         discard;
 
 #if 0
@@ -531,13 +520,11 @@ void main() {
     return;
 #endif
 
-    float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
-    float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
+    vec2 atlas_offset = vec2(pos) * a_gsize - tile;
 
 #if 0
     frag_color = vec4(
-        atlas_tile_offset_x,
-        atlas_tile_offset_y,
+        atlas_offset,
         0,
         1
     );
@@ -546,8 +533,7 @@ void main() {
 
 #if 0
     frag_color = vec4(
-        atlas_texture_x + atlas_tile_offset_x,
-        atlas_texture_y + atlas_tile_offset_y,
+        atlas_texture + atlas_offset,
         0,
         1
     );
@@ -558,10 +544,10 @@ void main() {
         ourTexture,
         vec2(
             clamp(
-                atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x,
+                atlas_texture.x + a_tile_size_relative_to_atlas.x * atlas_offset.x,
                 0, 1),
             1 - clamp(
-                atlas_texture_y + a_tile_size_relative_to_atlas.y * atlas_tile_offset_y,
+                atlas_texture.y + a_tile_size_relative_to_atlas.y * atlas_offset.y,
                 0,
                 1
             )
@@ -897,9 +883,8 @@ void Draw_Sprite(
     model = glm::rotate(model, rotation);
     model = glm::scale(model, size);
 
-    auto matrix = projection * model;
-    // TODO: How bad is it that there are vec3, but not vec2?
-    v3f vertices[] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}};
+    auto matrix     = projection * model;
+    v3f  vertices[] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}};
     for (auto& vertex : vertices) {
         vertex = matrix * vertex;
         // Converting from homogeneous to eucledian
@@ -1225,7 +1210,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glUseProgram(0);
 
         GLuint texture_name = 3;
-        // glActiveTexture(GL_TEXTURE0);
 
         glBindTexture(GL_TEXTURE_2D, texture_name);
         Check_OpenGL_Errors();
@@ -1266,20 +1250,26 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glEnd();
     }
 
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    Assert(bitmap.width == viewport[2]);
+    Assert(bitmap.height == viewport[3]);
+    v2f v2f_screen{viewport[2], viewport[3]};
+
     // Матрица передов координат мира
     // в координаты экрана в диапазоне от 0 до 1.
     auto W2RelScreen = glm::mat3(1);
 
     W2RelScreen = glm::translate(W2RelScreen, v2f(0, 1));
-    W2RelScreen = glm::scale(W2RelScreen, v2f(1 / swidth, -1 / sheight));
+    W2RelScreen = glm::scale(W2RelScreen, v2f(1.0f / viewport[2], -1.0f / viewport[3]));
     // Смещение карты игроком.
     W2RelScreen = glm::translate(W2RelScreen, rstate.pan_pos + rstate.pan_offset);
     // Масштабирование карты игроком.
     W2RelScreen = glm::scale(W2RelScreen, v2f(rstate.zoom, rstate.zoom));
     // Перемещаем центр карты в середину экрана.
-    W2RelScreen = glm::translate(W2RelScreen, v2f(swidth, sheight) / 2.0f);
+    W2RelScreen = glm::translate(W2RelScreen, v2f_screen / 2.0f);
     // Масштабируем до размера клетки.
-    W2RelScreen = glm::scale(W2RelScreen, v2f(1, 1) * (f32)cell_size);
+    W2RelScreen = glm::scale(W2RelScreen, v2f_one * (f32)cell_size);
     // Ставим центр - середину карты.
     W2RelScreen = glm::translate(W2RelScreen, -(v2f)gsize / 2.0f);
 
@@ -1292,31 +1282,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
     W2GL      = glm::scale(W2GL, v2f(2, -2));
     W2GL *= W2RelScreen;
 
-    // // Матрица перевода координат мира
-    // // в координаты OpenGL (диапазон от -1 до 1, инвертирован Y).
-    // auto W2GL = glm::mat3(1);
-    // W2GL      = glm::translate(W2GL, v2f(-1, 1));
-    // W2GL      = glm::scale(W2GL, v2f(2, -2));
-    //
-    // W2GL = glm::translate(W2GL, v2f(0, 1));
-    // W2GL = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
-    // // Смещение карты игроком.
-    // W2GL = glm::translate(W2GL, rstate.pan_pos + rstate.pan_offset);
-    // // Масштабирование карты игроком.
-    // W2GL = glm::scale(W2GL, v2f(rstate.zoom, rstate.zoom));
-    // // Перемещаем центр карты в середину экрана.
-    // W2GL = glm::translate(W2GL, v2f(swidth, sheight) / 2.0f);
-    // // Масштабируем до размера клетки.
-    // W2GL = glm::scale(W2GL, v2f(1, 1) * (f32)cell_size);
-    // // Ставим центр - середину карты.
-    // W2GL = glm::translate(W2GL, -(v2f)gsize / 2.0f);
-
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     // Рисование tilemap
     if (!rstate.shaders_compilation_failed) {
-        GLint viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
         defer {
