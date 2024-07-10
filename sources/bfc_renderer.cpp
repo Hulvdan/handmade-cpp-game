@@ -16,7 +16,7 @@ struct Debug_BMP_Header {
     u16 planes;
     u16 bits_per_pixel;
     // NOTE: Mapping things below this line is not technically correct.
-    // Earlier versions of BMP Info Headers don't anything specified below
+    // Earlier versions of BMP Info Headers don't do anything specified below.
     u32 compression;
 };
 #pragma pack(pop)
@@ -419,9 +419,10 @@ uniform vec2 a_tile_size_relative_to_atlas;
 uniform ivec2 a_gsize;
 uniform ivec2 a_resolution;
 uniform ivec2 a_atlas_texture_size;
-uniform vec4 a_visible_area_rect;
 
-layout(std430, binding = 1) buffer floatArray {
+uniform mat3 a_gl2w;
+
+layout(std430, binding = 1) buffer tiles2AtlasPositionsBuffer {
     float data[];
 };
 
@@ -436,125 +437,138 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    frag_color = vec4(1, 1, 1, 1);
-}
+    float sx = a_resolution.x;
+    float sy = a_resolution.y;
 
-// void main() {
-//     float sx = a_resolution.x;
-//     float sy = a_resolution.y;
-//     float px1 = a_visible_area_rect.x;
-//     float py1 = a_visible_area_rect.y;
-//     float px2 = a_visible_area_rect.z;
-//     float py2 = a_visible_area_rect.w;
-//
-//     float tx = map(gl_FragCoord.x / sx, 0, 1, px1, px2) / (px2 - px1);
-//     float ty = map(1 - gl_FragCoord.y / sy, 0, 1, py1, py2) / (py2 - py1);
-//
-//     if (tx < 0 || ty < 0 || tx > 1 || ty > 1)
-//         discard;
-//
-// #if 0
-//     frag_color = vec4(
-//         tx,
-//         ty,
-//         0,
-//         1
-//     );
-//     return;
-// #endif
-//
-//     int current_tile_x = int(tx * a_gsize.x);
-//     int current_tile_y = int(ty * a_gsize.y);
-//
-// #if 0
-//     // TODO: ВЕРНУТЬ ЭТОТ БЛОК!
-//     if (
-//         current_tile_x < 0
-//         || current_tile_y < 0
-//         || current_tile_x > a_gsize.x
-//         || current_tile_y > a_gsize.y
-//     )
-//         discard;
-// #endif
-//
-// #if 0
-//     frag_color = vec4(
-//         float(current_tile_x) / float(a_gsize.x),
-//         float(current_tile_y) / float(a_gsize.y),
-//         0,
-//         1
-//     );
-//     return;
-// #endif
-//
-//     int tiles_count = a_gsize.x * a_gsize.y;
-//     int tile_number = current_tile_y * a_gsize.x + current_tile_x;
-//
-// #if 0
-//     frag_color = vec4(
-//         float(tile_number) / float(tiles_count),
-//         0,
-//         0,
-//         1
-//     );
-//     return;
-// #endif
-//
-// #if 0
-//     // TODO: венуть этот блок!
-//     float atlas_texture_x = data[2 * tile_number];
-//     float atlas_texture_y = data[2 * tile_number + 1];
-//     if (atlas_texture_x < 0 || atlas_texture_y < 0)
-//         discard;
-// #endif
-//
-// #if 0
-//     frag_color = vec4(
-//         atlas_texture_x,
-//         atlas_texture_y,
-//         0,
-//         1
-//     );
-//     return;
-// #endif
-//
-//     float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
-//     float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
-//
-// #if 0
-//     frag_color = vec4(
-//         atlas_tile_offset_x,
-//         atlas_tile_offset_y,
-//         0,
-//         1
-//     );
-//     return;
-// #endif
-//
-// #if 0
-//     frag_color = vec4(
-//         atlas_texture_x + atlas_tile_offset_x,
-//         atlas_texture_y + atlas_tile_offset_y,
-//         0,
-//         1
-//     );
-//     return;
-// #endif
-//
-// #if 0
-//     frag_color = texture(
-//         ourTexture,
-//         vec2(
-//             // clamp(atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x, 0, 1),
-//             // clamp(atlas_texture_y + a_tile_size_relative_to_atlas.y * atlas_tile_offset_y, 0, 1)
-//             clamp(0.125 * atlas_tile_offset_x, 0, 1),
-//             clamp(0.125 * 7 + 0.125 * atlas_tile_offset_y, 0, 1)
-//         )
-//     );
-// #endif
-//
-//     frag_color = vec4(1, 0, 0, 1);
-// }
+    vec2 relative_frag_screen_pos = vec2(
+        gl_FragCoord.x / sx,
+        // 1 - gl_FragCoord.y / sy
+        gl_FragCoord.y / sy
+        // ((gl_FragCoord.x + 1) / 2) / sx,
+        // ((gl_FragCoord.y + 1) / 2) / sy
+    );
+
+#if 0
+    frag_color = vec4(
+        gl_FragCoord.x,
+        gl_FragCoord.y,
+        0,
+        1
+    );
+    return;
+#endif
+
+#if 0
+    frag_color = vec4(
+        relative_frag_screen_pos,
+        0,
+        1
+    );
+    return;
+#endif
+
+    vec3 pos = a_gl2w * vec3(relative_frag_screen_pos, 0);
+    float tx = pos.x;
+    float ty = pos.y;
+
+#if 1
+    frag_color = vec4(
+        tx,
+        ty,
+        0,
+        1
+    );
+    return;
+#endif
+
+    // int current_tile_x = int(tx);
+    // int current_tile_y = int(ty);
+    int current_tile_x = int(tx / a_gsize.x);
+    int current_tile_y = int(ty / a_gsize.y);
+
+    if (
+        current_tile_x < 0
+        || current_tile_y < 0
+        || current_tile_x > a_gsize.x
+        || current_tile_y > a_gsize.y
+    )
+        discard;
+
+#if 1
+    frag_color = vec4(
+        float(current_tile_x) / float(a_gsize.x),
+        float(current_tile_y) / float(a_gsize.y),
+        0,
+        1
+    );
+    return;
+#endif
+
+    int tiles_count = a_gsize.x * a_gsize.y;
+    int tile_number = current_tile_y * a_gsize.x + current_tile_x;
+
+#if 0
+    frag_color = vec4(
+        float(tile_number) / float(tiles_count),
+        0,
+        0,
+        1
+    );
+    return;
+#endif
+
+    float atlas_texture_x = data[2 * tile_number];
+    float atlas_texture_y = data[2 * tile_number + 1];
+    if (atlas_texture_x < 0 || atlas_texture_y < 0)
+        discard;
+
+#if 0
+    frag_color = vec4(
+        atlas_texture_x,
+        atlas_texture_y,
+        0,
+        1
+    );
+    return;
+#endif
+
+    float atlas_tile_offset_x = tx * float(a_gsize.x) - float(current_tile_x);
+    float atlas_tile_offset_y = ty * float(a_gsize.y) - float(current_tile_y);
+
+#if 0
+    frag_color = vec4(
+        atlas_tile_offset_x,
+        atlas_tile_offset_y,
+        0,
+        1
+    );
+    return;
+#endif
+
+#if 0
+    frag_color = vec4(
+        atlas_texture_x + atlas_tile_offset_x,
+        atlas_texture_y + atlas_tile_offset_y,
+        0,
+        1
+    );
+    return;
+#endif
+
+    frag_color = texture(
+        ourTexture,
+        vec2(
+            clamp(
+                atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x,
+                0, 1),
+            1 - clamp(
+                atlas_texture_y + a_tile_size_relative_to_atlas.y * (1 - atlas_tile_offset_y),
+                0,
+                1
+            )
+        )
+    );
+}
 )FragmentShader",
         trash_arena
     );
@@ -577,8 +591,8 @@ void main() {
             auto location = glGetUniformLocation(
                 rstate.tilemap_shader_program, "a_tile_size_relative_to_atlas"
             );
-            auto tile_x = (f32)rstate.atlas.texture.size.x / (f32)rstate.atlas_size.x;
-            auto tile_y = (f32)rstate.atlas.texture.size.y / (f32)rstate.atlas_size.y;
+            auto tile_x = 16.0f / (f32)rstate.atlas.texture.size.x;
+            auto tile_y = 16.0f / (f32)rstate.atlas.texture.size.y;
             glUniform2f(location, tile_x, tile_y);
         }
         {
@@ -601,8 +615,9 @@ void main() {
                 location, rstate.atlas.texture.size.x, rstate.atlas.texture.size.y
             );
         }
-        rstate.tilemap_shader_visible_area_rect_location
-            = glGetUniformLocation(rstate.tilemap_shader_program, "a_visible_area_rect");
+
+        rstate.tilemap_shader_gl2w_location
+            = glGetUniformLocation(rstate.tilemap_shader_program, "a_gl2w");
     }
 
     rstate.grass_smart_tile.id  = 1;
@@ -1168,7 +1183,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     if (swidth == 0.0f || sheight == 0.0f)
         return;
 
-    // NOTE: Обработка зума карты к курсору.
+    // Обработка зума карты к курсору.
     // TODO: Зафиксить небольшую неточность, небольшой телепорт в самом конце анимации.
     {
         auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
@@ -1204,7 +1219,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     glClear(GL_COLOR_BUFFER_BIT);
     Check_OpenGL_Errors();
 
-    // NOTE: Рисование заднего синего фона.
+    // Рисование заднего синего фона.
     {
         glUseProgram(0);
 
@@ -1250,19 +1265,19 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glEnd();
     }
 
-    auto projection = glm::mat3(1);
-    projection      = glm::translate(projection, v2f(0, 1));
-    projection      = glm::scale(projection, v2f(1 / swidth, -1 / sheight));
-    projection      = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection      = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
-    projection      = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
-    projection      = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
-    // projection = glm::scale(projection, v2f(1, 1) * (f32)cell_size);
-    // projection = glm::scale(projection, v2f(2, 2) / 2.0f);
+    auto W2GL = glm::mat3(1);
+    W2GL      = glm::translate(W2GL, v2f(0, 1));
+    W2GL      = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
+    W2GL      = glm::translate(W2GL, rstate.pan_pos + rstate.pan_offset);
+    W2GL      = glm::scale(W2GL, v2f(rstate.zoom, rstate.zoom));
+    W2GL      = glm::translate(W2GL, v2f(swidth, sheight) / 2.0f);
+    W2GL      = glm::translate(W2GL, -(v2f)gsize * (f32)cell_size / 2.0f);
+    // W2GL = glm::scale(W2GL, v2f(1, 1) * (f32)cell_size);
+    // W2GL = glm::scale(W2GL, v2f(2, 2) / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // NOTE: Рисование tilemap
+    // Рисование tilemap
     if (!rstate.shaders_compilation_failed) {
         GLint viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
@@ -1275,69 +1290,30 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer.id);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
-        auto projection_inv = glm::inverse(projection);
+        const auto GL2W = glm::inverse(W2GL);
 
-        auto p1 = projection_inv * v3f(-1, -1, 1);
-        auto p2 = projection_inv * v3f(1, 1, 1);
-
-        // NOTE: лево и право, верх и низ включительно.
-        int index_l, index_r, index_t, index_b;
-        int w, h;
-        {
-            index_l = int(p1.x);
-            index_b = int(p1.y);
-            index_r = Ceil(p2.x);
-            index_t = Ceil(p2.y);
-
-            if (index_l > index_r)
-                std::swap(index_l, index_r);
-            if (index_b > index_t)
-                std::swap(index_b, index_t);
-
-            w = MIN(gsize.x, index_r - index_l + 1);
-            h = MIN(gsize.y, index_t - index_b + 1);
-
-            ImGui::Text(
-                "indices of edge tiles l:%d r:%d u:%d b:%d (w:%d, h:%d)",
-                index_l,
-                index_r,
-                index_t,
-                index_b,
-                w,
-                h
-            );
-        }
-
-        int visible_tiles_count = w * h;
+        auto transpose = GL_FALSE;
+        glUniformMatrix3fv(
+            rstate.tilemap_shader_gl2w_location, 1, transpose, (GLfloat*)(&GL2W)
+        );
 
         auto bytes_per_tile  = 2 * sizeof(GLfloat);
-        auto required_memory = bytes_per_tile * visible_tiles_count;
+        auto tiles_count     = gsize.x * gsize.y;
+        auto required_memory = bytes_per_tile * tiles_count;
 
-        // NOTE: Выделение памяти под rendering_indices_buffer
+        // Выделение памяти под rendering_indices_buffer.
         if (rstate.rendering_indices_buffer == nullptr) {
             rstate.rendering_indices_buffer      = ALLOC(required_memory);
             rstate.rendering_indices_buffer_size = required_memory;
         }
-        else if (rstate.rendering_indices_buffer_size < required_memory) {
-            rstate.rendering_indices_buffer = REALLOC(
-                required_memory,
-                rstate.rendering_indices_buffer_size,
-                (u8*)rstate.rendering_indices_buffer
-            );
-            rstate.rendering_indices_buffer_size = required_memory;
-        }
-
-        glUniform4f(
-            rstate.tilemap_shader_visible_area_rect_location, p1.x, p1.y, p2.x, p2.y
-        );
 
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
 
-            // NOTE: Заполнение rendering_indices_buffer
+            // Заполнение rendering_indices_buffer.
             size_t t = 0;
-            FOR_RANGE (int, y, h) {
-                FOR_RANGE (int, x, w) {
+            FOR_RANGE (int, y, gsize.y) {
+                FOR_RANGE (int, x, gsize.x) {
                     float* px = ((GLfloat*)rstate.rendering_indices_buffer) + t;
                     float* py = ((GLfloat*)rstate.rendering_indices_buffer) + t + 1;
 
@@ -1378,21 +1354,26 @@ void Render(Game_State& state, f32 dt, MCTX) {
         }
         SANITIZE;
 
-        // NOTE: Рисование квада tilemap.
+        // Рисование квада tilemap.
         {
+            auto p0 = W2GL * v3f(0, 0, 1);
+            auto p1 = W2GL * v3f(gsize.x * cell_size, 0, 1);
+            auto p2 = W2GL * v3f(0, gsize.y * cell_size, 1);
+            auto p3 = W2GL * v3f(gsize.x * cell_size, gsize.y * cell_size, 1);
+
             float vertices[] = {
-                -1.0f,
-                -1.0f,  //
-                1.0f,
-                -1.0f,  //
-                -1.0f,
-                1.0f,  //
-                -1.0f,
-                1.0f,  //
-                1.0f,
-                -1.0f,  //
-                1.0f,
-                1.0f,  //
+                p0.x,
+                p0.y,
+                p1.x,
+                p1.y,
+                p2.x,
+                p2.y,
+                p2.x,
+                p2.y,
+                p1.x,
+                p1.y,
+                p3.x,
+                p3.y,
             };
 
             GLuint vao;
@@ -1450,7 +1431,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         Check_OpenGL_Errors();
     }
 
-    // // NOTE: Рисование спрайтов.
+    // // Рисование спрайтов.
     // Memory_Buffer vertices{ctx};
     // defer {
     //     vertices.Deinit(ctx);
@@ -1568,7 +1549,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //     glBindVertexArray(0);
     //     glDeleteVertexArrays(1, &vao);
     //
-    //     // NOTE: Рисование UI плашки слева.
+    //     // Рисование UI плашки слева.
     //     auto& ui_state = *rstate.ui_state;
     //     {
     //         auto  sprite_params = ui_state.buildables_panel_params;
@@ -1597,11 +1578,11 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //         auto outer_x              = outer_container_size.x * outer_anchor.x;
     //         auto outer_y              = outer_container_size.y * outer_anchor.y;
     //
-    //         auto projection = glm::mat3(1);
-    //         projection      = glm::translate(projection, v2f(0, 1));
-    //         projection      = glm::scale(projection, v2f(1 / swidth, -1 / sheight));
-    //         projection      = glm::translate(projection, v2f((int)outer_x,
-    //         (int)outer_y)); projection      = glm::scale(projection, v2f(scale));
+    //         auto W2GL = glm::mat3(1);
+    //         W2GL      = glm::translate(W2GL, v2f(0, 1));
+    //         W2GL      = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
+    //         W2GL      = glm::translate(W2GL, v2f((int)outer_x,
+    //         (int)outer_y)); W2GL      = glm::scale(W2GL, v2f(scale));
     //
     //         {
     //             auto model = glm::mat3(1);
@@ -1609,8 +1590,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //
     //             auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
     //             auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
-    //             auto p0       = projection * p0_local;
-    //             auto p1       = projection * p1_local;
+    //             auto p0       = W2GL * p0_local;
+    //             auto p1       = W2GL * p1_local;
     //             Draw_Stretchable_Sprite(
     //                 p0.x,
     //                 p1.x,
@@ -1635,8 +1616,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //                 placeholders_gap) / 2; drawing_point.y += i * (placeholders_gap +
     //                 psize.y);
     //
-    //                 auto p     = projection * drawing_point;
-    //                 auto s     = projection * v3f(psize, 0);
+    //                 auto p     = W2GL * drawing_point;
+    //                 auto s     = W2GL * v3f(psize, 0);
     //                 auto color = (i == ui_state.selected_buildable_index)
     //                                  ? ui_state.selected_buildable_color
     //                                  : ui_state.not_selected_buildable_color;
@@ -1652,8 +1633,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //                 placeholders_gap) / 2; drawing_point.y += i * (placeholders_gap +
     //                 psize.y);
     //
-    //                 auto p = projection * drawing_point;
-    //                 auto s = projection * v3f(buildable_size, 0);
+    //                 auto p = W2GL * drawing_point;
+    //                 auto s = W2GL * v3f(buildable_size, 0);
     //                 glBindTexture(GL_TEXTURE_2D, buildable_textures.textures[i]);
     //
     //                 auto color = (i == ui_state.selected_buildable_index)
@@ -1664,7 +1645,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //         }
     //     }
     //
-    //     // NOTE: Дебаг-рисование штук для чувачков.
+    //     // Дебаг-рисование штук для чувачков.
     //     {
     //         for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
     //             auto& human = Assert_Deref(human_ptr);
@@ -1672,7 +1653,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // #if 0
     //             if (human.moving.path.count > 0) {
     //                 auto last_p = *(human.moving.path.base + human.moving.path.count -
-    //                 1); auto p = projection
+    //                 1); auto p = W2GL
     //                     * v3f((v2f(last_p) + v2f_one / 2.0f) * (f32)cell_size, 1);
     //
     //                 glPointSize(12);
@@ -1688,7 +1669,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // #if 0
     //             if (human.moving.to.has_value()) {
     //                 auto p
-    //                     = projection * v3f(v2f(human.moving.to.value()) *
+    //                     = W2GL * v3f(v2f(human.moving.to.value()) *
     //                     (f32)cell_size, 1);
     //
     //                 glPointSize(12);
@@ -1703,7 +1684,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //         }
     //     }
     //
-    //     // NOTE: Дебаг-рисование сегментов.
+    //     // Дебаг-рисование сегментов.
     // #if 0
     //     {
     //         const BF_Color colors[] = {
@@ -1743,8 +1724,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     //
     //                         auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
     //
-    //                         auto p1 = projection * v3f(center * (f32)cell_size, 1);
-    //                         auto p2 = projection * v3f(offsetted * (f32)cell_size, 1);
+    //                         auto p1 = W2GL * v3f(center * (f32)cell_size, 1);
+    //                         auto p2 = W2GL * v3f(offsetted * (f32)cell_size, 1);
     //                         auto p3 = (p1 + p2) / 2.0f;
     //
     //                         glPointSize(12);

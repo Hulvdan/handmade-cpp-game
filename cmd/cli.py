@@ -136,7 +136,7 @@ def better_json_dump(data, path):
 
 
 def replace_double_spaces(string: str) -> str:
-    return re.sub(REPLACING_SPACES_PATTERN, " " , string)
+    return re.sub(REPLACING_SPACES_PATTERN, " ", string)
 
 
 def run_command(cmd: list[str] | str) -> None:

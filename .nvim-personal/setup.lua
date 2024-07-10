@@ -80,3 +80,28 @@ require("conform").setup({
         isort = { command = [[.venv\Scripts\isort.exe]] },
     },
 })
+
+-- vim.keymap.set("n", "<leader>0", function()
+--     if vim.bo.filetype == "cpp" then
+--         vim.fn.execute("%g/^#if 0/normal! zf%")
+--         vim.api.nvim_input("<C-o>")
+--     end
+-- end)
+
+-- vim.treesitter.query.set(
+--     "cpp",
+--     "injections",
+--     [[
+-- (raw_string_literal
+--     delimiter: (raw_string_delimiter) @delimiter (#eq? @delimiter "VertexShader")
+--     ; (raw_string_content) @vertex_shader_injected @sql
+--     (raw_string_content) @python
+--     (raw_string_delimiter))
+--
+-- (raw_string_literal
+--     delimiter: (raw_string_delimiter) @delimiter (#eq? @delimiter "FragmentShader")
+--     ; (raw_string_content) @fragment_shader_injected @sql
+--     (raw_string_content) @python
+--     (raw_string_delimiter))
+-- ]]
+-- )
