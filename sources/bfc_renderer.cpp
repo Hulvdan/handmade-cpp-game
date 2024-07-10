@@ -421,6 +421,7 @@ uniform ivec2 a_resolution;
 uniform ivec2 a_atlas_texture_size;
 
 uniform mat3 a_gl2w;
+uniform mat3 a_relscreen2w;
 
 layout(std430, binding = 1) buffer tiles2AtlasPositionsBuffer {
     float data[];
@@ -440,18 +441,11 @@ void main() {
     float sx = a_resolution.x;
     float sy = a_resolution.y;
 
-    vec2 relative_frag_screen_pos = vec2(
-        gl_FragCoord.x / sx,
-        // 1 - gl_FragCoord.y / sy
-        gl_FragCoord.y / sy
-        // ((gl_FragCoord.x + 1) / 2) / sx,
-        // ((gl_FragCoord.y + 1) / 2) / sy
-    );
+    vec2 relative_frag_screen_pos = vec2(gl_FragCoord) / a_resolution;
 
 #if 0
     frag_color = vec4(
-        gl_FragCoord.x,
-        gl_FragCoord.y,
+        relative_frag_screen_pos,
         0,
         1
     );
@@ -467,24 +461,29 @@ void main() {
     return;
 #endif
 
-    vec3 pos = a_gl2w * vec3(relative_frag_screen_pos, 0);
+    // vec3 pos = a_gl2w * vec3(
+    //     relative_frag_screen_pos.x * 2 - 1,
+    //     // 1 - 2 * relative_frag_screen_pos.y,
+    //     relative_frag_screen_pos.y * 2 - 1,
+    //     1
+    // );
+
+    vec3 pos = a_relscreen2w * vec3(relative_frag_screen_pos, 1);
     float tx = pos.x;
     float ty = pos.y;
 
-#if 1
+#if 0
     frag_color = vec4(
-        tx,
-        ty,
+        tx / float(a_gsize.x),
+        ty / float(a_gsize.y),
         0,
         1
     );
     return;
 #endif
 
-    // int current_tile_x = int(tx);
-    // int current_tile_y = int(ty);
-    int current_tile_x = int(tx / a_gsize.x);
-    int current_tile_y = int(ty / a_gsize.y);
+    int current_tile_x = int(tx);
+    int current_tile_y = int(ty);
 
     if (
         current_tile_x < 0
@@ -562,7 +561,7 @@ void main() {
                 atlas_texture_x + a_tile_size_relative_to_atlas.x * atlas_tile_offset_x,
                 0, 1),
             1 - clamp(
-                atlas_texture_y + a_tile_size_relative_to_atlas.y * (1 - atlas_tile_offset_y),
+                atlas_texture_y + a_tile_size_relative_to_atlas.y * atlas_tile_offset_y,
                 0,
                 1
             )
@@ -618,6 +617,8 @@ void main() {
 
         rstate.tilemap_shader_gl2w_location
             = glGetUniformLocation(rstate.tilemap_shader_program, "a_gl2w");
+        rstate.tilemap_shader_relscreen2w_location
+            = glGetUniformLocation(rstate.tilemap_shader_program, "a_relscreen2w");
     }
 
     rstate.grass_smart_tile.id  = 1;
@@ -1265,15 +1266,50 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glEnd();
     }
 
+    // Матрица передов координат мира
+    // в координаты экрана в диапазоне от 0 до 1.
+    auto W2RelScreen = glm::mat3(1);
+
+    W2RelScreen = glm::translate(W2RelScreen, v2f(0, 1));
+    W2RelScreen = glm::scale(W2RelScreen, v2f(1 / swidth, -1 / sheight));
+    // Смещение карты игроком.
+    W2RelScreen = glm::translate(W2RelScreen, rstate.pan_pos + rstate.pan_offset);
+    // Масштабирование карты игроком.
+    W2RelScreen = glm::scale(W2RelScreen, v2f(rstate.zoom, rstate.zoom));
+    // Перемещаем центр карты в середину экрана.
+    W2RelScreen = glm::translate(W2RelScreen, v2f(swidth, sheight) / 2.0f);
+    // Масштабируем до размера клетки.
+    W2RelScreen = glm::scale(W2RelScreen, v2f(1, 1) * (f32)cell_size);
+    // Ставим центр - середину карты.
+    W2RelScreen = glm::translate(W2RelScreen, -(v2f)gsize / 2.0f);
+
+    const auto RelScreen2W = glm::inverse(W2RelScreen);
+
+    // Матрица перевода координат мира
+    // в координаты OpenGL от -1 до 1 с инверсией Y.
     auto W2GL = glm::mat3(1);
-    W2GL      = glm::translate(W2GL, v2f(0, 1));
-    W2GL      = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
-    W2GL      = glm::translate(W2GL, rstate.pan_pos + rstate.pan_offset);
-    W2GL      = glm::scale(W2GL, v2f(rstate.zoom, rstate.zoom));
-    W2GL      = glm::translate(W2GL, v2f(swidth, sheight) / 2.0f);
-    W2GL      = glm::translate(W2GL, -(v2f)gsize * (f32)cell_size / 2.0f);
+    W2GL      = glm::translate(W2GL, v2f(-1, 1));
+    W2GL      = glm::scale(W2GL, v2f(2, -2));
+    W2GL *= W2RelScreen;
+
+    // // Матрица перевода координат мира
+    // // в координаты OpenGL (диапазон от -1 до 1, инвертирован Y).
+    // auto W2GL = glm::mat3(1);
+    // W2GL      = glm::translate(W2GL, v2f(-1, 1));
+    // W2GL      = glm::scale(W2GL, v2f(2, -2));
+    //
+    // W2GL = glm::translate(W2GL, v2f(0, 1));
+    // W2GL = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
+    // // Смещение карты игроком.
+    // W2GL = glm::translate(W2GL, rstate.pan_pos + rstate.pan_offset);
+    // // Масштабирование карты игроком.
+    // W2GL = glm::scale(W2GL, v2f(rstate.zoom, rstate.zoom));
+    // // Перемещаем центр карты в середину экрана.
+    // W2GL = glm::translate(W2GL, v2f(swidth, sheight) / 2.0f);
+    // // Масштабируем до размера клетки.
     // W2GL = glm::scale(W2GL, v2f(1, 1) * (f32)cell_size);
-    // W2GL = glm::scale(W2GL, v2f(2, 2) / 2.0f);
+    // // Ставим центр - середину карты.
+    // W2GL = glm::translate(W2GL, -(v2f)gsize / 2.0f);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1282,26 +1318,32 @@ void Render(Game_State& state, f32 dt, MCTX) {
         GLint viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
 
-        glDisable(GL_DEPTH_TEST);
-
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
+        defer {
+            Delete_Framebuffer(tilemap_framebuffer);
+        };
 
         glUseProgram(rstate.tilemap_shader_program);
         glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer.id);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
         const auto GL2W = glm::inverse(W2GL);
-
-        auto transpose = GL_FALSE;
         glUniformMatrix3fv(
-            rstate.tilemap_shader_gl2w_location, 1, transpose, (GLfloat*)(&GL2W)
+            rstate.tilemap_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
         );
 
+        glUniformMatrix3fv(
+            rstate.tilemap_shader_relscreen2w_location,
+            1,
+            GL_FALSE,
+            (GLfloat*)(&RelScreen2W)
+        );
+
+        // Выделение памяти под rendering_indices_buffer.
         auto bytes_per_tile  = 2 * sizeof(GLfloat);
         auto tiles_count     = gsize.x * gsize.y;
         auto required_memory = bytes_per_tile * tiles_count;
 
-        // Выделение памяти под rendering_indices_buffer.
         if (rstate.rendering_indices_buffer == nullptr) {
             rstate.rendering_indices_buffer      = ALLOC(required_memory);
             rstate.rendering_indices_buffer_size = required_memory;
@@ -1357,9 +1399,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
         // Рисование квада tilemap.
         {
             auto p0 = W2GL * v3f(0, 0, 1);
-            auto p1 = W2GL * v3f(gsize.x * cell_size, 0, 1);
-            auto p2 = W2GL * v3f(0, gsize.y * cell_size, 1);
-            auto p3 = W2GL * v3f(gsize.x * cell_size, gsize.y * cell_size, 1);
+            auto p1 = W2GL * v3f(gsize.x, 0, 1);
+            auto p2 = W2GL * v3f(0, gsize.y, 1);
+            auto p3 = W2GL * v3f(gsize.x, gsize.y, 1);
 
             float vertices[] = {
                 p0.x,
@@ -1427,7 +1469,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
 
-        Delete_Framebuffer(tilemap_framebuffer);
         Check_OpenGL_Errors();
     }
 
