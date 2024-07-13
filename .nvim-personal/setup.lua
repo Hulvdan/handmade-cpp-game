@@ -81,12 +81,12 @@ require("conform").setup({
     },
 })
 
--- vim.keymap.set("n", "<leader>0", function()
---     if vim.bo.filetype == "cpp" then
---         vim.fn.execute("%g/^#if 0/normal! zf%")
---         vim.api.nvim_input("<C-o>")
---     end
--- end)
+vim.keymap.set("n", "<leader>0", function()
+    if vim.bo.filetype == "cpp" then
+        vim.fn.execute("%g/^#if 0/normal! zf%")
+        vim.api.nvim_input("<C-o>")
+    end
+end)
 
 -- vim.treesitter.query.set(
 --     "cpp",

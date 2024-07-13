@@ -401,13 +401,13 @@ void main() {
         R"VertexShader(
 #version 330 core
 
+uniform vec3 a_color;
+
 layout (location = 0) in vec2 a_pos;
-layout (location = 1) in vec3 a_color;
 
 out vec3 color;
 
 void main() {
-    // gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
     gl_Position = vec4(a_pos.x, a_pos.y, 0, 1);
     color = a_color;
 }
@@ -420,7 +420,7 @@ uniform ivec2 a_gsize;
 uniform ivec2 a_resolution;
 uniform ivec2 a_atlas_texture_size;
 
-uniform mat3 a_gl2w;
+uniform mat3 a_gl2w;  // unused
 uniform mat3 a_relscreen2w;
 
 layout(std430, binding = 1) buffer tiles2AtlasPositionsBuffer {
@@ -438,16 +438,8 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    vec2 relative_frag_screen_pos = vec2(gl_FragCoord) / a_resolution;
-
-#if 0
-    frag_color = vec4(
-        relative_frag_screen_pos,
-        0,
-        1
-    );
-    return;
-#endif
+    vec2 relative_frag_screen_pos = vec2(gl_FragCoord) / gl_FragCoord.w / a_resolution;
+    relative_frag_screen_pos.y = 1 - relative_frag_screen_pos.y;
 
 #if 0
     frag_color = vec4(
@@ -459,13 +451,14 @@ void main() {
 #endif
 
     vec3 pos = a_relscreen2w * vec3(relative_frag_screen_pos, 1);
-    ivec2 tile = ivec2(pos);
-    vec2 offset = vec2(pos) - vec2(tile);
+    vec2 pos_norm = vec2(pos.x, pos.y) / pos.z;
+
+    ivec2 tile   = ivec2(pos_norm);
+    vec2 offset = pos_norm - vec2(tile);
 
 #if 0
     frag_color = vec4(
-        tx / float(a_gsize.x),
-        ty / float(a_gsize.y),
+        vec2(tile) / vec2(a_gsize),
         0,
         1
     );
@@ -480,18 +473,8 @@ void main() {
     )
         discard;
 
-#if 1
-    frag_color = vec4(
-        float(tile.x) / float(a_gsize.x),
-        float(tile.y) / float(a_gsize.y),
-        0,
-        1
-    );
-    return;
-#endif
-
     int tiles_count = a_gsize.x * a_gsize.y;
-    int tile_number = tile.y * a_gsize.x + tile.x;
+    int tile_number = (a_gsize.y - tile.y - 1) * a_gsize.x + tile.x;
 
 #if 0
     frag_color = vec4(
@@ -520,8 +503,6 @@ void main() {
     return;
 #endif
 
-    vec2 atlas_offset = vec2(pos) * a_gsize - tile;
-
 #if 0
     frag_color = vec4(
         atlas_offset,
@@ -544,15 +525,17 @@ void main() {
         ourTexture,
         vec2(
             clamp(
-                atlas_texture.x + a_tile_size_relative_to_atlas.x * atlas_offset.x,
+                atlas_texture.x + a_tile_size_relative_to_atlas.x * offset.x,
                 0, 1),
             1 - clamp(
-                atlas_texture.y + a_tile_size_relative_to_atlas.y * atlas_offset.y,
-                0,
-                1
-            )
+                atlas_texture.y + a_tile_size_relative_to_atlas.y * offset.y,
+                0, 1)
         )
     );
+
+    frag_color.r *= color.r;
+    frag_color.g *= color.g;
+    frag_color.b *= color.b;
 }
 )FragmentShader",
         trash_arena
@@ -582,13 +565,6 @@ void main() {
         }
         {
             auto location
-                = glGetUniformLocation(rstate.tilemap_shader_program, "a_resolution");
-            GLint viewport[4];
-            glGetIntegerv(GL_VIEWPORT, viewport);
-            glUniform2i(location, viewport[2], viewport[3]);
-        }
-        {
-            auto location
                 = glGetUniformLocation(rstate.tilemap_shader_program, "a_gsize");
             glUniform2i(location, gsize.x, gsize.y);
         }
@@ -605,6 +581,12 @@ void main() {
             = glGetUniformLocation(rstate.tilemap_shader_program, "a_gl2w");
         rstate.tilemap_shader_relscreen2w_location
             = glGetUniformLocation(rstate.tilemap_shader_program, "a_relscreen2w");
+        rstate.tilemap_shader_resolution_location
+            = glGetUniformLocation(rstate.tilemap_shader_program, "a_resolution");
+
+        rstate.tilemap_shader_color_location
+            = glGetUniformLocation(rstate.tilemap_shader_program, "a_color");
+        glUniform3f(rstate.tilemap_shader_color_location, 1, 1, 1);
     }
 
     rstate.grass_smart_tile.id  = 1;
@@ -1256,8 +1238,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     Assert(bitmap.height == viewport[3]);
     v2f v2f_screen{viewport[2], viewport[3]};
 
-    // Матрица передов координат мира
-    // в координаты экрана в диапазоне от 0 до 1.
+    // Матрица перевода координат мира
+    // в координаты экрана в диапазоне от 0 до 1. Y вверх.
     auto W2RelScreen = glm::mat3(1);
 
     W2RelScreen = glm::translate(W2RelScreen, v2f(0, 1));
@@ -1276,13 +1258,13 @@ void Render(Game_State& state, f32 dt, MCTX) {
     const auto RelScreen2W = glm::inverse(W2RelScreen);
 
     // Матрица перевода координат мира
-    // в координаты OpenGL от -1 до 1 с инверсией Y.
+    // в координаты OpenGL от -1 до 1. Y вниз.
     auto W2GL = glm::mat3(1);
     W2GL      = glm::translate(W2GL, v2f(-1, 1));
     W2GL      = glm::scale(W2GL, v2f(2, -2));
     W2GL *= W2RelScreen;
 
-    // Рисование tilemap
+    // Рисование tilemap.
     if (!rstate.shaders_compilation_failed) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1300,11 +1282,14 @@ void Render(Game_State& state, f32 dt, MCTX) {
             rstate.tilemap_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
         );
 
+        glUniform2i(rstate.tilemap_shader_resolution_location, viewport[2], viewport[3]);
+
         glUniformMatrix3fv(
             rstate.tilemap_shader_relscreen2w_location,
             1,
             GL_FALSE,
             (GLfloat*)(&RelScreen2W)
+            // (GLfloat*)(&W2RelScreen)
         );
 
         // Выделение памяти под rendering_indices_buffer.
@@ -1370,6 +1355,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             auto p1 = W2GL * v3f(gsize.x, 0, 1);
             auto p2 = W2GL * v3f(0, gsize.y, 1);
             auto p3 = W2GL * v3f(gsize.x, gsize.y, 1);
+            Assert(p3.z == 1);
 
             float vertices[] = {
                 p0.x,
