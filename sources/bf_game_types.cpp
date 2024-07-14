@@ -623,6 +623,7 @@ struct Load_Smart_Tile_Result {
 struct Tilemap {
     Tile_ID*    tiles;
     Texture_ID* textures;
+    v2i         size;
 };
 
 struct C_Texture {

@@ -454,6 +454,7 @@ void main() {
 
     ivec2 tile   = ivec2(pos_norm);
     vec2 offset = pos_norm - vec2(tile);
+    offset.y = 1 - offset.y;
 
 #if 0
     frag_color = vec4(
@@ -473,7 +474,7 @@ void main() {
         discard;
 
     int tiles_count = a_gsize.x * a_gsize.y;
-    int tile_number = (a_gsize.y - tile.y - 1) * a_gsize.x + tile.x;
+    int tile_number = tile.y * a_gsize.x + tile.x;
 
 #if 0
     frag_color = vec4(
@@ -523,9 +524,7 @@ void main() {
         )
     );
 
-    frag_color.r *= color.r;
-    frag_color.g *= color.g;
-    frag_color.b *= color.b;
+    frag_color.rgb *= color.rgb;
 }
 )FragmentShader",
         trash_arena
@@ -678,13 +677,20 @@ void main() {
     rstate.tilemaps
         = Allocate_Zeros_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
 
-    // Проставление текстур тайлов в tilemap-е terrain-а.
     FOR_RANGE (i32, h, rstate.tilemaps_count) {
-        auto& tilemap     = *(rstate.tilemaps + h);
-        auto  tiles_count = gsize.x * gsize.y;
+        auto& tilemap = rstate.tilemaps[h];
+
+        tilemap.size     = gsize + v2i16(0, 1);
+        auto tiles_count = tilemap.size.x * tilemap.size.y;
+
         tilemap.tiles = Allocate_Zeros_Array(non_persistent_arena, Tile_ID, tiles_count);
         tilemap.textures
             = Allocate_Zeros_Array(non_persistent_arena, Texture_ID, tiles_count);
+    }
+
+    // Проставление текстур тайлов в tilemap-е terrain-а.
+    FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
+        auto& tilemap = rstate.tilemaps[h];
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
@@ -714,31 +720,44 @@ void main() {
 
     auto& resources_tilemap  = rstate.tilemaps[rstate.resources_tilemap_index];
     auto& resources_tilemap2 = rstate.tilemaps[rstate.resources_tilemap_index + 1];
+
     FOR_RANGE (i32, y, gsize.y) {
-        auto is_last_row = y == gsize.y - 1;
         FOR_RANGE (i32, x, gsize.x) {
-            auto& resource = game_map.terrain_resources[y * gsize.x + x];
+            const auto& resource = game_map.terrain_resources[y * gsize.x + x];
 
-            auto& tile = resources_tilemap.tiles[y * gsize.x + x];
-            if (tile)
+            const bool forest = resource.amount > 0;
+
+            if (forest) {
+                auto& tile = resources_tilemap.tiles[y * gsize.x + x];
+                tile       = rstate.forest_smart_tile.id;
+            }
+        }
+    }
+
+    FOR_RANGE (i32, y, gsize.y) {
+        bool is_last_row = (y == (gsize.y - 1));
+
+        FOR_RANGE (i32, x, gsize.x) {
+            const auto t       = y * gsize.x + x;
+            const auto t_above = (y + 1) * gsize.x + x;
+
+            const auto& tile = resources_tilemap.tiles[t];
+            if (!tile)
                 continue;
 
-            bool forest = resource.amount > 0;
-            if (!forest)
-                continue;
+            resources_tilemap.textures[t] = Test_Smart_Tile(
+                resources_tilemap, gsize, {x, y}, rstate.forest_smart_tile
+            );
 
-            tile                                        = rstate.forest_smart_tile.id;
-            resources_tilemap.textures[y * gsize.x + x] = rstate.forest_textures[1];
-
-            bool forest_above = false;
+            bool forest_is_above = false;
             if (!is_last_row) {
-                auto& tile_above = resources_tilemap.tiles[(y + 1) * gsize.x + x];
-                forest_above     = tile_above == rstate.forest_smart_tile.id;
+                auto& tile_above = resources_tilemap.tiles[t_above];
+                forest_is_above  = tile_above == rstate.forest_smart_tile.id;
             }
 
-            if (!forest_above) {
-                resources_tilemap2.tiles[y * gsize.x + x]    = rstate.forest_top_tile_id;
-                resources_tilemap2.textures[y * gsize.x + x] = rstate.forest_textures[0];
+            if (!forest_is_above) {
+                resources_tilemap2.tiles[t_above]    = rstate.forest_top_tile_id;
+                resources_tilemap2.textures[t_above] = rstate.forest_textures[0];
             }
         }
     }
@@ -747,15 +766,17 @@ void main() {
     auto& element_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
-            Element_Tile& element_tile = game_map.element_tiles[y * gsize.x + x];
+            const auto t = y * gsize.x + x;
+
+            const Element_Tile& element_tile = game_map.element_tiles[t];
             if (element_tile.type != Element_Tile_Type::Road)
                 continue;
 
             auto tex
                 = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
-            auto& tile_id = element_tilemap.tiles[y * gsize.x + x];
-            tile_id       = global_road_starting_tile_id + tex;
-            element_tilemap.textures[y * gsize.x + x] = rstate.road_textures[tex];
+            auto& tile_id               = element_tilemap.tiles[t];
+            tile_id                     = global_road_starting_tile_id + tex;
+            element_tilemap.textures[t] = rstate.road_textures[tex];
         }
     }
     // --- Element Tiles End ---
@@ -829,8 +850,21 @@ void Deinit_Renderer(Game_State& state, MCTX) {
 
     auto& rstate = *state.renderer_state;
 
+    // TODO: deinit `rstate.sprites`?
+
+    FOR_RANGE (int, i, rstate.tilemaps_count) {
+        auto& tilemap = rstate.tilemaps[i];
+
+        auto tiles_count = tilemap.size.x * tilemap.size.y;
+
+        FREE(tilemap.tiles, sizeof(Tile_ID) * tiles_count);
+        FREE(tilemap.textures, sizeof(Texture_ID) * tiles_count);
+        tilemap.tiles    = nullptr;
+        tilemap.textures = nullptr;
+    }
+
     if (rstate.rendering_indices_buffer_size > 0) {
-        FREE((u8*)rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
+        FREE(rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
         rstate.rendering_indices_buffer      = nullptr;
         rstate.rendering_indices_buffer_size = 0;
     }
@@ -1122,6 +1156,32 @@ void Map_Sprites_With_Textures(
     }
 }
 
+glm::mat3 Get_W2RelScreen_Matrix(
+    v2i gsize,
+    v2i screen_size,
+    v2f pan_pos,
+    v2f pan_offset,
+    f32 zoom,
+    i16 cell_size
+) {
+    auto mat = glm::mat3(1);
+
+    mat = glm::translate(mat, v2f(0, 1));
+    mat = glm::scale(mat, v2f(1.0f / screen_size.x, -1.0f / screen_size.y));
+    // Смещение карты игроком.
+    mat = glm::translate(mat, pan_pos + pan_offset);
+    // Масштабирование карты игроком.
+    mat = glm::scale(mat, v2f(zoom, zoom));
+    // Перемещаем центр карты в середину экрана.
+    mat = glm::translate(mat, v2f(screen_size) / 2.0f);
+    // Масштабируем до размера клетки.
+    mat = glm::scale(mat, v2f_one * (f32)cell_size);
+    // Ставим центр - середину карты.
+    mat = glm::translate(mat, -(v2f)gsize / 2.0f);
+
+    return mat;
+}
+
 void Render(Game_State& state, f32 dt, MCTX) {
     CTX_ALLOCATOR;
     ZoneScoped;
@@ -1230,21 +1290,14 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     // Матрица перевода координат мира
     // в координаты экрана в диапазоне от 0 до 1. Y вверх.
-    auto W2RelScreen = glm::mat3(1);
-
-    W2RelScreen = glm::translate(W2RelScreen, v2f(0, 1));
-    W2RelScreen = glm::scale(W2RelScreen, v2f(1.0f / viewport[2], -1.0f / viewport[3]));
-    // Смещение карты игроком.
-    W2RelScreen = glm::translate(W2RelScreen, rstate.pan_pos + rstate.pan_offset);
-    // Масштабирование карты игроком.
-    W2RelScreen = glm::scale(W2RelScreen, v2f(rstate.zoom, rstate.zoom));
-    // Перемещаем центр карты в середину экрана.
-    W2RelScreen = glm::translate(W2RelScreen, v2f_screen / 2.0f);
-    // Масштабируем до размера клетки.
-    W2RelScreen = glm::scale(W2RelScreen, v2f_one * (f32)cell_size);
-    // Ставим центр - середину карты.
-    W2RelScreen = glm::translate(W2RelScreen, -(v2f)gsize / 2.0f);
-
+    const auto W2RelScreen = Get_W2RelScreen_Matrix(
+        gsize,
+        {viewport[2], viewport[3]},
+        rstate.pan_pos,
+        rstate.pan_offset,
+        rstate.zoom,
+        cell_size
+    );
     const auto RelScreen2W = glm::inverse(W2RelScreen);
 
     // Матрица перевода координат мира
@@ -1277,12 +1330,11 @@ void Render(Game_State& state, f32 dt, MCTX) {
             1,
             GL_FALSE,
             (GLfloat*)(&RelScreen2W)
-            // (GLfloat*)(&W2RelScreen)
         );
 
         // Выделение памяти под rendering_indices_buffer.
         auto bytes_per_tile  = 2 * sizeof(GLfloat);
-        auto tiles_count     = gsize.x * gsize.y;
+        auto tiles_count     = rstate.tilemaps[0].size.x * rstate.tilemaps[0].size.y;
         auto required_memory = bytes_per_tile * tiles_count;
 
         if (rstate.rendering_indices_buffer == nullptr) {
@@ -1292,22 +1344,22 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
         glBlendEquation(GL_FUNC_ADD);
+        glEnable(GL_BLEND);
 
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
-            // auto& tilemap = rstate.tilemaps[rstate.tilemaps_count - i - 1];
 
             // Заполнение rendering_indices_buffer.
             size_t t = 0;
-            FOR_RANGE (int, y, gsize.y) {
-                FOR_RANGE (int, x, gsize.x) {
-                    float* px = ((GLfloat*)rstate.rendering_indices_buffer) + t;
-                    float* py = ((GLfloat*)rstate.rendering_indices_buffer) + t + 1;
+            FOR_RANGE (int, y, tilemap.size.y) {
+                FOR_RANGE (int, x, tilemap.size.x) {
+                    GLfloat* px = ((GLfloat*)rstate.rendering_indices_buffer) + t;
+                    GLfloat* py = ((GLfloat*)rstate.rendering_indices_buffer) + t + 1;
 
-                    auto tile = tilemap.tiles[y * gsize.x + x];
+                    auto tile = tilemap.tiles[y * tilemap.size.x + x];
                     if (tile) {
                         auto pos = Query_Texture_Pos_Inside_Atlas(
-                            rstate.atlas, gsize.x, tilemap, x, y
+                            rstate.atlas, tilemap.size.x, tilemap, x, y
                         );
                         *px = pos.x;
                         *py = pos.y;
@@ -1320,6 +1372,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
                     t += 2;
                 }
             }
+            SANITIZE;
 
             GLuint ssbo;
             glGenBuffers(1, &ssbo);
@@ -1335,10 +1388,20 @@ void Render(Game_State& state, f32 dt, MCTX) {
             Check_OpenGL_Errors();
 
             // Рисование квада tilemap.
+            auto        offset_y = 0;
+            static bool render   = true;
+            if (i == rstate.resources_tilemap_index + 1) {
+                ImGui::Checkbox("rstate.resources_tilemap_index + 1", &render);
+                offset_y = 0;
+
+                if (!render)
+                    continue;
+            }
+
             auto p0 = W2GL * v3f(0, 0, 1);
-            auto p1 = W2GL * v3f(gsize.x, 0, 1);
-            auto p2 = W2GL * v3f(0, gsize.y, 1);
-            auto p3 = W2GL * v3f(gsize.x, gsize.y, 1);
+            auto p1 = W2GL * v3f(tilemap.size.x, 0, 1);
+            auto p2 = W2GL * v3f(0, tilemap.size.y, 1);
+            auto p3 = W2GL * v3f(tilemap.size.x, tilemap.size.y, 1);
             Assert(p3.z == 1);
 
             float vertices[] = {
