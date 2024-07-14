@@ -354,7 +354,6 @@ void Post_Init_Renderer(
     std::construct_at(
         &rstate.atlas, Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx)
     );
-    rstate.atlas_size = {8, 8};
 
     std::construct_at(&rstate.sprites, 32, ctx);
 
@@ -512,15 +511,6 @@ void main() {
     return;
 #endif
 
-#if 0
-    frag_color = vec4(
-        atlas_texture + atlas_offset,
-        0,
-        1
-    );
-    return;
-#endif
-
     frag_color = texture(
         ourTexture,
         vec2(
@@ -600,7 +590,7 @@ void main() {
         rstate.building_in_progress_texture = art->building_in_progress();
 
         FOR_RANGE (int, i, 3) {
-            rstate.forest_textures[i] = art->flag()->Get(i);
+            rstate.forest_textures[i] = art->forest()->Get(i);
         }
         FOR_RANGE (int, i, 17) {
             rstate.grass_textures[i] = art->grass()->Get(i);
@@ -1266,8 +1256,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     // Рисование tilemap.
     if (!rstate.shaders_compilation_failed) {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
         defer {
             Delete_Framebuffer(tilemap_framebuffer);
@@ -1302,8 +1290,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
             rstate.rendering_indices_buffer_size = required_memory;
         }
 
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+        glBlendEquation(GL_FUNC_ADD);
+
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
+            // auto& tilemap = rstate.tilemaps[rstate.tilemaps_count - i - 1];
 
             // Заполнение rendering_indices_buffer.
             size_t t = 0;
@@ -1342,15 +1334,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
             Check_OpenGL_Errors();
 
-            SANITIZE;
-
-            if (i == 1)
-                break;
-        }
-        SANITIZE;
-
-        // Рисование квада tilemap.
-        {
+            // Рисование квада tilemap.
             auto p0 = W2GL * v3f(0, 0, 1);
             auto p1 = W2GL * v3f(gsize.x, 0, 1);
             auto p2 = W2GL * v3f(0, gsize.y, 1);
@@ -1393,15 +1377,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
             glBindVertexArray(0);
             glDeleteVertexArrays(1, &vao);
             glDeleteBuffers(1, &vbo);
+            Check_OpenGL_Errors();
+
+            SANITIZE;
         }
-        Check_OpenGL_Errors();
-
-        glBlendFunc(GL_ONE, GL_ZERO);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-        // glFramebufferTexture2D(
-        //     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0
-        // );
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, tilemap_framebuffer.id);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -1417,14 +1396,15 @@ void Render(Game_State& state, f32 dt, MCTX) {
             GL_COLOR_BUFFER_BIT,
             GL_NEAREST
         );
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        glEnableVertexAttribArray(0);
-        glBindVertexArray(0);
-
-        Check_OpenGL_Errors();
     }
+
+    Check_OpenGL_Errors();
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+    Check_OpenGL_Errors();
 
     // // Рисование спрайтов.
     // Memory_Buffer vertices{ctx};

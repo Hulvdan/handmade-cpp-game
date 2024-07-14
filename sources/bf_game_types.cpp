@@ -363,8 +363,8 @@ enum class Terrain {
 
 struct Terrain_Tile : public Non_Copyable {
     Terrain terrain;
-    // NOTE: Height starts at 0
-    int  height;
+
+    int  height;  // NOTE: starts at 0
     bool is_cliff;
 
     i16 resource_amount;
@@ -773,9 +773,9 @@ struct Game_Renderer_State : public Non_Copyable {
     Texture_ID road_textures[16];
     Texture_ID flag_textures[4];
 
-    v2i atlas_size;  // количество тайлов в ширину и в высоту
     Atlas atlas;
 
+    int tilemap_shader_gl2w_location;
     int tilemap_shader_relscreen2w_location;
     int tilemap_shader_resolution_location;
     int tilemap_shader_color_location;
