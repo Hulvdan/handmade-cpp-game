@@ -770,14 +770,20 @@ void main() {
             const auto t = y * gsize.x + x;
 
             const Element_Tile& element_tile = game_map.element_tiles[t];
-            if (element_tile.type != Element_Tile_Type::Road)
-                continue;
 
-            auto tex
-                = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
-            auto& tile_id               = element_tilemap.tiles[t];
-            tile_id                     = global_road_starting_tile_id + tex;
-            element_tilemap.textures[t] = rstate.road_textures[tex];
+            auto type = element_tile.type;
+
+            if (                                     //
+                type == Element_Tile_Type::Building  //
+                || type == Element_Tile_Type::Flag   //
+                || type == Element_Tile_Type::Road   //
+            ) {
+                auto tex
+                    = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
+                auto& tile_id               = element_tilemap.tiles[t];
+                tile_id                     = global_road_starting_tile_id + tex;
+                element_tilemap.textures[t] = rstate.road_textures[tex];
+            }
         }
     }
     // --- Element Tiles End ---
@@ -1396,6 +1402,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             auto p1 = W2GL * v3f(tilemap.size.x, 0, 1);
             auto p2 = W2GL * v3f(0, tilemap.size.y, 1);
             auto p3 = W2GL * v3f(tilemap.size.x, tilemap.size.y, 1);
+            Assert(p0.z == 1);
             Assert(p3.z == 1);
 
             v2f vertices[] = {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)};
@@ -1781,20 +1788,23 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    auto& element_tilemap   = *(rstate.tilemaps + rstate.element_tilemap_index);
-    auto& element_tilemap_2 = *(rstate.tilemaps + rstate.element_tilemap_index + 1);
-    auto  tile_index        = pos.y * gsize.x + pos.x;
+    // Тут рисуются дороги.
+    auto& roads_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
+    // Тут рисуются флаги и здания.
+    auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
 
-    auto& element_tile = *(game_map.element_tiles + tile_index);
+    auto t = pos.y * gsize.x + pos.x;
+
+    auto& element_tile = game_map.element_tiles[t];
 
     switch (element_tile.type) {
     case Element_Tile_Type::Building:
     case Element_Tile_Type::Road: {
-        element_tilemap_2.tiles[pos.y * gsize.x + pos.x] = 0;
+        placeables_tilemap.tiles[pos.y * gsize.x + pos.x] = 0;
     } break;
 
     case Element_Tile_Type::Flag: {
-        element_tilemap_2.tiles[pos.y * gsize.x + pos.x] = global_flag_starting_tile_id;
+        placeables_tilemap.tiles[pos.y * gsize.x + pos.x] = global_flag_starting_tile_id;
     } break;
 
     default:
@@ -1802,28 +1812,30 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
     }
 
     if (element_tile.type != Element_Tile_Type::Building)
-        Assert(element_tile.building_id == (Building_ID)0);
+        Assert(element_tile.building_id == Building_ID_Missing);
 
     for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;
         if (!Pos_Is_In_Bounds(new_pos, gsize))
             continue;
 
-        auto          element_tiles = game_map.element_tiles;
-        Element_Tile& element_tile  = element_tiles[new_pos.y * gsize.x + new_pos.x];
+        auto t = new_pos.y * gsize.x + new_pos.x;
+
+        auto& element_tile = game_map.element_tiles[t];
 
         switch (element_tile.type) {
-        case Element_Tile_Type::Flag: {
-            auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id = element_tilemap.tiles[new_pos.y * gsize.x + new_pos.x];
-            tile_id       = global_road_starting_tile_id + tex;
-        } break;
-
         case Element_Tile_Type::Building:
+        case Element_Tile_Type::Flag:
         case Element_Tile_Type::Road: {
             auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id = element_tilemap.tiles[new_pos.y * gsize.x + new_pos.x];
+            auto& tile_id = roads_tilemap.tiles[t];
             tile_id       = global_road_starting_tile_id + tex;
+
+            if (offset == v2i16_zero
+                && element_tile.type == Element_Tile_Type::Building) {
+                Assert(false);
+                INVALID_PATH;
+            }
         } break;
 
         case Element_Tile_Type::None:
