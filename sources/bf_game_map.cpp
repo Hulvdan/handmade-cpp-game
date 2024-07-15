@@ -447,7 +447,7 @@ Building* Query_Building(Game_Map& game_map, Building_ID id) {
             return instance;
     }
 
-    Assert(false);
+    INVALID_PATH;
     return nullptr;
 }
 
@@ -459,7 +459,7 @@ Human* Query_Human(Game_Map& game_map, Human_ID id) {
             return instance;
     }
 
-    Assert(false);
+    INVALID_PATH;
     return nullptr;
 }
 

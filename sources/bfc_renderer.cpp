@@ -1133,7 +1133,7 @@ v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i16 x, i16 y)
             return texture.pos_inside_atlas;
     }
 
-    Assert(false);
+    INVALID_PATH;
     return v2f_zero;
 }
 

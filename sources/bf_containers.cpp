@@ -688,7 +688,7 @@ struct Sparse_Array {
                 return;
             }
         }
-        Assert(false);
+        INVALID_PATH;
     }
 
     bool Contains(const T id) {
@@ -829,14 +829,14 @@ struct Bucket_Array : Non_Copyable {
 
             buckets = rcast<Bucket<T>*>(ALLOC(alloc_size));
             if (buckets == nullptr) {
-                Assert(false);
+                INVALID_PATH;
                 return nullptr;
             }
 
             unfull_buckets
                 = rcast<Bucket_Index*>(ALLOC(buckets_count * sizeof(Bucket_Index)));
             if (unfull_buckets == nullptr) {
-                Assert(false);
+                INVALID_PATH;
                 return nullptr;
             }
         }
@@ -851,14 +851,14 @@ struct Bucket_Array : Non_Copyable {
         auto occupied_bytes_count = Ceil_Division(items_per_bucket, 8);
         auto occupied             = rcast<u8*>(ALLOC(occupied_bytes_count));
         if (occupied == nullptr) {
-            Assert(false);
+            INVALID_PATH;
             return nullptr;
         }
         memset(occupied, 0, occupied_bytes_count);
 
         auto data = rcast<u8*>(ALLOC(sizeof(T) * items_per_bucket));
         if (data == nullptr) {
-            Assert(false);
+            INVALID_PATH;
             return nullptr;
         }
 
@@ -1010,7 +1010,7 @@ struct Bucket_Array_Iterator : public Iterator_Facade<Bucket_Array_Iterator<T>> 
             if (Bucket_Occupied(bucket, _current))
                 return;
         }
-        Assert(false);
+        INVALID_PATH;
     }
 
     bool Equal_To(const Bucket_Array_Iterator& o) const {
@@ -1131,7 +1131,7 @@ struct Bucket_Array_With_Locator_Iterator
             if (Bucket_Occupied(bucket, _current))
                 return;
         }
-        Assert(false);
+        INVALID_PATH;
     }
 
     bool Equal_To(const Bucket_Array_With_Locator_Iterator& o) const {
@@ -1234,6 +1234,6 @@ T* Sparse_Array_Find(Sparse_Array<T, U>& arr, U id) {
         if (arr.ids[i] == id)
             return arr.base[i];
     }
-    Assert(false);
+    INVALID_PATH;
     return nullptr;
 }

@@ -718,7 +718,7 @@ struct Cascading_Allocator {
                 return;
             }
         }
-        Assert(false);
+        INVALID_PATH;
     }
 
     bool Sanity_Check() {
