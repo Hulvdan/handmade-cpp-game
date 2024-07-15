@@ -674,8 +674,9 @@ void main() {
     rstate.element_tilemap_index = rstate.tilemaps_count;
     rstate.tilemaps_count += 2;
 
-    rstate.tilemaps
-        = Allocate_Zeros_Array(non_persistent_arena, Tilemap, rstate.tilemaps_count);
+    rstate.tilemaps = Allocate_Array_And_Initialize(
+        non_persistent_arena, Tilemap, rstate.tilemaps_count
+    );
 
     FOR_RANGE (i32, h, rstate.tilemaps_count) {
         auto& tilemap = rstate.tilemaps[h];
@@ -1349,6 +1350,17 @@ void Render(Game_State& state, f32 dt, MCTX) {
         FOR_RANGE (int, i, rstate.tilemaps_count) {
             auto& tilemap = rstate.tilemaps[i];
 
+            {
+                TEMP_USAGE(trash_arena);
+                auto checkbox_title
+                    = Allocate_Formatted_String(trash_arena, "render tilemap %d", i);
+
+                ImGui::Checkbox(checkbox_title, &tilemap.debug_rendering_enabled);
+            }
+
+            if (!tilemap.debug_rendering_enabled)
+                continue;
+
             // Заполнение rendering_indices_buffer.
             size_t t = 0;
             FOR_RANGE (int, y, tilemap.size.y) {
@@ -1372,7 +1384,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
                     t += 2;
                 }
             }
-            SANITIZE;
 
             GLuint ssbo;
             glGenBuffers(1, &ssbo);
@@ -1388,16 +1399,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
             Check_OpenGL_Errors();
 
             // Рисование квада tilemap.
-            auto        offset_y = 0;
-            static bool render   = true;
-            if (i == rstate.resources_tilemap_index + 1) {
-                ImGui::Checkbox("rstate.resources_tilemap_index + 1", &render);
-                offset_y = 0;
-
-                if (!render)
-                    continue;
-            }
-
             auto p0 = W2GL * v3f(0, 0, 1);
             auto p1 = W2GL * v3f(tilemap.size.x, 0, 1);
             auto p2 = W2GL * v3f(0, tilemap.size.y, 1);

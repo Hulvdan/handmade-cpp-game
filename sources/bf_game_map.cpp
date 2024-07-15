@@ -109,10 +109,10 @@ Path_Find_Result Find_Path(
     TEMP_USAGE(trash_arena);
     i32 tiles_count = gsize.x * gsize.y;
 
-    Path_Find_Result        result = {};
-    Fixed_Size_Queue<v2i16> queue  = {};
-    queue.memory_size              = sizeof(v2i16) * tiles_count;
-    queue.base = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    Path_Find_Result        result{};
+    Fixed_Size_Queue<v2i16> queue{};
+    queue.memory_size = sizeof(v2i16) * tiles_count;
+    queue.base        = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
     queue.Enqueue_Unsafe(source);
 
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
@@ -336,15 +336,15 @@ void Place_Building(
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
     auto     bid = Next_Building_ID(game_map.last_entity_id);
-    Building b   = {};
+    Building b{};
     b.pos        = pos;
     b.scriptable = scriptable_building;
 
     game_map.buildings.Add(bid, b, ctx);
 
-    C_Sprite sprite = {};
-    sprite.anchor   = {0.5f, 0};
-    sprite.pos      = pos;
+    C_Sprite sprite{};
+    sprite.anchor = {0.5f, 0};
+    sprite.pos    = pos;
 
     if (built) {
         Assert(scriptable_building->type == Building_Type::City_Hall);
@@ -1073,7 +1073,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     LOG_TRACING_SCOPE;
     LOG_DEBUG("Creating a new human...");
 
-    Human human           = {};
+    Human human{};
     human.player_id       = player_id;
     human.moving.pos      = pos;
     human.moving.elapsed  = 0;
@@ -1393,10 +1393,10 @@ void Add_Map_Resource(
     auto  gsize       = game_map.size;
     auto& trash_arena = state.trash_arena;
 
-    Map_Resource resource = {};
-    resource.scriptable   = scriptable;
-    resource.pos          = pos;
-    resource.booking      = Map_Resource_Booking_ID_Missing;
+    Map_Resource resource{};
+    resource.scriptable = scriptable;
+    resource.pos        = pos;
+    resource.booking    = Map_Resource_Booking_ID_Missing;
     Init_Vector(resource.transportation_segments, ctx);
     Init_Vector(resource.transportation_vertices, ctx);
     resource.targeted_human = Human_ID_Missing;
@@ -1658,17 +1658,20 @@ void Regenerate_Element_Tiles(
 
     auto base_offset = v2i16(1, 1);
     for (auto offset : road_tiles) {
-        auto          o    = offset + base_offset;
-        Element_Tile& tile = *(game_map.element_tiles + o.y * gsize.x + o.x);
+        auto off = offset + base_offset;
+        auto t   = off.y * gsize.x + off.x;
 
-        tile.type        = Element_Tile_Type::Road;
-        tile.building_id = Building_ID_Missing;
+        Element_Tile& tile = game_map.element_tiles[t];
+
+        tile.type = Element_Tile_Type::Road;
     }
 
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            Element_Tile& tile = *(game_map.element_tiles + y * gsize.x + x);
-            tile.building_id   = Building_ID_Missing;
+            auto          t    = y * gsize.x + x;
+            Element_Tile& tile = game_map.element_tiles[t];
+
+            tile.building_id = Building_ID_Missing;
             Validate_Element_Tile(tile);
         }
     }
@@ -2243,7 +2246,7 @@ void Update_Graphs(
         int segment_tiles_count = 1;
         *(segment_tiles + 0)    = p_pos;
 
-        Graph temp_graph  = {};
+        Graph temp_graph{};
         temp_graph.nodes  = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
         temp_graph.size.x = gsize.x;
         temp_graph.size.y = gsize.y;
@@ -2462,7 +2465,7 @@ void Build_Graph_Segments(
     if (!found)
         return;
 
-    Fixed_Size_Queue<Dir_v2i16> big_queue = {};
+    Fixed_Size_Queue<Dir_v2i16> big_queue{};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
 
@@ -2470,9 +2473,9 @@ void Build_Graph_Segments(
         big_queue.Enqueue_Unsafe({dir, pos});
     }
 
-    Fixed_Size_Queue<Dir_v2i16> queue = {};
-    queue.memory_size                 = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
-    queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    Fixed_Size_Queue<Dir_v2i16> queue{};
+    queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
+    queue.base        = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
 
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
 
@@ -2544,7 +2547,7 @@ std::tuple<int, int> Update_Tiles(
     segments_to_add.items
         = Allocate_Zeros_Array(trash_arena, Graph_Segment, segments_to_add_allocate);
 
-    Fixed_Size_Queue<Dir_v2i16> big_queue = {};
+    Fixed_Size_Queue<Dir_v2i16> big_queue{};
     big_queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
 
@@ -2652,9 +2655,9 @@ std::tuple<int, int> Update_Tiles(
     // NOTE: Each byte here contains differently bit-shifted values of `Direction`.
     u8* visited = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
 
-    Fixed_Size_Queue<Dir_v2i16> queue = {};
-    queue.memory_size                 = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
-    queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    Fixed_Size_Queue<Dir_v2i16> queue{};
+    queue.memory_size = sizeof(Dir_v2i16) * tiles_count * QUEUES_SCALE;
+    queue.base        = (Dir_v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
 
     bool full_graph_build = false;
     Update_Graphs(
@@ -2709,11 +2712,11 @@ std::tuple<int, int> Update_Tiles(
 }
 
 #define Declare_Updated_Tiles(variable_name_, pos_, type_) \
-    Updated_Tiles(variable_name_) = {};                    \
-    (variable_name_).count        = 1;                     \
-    (variable_name_).pos          = &(pos_);               \
-    auto type__                   = (type_);               \
-    (variable_name_).type         = &type__;
+    Updated_Tiles(variable_name_){};                       \
+    (variable_name_).count = 1;                            \
+    (variable_name_).pos   = &(pos_);                      \
+    auto type__            = (type_);                      \
+    (variable_name_).type  = &type__;
 
 #define INVOKE_UPDATE_TILES                                   \
     do {                                                      \

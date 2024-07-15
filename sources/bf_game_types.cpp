@@ -624,6 +624,8 @@ struct Tilemap {
     Tile_ID*    tiles;
     Texture_ID* textures;
     v2i         size;
+
+    bool debug_rendering_enabled = true;
 };
 
 struct C_Texture {

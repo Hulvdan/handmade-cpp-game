@@ -231,7 +231,7 @@ struct Vector {
         return -1;
     }
 
-    inline i32 Index_Of(T value, std::invocable<const T&, const T&, bool&> auto&& func) {
+    i32 Index_Of(T value, std::invocable<const T&, const T&, bool&> auto&& func) {
         bool found = false;
         FOR_RANGE (i32, i, count) {
             func(value, base[i], found);
@@ -295,7 +295,7 @@ struct Vector {
         }
         else if (max_count == count) {
             u32 new_max_count = max_count * 2;
-            Assert(max_count < new_max_count);  // NOTE: Ловим overflow
+            Assert(max_count < new_max_count);  // Ловим overflow
 
             auto old_size = sizeof(T) * max_count;
             auto old_ptr  = base;
@@ -601,11 +601,12 @@ struct Sparse_Array {
     i32 max_count;
 
     Sparse_Array(i32 max_count_, MCTX)
-        : max_count(max_count_)  , count(0)//
+        : max_count(max_count_)
+        , count(0)  //
     {
         CTX_ALLOCATOR;
-        ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
-        base  = rcast<U*>(ALLOC(sizeof(U) * max_count));
+        ids  = rcast<T*>(ALLOC(sizeof(T) * max_count));
+        base = rcast<U*>(ALLOC(sizeof(U) * max_count));
     }
     Sparse_Array(const Sparse_Array& other) = delete;
     Sparse_Array(Sparse_Array&& other)      = delete;
