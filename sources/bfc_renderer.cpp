@@ -1123,14 +1123,8 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     return res;
 }
 
-v2f Query_Texture_Pos_Inside_Atlas(
-    Atlas&   atlas,
-    i16      gsize_width,
-    Tilemap& tilemap,
-    i16      x,
-    i16      y
-) {
-    auto id = tilemap.textures[y * gsize_width + x];
+v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i16 x, i16 y) {
+    auto id = tilemap.textures[y * tilemap.size.x + x];
     Assert(id != Texture_ID_Missing);
 
     for (auto texture_ptr : Iter(&atlas.textures)) {
@@ -1370,9 +1364,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
                     auto tile = tilemap.tiles[y * tilemap.size.x + x];
                     if (tile) {
-                        auto pos = Query_Texture_Pos_Inside_Atlas(
-                            rstate.atlas, tilemap.size.x, tilemap, x, y
-                        );
+                        auto pos
+                            = Query_Texture_Pos_Inside_Atlas(rstate.atlas, tilemap, x, y);
                         *px = pos.x;
                         *py = pos.y;
                     }
