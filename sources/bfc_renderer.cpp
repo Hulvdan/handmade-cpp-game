@@ -1398,20 +1398,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             auto p3 = W2GL * v3f(tilemap.size.x, tilemap.size.y, 1);
             Assert(p3.z == 1);
 
-            float vertices[] = {
-                p0.x,
-                p0.y,
-                p1.x,
-                p1.y,
-                p2.x,
-                p2.y,
-                p2.x,
-                p2.y,
-                p1.x,
-                p1.y,
-                p3.x,
-                p3.y,
-            };
+            v2f vertices[] = {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)};
 
             GLuint vao;
             glGenVertexArrays(1, &vao);
