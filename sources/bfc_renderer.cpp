@@ -396,7 +396,7 @@ out vec2 tex_coord;
 
 void main() {
     gl_Position = vec4(a_pos, 0, 1);
-    // color = vec3(1,1,1);
+    // color = vec3(1, 1, 1);
     color = a_color;
     tex_coord = a_tex_coord;
 }
@@ -406,14 +406,22 @@ void main() {
 
 uniform vec2 a_tile_size_relative_to_atlas;
 
+// uniform mat3 a_model;
+// uniform mat3 a_model_inv;
+// uniform mat3 a_projection;
+// uniform mat3 a_projection_inv;
+
 out vec4 frag_color;
 
 in vec3 color;
-in vec2 tex_coord;
+varying in vec2 tex_coord;
 
 uniform sampler2D ourTexture;
 
 void main() {
+    // vec3 world_pos = a_projection_inv * gl_FragCoord;
+    // vec3 object_pos = a_model_inv * world_pos;
+
     frag_color =
         texture(ourTexture, vec2(tex_coord.x, 1 - tex_coord.y));
     // frag_color =
@@ -596,6 +604,9 @@ void main() {
                 location, rstate.atlas.texture.size.x, rstate.atlas.texture.size.y
             );
         }
+
+        rstate.sprites_shader_gl2w_location
+            = glGetUniformLocation(rstate.sprites_shader_program, "a_gl2w");
 
         rstate.tilemap_shader_gl2w_location
             = glGetUniformLocation(rstate.tilemap_shader_program, "a_gl2w");
@@ -1349,6 +1360,11 @@ void Render(Game_State& state, f32 dt, MCTX) {
     W2GL      = glm::scale(W2GL, v2f(2, -2));
     W2GL *= W2RelScreen;
 
+    // auto MODEL = glm::mat3(1);
+    //
+    // auto       PROJECTION     = glm::mat3(1);
+    // const auto PROJECTION_INV = glm::mat3(1);
+
     // Рисование tilemap.
     if (!rstate.shaders_compilation_failed) {
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
@@ -1363,6 +1379,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
         const auto GL2W = glm::inverse(W2GL);
         glUniformMatrix3fv(
             rstate.tilemap_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
+        );
+
+        glUniformMatrix3fv(
+            rstate.sprites_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
         );
 
         glUniform2i(rstate.tilemap_shader_resolution_location, viewport[2], viewport[3]);

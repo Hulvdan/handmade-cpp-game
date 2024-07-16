@@ -778,6 +778,8 @@ struct Game_Renderer_State : public Non_Copyable {
 
     Atlas atlas;
 
+    int sprites_shader_gl2w_location;
+
     int tilemap_shader_gl2w_location;
     int tilemap_shader_relscreen2w_location;
     int tilemap_shader_resolution_location;
