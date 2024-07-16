@@ -1,22 +1,7 @@
 ------------------------------------------------------------
 --                 Вспомогательная хрень                  --
 ------------------------------------------------------------
-local overseer = require("overseer")
-
-function overseer_run(cmd)
-    vim.fn.execute(":wa")
-
-    overseer
-        .new_task({
-            cmd = cmd,
-            components = {
-                { "on_output_quickfix", open = true, close = true },
-                { "on_exit_set_status", success_codes = { 0 } },
-                "default",
-            },
-        })
-        :start()
-end
+run_command = vim.g.hulvdan_run_command
 
 function cli_command(cmd)
     return [[.venv\Scripts\python.exe cmd\cli.py ]] .. cmd
@@ -62,35 +47,35 @@ end)
 
 -- Линтинг.
 vim.keymap.set("n", "<leader>l", function()
-    overseer_run(cli_command("lint"))
+    run_command(cli_command("lint"))
 end, opts)
 
 -- Билд.
 vim.keymap.set("n", "<A-b>", function()
-    overseer_run(cli_command("build_game"))
+    run_command(cli_command("build_game"))
 end, opts)
 
 -- Кодген.
 vim.keymap.set("n", "<A-g>", function()
-    overseer_run(cli_command("generate"))
+    run_command(cli_command("generate"))
 end, opts)
 
 -- Пересоздание файлов VS.
 vim.keymap.set("n", "<C-S-b>", function()
-    overseer_run(cli_command("cmake_vs_files"))
+    run_command(cli_command("cmake_vs_files"))
 end, opts)
 
 -- Билд + переключение окна на VS с одновременным запуском проекта.
 vim.keymap.set("n", "<f5>", function()
-    overseer_run(cli_command("stoopid_windows_visual_studio_run"))
+    run_command(cli_command("stoopid_windows_visual_studio_run"))
 end, opts)
 
 -- Тесты.
 vim.keymap.set("n", "<A-t>", function()
-    overseer_run(cli_command("test"))
+    run_command(cli_command("test"))
 end, opts)
 
 -- Тестирование компиляции шейдеров.
 vim.keymap.set("n", "<A-S-t>", function()
-    overseer_run(cli_command("test_shaders"))
+    run_command(cli_command("test_shaders"))
 end, opts)
