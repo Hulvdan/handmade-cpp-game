@@ -152,7 +152,8 @@ private:
             while (size > 0) {
                 DWORD written = 0;
                 if (!::WriteFile(handle_, data, size, &written, nullptr) || written == 0
-                    || written > size) {
+                    || written > size)
+                {
                     SPDLOG_THROW(spdlog::spdlog_ex(
                         "sink: print_range failed. GetLastError(): "
                         + std::to_string(::GetLastError())

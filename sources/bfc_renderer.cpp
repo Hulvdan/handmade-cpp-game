@@ -773,11 +773,10 @@ void main() {
 
             auto type = element_tile.type;
 
-            if (                                     //
-                type == Element_Tile_Type::Building  //
+            if (type == Element_Tile_Type::Building  //
                 || type == Element_Tile_Type::Flag   //
-                || type == Element_Tile_Type::Road   //
-            ) {
+                || type == Element_Tile_Type::Road)
+            {
                 auto tex
                     = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
                 auto& tile_id               = element_tilemap.tiles[t];
@@ -1831,8 +1830,8 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
             auto& tile_id = roads_tilemap.tiles[t];
             tile_id       = global_road_starting_tile_id + tex;
 
-            if (offset == v2i16_zero
-                && element_tile.type == Element_Tile_Type::Building) {
+            if (offset == v2i16_zero && element_tile.type == Element_Tile_Type::Building)
+            {
                 Assert(false);
                 INVALID_PATH;
             }

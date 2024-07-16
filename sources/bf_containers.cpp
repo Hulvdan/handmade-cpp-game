@@ -903,7 +903,8 @@ struct Bucket_Array : Non_Copyable {
             u32* found = nullptr;
             for (auto bucket_index_ptr = unfull_buckets;
                  bucket_index_ptr < unfull_buckets + unfull_buckets_count;
-                 bucket_index_ptr++) {
+                 bucket_index_ptr++)
+            {
                 if (*bucket_index_ptr == bucket_ptr->bucket_index) {
                     found = bucket_index_ptr;
                     break;

@@ -337,7 +337,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         if (ImGui::SliderInt(
                 "Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
@@ -345,7 +346,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 &editor_data.terrain_perlin.scaling_bias,
                 0.001f,
                 2.0f
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::Button("New Terrain Seed")) {
@@ -354,13 +356,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
         if (ImGui::SliderInt(
                 "Terrain Max Height", &editor_data.terrain_max_height, 1, 35
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
 
-        if (ImGui::SliderInt(
-                "Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9
-            )) {
+        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9))
+        {
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
@@ -368,7 +370,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 &editor_data.forest_perlin.scaling_bias,
                 0.001f,
                 2.0f
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::Button("New Forest Seed")) {
@@ -377,7 +380,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
         if (ImGui::SliderFloat(
                 "Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35)) {

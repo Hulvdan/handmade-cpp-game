@@ -206,8 +206,8 @@ void Deinit_Bucket_Array(Bucket_Array<T>& container, MCTX) {
 
     for (auto bucket_ptr = container.buckets;
          bucket_ptr != container.buckets + container.used_buckets_count;
-         bucket_ptr++  //
-    ) {
+         bucket_ptr++)
+    {
         auto& bucket = *bucket_ptr;
         FREE((u8*)bucket.occupied, container.items_per_bucket / 8);
         FREE((T*)bucket.data, sizeof(T) * container.items_per_bucket);
@@ -537,7 +537,8 @@ struct Human_Moving_In_The_World_Controller {
             && human.building_id != Building_ID_Missing  //
             && human.moving.pos
                    == Get_Building(*data.game_map, human.building_id)->pos  //
-        ) {
+        )
+        {
             Root_Set_Human_State(human, Human_Main_State::Building, data, ctx);
         }
 
@@ -576,17 +577,17 @@ struct Human_Moving_In_The_World_Controller {
             // - это клетка его сегмента. Нам уже не нужно помнить его путь.
             if (human.moving.to.has_value()
                 && Graph_Contains(segment.graph, human.moving.to.value())
-                && Graph_Node(segment.graph, human.moving.to.value()) != 0  //
-            ) {
+                && Graph_Node(segment.graph, human.moving.to.value()) != 0)
+            {
                 human.moving.path.Reset();
                 return;
             }
 
             // NOTE: Чувак перешёл на клетку сегмента. Переходим на Moving_Inside_Segment.
-            if (!(human.moving.to.has_value())                       //
-                && Graph_Contains(segment.graph, human.moving.pos)   //
-                && Graph_Node(segment.graph, human.moving.pos) != 0  //
-            ) {
+            if (!(human.moving.to.has_value())
+                && Graph_Contains(segment.graph, human.moving.pos)
+                && Graph_Node(segment.graph, human.moving.pos) != 0)
+            {
                 LOG_DEBUG(
                     "Root_Set_Human_State(human, "
                     "Human_Main_State::Moving_Inside_Segment, data, ctx)"
@@ -599,8 +600,8 @@ struct Human_Moving_In_The_World_Controller {
 
             auto moving_to_destination = Moving_In_The_World_State::Moving_To_Destination;
             if (old_segment_id != human.segment_id
-                || human.state_moving_in_the_world != moving_to_destination  //
-            ) {
+                || human.state_moving_in_the_world != moving_to_destination)
+            {
                 LOG_DEBUG(
                     "Setting human.state_moving_in_the_world = "
                     "Moving_In_The_World_State::Moving_To_Destination"
@@ -660,10 +661,8 @@ struct Human_Moving_In_The_World_Controller {
                 Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
             }
         }
-        else if (
-            human.state_moving_in_the_world
-            != Moving_In_The_World_State::Moving_To_The_City_Hall  //
-        ) {
+        else if (human.state_moving_in_the_world != Moving_In_The_World_State::Moving_To_The_City_Hall)
+        {
             LOG_DEBUG(
                 "human.state_moving_in_the_world = "
                 "Moving_In_The_World_State::Moving_To_The_City_Hall"
@@ -1239,8 +1238,8 @@ void Update_Human_Moving_Component(
     auto iteration = 0;
     while (iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME  //
            && moving.to.has_value()                            //
-           && moving.elapsed > duration                        //
-    ) {
+           && moving.elapsed > duration)
+    {
         LOG_TRACING_SCOPE;
 
         iteration++;
@@ -1288,7 +1287,8 @@ void Update_Human(
 
     auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
     if (human.state_moving_in_the_world == state && !human.moving.to.has_value()
-        && human.moving.pos == Query_Building(game_map, human.building_id)->pos) {
+        && human.moving.pos == Query_Building(game_map, human.building_id)->pos)
+    {
         // TODO: auto rem = Game_Map::Human_To_Remove{
         //     Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator
         // };
@@ -1350,11 +1350,13 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 
             if (human.state == Human_Main_State::Moving_In_The_World) {
                 if (human.state_moving_in_the_world
-                    == Moving_In_The_World_State::Moving_To_The_City_Hall) {
+                    == Moving_In_The_World_State::Moving_To_The_City_Hall)
+                {
                     humans_moving_to_the_city_hall++;
                 }
                 else if (human.state_moving_in_the_world  //
-                         == Moving_In_The_World_State::Moving_To_Destination) {
+                         == Moving_In_The_World_State::Moving_To_Destination)
+                {
                     humans_moving_to_destination++;
                 }
             }
@@ -1924,8 +1926,8 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 
                 if ((ik != i16_max)     //
                     && (kj != i16_max)  //
-                    && (ij > ik + kj)   //
-                ) {
+                    && (ij > ik + kj))
+                {
                     dist[i * n + j] = ik + kj;
                     prev[i * n + j] = prev[k * n + j];
                 }
@@ -2449,7 +2451,8 @@ void Build_Graph_Segments(
             auto& tile = *(element_tiles + y * gsize.x + x);
 
             if (tile.type == Element_Tile_Type::Flag
-                || tile.type == Element_Tile_Type::Building) {
+                || tile.type == Element_Tile_Type::Building)
+            {
                 pos   = {x, y};
                 found = true;
                 break;

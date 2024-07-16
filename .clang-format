@@ -16,6 +16,7 @@ BinPackArguments: false
 BinPackParameters : false
 BraceWrapping:
     BeforeElse: true
+    AfterControlStatement: MultiLine
 ColumnLimit: '90'
 ContinuationIndentWidth: '4'
 IndentCaseLabels: false
