@@ -79,3 +79,8 @@ end, opts)
 vim.keymap.set("n", "<A-S-t>", function()
     run_command(cli_command("test_shaders"))
 end, opts)
+
+-- Отформатировать C++ код в репозитории.
+vim.keymap.set("n", "<A-S-f>", function()
+    run_command(cli_command("format"))
+end, opts)
