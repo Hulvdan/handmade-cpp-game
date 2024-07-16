@@ -333,6 +333,30 @@ void Init_Renderer(
         state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
 }
 
+void Add_Building_Sprite(
+    Game_Renderer_State& rstate,
+    Game_Map&            game_map,
+    v2i                  pos,
+    Building_ID          building_id,
+    MCTX
+) {
+    Assert(building_id != Building_ID_Missing);
+
+    auto building = Query_Building(game_map, building_id);
+
+    auto& scriptable = *building->scriptable;
+
+    C_Sprite building_sprite{};
+    building_sprite.pos      = pos;
+    building_sprite.scale    = {1, 1};
+    building_sprite.anchor   = {0.5f, 0.5f};
+    building_sprite.rotation = 0;
+    building_sprite.texture  = scriptable.texture;
+    building_sprite.z        = 0;
+
+    rstate.sprites.Add(building_id, building_sprite, ctx);
+}
+
 void Post_Init_Renderer(
     bool        first_time_initializing,
     bool        hot_reloaded,
@@ -363,7 +387,7 @@ void Post_Init_Renderer(
         R"VertexShader(
 #version 330 core
 
-layout (location = 0) in vec3 a_pos;
+layout (location = 0) in vec2 a_pos;
 layout (location = 1) in vec3 a_color;
 layout (location = 2) in vec2 a_tex_coord;
 
@@ -371,7 +395,8 @@ out vec3 color;
 out vec2 tex_coord;
 
 void main() {
-    gl_Position = vec4(a_pos.x * 2 - 1, 1 - a_pos.y * 2, 0, 1.0);
+    gl_Position = vec4(a_pos, 0, 1);
+    // color = vec3(1,1,1);
     color = a_color;
     tex_coord = a_tex_coord;
 }
@@ -389,7 +414,13 @@ in vec2 tex_coord;
 uniform sampler2D ourTexture;
 
 void main() {
-    frag_color = texture(ourTexture, tex_coord) * vec4(color, 1);
+    frag_color =
+        texture(ourTexture, vec2(tex_coord.x, 1 - tex_coord.y));
+    // frag_color =
+    //     texture(ourTexture, tex_coord);
+    // frag_color =
+    //     texture(ourTexture, vec2(tex_coord.x, 1 - tex_coord.y))
+    //     * vec4(color, 1);
 }
 )FragmentShader",
         trash_arena
@@ -407,7 +438,7 @@ layout (location = 0) in vec2 a_pos;
 out vec3 color;
 
 void main() {
-    gl_Position = vec4(a_pos.x, a_pos.y, 0, 1);
+    gl_Position = vec4(a_pos, 0, 1);
     color = a_color;
 }
 )VertexShader",
@@ -782,7 +813,18 @@ void main() {
                 auto& tile_id               = element_tilemap.tiles[t];
                 tile_id                     = global_road_starting_tile_id + tex;
                 element_tilemap.textures[t] = rstate.road_textures[tex];
+
+                if (element_tile.type == Element_Tile_Type::Building)
+                    Add_Building_Sprite(
+                        rstate, game_map, {x, y}, element_tile.building_id, ctx
+                    );
+
+                if (element_tile.type == Element_Tile_Type::Flag) {
+                    // TODO: FLAG TILEMAP TEXTURE
+                }
             }
+
+            //
         }
     }
     // --- Element Tiles End ---
@@ -1456,124 +1498,143 @@ void Render(Game_State& state, f32 dt, MCTX) {
     glBindVertexArray(0);
     Check_OpenGL_Errors();
 
-    // // Рисование спрайтов.
-    // Memory_Buffer vertices{ctx};
-    // defer {
-    //     vertices.Deinit(ctx);
-    // };
+    // Рисование спрайтов.
+    Memory_Buffer vertices{ctx};
+    defer {
+        vertices.Deinit(ctx);
+    };
+
+    auto    sprites_count = 0;
+    GLfloat zero          = 0;
+    GLfloat one           = 1;
+    Map_Sprites_With_Textures(
+        rstate,
+        [&](C_Texture& tex,
+            Entity_ID  sprite_id,
+            C_Sprite&  s  //
+        ) {
+            auto texture_id   = tex.id;
+            auto required_mem = 7 * 6 * sizeof(GLfloat);
+            vertices.Reserve(vertices.max_count + required_mem, ctx);
+
+            // TODO: rotation
+            // TODO: filter
+            f32 x0 = s.pos.x + s.scale.x * (s.anchor.x - 1);
+            f32 x1 = s.pos.x + s.scale.x * (s.anchor.x - 0);
+            f32 y0 = s.pos.y + s.scale.y * (s.anchor.y - 1);
+            f32 y1 = s.pos.y + s.scale.y * (s.anchor.y - 0);
+
+            v3f p0 = W2GL * v3f(x0, y0, 1);
+            v3f p1 = W2GL * v3f(x1, y1, 1);
+            Assert(p0.z == 1);
+            Assert(p1.z == 1);
+            x0 = p0.x;
+            y0 = p0.y;
+            x1 = p1.x;
+            y1 = p1.y;
+
+            f32 ax0 = tex.pos_inside_atlas.x;
+            f32 ax1 = tex.pos_inside_atlas.x + (f32(tex.size.x) / rstate.atlas.size.x);
+            f32 ay0 = tex.pos_inside_atlas.y;
+            f32 ay1 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
+
+            v2f verticess[] = {
+                v2f(x0, y0),
+                v2f(x1, y0),
+                v2f(x0, y1),
+                v2f(x0, y1),
+                v2f(x1, y0),
+                v2f(x1, y1),
+            };
+
+            v2f texture_positions[] = {
+                v2f(ax0, ay0),
+                v2f(ax1, ay0),
+                v2f(ax0, ay1),
+                v2f(ax0, ay1),
+                v2f(ax1, ay0),
+                v2f(ax1, ay1),
+            };
+
+            FOR_RANGE (int, i, 6) {
+                v2f vertex        = verticess[i];
+                v2f texture_coord = texture_positions[i];
+                vertices.Add_Unsafe((void*)&vertex, sizeof(vertex));
+                vertices.Add_Unsafe((void*)&v3f_one, sizeof(v3f_one));  // TODO: color
+                vertices.Add_Unsafe((void*)&texture_coord, sizeof(texture_coord));
+            }
+
+            sprites_count++;
+        }
+    );
+
+    {
+        glUseProgram(rstate.sprites_shader_program);
+        glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
+        GLuint vao;
+        glGenVertexArrays(1, &vao);
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.count, vertices.base, GL_STATIC_DRAW);
+
+        // 3. then set our vertex attributes pointers
+        // (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
+        // const void* pointer);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(0));
+        glVertexAttribPointer(
+            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+        );
+        glVertexAttribPointer(
+            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+        );
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+
+        // ..:: Drawing code (in render loop) :: ..
+        // glUseProgram(rstate.sprites_shader_program);
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, 6 * sprites_count);
+
+        glBindVertexArray(0);
+        glDeleteVertexArrays(1, &vao);
+        glDeleteBuffers(1, &vbo);
+        Check_OpenGL_Errors();
+    }
+
+    // {
+    //     GLuint vao;
+    //     glGenVertexArrays(1, &vao);
+    //     GLuint vbo;
+    //     glGenBuffers(1, &vbo);
     //
-    // auto    sprites_count = 0;
-    // GLfloat zero          = 0;
-    // GLfloat one           = 1;
-    // Map_Sprites_With_Textures(
-    //     rstate,
-    //     [&](C_Texture& tex,
-    //         Entity_ID  sprite_id,
-    //         C_Sprite&  s  //
-    //     ) {
-    //         auto texture_id   = tex.id;
-    //         auto required_mem = 8 * 6 * sizeof(GLfloat);
-    //         vertices.Reserve(vertices.max_count + required_mem, ctx);
+    //     glBindVertexArray(vao);
+    //     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    //     glBufferData(GL_ARRAY_BUFFER, sizeof(void*), vertices.base, GL_STATIC_DRAW);
     //
-    //         // TODO: rotation
-    //         // TODO: filter
-    //         auto x0 = s.pos.x + s.scale.x * (s.anchor.x - 1);
-    //         auto x1 = s.pos.x + s.scale.x * (s.anchor.x - 0);
-    //         auto y0 = s.pos.y + s.scale.y * (s.anchor.y - 1);
-    //         auto y1 = s.pos.y + s.scale.y * (s.anchor.y - 0);
-    //
-    //         auto ax0 = tex.pos_inside_atlas.x;
-    //         auto ax1 = tex.pos_inside_atlas.x + (f32(tex.size.x) /
-    //         rstate.atlas.size.x); auto ay0 = tex.pos_inside_atlas.y; auto ay1 =
-    //         tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
-    //
-    //         vertices.Add_Unsafe((void*)&x0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe((void*)&y0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&zero, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ax0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ay0, sizeof(GLfloat));
-    //
-    //         vertices.Add_Unsafe((void*)&x1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe((void*)&y0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&zero, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ax1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ay0, sizeof(GLfloat));
-    //
-    //         vertices.Add_Unsafe((void*)&x0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe((void*)&y1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&zero, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ax0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ay1, sizeof(GLfloat));
-    //
-    //         vertices.Add_Unsafe((void*)&x0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe((void*)&y1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&zero, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ax0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ay1, sizeof(GLfloat));
-    //
-    //         vertices.Add_Unsafe((void*)&x1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe((void*)&y0, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&zero, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ax1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ay0, sizeof(GLfloat));
-    //
-    //         vertices.Add_Unsafe((void*)&x1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe((void*)&y1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&zero, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&one, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ax1, sizeof(GLfloat));
-    //         vertices.Add_Unsafe(&ay1, sizeof(GLfloat));
-    //
-    //         sprites_count++;
-    //     }
-    // );
-    //
-    // GLuint vao;
-    // glGenVertexArrays(1, &vao);
-    // GLuint vbo;
-    // glGenBuffers(1, &vbo);
-    //
-    // glBindVertexArray(vao);
-    // glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(void*), vertices.base, GL_STATIC_DRAW);
-    //
-    // // 3. then set our vertex attributes pointers
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(0));
-    // glVertexAttribPointer(
-    //     1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
-    // );
-    // glVertexAttribPointer(
-    //     2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
-    // );
-    // glEnableVertexAttribArray(0);
-    // glEnableVertexAttribArray(1);
-    // glEnableVertexAttribArray(2);
+    //     // 3. then set our vertex attributes pointers
+    //     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32),
+    //     rcast<void*>(0)); glVertexAttribPointer(
+    //         1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+    //     );
+    //     glVertexAttribPointer(
+    //         2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+    //     );
+    //     glEnableVertexAttribArray(0);
+    //     glEnableVertexAttribArray(1);
+    //     glEnableVertexAttribArray(2);
     //
     //     // ..:: Drawing code (in render loop) :: ..
     //     glUseProgram(rstate.sprites_shader_program);
-    //     glBindVertexArray(vao);
-    //     glDrawArrays(GL_TRIANGLES, 0, 6);
+    //     glDrawArrays(GL_TRIANGLES, 0, 6 * sprites_count);
     //
     //     glBindVertexArray(0);
     //     glDeleteVertexArrays(1, &vao);
-    //
+    // }
+
     //     // Рисование UI плашки слева.
     //     auto& ui_state = *rstate.ui_state;
     //     {
@@ -1783,6 +1844,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
 // NOTE: Game_State& state, v2i16 pos, Item_To_Build item
 On_Item_Built__Function(Renderer__On_Item_Built) {
     Assert(state.renderer_state != nullptr);
+
+    CTX_ALLOCATOR;
+
     auto& rstate   = *state.renderer_state;
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
@@ -1812,6 +1876,9 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
 
     if (element_tile.type != Element_Tile_Type::Building)
         Assert(element_tile.building_id == Building_ID_Missing);
+
+    if (element_tile.type == Element_Tile_Type::Building)
+        Add_Building_Sprite(rstate, game_map, pos, element_tile.building_id, ctx);
 
     for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;

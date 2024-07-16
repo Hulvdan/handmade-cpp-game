@@ -2808,7 +2808,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         INVALID_PATH;
     }
 
-    INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item));
+    INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item, ctx));
 
     return true;
 }

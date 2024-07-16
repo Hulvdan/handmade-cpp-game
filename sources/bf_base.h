@@ -68,9 +68,11 @@ void DEBUG_Print(const char* text, ...) {
 // =============================================================
 // OTHER SHIT
 // =============================================================
-using v2f = glm::vec2;
-using v2i = glm::ivec2;
-typedef glm::vec<2, int16_t, glm::defaultp> v2i16;
+using v2f   = glm::vec2;
+using v2i   = glm::ivec2;
+using v2i16 = glm::vec<2, int16_t, glm::defaultp>;
+using v3f   = glm::vec3;
+using v3i   = glm::ivec3;
 
 const v2i16 v2i16_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 const v2i16 v2i16_adjacent_offsets_including_0[5]
@@ -97,8 +99,11 @@ constexpr v2f v2f_up     = v2f(0, 1);
 constexpr v2f v2f_left   = v2f(-1, 0);
 constexpr v2f v2f_bottom = v2f(0, -1);
 
-using v3f = glm::vec3;
-using v3i = glm::ivec3;
+constexpr v3i v3i_zero = v3i(0, 0, 0);
+constexpr v3i v3i_one  = v3i(1, 1, 1);
+
+constexpr v3f v3f_zero = v3f(0, 0, 0);
+constexpr v3f v3f_one  = v3f(1, 1, 1);
 
 #define local_persist static
 #define global_var static

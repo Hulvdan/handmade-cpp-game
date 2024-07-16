@@ -533,7 +533,7 @@ struct Observer : public Non_Copyable {
     } while (0)
 
 #define On_Item_Built__Function(name_) \
-    void name_(Game_State& state, v2i16 pos, const Item_To_Build& item)
+    void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;
