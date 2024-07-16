@@ -38,9 +38,9 @@ void DEBUG_Print(const char* text, ...) {
 #define DEBUG_Print(text_, ...)
 #endif  // BF_INTERNAL
 
-// ============================================================= //
-//                            INLINE                             //
-// ============================================================= //
+// =============================================================
+// INLINE
+// =============================================================
 // NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
 #if BF_NO_INLINE_HINTS /* disable inlining hints */
 #if defined(__GNUC__) || defined(__clang__)
@@ -65,9 +65,9 @@ void DEBUG_Print(const char* text, ...) {
 #define BF_NO_INLINE static
 #endif
 
-// ============================================================= //
-//                          OTHER SHIT                           //
-// ============================================================= //
+// =============================================================
+// OTHER SHIT
+// =============================================================
 using v2f = glm::vec2;
 using v2i = glm::ivec2;
 typedef glm::vec<2, int16_t, glm::defaultp> v2i16;
@@ -151,9 +151,9 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
 
-// ============================================================= //
-//                             Defer                             //
-// ============================================================= //
+// =============================================================
+// Defer
+// =============================================================
 template <typename F>
 struct _Defer {
     _Defer(F f)
@@ -190,9 +190,9 @@ BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
 //
 #define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
 
-// ============================================================= //
-//                             Other                             //
-// ============================================================= //
+// =============================================================
+// Other
+// =============================================================
 struct Non_Copyable {
     Non_Copyable()                               = default;
     Non_Copyable(const Non_Copyable&)            = delete;
@@ -204,9 +204,9 @@ BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
 
-// ============================================================= //
-//                           Iterators                           //
-// ============================================================= //
+// =============================================================
+// Iterators
+// =============================================================
 //
 // NOTE: Proudly taken from
 // https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
