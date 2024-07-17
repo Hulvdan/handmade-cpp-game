@@ -347,9 +347,10 @@ void Add_Building_Sprite(
     auto& scriptable = *building->scriptable;
 
     C_Sprite building_sprite{};
-    building_sprite.pos      = pos;
-    building_sprite.scale    = {1, 1};
-    building_sprite.anchor   = {0.5f, 0.5f};
+    building_sprite.pos   = pos;
+    building_sprite.scale = {1, 1};
+    // building_sprite.anchor   = {0.5f, 0.5f};
+    building_sprite.anchor   = {1, 1};
     building_sprite.rotation = 0;
     building_sprite.texture  = scriptable.texture;
     building_sprite.z        = 0;
@@ -396,7 +397,6 @@ out vec2 tex_coord;
 
 void main() {
     gl_Position = vec4(a_pos, 0, 1);
-    // color = vec3(1, 1, 1);
     color = a_color;
     tex_coord = a_tex_coord;
 }
@@ -406,11 +406,6 @@ void main() {
 
 uniform vec2 a_tile_size_relative_to_atlas;
 
-// uniform mat3 a_model;
-// uniform mat3 a_model_inv;
-// uniform mat3 a_projection;
-// uniform mat3 a_projection_inv;
-
 out vec4 frag_color;
 
 in vec3 color;
@@ -419,16 +414,9 @@ varying in vec2 tex_coord;
 uniform sampler2D ourTexture;
 
 void main() {
-    // vec3 world_pos = a_projection_inv * gl_FragCoord;
-    // vec3 object_pos = a_model_inv * world_pos;
-
     frag_color =
-        texture(ourTexture, vec2(tex_coord.x, 1 - tex_coord.y));
-    // frag_color =
-    //     texture(ourTexture, tex_coord);
-    // frag_color =
-    //     texture(ourTexture, vec2(tex_coord.x, 1 - tex_coord.y))
-    //     * vec4(color, 1);
+        texture(ourTexture, vec2(tex_coord.x, 1 - tex_coord.y))
+        * vec4(color, 1);
 }
 )FragmentShader",
         trash_arena
@@ -1555,8 +1543,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
             f32 ax0 = tex.pos_inside_atlas.x;
             f32 ax1 = tex.pos_inside_atlas.x + (f32(tex.size.x) / rstate.atlas.size.x);
-            f32 ay0 = tex.pos_inside_atlas.y;
-            f32 ay1 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
+            f32 ay1 = tex.pos_inside_atlas.y;
+            f32 ay0 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
 
             v2f verticess[] = {
                 v2f(x0, y0),
@@ -1601,14 +1589,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glBufferData(GL_ARRAY_BUFFER, vertices.count, vertices.base, GL_STATIC_DRAW);
 
         // 3. then set our vertex attributes pointers
-        // (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
-        // const void* pointer);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(0));
         glVertexAttribPointer(
-            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
+            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(2 * sizeof(f32))
         );
         glVertexAttribPointer(
-            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
+            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(5 * sizeof(f32))
         );
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
@@ -1624,36 +1610,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glDeleteBuffers(1, &vbo);
         Check_OpenGL_Errors();
     }
-
-    // {
-    //     GLuint vao;
-    //     glGenVertexArrays(1, &vao);
-    //     GLuint vbo;
-    //     glGenBuffers(1, &vbo);
-    //
-    //     glBindVertexArray(vao);
-    //     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    //     glBufferData(GL_ARRAY_BUFFER, sizeof(void*), vertices.base, GL_STATIC_DRAW);
-    //
-    //     // 3. then set our vertex attributes pointers
-    //     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32),
-    //     rcast<void*>(0)); glVertexAttribPointer(
-    //         1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(3 * sizeof(f32))
-    //     );
-    //     glVertexAttribPointer(
-    //         2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), rcast<void*>(6 * sizeof(f32))
-    //     );
-    //     glEnableVertexAttribArray(0);
-    //     glEnableVertexAttribArray(1);
-    //     glEnableVertexAttribArray(2);
-    //
-    //     // ..:: Drawing code (in render loop) :: ..
-    //     glUseProgram(rstate.sprites_shader_program);
-    //     glDrawArrays(GL_TRIANGLES, 0, 6 * sprites_count);
-    //
-    //     glBindVertexArray(0);
-    //     glDeleteVertexArrays(1, &vao);
-    // }
 
     //     // Рисование UI плашки слева.
     //     auto& ui_state = *rstate.ui_state;
