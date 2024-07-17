@@ -32,3 +32,20 @@ constexpr i32 i32_min = std::numeric_limits<i32>::min();
 constexpr i64 i64_min = std::numeric_limits<i64>::min();
 
 constexpr f32 f32_inf = std::numeric_limits<f32>::infinity();
+
+// template <typename T>
+// struct bf_uptr {
+//     bf_uptr() noexcept {}
+//
+//     explicit bf_uptr(T* ptr) noexcept {
+//         value = ptr;
+//     }
+//
+//     bf_uptr(bf_uptr<T>&& other) {
+//         value       = other.value;
+//         other.value = nullptr;
+//     }
+//
+// private:
+//     T* value = nullptr;
+// }

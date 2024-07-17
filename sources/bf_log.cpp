@@ -5,7 +5,9 @@
 
 // TODO: ВЫЧИСТИТЬ ЭТОТ СРАЧ
 // Набор функций для отбрасывания абсолютного пути файла. Оставляем только название.
-consteval const char* str_end(const char* str) { return *str ? str_end(str + 1) : str; }
+consteval const char* str_end(const char* str) {
+    return *str ? str_end(str + 1) : str;
+}
 
 consteval bool str_slant(const char* str) {
     return *str == '/' ? true : (*str ? str_slant(str + 1) : false);
@@ -18,7 +20,9 @@ consteval const char* unix_file_name(const char* str) {
     return str_slant(str) ? r_slant(str_end(str)) : str;
 }
 
-consteval const char* str_end2(const char* str) { return *str ? str_end2(str + 1) : str; }
+consteval const char* str_end2(const char* str) {
+    return *str ? str_end2(str + 1) : str;
+}
 
 consteval bool str_slant2(const char* str) {
     return *str == '\\' ? true : (*str ? str_slant2(str + 1) : false);
@@ -148,7 +152,8 @@ private:
             while (size > 0) {
                 DWORD written = 0;
                 if (!::WriteFile(handle_, data, size, &written, nullptr) || written == 0
-                    || written > size) {
+                    || written > size)
+                {
                     SPDLOG_THROW(spdlog::spdlog_ex(
                         "sink: print_range failed. GetLastError(): "
                         + std::to_string(::GetLastError())
@@ -241,8 +246,10 @@ struct Tracing_Logger {
 #if 1
 
 using Root_Logger_Type = Tracing_Logger;
-#define MAKE_LOGGER(logger_ptr, arena) \
-    { (logger_ptr) = std::construct_at((logger_ptr), (arena)); }
+#define MAKE_LOGGER(logger_ptr, arena)                           \
+    do {                                                         \
+        (logger_ptr) = std::construct_at((logger_ptr), (arena)); \
+    } while (0)
 
 #else
 
@@ -374,15 +381,15 @@ Logger__Function(Tracing_Logger_Routine) {
     }
 }
 
-#define _LOG_COMMON(log_type_, message_, ...)                                     \
-    [&] {                                                                         \
-        if (logger_routine != nullptr) {                                          \
-            auto str = spdlog::fmt_lib::vformat(                                  \
+#define _LOG_COMMON(log_type_, message_, ...)                              \
+    do {                                                                   \
+        if (logger_routine != nullptr) {                                   \
+            auto str = spdlog::fmt_lib::vformat(                           \
                 (message_), spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
-            );                                                                    \
-            logger_routine(logger_data, (log_type_), str.c_str());                \
-        }                                                                         \
-    }()
+            );                                                             \
+            logger_routine(logger_data, (log_type_), str.c_str());         \
+        }                                                                  \
+    } while (0)
 
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
 #define LOG_INFO(message_, ...) _LOG_COMMON(Log_Type::INFO, (message_), ##__VA_ARGS__)

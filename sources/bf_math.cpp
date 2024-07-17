@@ -2,6 +2,15 @@
 
 #define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 
+template <typename T>
+T Abs(T value) {
+    return std::abs(value);
+}
+
+int Ceil(f32 value) {
+    return std::ceil(value);
+}
+
 u16 Assert_Truncate_To_u16(size_t value) {
     Assert(value <= u16_max);
     return (u16)value;
@@ -21,16 +30,16 @@ f32 Move_Towards(f32 value, f32 target, f32 diff) {
     ((*((u8*)(bytes_ptr) + ((bit_index) / 8))) & (1 << ((bit_index) % 8)))
 
 #define MARK_BIT(bytes_ptr, bit_index)                      \
-    {                                                       \
+    do {                                                    \
         u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
         byte     = byte | (1 << ((bit_index) % 8));         \
-    }
+    } while (0)
 
 #define UNMARK_BIT(bytes_ptr, bit_index)                    \
-    {                                                       \
+    do {                                                    \
         u8& byte = *((u8*)(bytes_ptr) + ((bit_index) / 8)); \
         byte &= 0xFF - (1 << ((bit_index) % 8));            \
-    }
+    } while (0)
 
 // Usage Examples:
 //     32 -> 32

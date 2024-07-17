@@ -95,7 +95,8 @@ Game_Update_And_Render__Function(Game_Update_And_Render_Stub) {}
 Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
 
 void Load_Or_Update_Game_Dll() {
-    auto path = "bf_game.dll";
+    auto path = R"(bf_game.dll)";
+    //    auto path = R"(.cmake\vs17\Debug\bf_game.dll)";
 
 #if BF_INTERNAL
     auto filetime = Peek_Filetime(path);
@@ -180,9 +181,8 @@ DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
 
-bool               controller_support_loaded = false;
-XInputGetStateType XInputGetState_           = XInputGetStateStub;
-XInputSetStateType XInputSetState_           = XInputSetStateStub;
+XInputGetStateType XInputGetState_ = XInputGetStateStub;
+XInputSetStateType XInputSetState_ = XInputSetStateStub;
 
 void Load_XInput_Dll() {
     auto library = LoadLibraryA("xinput1_4.dll");
@@ -192,8 +192,6 @@ void Load_XInput_Dll() {
     if (library) {
         XInputGetState_ = (XInputGetStateType)GetProcAddress(library, "XInputGetState");
         XInputSetState_ = (XInputSetStateType)GetProcAddress(library, "XInputSetState");
-
-        controller_support_loaded = true;
     }
 }
 // -- CONTROLLER STUFF END
@@ -395,13 +393,13 @@ extern IMGUI_IMPL_API LRESULT
 ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #define BF_MOUSE_POS                            \
-    {                                           \
+    do {                                        \
         POINT p;                                \
         GetCursorPos(&p);                       \
         ScreenToClient(window_handle, &p);      \
         event.position.x = p.x;                 \
         event.position.y = client_height - p.y; \
-    }
+    } while (0)
 
 LRESULT
 WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
@@ -519,7 +517,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         // } else
         if (vk_code == VK_ESCAPE  //
             || vk_code == 'Q'     //
-            || vk_code == VK_F4 && alt_is_down) {
+            || vk_code == VK_F4 && alt_is_down)
+        {
             running = false;
         }
 
@@ -575,7 +574,9 @@ public:
         std::swap(s1, s2);
     }
 
-    void OnStreamEnd() noexcept override { RecalculateAndSwap(); }
+    void OnStreamEnd() noexcept override {
+        RecalculateAndSwap();
+    }
 
     void OnBufferEnd(void* pBufferContext) noexcept override {}
     void OnBufferStart(void* pBufferContext) noexcept override {}

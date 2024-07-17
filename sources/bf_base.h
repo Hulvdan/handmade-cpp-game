@@ -38,9 +38,9 @@ void DEBUG_Print(const char* text, ...) {
 #define DEBUG_Print(text_, ...)
 #endif  // BF_INTERNAL
 
-// ============================================================= //
-//                            INLINE                             //
-// ============================================================= //
+// =============================================================
+// INLINE
+// =============================================================
 // NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
 #if BF_NO_INLINE_HINTS /* disable inlining hints */
 #if defined(__GNUC__) || defined(__clang__)
@@ -65,12 +65,14 @@ void DEBUG_Print(const char* text, ...) {
 #define BF_NO_INLINE static
 #endif
 
-// ============================================================= //
-//                          OTHER SHIT                           //
-// ============================================================= //
-using v2f = glm::vec2;
-using v2i = glm::ivec2;
-typedef glm::vec<2, int16_t, glm::defaultp> v2i16;
+// =============================================================
+// OTHER SHIT
+// =============================================================
+using v2f   = glm::vec2;
+using v2i   = glm::ivec2;
+using v2i16 = glm::vec<2, int16_t, glm::defaultp>;
+using v3f   = glm::vec3;
+using v3i   = glm::ivec3;
 
 const v2i16 v2i16_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 const v2i16 v2i16_adjacent_offsets_including_0[5]
@@ -97,8 +99,11 @@ constexpr v2f v2f_up     = v2f(0, 1);
 constexpr v2f v2f_left   = v2f(-1, 0);
 constexpr v2f v2f_bottom = v2f(0, -1);
 
-using v3f = glm::vec3;
-using v3i = glm::ivec3;
+constexpr v3i v3i_zero = v3i(0, 0, 0);
+constexpr v3i v3i_one  = v3i(1, 1, 1);
+
+constexpr v3f v3f_zero = v3f(0, 0, 0);
+constexpr v3f v3f_one  = v3f(1, 1, 1);
 
 #define local_persist static
 #define global_var static
@@ -151,18 +156,21 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
 
-// ============================================================= //
-//                             Defer                             //
-// ============================================================= //
+// =============================================================
+// Defer
+// =============================================================
 template <typename F>
 struct _Defer {
-    _Defer(F f) : f(f) {}
-    ~_Defer() { f(); }
+    _Defer(F f)
+        : f(f) {}
+    ~_Defer() {
+        f();
+    }
     F f;
 };
 
 template <typename F>
-_Defer<F> _makeDefer(F f) {
+BF_FORCE_INLINE _Defer<F> _makeDefer(F f) {
     return _Defer<F>(f);
 };
 
@@ -171,7 +179,7 @@ _Defer<F> _makeDefer(F f) {
 
 struct _defer_dummy {};
 template <typename F>
-_Defer<F> operator+(_defer_dummy, F&& f) {
+BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
     return _makeDefer<F>(std::forward<F>(f));
 }
 
@@ -187,9 +195,9 @@ _Defer<F> operator+(_defer_dummy, F&& f) {
 //
 #define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
 
-// ============================================================= //
-//                             Other                             //
-// ============================================================= //
+// =============================================================
+// Other
+// =============================================================
 struct Non_Copyable {
     Non_Copyable()                               = default;
     Non_Copyable(const Non_Copyable&)            = delete;
@@ -201,16 +209,33 @@ BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
 
-// ============================================================= //
-//                           Iterators                           //
-// ============================================================= //
+// =============================================================
+// Iterators
+// =============================================================
 //
 // NOTE: Proudly taken from
 // https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
 template <class Reference>
 struct Arrow_Proxy {
     Reference  r;
-    Reference* operator->() { return &r; }
+    Reference* operator->() {
+        return &r;
+    }
+};
+
+template <typename Derived>
+struct Equatable {
+protected:
+    using Self_Type = Derived;
+
+public:
+    friend bool operator==(const Self_Type& left, const Self_Type& right) {
+        return left.Equal_To(right);
+    }
+    // SHIT: Fuken `clang-tidy` requires this function to be specified
+    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
+        return !left.Equal_To(right);
+    }
 };
 
 template <typename Derived>
@@ -219,11 +244,17 @@ protected:
     using Self_Type = Derived;
 
 private:
-    Self_Type&       _self() { return scast<Self_Type&>(*this); }
-    const Self_Type& _self() const { return scast<const Self_Type&>(*this); }
+    Self_Type& _self() {
+        return scast<Self_Type&>(*this);
+    }
+    const Self_Type& _self() const {
+        return scast<const Self_Type&>(*this);
+    }
 
 public:
-    decltype(auto) operator*() const { return _self().Dereference(); }
+    decltype(auto) operator*() const {
+        return _self().Dereference();
+    }
 
     auto operator->() const {
         decltype(auto) ref = **this;

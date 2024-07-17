@@ -15,4 +15,9 @@
     - [glm](https://github.com/g-truc/glm)
     - doctest
     - tracy
+    - spdlog
 4. Использую [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) и [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
+
+## Разработка
+
+Документация для разработки находится в [DEVELOPMENT.md](./DEVELOPMENT.md)

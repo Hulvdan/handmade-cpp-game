@@ -1,20 +1,46 @@
 #pragma once
 
-// NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
-#define ALLOC(n) \
-    Assert_Not_Null(allocator)(Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0)
+#define COALESCE(value, fallback) (((value) != nullptr) ? (value) : (fallback))
 
-#define FREE(ptr, n)                                                             \
-    Assert_Not_Null(allocator)(                                                  \
-        Allocator_Mode::Free, sizeof(*ptr) * (n), 1, 0, (ptr), allocator_data, 0 \
+// NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
+#define ALLOC(n)                                                  \
+    (COALESCE(allocator, Root_Allocator_Routine)(                 \
+        Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0 \
+    ))
+
+#define ALLOC_ZEROS(n)        \
+    [&]() {                   \
+        auto addr = ALLOC(n); \
+        memset(addr, 0, n);   \
+        return addr;          \
+    }()
+
+#define REALLOC(new_bytes_size, old_bytes_size, old_ptr) \
+    (COALESCE(allocator, Root_Allocator_Routine))(       \
+        Allocator_Mode::Resize,                          \
+        (new_bytes_size),                                \
+        1,                                               \
+        (old_bytes_size),                                \
+        (old_ptr),                                       \
+        allocator_data,                                  \
+        0                                                \
     )
 
-#define FREE_ALL \
-    Assert_Not_Null(allocator)(Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0)
+#define FREE(ptr, bytes_size)                                              \
+    (COALESCE(allocator, Root_Allocator_Routine))(                         \
+        Allocator_Mode::Free, (bytes_size), 1, 0, (ptr), allocator_data, 0 \
+    )
+
+#define FREE_ALL                                                \
+    (COALESCE(allocator, Root_Allocator_Routine))(              \
+        Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0 \
+    )
 
 #if 1
-#define SANITIZE \
-    Assert_Not_Null(allocator)(Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0)
+#define SANITIZE                                              \
+    (COALESCE(allocator, Root_Allocator_Routine))(            \
+        Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \
+    )
 #else
 #define SANITIZE (void)0
 #endif
@@ -26,10 +52,10 @@
     auto& allocator_data = ctx->allocator_data;
 
 #define PUSH_CONTEXT(new_ctx, code) \
-    {                               \
+    do {                            \
         auto ctx = (new_ctx);       \
         (code);                     \
-    }
+    } while (0)
 
 template <typename T>
 void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
@@ -67,7 +93,7 @@ struct Context {
     Logger_Tracing_Function_Type logger_tracing_routine;
     void*                        logger_data;
 
-    Context() = default;
+    // Context() = default;
 
     Context(
         u32                          a_thread_index,
@@ -89,7 +115,9 @@ struct Blk {
     void*  ptr;
     size_t length;
 
-    Blk(void* a_ptr, size_t a_length) : ptr(a_ptr), length(a_length) {}
+    Blk(void* a_ptr, size_t a_length)
+        : ptr(a_ptr)
+        , length(a_length) {}
 
     friend bool operator==(const Blk& a, const Blk& b) {
         return a.ptr == b.ptr && a.length == b.length;
@@ -119,7 +147,9 @@ struct Fallback_Allocator {
         return _p.Owns(b) || _f.Owns(b);
     }
 
-    bool Sanity_Check() { return _p.Sanity_Check() && _f.Sanity_Check(); }
+    bool Sanity_Check() {
+        return _p.Sanity_Check() && _f.Sanity_Check();
+    }
 
 private:
     P _p;
@@ -127,18 +157,28 @@ private:
 };
 
 struct Null_Allocator {
-    Blk Allocate(size_t) { return Blk(nullptr, 0); }
+    Blk Allocate(size_t) {
+        return Blk(nullptr, 0);
+    }
 
-    void Deallocate(Blk b) { Assert(b.ptr == nullptr); }
+    void Deallocate(Blk b) {
+        Assert(b.ptr == nullptr);
+    }
 
-    bool Owns(Blk b) { return b.ptr == nullptr; }
+    bool Owns(Blk b) {
+        return b.ptr == nullptr;
+    }
 
-    bool Sanity_Check() { return true; }
+    bool Sanity_Check() {
+        return true;
+    }
 };
 
 template <size_t s>
 struct Stack_Allocator {
-    Stack_Allocator() : _buffer(), _current(_buffer) {}
+    Stack_Allocator()
+        : _buffer()
+        , _current(_buffer) {}
 
     Blk Allocate(size_t n) {
         Blk result(_current, n);
@@ -155,9 +195,13 @@ struct Stack_Allocator {
         // }
     }
 
-    bool Owns(Blk b) { return b.ptr >= _buffer && b.ptr < _buffer + s; }
+    bool Owns(Blk b) {
+        return b.ptr >= _buffer && b.ptr < _buffer + s;
+    }
 
-    void Deallocate_All() { _current = _buffer; }
+    void Deallocate_All() {
+        _current = _buffer;
+    }
 
     bool Sanity_Check() {
         bool sane = _buffer != nullptr && _current != nullptr;
@@ -171,7 +215,9 @@ private:
 };
 
 struct Malloc_Allocator {
-    Blk Allocate(size_t n) { return Blk(malloc(n), n); }
+    Blk Allocate(size_t n) {
+        return Blk(malloc(n), n);
+    }
 
     void Deallocate(Blk b) {
         Assert(b.ptr != nullptr);
@@ -179,9 +225,13 @@ struct Malloc_Allocator {
         free(b.ptr);
     }
 
-    void Deallocate_All() { NOT_SUPPORTED; }
+    void Deallocate_All() {
+        NOT_SUPPORTED;
+    }
 
-    bool Sanity_Check() { return true; }
+    bool Sanity_Check() {
+        return true;
+    }
 };
 
 struct Freeable_Malloc_Allocator {
@@ -218,7 +268,9 @@ struct Freeable_Malloc_Allocator {
         _allocations.clear();
     }
 
-    bool Sanity_Check() { return true; }
+    bool Sanity_Check() {
+        return true;
+    }
 
 private:
     std::vector<Blk> _allocations;
@@ -318,7 +370,9 @@ struct Freelist {
         _parent.Deallocate_All();
     }
 
-    bool Sanity_Check() { return _parent.Sanity_Check(); }
+    bool Sanity_Check() {
+        return _parent.Sanity_Check();
+    }
 
 private:
     A _parent;
@@ -333,9 +387,12 @@ private:
 struct Size_Affix {
     size_t n;
 
-    Size_Affix(size_t an) : n(an) {}
+    Size_Affix(size_t an)
+        : n(an) {}
 
-    bool Validate() { return true; }
+    bool Validate() {
+        return true;
+    }
 };
 
 template <class A, class Prefix = void, class Suffix = void>
@@ -551,7 +608,7 @@ class Bitmapped_Allocator {
             }
 
             if (available == required_blocks) {
-                void* ptr = (void*)_blocks + block_size * location;
+                void* ptr = (void*)((u8*)_blocks + block_size * location);
 
                 Assert(!QUERY_BIT(_allocation_bits, location));
                 MARK_BIT(_allocation_bits, location);
@@ -613,8 +670,12 @@ class Bitmapped_Allocator {
     }
 
 private:
-    consteval size_t Last_Block_Offset() { return block_size * 4 - 1; }
-    consteval size_t Total_Blocks_Count() { return block_size * 4; }
+    consteval size_t Last_Block_Offset() {
+        return block_size * 4 - 1;
+    }
+    consteval size_t Total_Blocks_Count() {
+        return block_size * 4;
+    }
 
     A _parent;  // NOTE: Аллокатор для аллокации блоков
 
@@ -657,7 +718,7 @@ struct Cascading_Allocator {
                 return;
             }
         }
-        Assert(false);
+        INVALID_PATH;
     }
 
     bool Sanity_Check() {
@@ -671,7 +732,7 @@ struct Cascading_Allocator {
 private:
     // TODO: убрать vector. Добавить новый аллокатор-параметр шаблона,
     // который будет аллоцировать и реаллоцировать массив
-    tvector<A> _allocators;
+    std::vector<A> _allocators;
 };
 
 // auto a = Cascading_Allocator({
@@ -845,13 +906,15 @@ struct Stoopid_Affix {
 global_var Root_Allocator_Type* root_allocator = nullptr;
 
 Allocator__Function(Root_Allocator_Routine) {
+    Assert(allocator_data == nullptr);
+
     switch (mode) {
     case Allocator_Mode::Allocate: {
         Assert(old_memory_ptr == nullptr);
         Assert(size > 0);
         Assert(old_size == 0);
 
-        return Assert_Deref((Root_Allocator_Type*)allocator_data).Allocate(size).ptr;
+        return root_allocator->Allocate(size).ptr;
     } break;
 
     case Allocator_Mode::Resize: {
@@ -862,13 +925,12 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_memory_ptr != nullptr);
         Assert(size > 0);
 
-        Assert_Deref((Root_Allocator_Type*)allocator_data)
-            .Deallocate(Blk(old_memory_ptr, size));
+        root_allocator->Deallocate(Blk(old_memory_ptr, size));
         return nullptr;
     } break;
 
     case Allocator_Mode::Free_All: {
-        Assert_Deref((Root_Allocator_Type*)allocator_data).Deallocate_All();
+        root_allocator->Deallocate_All();
     } break;
 
     case Allocator_Mode::Sanity: {
@@ -877,7 +939,7 @@ Allocator__Function(Root_Allocator_Routine) {
         Assert(old_size == 0);
         Assert(alignment == 0);
 
-        Assert_Deref((Root_Allocator_Type*)allocator_data).Sanity_Check();
+        root_allocator->Sanity_Check();
     } break;
 
     default:

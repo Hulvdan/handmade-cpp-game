@@ -56,7 +56,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
         auto offset = Find_Newline(filedata, filesize);
         Assert(offset > 0);
 
-        tile.fallback_texture_id = scast<BF_Texture_ID>(Hash32(filedata, offset));
+        tile.fallback_texture = scast<BF_Texture_ID>(Hash32(filedata, offset));
 
         filedata += offset;
         filesize -= offset;
@@ -87,7 +87,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
             if (offset < 0)
                 break;
 
-            rule.texture_id = scast<BF_Texture_ID>(Hash32(filedata, offset));
+            rule.texture = scast<BF_Texture_ID>(Hash32(filedata, offset));
 
             filedata += offset;
             filesize -= offset;
@@ -172,7 +172,7 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
 
 // NOTE: `tile_ids_distance` is the distance
 // (in bytes) between two adjacent Tile_IDs in `tile_ids`
-BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Tile& tile) {
+Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Tile& tile) {
     v2i16 offsets[]
         = {{-1, 1}, {0, 1}, {1, 1}, {-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}};
 
@@ -191,7 +191,7 @@ BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Til
                 continue;
             }
 
-            Tile_ID tile_id = *(tilemap.tiles + size.x * new_pos.y + new_pos.x);
+            Tile_ID tile_id = tilemap.tiles[size.x * new_pos.y + new_pos.x];
 
             if (state == Tile_State_Check::Included)
                 found &= tile_id == tile.id;
@@ -200,8 +200,8 @@ BF_Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Til
         }
 
         if (found)
-            return rule.texture_id;
+            return rule.texture;
     }
 
-    return tile.fallback_texture_id;
+    return tile.fallback_texture;
 }

@@ -1,0 +1,66 @@
+// Example:
+// https://raw.githubusercontent.com/google/flatbuffers/master/samples/monster.fbs
+
+namespace BFGame;
+
+enum Building_Type:byte {
+    Undefined = 0,
+    City_Hall,
+    Harvest,
+    Plant,
+    Fish,
+    Produce,
+}
+
+table Resource {
+    code:          string (key);
+    texture:       uint;
+    small_texture: uint;
+}
+
+table Construction_Resource_Pair {
+    resource_code: string (required);
+    count: int;
+}
+
+table Building {
+    code:    string         (key);
+    type:    Building_Type = Undefined;
+    texture: uint;
+
+    human_spawning_delay:         float;
+    required_construction_points: float;
+    can_be_built:                 bool;
+
+    construction_resources: [Construction_Resource_Pair];
+}
+
+// enum Tile_State_Check:byte {
+//     Skip = 0,
+//     Excluded,
+//     Included,
+// }
+//
+// table Tile_Rule {
+//     texture: uint;
+//     states:  uint64;
+// }
+
+table Art {
+    human:                uint;
+    grass:                [uint];
+    forest:               [uint];
+    building_in_progress: uint;
+    road:                 [uint];
+    flag:                 [uint];
+    // grass_tile_rule:      Tile_Rule;
+}
+
+table Game_Library {
+    buildings: [Building];
+    resources: [Resource];
+    art: Art;
+}
+
+file_identifier "GLIB";
+root_type Game_Library;

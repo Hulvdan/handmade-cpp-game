@@ -20,7 +20,7 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
 #endif  // WIN32
 
     FILE* file   = 0;
-    auto  failed = fopen_s(&file, absolute_file_path, "r");
+    auto  failed = fopen_s(&file, absolute_file_path, "rb");
     Assert(!failed);
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);

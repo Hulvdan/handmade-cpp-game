@@ -1,8 +1,8 @@
 #pragma once
 
-// ============================================================= //
-//                     Forward Declarations                      //
-// ============================================================= //
+// =============================================================
+// Forward Declarations
+// =============================================================
 // SHIT: Oh, god, I hate this shit
 struct Game_State;
 
@@ -10,6 +10,28 @@ struct Game_State;
 struct Game_Renderer_State;
 struct Loaded_Texture;
 #endif
+
+using Entity_ID                   = u32;
+const Entity_ID Entity_ID_Missing = 1 << 31;
+
+constexpr Entity_ID Component_Mask(Entity_ID component_number) {
+    return component_number << 22;
+}
+
+using Player_ID = u8;
+
+using Human_ID                  = Entity_ID;
+const Human_ID Human_ID_Missing = Entity_ID_Missing;
+
+using Human_Constructor_ID                              = Human_ID;
+const Human_Constructor_ID Human_Constructor_ID_Missing = Entity_ID_Missing;
+
+using Building_ID                     = Entity_ID;
+const Building_ID Building_ID_Missing = Entity_ID_Missing;
+
+using Texture_ID                        = i16;
+constexpr Texture_ID Texture_ID_Missing = std::numeric_limits<Texture_ID>::max();
+// constexpr Texture_ID Texture_ID_Missing = 0;
 
 // TODO: Куда-то перенести эту функцию
 template <>
@@ -21,9 +43,9 @@ struct std::hash<v2i16> {
     }
 };
 
-// ============================================================= //
-//                          Game Logic                           //
-// ============================================================= //
+// =============================================================
+// Game Logic
+// =============================================================
 enum class Direction {
     Right = 0,
     Up    = 1,
@@ -85,37 +107,61 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
     return result;
 }
 
-struct Human;
-struct Building;
 struct Scriptable_Resource;
 struct Graph_Segment;
 
+// using Graph_Segment_ID = Bucket_Locator;
+// const Graph_Segment_ID No_Graph_Segment_ID(-1, -1);
+// using Map_Resource_ID = Bucket_Locator;
+// const Map_Resource_ID No_Map_Resource_ID(-1, -1);
+
+using Graph_Segment_ID                          = Entity_ID;
+const Graph_Segment_ID Graph_Segment_ID_Missing = Entity_ID_Missing;
+
+using Map_Resource_ID                         = Entity_ID;
+const Map_Resource_ID Map_Resource_ID_Missing = Entity_ID_Missing;
+
+using Map_Resource_Booking_ID                                 = u16;
+const Map_Resource_Booking_ID Map_Resource_Booking_ID_Missing = 0;
+
 enum class Map_Resource_Booking_Type {
     Construction,
-    Processing,
+    // Processing,
 };
 
 struct Map_Resource_Booking {
+    static const Entity_ID component_mask = Component_Mask(4);
+
     Map_Resource_Booking_Type type;
-    Building*                 building;
-    i32                       priority;
+    Building_ID               building_id;
 };
 
 struct Map_Resource {
-    using ID = u32;
+    static const Entity_ID component_mask = Component_Mask(3);
 
-    ID                   id;
     Scriptable_Resource* scriptable;
 
     v2i16 pos;
 
-    Map_Resource_Booking* booking;
+    Map_Resource_Booking_ID booking;
 
-    std::vector<Graph_Segment*> transportation_segments;
-    std::vector<v2i16>          transportation_vertices;
+    Vector<Graph_Segment_ID> transportation_segments;
+    Vector<v2i16>            transportation_vertices;
 
-    Human* targeted_human;
-    Human* carrying_human;
+    Human_ID targeted_human;  // optional
+    Human_ID carrying_human;  // optional
+
+    Map_Resource() {}
+
+    Map_Resource(Map_Resource&& other)
+        : scriptable(other.scriptable)
+        , pos(other.pos)
+        , booking(other.booking)
+        , transportation_segments(std::move(other.transportation_segments))
+        , transportation_vertices(std::move(other.transportation_vertices))
+        , targeted_human(other.targeted_human)
+        , carrying_human(other.carrying_human)  //
+    {}
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -155,15 +201,18 @@ struct Map_Resource {
 // 9)  BrFrB - это уже 2 разных сегмента. Первый - BrF, второй - FrB.
 //             При замене флага (F) на дорогу (r) эти 2 сегмента сольются в один - BrrrB.
 //
-struct Graph_Segment : public Non_Copyable {
+using Graph_Segment_ID = u32;
+
+struct Graph_Segment {
+    static const Entity_ID component_mask = Component_Mask(1);
+
     Graph_Nodes_Count vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
 
-    Graph          graph;
-    Bucket_Locator locator;
+    Graph graph;
 
-    Human*                      assigned_human;
-    std::vector<Graph_Segment*> linked_segments;
+    Human_ID                 assigned_human_id;  // optional
+    Vector<Graph_Segment_ID> linked_segments;
 
     Queue<Map_Resource> resources_to_transport;
 };
@@ -211,14 +260,11 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
     node = Graph_Node_Mark(node, dir, value);
 }
 
-using Scriptable_Resource_ID = u16;
-
-global_var Scriptable_Resource_ID global_forest_resource_id = 1;
-
 using Player_ID = u8;
 using Human_ID  = u32;
 
 enum class Building_Type {
+    Undefined = 0,
     City_Hall,
     Harvest,
     Plant,
@@ -227,16 +273,21 @@ enum class Building_Type {
 };
 
 struct Scriptable_Building : public Non_Copyable {
-    const char*   name;
+    const char*   code;
     Building_Type type;
 
-#ifdef BF_CLIENT
-    Loaded_Texture* texture;
-#endif  // BF_CLIENT
-
-    Scriptable_Resource_ID harvestable_resource_id;
+    Scriptable_Resource* harvestable_resource;
 
     f32 human_spawning_delay;
+    f32 required_construction_points;
+
+    bool can_be_built;
+
+    Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
+
+#ifdef BF_CLIENT
+    Texture_ID texture;
+#endif  // BF_CLIENT
 };
 
 enum class Human_Type {
@@ -251,8 +302,8 @@ struct Human_Moving_Component {
     f32   progress;
     v2f   from;
 
-    toptional<v2i16> to;
-    Queue<v2i16>     path;
+    std::optional<v2i16> to;
+    Queue<v2i16>         path;
 };
 
 enum class Moving_In_The_World_State {
@@ -285,84 +336,24 @@ enum class Human_Main_State {
     Employee,
 };
 
-struct Building;
+struct Map_Resource_To_Book : public Non_Copyable {
+    Scriptable_Resource* scriptable;
+    u8                   count;
+    Building_ID          building_id;
 
-struct Human : public Non_Copyable {
-    Player_ID              player_id;
-    Human_Moving_Component moving;
-
-    Graph_Segment* segment;
-    Human_Type     type;
-
-    Human_Main_State          state;
-    Moving_In_The_World_State state_moving_in_the_world;
-
-    // Human_ID id;
-    Building* building;
-    // Moving_Resources_State state_moving_resources;
-    //
-    // f32 moving_resources__picking_up_resource_elapsed;
-    // f32 moving_resources__picking_up_resource_progress;
-    // f32 moving_resources__placing_resource_elapsed;
-    // f32 moving_resources__placing_resource_progress;
-    //
-    // Map_Resource* moving_resources__targeted_resource;
-    //
-    // f32 harvesting_elapsed;
-    // i32 current_behaviour_id = -1;
-    //
-    // Employee_Behaviour_Set behaviour_set;
-    // f32 processing_elapsed;
-
-    Human(const Human&& o) {
-        player_id                 = std::move(o.player_id);
-        moving                    = std::move(o.moving);
-        segment                   = std::move(o.segment);
-        type                      = std::move(o.type);
-        state                     = std::move(o.state);
-        state_moving_in_the_world = std::move(o.state_moving_in_the_world);
-        building                  = std::move(o.building);
-    }
-
-    Human& operator=(Human&& o) {
-        player_id                 = std::move(o.player_id);
-        moving                    = std::move(o.moving);
-        segment                   = std::move(o.segment);
-        type                      = std::move(o.type);
-        state                     = std::move(o.state);
-        state_moving_in_the_world = std::move(o.state_moving_in_the_world);
-        building                  = std::move(o.building);
-        return *this;
-    }
+    Map_Resource_To_Book(
+        Scriptable_Resource* a_scriptable,
+        u8                   a_count,
+        Building_ID          a_building_id
+    )
+        : scriptable(a_scriptable)  //
+        , count(a_count)
+        , building_id(a_building_id) {}
 };
 
 struct Resource_To_Book : public Non_Copyable {
-    Scriptable_Resource_ID scriptable_id;
-    u8                     amount;
-};
-
-struct Building : public Non_Copyable {
-    using ID = u32;
-
-    ID        id;
-    Player_ID player_id;
-
-    Human* constructor;
-    Human* employee;
-
-    Scriptable_Building* scriptable;
-
-    size_t            resources_to_book_count;
-    Resource_To_Book* resources_to_book;
-    v2i16             pos;
-
-    f32 time_since_human_was_created;
-
-    bool employee_is_inside;
-    bool is_constructed;
-
-    // Bucket_Locator locator;
-    // f32 time_since_item_was_placed;
+    Scriptable_Resource* scriptable;
+    u8                   count;
 };
 
 enum class Terrain {
@@ -372,8 +363,8 @@ enum class Terrain {
 
 struct Terrain_Tile : public Non_Copyable {
     Terrain terrain;
-    // NOTE: Height starts at 0
-    int  height;
+
+    int  height;  // NOTE: starts at 0
     bool is_cliff;
 
     i16 resource_amount;
@@ -389,7 +380,7 @@ enum class Element_Tile_Type {
 
 struct Element_Tile : public Non_Copyable {
     Element_Tile_Type type;
-    Building*         building;
+    Building_ID       building_id;
     Player_ID         player_id;
 };
 
@@ -398,18 +389,23 @@ void Validate_Element_Tile(Element_Tile& tile) {
     Assert((int)tile.type <= 3);
 
     if (tile.type == Element_Tile_Type::Building)
-        Assert(tile.building != nullptr);
+        Assert(tile.building_id != Building_ID_Missing);
     else
-        Assert(tile.building == nullptr);
+        Assert(tile.building_id == Building_ID_Missing);
 }
 
 struct Scriptable_Resource : public Non_Copyable {
-    const char* name;
+    const char* code;
+
+#ifdef BF_CLIENT
+    Texture_ID texture;
+    Texture_ID small_texture;
+#endif  // BF_CLIENT
 };
 
 // NOTE: `scriptable` is `null` when `amount` = 0
 struct Terrain_Resource {
-    Scriptable_Resource_ID scriptable_id;
+    Scriptable_Resource* scriptable;
 
     u8 amount;
 };
@@ -426,7 +422,8 @@ struct Item_To_Build : public Non_Copyable {
     Scriptable_Building* scriptable_building;
 
     Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building* a_scriptable_building)
-        : type(a_type), scriptable_building(a_scriptable_building) {}
+        : type(a_type)
+        , scriptable_building(a_scriptable_building) {}
 };
 
 static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
@@ -437,39 +434,73 @@ enum class Human_Removal_Reason {
     Employee_Reached_Building,
 };
 
+struct Human {
+    static const Entity_ID component_mask = Component_Mask(1);
+
+    Human_Moving_Component moving;
+
+    Player_ID  player_id;
+    Human_Type type;
+
+    Human_Main_State          state;
+    Moving_In_The_World_State state_moving_in_the_world;
+
+    Graph_Segment_ID segment_id;
+    Building_ID      building_id;
+};
+
+struct Building {
+    static const Entity_ID component_mask = Component_Mask(2);
+
+    v2i16                pos;
+    Scriptable_Building* scriptable;
+    Player_ID            player_id;
+};
+
+struct Not_Constructed_Building {
+    Human_Constructor_ID constructor;  // optional
+    f32                  construction_points;
+    // Vector<Resource_To_Book> resources_to_book;
+};
+
+struct City_Hall {
+    f32 time_since_human_was_created;
+};
+
 struct Game_Map_Data {
     f32 human_moving_one_tile_duration;
 
     Game_Map_Data(f32 a_human_moving_one_tile_duration)
         : human_moving_one_tile_duration(a_human_moving_one_tile_duration) {}
 };
+
 struct Human_Data;
 
 struct Game_Map : public Non_Copyable {
+    Entity_ID last_entity_id;
+
     v2i16             size;
     Terrain_Tile*     terrain_tiles;
     Terrain_Resource* terrain_resources;
     Element_Tile*     element_tiles;
 
-    Bucket_Array<Building>      buildings;
-    Bucket_Array<Graph_Segment> segments;
-    Bucket_Array<Human>         humans;
-
-    Bucket_Array<Human> humans_to_add;
-
-    struct Human_To_Remove {
-        Human_Removal_Reason reason;
-        Human*               human;
-        Bucket_Locator       locator;
-    };
-    std::vector<Human_To_Remove> humans_to_remove;
-
-    // Game_Map_Allocator* allocator;
-
-    Queue<Graph_Segment*> segments_wo_humans;
-
     Game_Map_Data* data;
     Human_Data*    human_data;
+
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments;
+    Sparse_Array<Building_ID, Building>                 buildings;
+    Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings;
+    Sparse_Array<Building_ID, City_Hall>                city_halls;
+    Sparse_Array<Human_ID, Human>                       humans;
+    Sparse_Array_Of_Ids<Human_ID>                       humans_going_to_the_city_hall;
+    // Sparse_Array<Human_ID, Human_Transporter>           transporters;
+    // Sparse_Array<Human_ID, Human_Constructor>           constructors;
+    Sparse_Array<Human_ID, Human>                humans_to_add;
+    Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove;
+    Sparse_Array<Map_Resource_ID, Map_Resource>  resources;
+
+    Queue<Graph_Segment_ID>      segments_wo_humans;
+    Vector<Map_Resource_To_Book> resources_booking_queue;
 };
 
 template <typename T>
@@ -481,12 +512,12 @@ struct Observer : public Non_Copyable {
 // Usage:
 //     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
 #define INVOKE_OBSERVER(observer, code)                    \
-    {                                                      \
+    do {                                                   \
         FOR_RANGE (size_t, i, observer.count) {            \
             auto&    function = *(observer.functions + i); \
             function code;                                 \
         }                                                  \
-    }
+    } while (0)
 
 // Usage:
 //     On_Item_Built__Function((*callbacks[])) = {
@@ -494,15 +525,15 @@ struct Observer : public Non_Copyable {
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
-    {                                                                                  \
+    do {                                                                               \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                   \
         (observer).functions                                                           \
             = (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
         memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
-    }
+    } while (0)
 
 #define On_Item_Built__Function(name_) \
-    void name_(Game_State& state, v2i16 pos, const Item_To_Build& item)
+    void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
 struct Game_State : public Non_Copyable {
     bool hot_reloaded;
@@ -519,9 +550,6 @@ struct Game_State : public Non_Copyable {
     size_t               scriptable_buildings_count;
     Scriptable_Building* scriptable_buildings;
 
-    Scriptable_Building* scriptable_building_city_hall;
-    Scriptable_Building* scriptable_building_lumberjacks_hut;
-
     Arena arena;
     Arena non_persistent_arena;  // Gets flushed on DLL reloads
     Arena trash_arena;           // Use for transient calculations
@@ -533,6 +561,8 @@ struct Game_State : public Non_Copyable {
 #endif  // BF_CLIENT
 
     Observer<On_Item_Built__Function((*))> On_Item_Built;
+
+    const BFGame::Game_Library* gamelib;
 };
 
 struct Game_Memory : public Non_Copyable {
@@ -549,10 +579,14 @@ enum class Tile_Updated_Type {
     Building_Removed,
 };
 
+Building* Get_Building(Game_Map& game_map, Building_ID id) {
+    return game_map.buildings.Find(id);
+}
+
 #ifdef BF_CLIENT
-// ============================================================= //
-//                    CLIENT. Game Rendering                     //
-// ============================================================= //
+// =============================================================
+// CLIENT. Game Rendering
+// =============================================================
 using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
@@ -570,13 +604,13 @@ enum class Tile_State_Check {
 };
 
 struct Tile_Rule {
-    BF_Texture_ID    texture_id;
+    Texture_ID       texture;
     Tile_State_Check states[8];
 };
 
 struct Smart_Tile {
-    Tile_ID       id;
-    BF_Texture_ID fallback_texture_id;
+    Tile_ID    id;
+    Texture_ID fallback_texture;
 
     int        rules_count;
     Tile_Rule* rules;
@@ -587,8 +621,50 @@ struct Load_Smart_Tile_Result {
 };
 
 struct Tilemap {
-    Tile_ID* tiles;
+    Tile_ID*    tiles;
+    Texture_ID* textures;
+    v2i         size;
+
+    bool debug_rendering_enabled = true;
 };
+
+struct C_Texture {
+    Texture_ID id;
+    v2f        pos_inside_atlas;  // значения x, y ограничены [0, 1)
+    v2i16      size;
+};
+
+struct C_Sprite {
+    v2f        pos;
+    v2f        scale;
+    v2f        anchor;
+    f32        rotation;
+    Texture_ID texture;
+    i8         z;
+    // left   = pos.x + texture.size.x * (anchor.x - 1)
+    // right  = pos.x + texture.size.x *  anchor.x
+    // bottom = pos.y + texture.size.y * (anchor.y - 1)
+    // top    = pos.y + texture.size.y *  anchor.y
+    // max_scaled_off = MAX(t.size.x, t.size.y) * MAX(scale.x, scale.y)
+};
+
+// SELECT
+// FROM sprites s
+// JOIN texture t ON s.texture_id = t.id
+// WHERE
+//     -- Bounding box cutting
+//         s.pos_x + (0 - s.anchor_x) * max_scaled_off >= arg_screen_left
+//     AND s.pos_x + (1 - s.anchor_x) * max_scaled_off <= arg_screen_right
+//     AND s.pos_y + (0 - s.anchor_y) * max_scaled_off >= arg_screen_bottom
+//     AND s.pos_y + (1 - s.anchor_y) * max_scaled_off <= arg_screen_top
+//
+//     -- Without anchor multiplications
+//         s.pos_x + max_scaled_off >= arg_screen_left
+//     AND s.pos_x - max_scaled_off <= arg_screen_right
+//     AND s.pos_y + max_scaled_off >= arg_screen_bottom
+//     AND s.pos_y - max_scaled_off <= arg_screen_top
+//
+// ORDER BY s.z ASC
 
 struct UI_Sprite_Params {
     bool smart_stretchable;
@@ -632,19 +708,82 @@ struct Game_UI_State : public Non_Copyable {
     i16 placeholders_gap;
 };
 
+struct Atlas {
+    v2f               size;
+    Loaded_Texture    texture;
+    Vector<C_Texture> textures;
+};
+
+struct OpenGL_Framebuffer {
+    GLuint id;
+    v2i    size;
+    GLuint color;  // color_texture_id
+};
+
+OpenGL_Framebuffer Create_Framebuffer(v2i size) {
+    // NOTE: Build the texture that will serve
+    // as the color attachment for the framebuffer.
+    GLuint color_texture;
+    glGenTextures(1, &color_texture);
+    glBindTexture(GL_TEXTURE_2D, color_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL
+    );
+
+    // Build the framebuffer.
+    GLuint framebuffer_id;
+    glGenFramebuffers(1, &framebuffer_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_id);
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0
+    );
+
+    // Check.
+    auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    Assert(check == GL_FRAMEBUFFER_COMPLETE);
+    Check_OpenGL_Errors();
+
+    OpenGL_Framebuffer res{};
+    res.id    = framebuffer_id;
+    res.size  = size;
+    res.color = color_texture;
+    return res;
+}
+
+void Delete_Framebuffer(const OpenGL_Framebuffer& fb) {
+    glDeleteFramebuffers(1, &fb.id);
+    glDeleteTextures(1, &fb.color);
+}
+
 struct Game_Renderer_State : public Non_Copyable {
     Game_UI_State* ui_state;
     Game_Bitmap*   bitmap;
+
+    Sparse_Array<Entity_ID, C_Sprite> sprites;
 
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
     Tile_ID    forest_top_tile_id;
 
-    Loaded_Texture human_texture;
-    Loaded_Texture grass_textures[17];
-    Loaded_Texture forest_textures[3];
-    Loaded_Texture road_textures[16];
-    Loaded_Texture flag_textures[4];
+    Texture_ID human_texture;
+    Texture_ID building_in_progress_texture;
+    Texture_ID forest_textures[3];
+    Texture_ID grass_textures[17];
+    Texture_ID road_textures[16];
+    Texture_ID flag_textures[4];
+
+    Atlas atlas;
+
+    int sprites_shader_gl2w_location;
+
+    int tilemap_shader_gl2w_location;
+    int tilemap_shader_relscreen2w_location;
+    int tilemap_shader_resolution_location;
+    int tilemap_shader_color_location;
 
     int      tilemaps_count;
     Tilemap* tilemaps;
@@ -664,7 +803,30 @@ struct Game_Renderer_State : public Non_Copyable {
 
     f32 cell_size;
 
-    bool  shaders_compilation_failed;
-    GLint ui_shader_program;
+    bool   shaders_compilation_failed;
+    GLuint sprites_shader_program;
+    GLuint tilemap_shader_program;
+
+    size_t rendering_indices_buffer_size;
+    void*  rendering_indices_buffer;
 };
+
+// struct Texture_Meta_Info {
+//     const char*   filename;
+//     BF_Texture_ID key;
+//
+//     u32 width;
+//     u32 height;
+// };
+//
+// global_var HashMap<BF_Texture_ID, Texture_Meta_Info> texture_id_2_texture_meta_info;
+//
+// struct Texture_2_Atlas_Binding {
+//     BF_Texture_ID texture_key;
+//     BF_Atlas_ID   atlas_key;
+// };
+//
+// struct Atlas {
+//     Vector<BF_Texture_ID> textures;
+// };
 #endif  // BF_CLIENT

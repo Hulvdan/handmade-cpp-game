@@ -7,6 +7,7 @@ AlignConsecutiveDeclarations: true
 AlignOperands: true
 AlignTrailingComments: true
 BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: Never
 BreakInheritanceList: BeforeComma
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Custom
@@ -15,6 +16,7 @@ BinPackArguments: false
 BinPackParameters : false
 BraceWrapping:
     BeforeElse: true
+    AfterControlStatement: MultiLine
 ColumnLimit: '90'
 ContinuationIndentWidth: '4'
 IndentCaseLabels: false
@@ -24,7 +26,7 @@ ReflowComments: true
 SortIncludes: false
 FixNamespaceComments : true
 ShortNamespaceLines: 0
-AllowShortFunctionsOnASingleLine: 'All'
+AllowShortFunctionsOnASingleLine: 'Empty'
 ForEachMacros: [
     'FOR_DIRECTION',
     'FOR_RANGE',

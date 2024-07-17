@@ -31,10 +31,31 @@
 *.out
 *.app
 
+# Binaries
+*.bin
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cython debug symbols
+cython_debug/
+
 /.cache/
 /.cmake/
+/.vscode/
 /build/
 /Ninja/
 /compile_commands.json
 /out/
+/Testing/
+
+*.intermediate
+*.intermediate.*
+
+/assets/art/atlas.bmp
+/assets/art/atlas.png
+/assets/art/atlas.json
+
 /Testing/

@@ -17,30 +17,20 @@
 #include "bf_game.h"
 
 #include <optional>
-template <typename T>
-using toptional = std::optional<T>;
-
-#include <tuple>
-template <typename... Args>
-using ttuple = std::tuple<Args...>;
-
-#include <vector>
-template <typename... Args>
-using tvector = std::vector<Args...>;
-
-#include <unordered_map>
-template <typename... Args>
-using tunordered_map = std::unordered_map<Args...>;
 
 #include "fmt/compile.h"
 
 global_var OS_Data* global_os_data = nullptr;
 #define OS_DATA (Assert_Deref(global_os_data))
 
+#include "generated/bf_atlas_generated.h"
+#include "generated/bf_gamelib_generated.h"
+
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
 #include "bf_math.cpp"
 #include "bf_memory_arena.cpp"
+#include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
 #include "bf_containers.cpp"
@@ -48,7 +38,6 @@ global_var OS_Data* global_os_data = nullptr;
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
 #include "bf_rand.cpp"
-#include "bf_file.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -297,6 +286,12 @@ T* Map_Logger(Arena& arena, bool first_time_initializing) {
     return logger;
 }
 
+const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
+    auto result = Debug_Load_File_To_Arena("gamelib.bin", arena);
+    Assert(result.success);
+    return BFGame::GetGame_Library(result.output);
+}
+
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
     global_os_data = &os_data;
@@ -322,8 +317,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
     Context _ctx(
         0,
-        Root_Allocator_Routine,
-        root_allocator,
+        nullptr,
+        nullptr,
         (root_logger != nullptr) ? Tracing_Logger_Routine : nullptr,
         (root_logger != nullptr) ? Tracing_Logger_Tracing_Routine : nullptr,
         root_logger
@@ -342,7 +337,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         if (ImGui::SliderInt(
                 "Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
@@ -350,7 +346,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 &editor_data.terrain_perlin.scaling_bias,
                 0.001f,
                 2.0f
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::Button("New Terrain Seed")) {
@@ -359,13 +356,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
         if (ImGui::SliderInt(
                 "Terrain Max Height", &editor_data.terrain_max_height, 1, 35
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
 
-        if (ImGui::SliderInt(
-                "Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9
-            )) {
+        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9))
+        {
             editor_data.changed = true;
         }
         if (ImGui::SliderFloat(
@@ -373,7 +370,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                 &editor_data.forest_perlin.scaling_bias,
                 0.001f,
                 2.0f
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::Button("New Forest Seed")) {
@@ -382,7 +380,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         }
         if (ImGui::SliderFloat(
                 "Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f
-            )) {
+            ))
+        {
             editor_data.changed = true;
         }
         if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35)) {
@@ -392,7 +391,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     // --- IMGUI END ---
 
     if (!first_time_initializing && state.hot_reloaded) {
-        Deinitialize_Game_Map(state, ctx);
+        Deinit_Game_Map(state, ctx);
     }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
@@ -412,6 +411,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
 
+        if (first_time_initializing) {
+            state.gamelib = Load_Game_Library(arena);
+        }
+
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
@@ -425,10 +428,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
 
         if (first_time_initializing) {
             auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / OS_DATA.page_size;
+
             state.pages.base
                 = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
+
             state.pages.in_use
                 = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
+
             state.pages.total_count_cap = pages_count_that_fit_2GB;
         }
 
@@ -444,33 +450,104 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         state.game_map.element_tiles
             = Allocate_Zeros_Array(non_persistent_arena, Element_Tile, tiles_count);
 
-        state.scriptable_resources_count = 1;
-        state.scriptable_resources
-            = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Resource, 1);
-        {
-            auto& r = Assert_Deref(Get_Scriptable_Resource(state, 1));
-            r.name  = "forest";
+        if (first_time_initializing) {
+            auto resources = state.gamelib->resources();
+
+            auto new_resources
+                = Allocate_Array(arena, Scriptable_Resource, resources->size());
+
+            FOR_RANGE (int, i, resources->size()) {
+                auto  resource     = resources->Get(i);
+                auto& new_resource = new_resources[i];
+                new_resource.code  = resource->code()->c_str();
+            }
+
+            state.scriptable_resources_count = resources->size();
+            state.scriptable_resources       = new_resources;
         }
 
-        state.scriptable_buildings_count = 2;
+        auto s = state.gamelib->buildings()->size();
         state.scriptable_buildings
-            = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, 2);
-        {
-            auto& b                = Assert_Deref(state.scriptable_buildings + 0);
-            b.name                 = "City Hall";
-            b.type                 = Building_Type::City_Hall;
-            b.human_spawning_delay = 1;
-            state.scriptable_building_city_hall = &b;
-        }
-        {
-            auto& b                = Assert_Deref(state.scriptable_buildings + 1);
-            b.name                 = "Lumberjack's Hut";
-            b.type                 = Building_Type::Harvest;
-            b.human_spawning_delay = 0;
-            state.scriptable_building_lumberjacks_hut = &b;
+            = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, s);
+        state.scriptable_buildings_count = s;
+        FOR_RANGE (int, i, s) {
+            auto& building    = state.scriptable_buildings[i];
+            auto& libbuilding = *state.gamelib->buildings()->Get(i);
+
+            building.code                 = libbuilding.code()->c_str();
+            building.type                 = (Building_Type)libbuilding.type();
+            building.harvestable_resource = nullptr;
+
+            building.human_spawning_delay  //
+                = libbuilding.human_spawning_delay();
+            building.required_construction_points  //
+                = libbuilding.required_construction_points();
+
+            building.can_be_built = libbuilding.can_be_built();
+
+            Init_Vector(building.construction_resources, ctx);
+
+            if (libbuilding.construction_resources() != nullptr) {
+                FOR_RANGE (int, i, libbuilding.construction_resources()->size()) {
+                    auto resource = libbuilding.construction_resources()->Get(i);
+                    auto code     = resource->resource_code()->c_str();
+                    auto count    = resource->count();
+
+                    Scriptable_Resource* scriptable_resource = nullptr;
+                    FOR_RANGE (int, k, state.scriptable_resources_count) {
+                        auto res = state.scriptable_resources + k;
+                        if (strcmp(res->code, code) == 0) {
+                            scriptable_resource = res;
+                            break;
+                        }
+                    }
+
+                    Assert(scriptable_resource != nullptr);
+                    building.construction_resources.Add(
+                        {scriptable_resource, count}, ctx
+                    );
+                }
+            }
         }
 
-        Initialize_Game_Map(state, non_persistent_arena, ctx);
+        // {
+        //     auto& b                        = Assert_Deref(state.scriptable_buildings +
+        //     0); b.code                         = "City Hall"; b.type =
+        //     Building_Type::City_Hall; b.human_spawning_delay         = 1;
+        //     b.required_construction_points = 0;
+        //     state.scriptable_building_city_hall = &b;
+        //     Init_Vector(b.construction_resources, ctx);
+        // }
+        // {
+        //     auto& b                = Assert_Deref(state.scriptable_buildings + 1);
+        //     b.code                 = "Lumberjack's Hut";
+        //     b.type                 = Building_Type::Harvest;
+        //     b.human_spawning_delay = 0;
+        //     state.scriptable_building_lumberjacks_hut = &b;
+        //     b.required_construction_points            = 10;
+        //
+        //     Scriptable_Resource* plank_scriptable_resource =
+        //     state.scriptable_resources; Init_Vector(b.construction_resources, ctx);
+        //     Vector_Add(
+        //         b.construction_resources,
+        //         std::tuple(plank_scriptable_resource, (i16)2),
+        //         ctx
+        //     );
+        // }
+
+        Init_Game_Map(
+            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
+        );
+        Init_Renderer(
+            first_time_initializing,
+            state.hot_reloaded,
+            state,
+            arena,
+            non_persistent_arena,
+            trash_arena,
+            ctx
+        );
+
         Regenerate_Terrain_Tiles(
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
@@ -485,7 +562,18 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state.On_Item_Built, callbacks, non_persistent_arena
         );
 
-        Initialize_Renderer(state, arena, non_persistent_arena, trash_arena);
+        Post_Init_Game_Map(
+            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
+        );
+        Post_Init_Renderer(
+            first_time_initializing,
+            state.hot_reloaded,
+            state,
+            arena,
+            non_persistent_arena,
+            trash_arena,
+            ctx
+        );
 
         memory.is_initialized = true;
     }

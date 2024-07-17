@@ -1,7 +1,4 @@
-IfWinExist, ahk_exe devenv.exe
-{
-    WinActivate, ahk_exe devenv.exe
-    sleep 200
-    send {ctrl down}{shift down}{f5}{shift up}{ctrl up}
-    send {f5}
-}
+ControlSend,, {shift down}{f5}{shift up}, ahk_exe devenv.exe
+WinActivate, ahk_exe devenv.exe
+sleep 200
+ControlSend,, {f5}, ahk_exe devenv.exe

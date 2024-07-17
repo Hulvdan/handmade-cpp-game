@@ -143,7 +143,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         // } else
         if (vk_code == VK_ESCAPE  //
             || vk_code == 'Q'     //
-            || vk_code == VK_F4 && alt_is_down) {
+            || vk_code == VK_F4 && alt_is_down)
+        {
             running = false;
         }
 

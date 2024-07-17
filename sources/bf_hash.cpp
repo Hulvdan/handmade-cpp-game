@@ -1,6 +1,6 @@
 #pragma once
 
-constexpr u32 EMPTY_HASH32 = 2166136261;
+constexpr u32 EMPTY_HASH32 = 0x811c9dc5;
 
 u32 Hash32(const u8* key, const int len) {
     Assert(len >= 0);
@@ -9,7 +9,7 @@ u32 Hash32(const u8* key, const int len) {
     u32 hash = EMPTY_HASH32;
     for (int i = 0; i < len; i++) {
         // hash = (hash * 16777619) ^ (*key);  // FNV-1
-        hash = (hash ^ (*key)) * 16777619;  // FNV-1a
+        hash = (hash ^ (*key)) * 0x01000193;  // FNV-1a
         key++;
     }
 
@@ -20,7 +20,7 @@ u32 Hash32_String(const char* key) {
     u32 hash = EMPTY_HASH32;
     while (*key) {
         // hash = (hash * 16777619) ^ (*key);  // FNV-1
-        hash = (hash ^ (*key)) * 16777619;  // FNV-1a
+        hash = (hash ^ (*key)) * 0x01000193;  // FNV-1a
         key++;
     }
 
