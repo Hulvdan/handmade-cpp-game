@@ -430,12 +430,15 @@ void main() {
 uniform vec3 a_color;
 
 layout (location = 0) in vec2 a_pos;
+layout (location = 1) in vec2 a_tex_coord;
 
 out vec3 color;
+out vec2 tex_coord;
 
 void main() {
     gl_Position = vec4(a_pos, 0, 1);
     color = a_color;
+    tex_coord = a_tex_coord;
 }
 )VertexShader",
         R"FragmentShader(
@@ -454,6 +457,7 @@ layout(std430, binding = 1) buffer tiles2AtlasPositionsBuffer {
 };
 
 in vec3 color;
+in vec2 tex_coord;
 
 out vec4 frag_color;
 
@@ -476,12 +480,12 @@ void main() {
     return;
 #endif
 
-    vec3 pos = a_relscreen2w * vec3(relative_frag_screen_pos, 1);
-    vec2 pos_norm = vec2(pos.x, pos.y) / pos.z;
+    vec2 pos = tex_coord * a_gsize;
 
-    ivec2 tile   = ivec2(pos_norm);
-    vec2 offset = pos_norm - vec2(tile);
-    offset.y = 1 - offset.y;
+    ivec2 tile  = ivec2(pos);
+
+    vec2 offset = pos - vec2(tile);
+    offset.y    = 1 - offset.y;
 
 #if 0
     frag_color = vec4(
@@ -897,7 +901,7 @@ void Deinit_Renderer(Game_State& state, MCTX) {
 
     auto& rstate = *state.renderer_state;
 
-    // TODO: deinit `rstate.sprites`?
+    // TODO: deinit `rstate.sprites`
 
     FOR_RANGE (int, i, rstate.tilemaps_count) {
         auto& tilemap = rstate.tilemaps[i];
@@ -1454,7 +1458,20 @@ void Render(Game_State& state, f32 dt, MCTX) {
             Assert(p0.z == 1);
             Assert(p3.z == 1);
 
-            v2f vertices[] = {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)};
+            v2f vertices_with_tex_coords[] = {
+                v2f(p0),
+                v2f(0, 0),
+                v2f(p1),
+                v2f(1, 0),
+                v2f(p2),
+                v2f(0, 1),
+                v2f(p2),
+                v2f(0, 1),
+                v2f(p1),
+                v2f(1, 0),
+                v2f(p3),
+                v2f(1, 1),
+            };
 
             GLuint vao;
             glGenVertexArrays(1, &vao);
@@ -1463,11 +1480,20 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
             glBindVertexArray(vao);
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+            glBufferData(
+                GL_ARRAY_BUFFER,
+                sizeof(vertices_with_tex_coords),
+                vertices_with_tex_coords,
+                GL_STATIC_DRAW
+            );
 
             // 3. then set our vertex attributes pointers
-            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), (void*)0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
+            glVertexAttribPointer(
+                1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)(2 * sizeof(f32))
+            );
             glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
 
             // ..:: Drawing code (in render loop) :: ..
             // glUseProgram(rstate.sprites_shader_program);
@@ -1507,9 +1533,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
     Check_OpenGL_Errors();
 
     // Рисование спрайтов.
-    Memory_Buffer vertices{ctx};
+    Memory_Buffer vertex_data{ctx};
     defer {
-        vertices.Deinit(ctx);
+        vertex_data.Deinit(ctx);
     };
 
     auto    sprites_count = 0;
@@ -1523,7 +1549,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         ) {
             auto texture_id   = tex.id;
             auto required_mem = 7 * 6 * sizeof(GLfloat);
-            vertices.Reserve(vertices.max_count + required_mem, ctx);
+            vertex_data.Reserve(vertex_data.max_count + required_mem, ctx);
 
             // TODO: rotation
             // TODO: filter
@@ -1567,9 +1593,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
             FOR_RANGE (int, i, 6) {
                 v2f vertex        = verticess[i];
                 v2f texture_coord = texture_positions[i];
-                vertices.Add_Unsafe((void*)&vertex, sizeof(vertex));
-                vertices.Add_Unsafe((void*)&v3f_one, sizeof(v3f_one));  // TODO: color
-                vertices.Add_Unsafe((void*)&texture_coord, sizeof(texture_coord));
+                vertex_data.Add_Unsafe((void*)&vertex, sizeof(vertex));
+                vertex_data.Add_Unsafe((void*)&v3f_one, sizeof(v3f_one));  // TODO: color
+                vertex_data.Add_Unsafe((void*)&texture_coord, sizeof(texture_coord));
             }
 
             sprites_count++;
@@ -1586,15 +1612,17 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.count, vertices.base, GL_STATIC_DRAW);
+        glBufferData(
+            GL_ARRAY_BUFFER, vertex_data.count, vertex_data.base, GL_STATIC_DRAW
+        );
 
         // 3. then set our vertex attributes pointers
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(0));
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(0));
         glVertexAttribPointer(
-            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(2 * sizeof(f32))
+            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(2 * sizeof(f32))
         );
         glVertexAttribPointer(
-            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), rcast<void*>(5 * sizeof(f32))
+            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(5 * sizeof(f32))
         );
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
