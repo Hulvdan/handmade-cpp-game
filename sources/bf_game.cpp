@@ -64,9 +64,10 @@ bool UI_Clicked(Game_State& state) {
     auto& pad_h         = sprite_params.stretch_paddings_h;
     auto& pad_v         = sprite_params.stretch_paddings_v;
 
-    auto texture             = ui_state.buildables_panel_background;
-    auto placeholder_texture = ui_state.buildables_placeholder_background;
-    auto psize               = v2f(placeholder_texture.size);
+    // auto texture             = ui_state.buildables_panel_background;
+    auto& placeholder_texture
+        = *Query_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
+    auto psize = v2f(placeholder_texture.size);
 
     auto scale         = ui_state.scale;
     v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
