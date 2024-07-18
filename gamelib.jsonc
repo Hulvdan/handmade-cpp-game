@@ -75,5 +75,9 @@
             "tiles/flag_2",
             "tiles/flag_3",
         ],
+        "ui": {
+            "buildables_panel": "ui/buildables_panel",
+            "buildables_placeholder": "ui/buildables_placeholder",
+        },
     },
 }

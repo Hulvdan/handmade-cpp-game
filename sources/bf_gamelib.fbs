@@ -53,7 +53,13 @@ table Art {
     building_in_progress: uint;
     road:                 [uint];
     flag:                 [uint];
+    ui:                   UI;
     // grass_tile_rule:      Tile_Rule;
+}
+
+table UI {
+    buildables_panel:       uint;
+    buildables_placeholder: uint;
 }
 
 table Game_Library {

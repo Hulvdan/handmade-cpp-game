@@ -204,6 +204,8 @@ def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> None:
     for instance in data["resources"]:
         hashify_texture(instance, "texture")
         hashify_texture(instance, "small_texture")
+    hashify_texture(data["art"]["ui"], "buildables_panel")
+    hashify_texture(data["art"]["ui"], "buildables_placeholder")
     hashify_texture(data["art"], "human")
     hashify_texture(data["art"], "building_in_progress")
     hashify_textures_list(data["art"], "forest")

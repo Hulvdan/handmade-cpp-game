@@ -1237,6 +1237,45 @@ glm::mat3 Get_W2RelScreen_Matrix(
     return mat;
 }
 
+OpenGL_Framebuffer Create_Framebuffer(v2i size) {
+    // NOTE: Build the texture that will serve
+    // as the color attachment for the framebuffer.
+    GLuint color_texture;
+    glGenTextures(1, &color_texture);
+    glBindTexture(GL_TEXTURE_2D, color_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL
+    );
+
+    // Build the framebuffer.
+    GLuint framebuffer_id;
+    glGenFramebuffers(1, &framebuffer_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_id);
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0
+    );
+
+    // Check.
+    auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    Assert(check == GL_FRAMEBUFFER_COMPLETE);
+    Check_OpenGL_Errors();
+
+    OpenGL_Framebuffer res{};
+    res.id    = framebuffer_id;
+    res.size  = size;
+    res.color = color_texture;
+    return res;
+}
+
+void Delete_Framebuffer(const OpenGL_Framebuffer& fb) {
+    glDeleteFramebuffers(1, &fb.id);
+    glDeleteTextures(1, &fb.color);
+}
+
 void Render(Game_State& state, f32 dt, MCTX) {
     CTX_ALLOCATOR;
     ZoneScoped;
@@ -1649,208 +1688,204 @@ void Render(Game_State& state, f32 dt, MCTX) {
         Check_OpenGL_Errors();
     }
 
-    //     // Рисование UI плашки слева.
-    //     auto& ui_state = *rstate.ui_state;
-    //     {
-    //         auto  sprite_params = ui_state.buildables_panel_params;
-    //         auto& pad_h         = sprite_params.stretch_paddings_h;
-    //         auto& pad_v         = sprite_params.stretch_paddings_v;
-    //
-    //         auto  texture             = ui_state.buildables_panel_background;
-    //         auto  placeholder_texture = ui_state.buildables_placeholder_background;
-    //         auto& psize               = placeholder_texture.size;
-    //
-    //         auto scale         = ui_state.scale;
-    //         auto in_scale      = ui_state.buildables_panel_in_scale;
-    //         v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
-    //
-    //         v2f  padding          = ui_state.padding;
-    //         f32  placeholders_gap = ui_state.placeholders_gap;
-    //         auto placeholders     = ui_state.placeholders;
-    //         auto panel_size       = v2f(
-    //             psize.x + 2 * padding.x,
-    //             2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders *
-    //             psize.y
-    //         );
-    //
-    //         auto outer_anchor         = ui_state.buildables_panel_container_anchor;
-    //         auto outer_container_size = v2i(swidth, sheight);
-    //         auto outer_x              = outer_container_size.x * outer_anchor.x;
-    //         auto outer_y              = outer_container_size.y * outer_anchor.y;
-    //
-    //         auto W2GL = glm::mat3(1);
-    //         W2GL      = glm::translate(W2GL, v2f(0, 1));
-    //         W2GL      = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
-    //         W2GL      = glm::translate(W2GL, v2f((int)outer_x,
-    //         (int)outer_y)); W2GL      = glm::scale(W2GL, v2f(scale));
-    //
-    //         {
-    //             auto model = glm::mat3(1);
-    //             model      = glm::scale(model, v2f(panel_size));
-    //
-    //             auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
-    //             auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
-    //             auto p0       = W2GL * p0_local;
-    //             auto p1       = W2GL * p1_local;
-    //             Draw_Stretchable_Sprite(
-    //                 p0.x,
-    //                 p1.x,
-    //                 p0.y,
-    //                 p1.y,
-    //                 texture,
-    //                 sprite_params,
-    //                 panel_size,
-    //                 in_scale,
-    //                 rstate
-    //             );
-    //
-    //             auto origin = (p1_local + p0_local) / 2.0f;
-    //
-    //             glBindTexture(GL_TEXTURE_2D,
-    //             ui_state.buildables_placeholder_background.id);
-    //             // Aligning items in a column
-    //             // justify-content: center
-    //             FOR_RANGE (int, i, placeholders) {
-    //                 auto drawing_point = origin;
-    //                 drawing_point.y -= (placeholders - 1) * (psize.y +
-    //                 placeholders_gap) / 2; drawing_point.y += i * (placeholders_gap +
-    //                 psize.y);
-    //
-    //                 auto p     = W2GL * drawing_point;
-    //                 auto s     = W2GL * v3f(psize, 0);
-    //                 auto color = (i == ui_state.selected_buildable_index)
-    //                                  ? ui_state.selected_buildable_color
-    //                                  : ui_state.not_selected_buildable_color;
-    //                 Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color, rstate);
-    //             }
-    //
-    //             auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
-    //
-    //             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
-    //             FOR_RANGE (int, i, placeholders) {
-    //                 auto drawing_point = origin;
-    //                 drawing_point.y -= (placeholders - 1) * (psize.y +
-    //                 placeholders_gap) / 2; drawing_point.y += i * (placeholders_gap +
-    //                 psize.y);
-    //
-    //                 auto p = W2GL * drawing_point;
-    //                 auto s = W2GL * v3f(buildable_size, 0);
-    //                 glBindTexture(GL_TEXTURE_2D, buildable_textures.textures[i]);
-    //
-    //                 auto color = (i == ui_state.selected_buildable_index)
-    //                                  ? ui_state.selected_buildable_color
-    //                                  : ui_state.not_selected_buildable_color;
-    //                 Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color, rstate);
-    //             }
-    //         }
-    //     }
-    //
-    //     // Дебаг-рисование штук для чувачков.
-    //     {
-    //         for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
-    //             auto& human = Assert_Deref(human_ptr);
-    //
-    // #if 0
-    //             if (human.moving.path.count > 0) {
-    //                 auto last_p = *(human.moving.path.base + human.moving.path.count -
-    //                 1); auto p = W2GL
-    //                     * v3f((v2f(last_p) + v2f_one / 2.0f) * (f32)cell_size, 1);
-    //
-    //                 glPointSize(12);
-    //
-    //                 glBlendFunc(GL_ONE, GL_ZERO);
-    //
-    //                 glBegin(GL_POINTS);
-    //                 glVertex2f(p.x, p.y);
-    //                 glEnd();
-    //             }
-    // #endif
-    //
-    // #if 0
-    //             if (human.moving.to.has_value()) {
-    //                 auto p
-    //                     = W2GL * v3f(v2f(human.moving.to.value()) *
-    //                     (f32)cell_size, 1);
-    //
-    //                 glPointSize(12);
-    //
-    //                 glBlendFunc(GL_ONE, GL_ZERO);
-    //
-    //                 glBegin(GL_POINTS);
-    //                 glVertex2f(p.x, p.y);
-    //                 glEnd();
-    //             }
-    // #endif
-    //         }
-    //     }
-    //
-    //     // Дебаг-рисование сегментов.
-    // #if 0
-    //     {
-    //         const BF_Color colors[] = {
-    //             {1, 0, 0},  //
-    //             {0, 1, 0},  //
-    //             {0, 0, 1},  //
-    //             {1, 1, 0},  //
-    //             {0, 1, 1},  //
-    //             {1, 0, 1},  //
-    //             {1, 1, 1}  //
-    //         };
-    //         size_t colors_count = sizeof(colors) / sizeof(colors[0]);
-    //         local_persist size_t segment_index = 0;
-    //         segment_index++;
-    //         if (segment_index >= colors_count)
-    //             segment_index = 0;
-    //
-    //         int rendered_segments = 0;
-    //         for (auto segment_ptr : Iter(&game_map.segments)) {
-    //             auto& segment = *segment_ptr;
-    //             auto& graph = segment.graph;
-    //
-    //             rendered_segments++;
-    //
-    //             FOR_RANGE(int, y, graph.size.y) {
-    //                 FOR_RANGE(int, x, graph.size.x) {
-    //                     auto node = *(graph.nodes + y * graph.size.x + x);
-    //                     if (!node)
-    //                         continue;
-    //
-    //                     v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y)
-    //                         + v2f_one / 2.0f;
-    //                     FOR_RANGE(int, ii, 4) {
-    //                         auto dir = (Direction)ii;
-    //                         if (!Graph_Node_Has(node, dir))
-    //                             continue;
-    //
-    //                         auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
-    //
-    //                         auto p1 = W2GL * v3f(center * (f32)cell_size, 1);
-    //                         auto p2 = W2GL * v3f(offsetted * (f32)cell_size, 1);
-    //                         auto p3 = (p1 + p2) / 2.0f;
-    //
-    //                         glPointSize(12);
-    //
-    //                         glBlendFunc(GL_ONE, GL_ZERO);
-    //
-    //                         glBegin(GL_POINTS);
-    //                         glVertex2f(p1.x, p1.y);
-    //                         glVertex2f(p2.x, p2.y);
-    //                         glVertex2f(p3.x, p3.y);
-    //                         glEnd();
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //
-    //         ImGui::Text("rendered segments %d", rendered_segments);
-    //
-    //         glColor3fv((GLfloat*)(colors + 6));
-    //     }
-    // #endif
-    //
-    //     ImGui::Text(
-    //         "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index
-    //     );
+    // Рисование UI плашки слева.
+    auto& ui_state = *rstate.ui_state;
+    {
+        auto  sprite_params = ui_state.buildables_panel_params;
+        auto& pad_h         = sprite_params.stretch_paddings_h;
+        auto& pad_v         = sprite_params.stretch_paddings_v;
+
+        auto  texture             = ui_state.buildables_panel_background;
+        auto  placeholder_texture = ui_state.buildables_placeholder_background;
+        auto& psize               = placeholder_texture.size;
+
+        auto scale         = ui_state.scale;
+        auto in_scale      = ui_state.buildables_panel_in_scale;
+        v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+
+        v2f  padding          = ui_state.padding;
+        f32  placeholders_gap = ui_state.placeholders_gap;
+        auto placeholders     = ui_state.placeholders;
+        auto panel_size       = v2f(
+            psize.x + 2 * padding.x,
+            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
+        );
+
+        auto outer_anchor         = ui_state.buildables_panel_container_anchor;
+        auto outer_container_size = v2i(swidth, sheight);
+        auto outer_x              = outer_container_size.x * outer_anchor.x;
+        auto outer_y              = outer_container_size.y * outer_anchor.y;
+
+        auto W2GL = glm::mat3(1);
+        W2GL      = glm::translate(W2GL, v2f(0, 1));
+        W2GL      = glm::scale(W2GL, v2f(1 / swidth, -1 / sheight));
+        W2GL      = glm::translate(W2GL, v2f((int)outer_x, (int)outer_y));
+        W2GL      = glm::scale(W2GL, v2f(scale));
+
+        {
+            auto model = glm::mat3(1);
+            model      = glm::scale(model, v2f(panel_size));
+
+            auto p0_local = model * v3f(v2f_zero - sprite_anchor, 1);
+            auto p1_local = model * v3f(v2f_one - sprite_anchor, 1);
+            auto p0       = W2GL * p0_local;
+            auto p1       = W2GL * p1_local;
+            Draw_Stretchable_Sprite(
+                p0.x,
+                p1.x,
+                p0.y,
+                p1.y,
+                texture,
+                sprite_params,
+                panel_size,
+                in_scale,
+                rstate
+            );
+
+            auto origin = (p1_local + p0_local) / 2.0f;
+
+            glBindTexture(GL_TEXTURE_2D, ui_state.buildables_placeholder_background.id);
+            // Aligning items in a column
+            // justify-content: center
+            FOR_RANGE (int, i, placeholders) {
+                auto drawing_point = origin;
+                drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
+                drawing_point.y += i * (placeholders_gap + psize.y);
+
+                auto p     = W2GL * drawing_point;
+                auto s     = W2GL * v3f(psize, 0);
+                auto color = (i == ui_state.selected_buildable_index)
+                                 ? ui_state.selected_buildable_color
+                                 : ui_state.not_selected_buildable_color;
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color, rstate);
+            }
+
+            auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
+
+            auto buildable_size = v2f(psize) * (2.0f / 3.0f);
+            FOR_RANGE (int, i, placeholders) {
+                auto drawing_point = origin;
+                drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
+                drawing_point.y += i * (placeholders_gap + psize.y);
+
+                auto p = W2GL * drawing_point;
+                auto s = W2GL * v3f(buildable_size, 0);
+                glBindTexture(GL_TEXTURE_2D, buildable_textures.textures[i]);
+
+                auto color = (i == ui_state.selected_buildable_index)
+                                 ? ui_state.selected_buildable_color
+                                 : ui_state.not_selected_buildable_color;
+                Draw_UI_Sprite(0, 0, 1, 1, p, s, v2f_one / 2.0f, color, rstate);
+            }
+        }
+    }
+
+    // Дебаг-рисование штук для чувачков.
+    {
+        for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
+            auto& human = Assert_Deref(human_ptr);
+
+#if 0
+                if (human.moving.path.count > 0) {
+                    auto last_p = *(human.moving.path.base + human.moving.path.count -
+                    1); auto p = W2GL
+                        * v3f((v2f(last_p) + v2f_one / 2.0f) * (f32)cell_size, 1);
+
+                    glPointSize(12);
+
+                    glBlendFunc(GL_ONE, GL_ZERO);
+
+                    glBegin(GL_POINTS);
+                    glVertex2f(p.x, p.y);
+                    glEnd();
+                }
+#endif
+
+#if 0
+                if (human.moving.to.has_value()) {
+                    auto p
+                        = W2GL * v3f(v2f(human.moving.to.value()) *
+                        (f32)cell_size, 1);
+
+                    glPointSize(12);
+
+                    glBlendFunc(GL_ONE, GL_ZERO);
+
+                    glBegin(GL_POINTS);
+                    glVertex2f(p.x, p.y);
+                    glEnd();
+                }
+#endif
+        }
+    }
+
+    // Дебаг-рисование сегментов.
+#if 0
+        {
+            const BF_Color colors[] = {
+                {1, 0, 0},  //
+                {0, 1, 0},  //
+                {0, 0, 1},  //
+                {1, 1, 0},  //
+                {0, 1, 1},  //
+                {1, 0, 1},  //
+                {1, 1, 1}  //
+            };
+            size_t colors_count = sizeof(colors) / sizeof(colors[0]);
+            local_persist size_t segment_index = 0;
+            segment_index++;
+            if (segment_index >= colors_count)
+                segment_index = 0;
+
+            int rendered_segments = 0;
+            for (auto segment_ptr : Iter(&game_map.segments)) {
+                auto& segment = *segment_ptr;
+                auto& graph = segment.graph;
+
+                rendered_segments++;
+
+                FOR_RANGE(int, y, graph.size.y) {
+                    FOR_RANGE(int, x, graph.size.x) {
+                        auto node = *(graph.nodes + y * graph.size.x + x);
+                        if (!node)
+                            continue;
+
+                        v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y)
+                            + v2f_one / 2.0f;
+                        FOR_RANGE(int, ii, 4) {
+                            auto dir = (Direction)ii;
+                            if (!Graph_Node_Has(node, dir))
+                                continue;
+
+                            auto offsetted = center + (v2f)(As_Offset(dir)) / 2.0f;
+
+                            auto p1 = W2GL * v3f(center * (f32)cell_size, 1);
+                            auto p2 = W2GL * v3f(offsetted * (f32)cell_size, 1);
+                            auto p3 = (p1 + p2) / 2.0f;
+
+                            glPointSize(12);
+
+                            glBlendFunc(GL_ONE, GL_ZERO);
+
+                            glBegin(GL_POINTS);
+                            glVertex2f(p1.x, p1.y);
+                            glVertex2f(p2.x, p2.y);
+                            glVertex2f(p3.x, p3.y);
+                            glEnd();
+                        }
+                    }
+                }
+            }
+
+            ImGui::Text("rendered segments %d", rendered_segments);
+
+            glColor3fv((GLfloat*)(colors + 6));
+        }
+#endif
+
+    ImGui::Text(
+        "ui_state.selected_buildable_index %d", ui_state.selected_buildable_index
+    );
 
     SANITIZE;
 }

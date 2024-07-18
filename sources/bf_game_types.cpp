@@ -720,45 +720,6 @@ struct OpenGL_Framebuffer {
     GLuint color;  // color_texture_id
 };
 
-OpenGL_Framebuffer Create_Framebuffer(v2i size) {
-    // NOTE: Build the texture that will serve
-    // as the color attachment for the framebuffer.
-    GLuint color_texture;
-    glGenTextures(1, &color_texture);
-    glBindTexture(GL_TEXTURE_2D, color_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL
-    );
-
-    // Build the framebuffer.
-    GLuint framebuffer_id;
-    glGenFramebuffers(1, &framebuffer_id);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_id);
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0
-    );
-
-    // Check.
-    auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    Assert(check == GL_FRAMEBUFFER_COMPLETE);
-    Check_OpenGL_Errors();
-
-    OpenGL_Framebuffer res{};
-    res.id    = framebuffer_id;
-    res.size  = size;
-    res.color = color_texture;
-    return res;
-}
-
-void Delete_Framebuffer(const OpenGL_Framebuffer& fb) {
-    glDeleteFramebuffers(1, &fb.id);
-    glDeleteTextures(1, &fb.color);
-}
-
 struct Game_Renderer_State : public Non_Copyable {
     Game_UI_State* ui_state;
     Game_Bitmap*   bitmap;
@@ -811,23 +772,4 @@ struct Game_Renderer_State : public Non_Copyable {
     size_t rendering_indices_buffer_size;
     void*  rendering_indices_buffer;
 };
-
-// struct Texture_Meta_Info {
-//     const char*   filename;
-//     BF_Texture_ID key;
-//
-//     u32 width;
-//     u32 height;
-// };
-//
-// global_var HashMap<BF_Texture_ID, Texture_Meta_Info> texture_id_2_texture_meta_info;
-//
-// struct Texture_2_Atlas_Binding {
-//     BF_Texture_ID texture_key;
-//     BF_Atlas_ID   atlas_key;
-// };
-//
-// struct Atlas {
-//     Vector<BF_Texture_ID> textures;
-// };
 #endif  // BF_CLIENT

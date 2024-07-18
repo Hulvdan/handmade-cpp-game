@@ -27,6 +27,9 @@ struct BuildingBuilder;
 struct Art;
 struct ArtBuilder;
 
+struct UI;
+struct UIBuilder;
+
 struct Game_Library;
 struct Game_LibraryBuilder;
 
@@ -371,7 +374,8 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FOREST = 8,
     VT_BUILDING_IN_PROGRESS = 10,
     VT_ROAD = 12,
-    VT_FLAG = 14
+    VT_FLAG = 14,
+    VT_UI = 16
   };
   uint32_t human() const {
     return GetField<uint32_t>(VT_HUMAN, 0);
@@ -391,6 +395,9 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<uint32_t> *flag() const {
     return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FLAG);
   }
+  const BFGame::UI *ui() const {
+    return GetPointer<const BFGame::UI *>(VT_UI);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint32_t>(verifier, VT_HUMAN, 4) &&
@@ -403,6 +410,8 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyVector(road()) &&
            VerifyOffset(verifier, VT_FLAG) &&
            verifier.VerifyVector(flag()) &&
+           VerifyOffset(verifier, VT_UI) &&
+           verifier.VerifyTable(ui()) &&
            verifier.EndTable();
   }
 };
@@ -429,6 +438,9 @@ struct ArtBuilder {
   void add_flag(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag) {
     fbb_.AddOffset(Art::VT_FLAG, flag);
   }
+  void add_ui(::flatbuffers::Offset<BFGame::UI> ui) {
+    fbb_.AddOffset(Art::VT_UI, ui);
+  }
   explicit ArtBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -447,8 +459,10 @@ inline ::flatbuffers::Offset<Art> CreateArt(
     ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest = 0,
     uint32_t building_in_progress = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag = 0,
+    ::flatbuffers::Offset<BFGame::UI> ui = 0) {
   ArtBuilder builder_(_fbb);
+  builder_.add_ui(ui);
   builder_.add_flag(flag);
   builder_.add_road(road);
   builder_.add_building_in_progress(building_in_progress);
@@ -465,7 +479,8 @@ inline ::flatbuffers::Offset<Art> CreateArtDirect(
     const std::vector<uint32_t> *forest = nullptr,
     uint32_t building_in_progress = 0,
     const std::vector<uint32_t> *road = nullptr,
-    const std::vector<uint32_t> *flag = nullptr) {
+    const std::vector<uint32_t> *flag = nullptr,
+    ::flatbuffers::Offset<BFGame::UI> ui = 0) {
   auto grass__ = grass ? _fbb.CreateVector<uint32_t>(*grass) : 0;
   auto forest__ = forest ? _fbb.CreateVector<uint32_t>(*forest) : 0;
   auto road__ = road ? _fbb.CreateVector<uint32_t>(*road) : 0;
@@ -477,7 +492,59 @@ inline ::flatbuffers::Offset<Art> CreateArtDirect(
       forest__,
       building_in_progress,
       road__,
-      flag__);
+      flag__,
+      ui);
+}
+
+struct UI FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef UIBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BUILDABLES_PANEL = 4,
+    VT_BUILDABLES_PLACEHOLDER = 6
+  };
+  uint32_t buildables_panel() const {
+    return GetField<uint32_t>(VT_BUILDABLES_PANEL, 0);
+  }
+  uint32_t buildables_placeholder() const {
+    return GetField<uint32_t>(VT_BUILDABLES_PLACEHOLDER, 0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_BUILDABLES_PANEL, 4) &&
+           VerifyField<uint32_t>(verifier, VT_BUILDABLES_PLACEHOLDER, 4) &&
+           verifier.EndTable();
+  }
+};
+
+struct UIBuilder {
+  typedef UI Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_buildables_panel(uint32_t buildables_panel) {
+    fbb_.AddElement<uint32_t>(UI::VT_BUILDABLES_PANEL, buildables_panel, 0);
+  }
+  void add_buildables_placeholder(uint32_t buildables_placeholder) {
+    fbb_.AddElement<uint32_t>(UI::VT_BUILDABLES_PLACEHOLDER, buildables_placeholder, 0);
+  }
+  explicit UIBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<UI> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<UI>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<UI> CreateUI(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t buildables_panel = 0,
+    uint32_t buildables_placeholder = 0) {
+  UIBuilder builder_(_fbb);
+  builder_.add_buildables_placeholder(buildables_placeholder);
+  builder_.add_buildables_panel(buildables_panel);
+  return builder_.Finish();
 }
 
 struct Game_Library FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
