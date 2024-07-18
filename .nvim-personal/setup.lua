@@ -1,4 +1,33 @@
+-- =========================================================
+-- Вспомогательная хрень
+-- =========================================================
 local opts = { remap = false, silent = true }
+
+run_command = vim.g.hulvdan_run_command
+
+function cli_command(cmd)
+    return [[.venv\Scripts\python.exe cmd\cli.py ]] .. cmd
+end
+
+-- Обработка ошибок MSBuild.
+-- https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
+-- Microsoft MSBuild
+vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c):\ %m]])
+-- Microsoft compiler: cl.exe
+vim.fn.execute([[set errorformat+=\\\ %#%f(%l)\ :\ %#%t%[A-z]%#\ %m]])
+-- Microsoft HLSL compiler: fxc.exe
+vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]])
+
+-- Обработка ошибок FlatBuffers.
+vim.fn.execute([[set errorformat+=\ \ %f(%l\\,\ %c\\):\ %m]])
+
+-- Форматтер.
+require("conform").setup({
+    formatters = {
+        black = { command = [[.venv\Scripts\black.exe]] },
+        isort = { command = [[.venv\Scripts\isort.exe]] },
+    },
+})
 
 -- =========================================================
 -- Кнопки работы с кодом
@@ -55,33 +84,3 @@ end, opts)
 vim.keymap.set("n", "<A-S-f>", function()
     run_command(cli_command("format"))
 end, opts)
-
--- =========================================================
--- Вспомогательная хрень
--- =========================================================
-
-run_command = vim.g.hulvdan_run_command
-
-function cli_command(cmd)
-    return [[.venv\Scripts\python.exe cmd\cli.py ]] .. cmd
-end
-
--- Обработка ошибок MSBuild.
--- https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
--- Microsoft MSBuild
-vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c):\ %m]])
--- Microsoft compiler: cl.exe
-vim.fn.execute([[set errorformat+=\\\ %#%f(%l)\ :\ %#%t%[A-z]%#\ %m]])
--- Microsoft HLSL compiler: fxc.exe
-vim.fn.execute([[set errorformat+=\\\ %#%f(%l\\\,%c-%*[0-9]):\ %#%t%[A-z]%#\ %m]])
-
--- Обработка ошибок FlatBuffers.
-vim.fn.execute([[set errorformat+=\ \ %f(%l\\,\ %c\\):\ %m]])
-
--- Форматтер.
-require("conform").setup({
-    formatters = {
-        black = { command = [[.venv\Scripts\black.exe]] },
-        isort = { command = [[.venv\Scripts\isort.exe]] },
-    },
-})
