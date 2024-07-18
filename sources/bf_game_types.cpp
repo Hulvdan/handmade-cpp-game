@@ -768,6 +768,7 @@ struct Game_Renderer_State : public Non_Copyable {
     Smart_Tile grass_smart_tile;
     Smart_Tile forest_smart_tile;
     Tile_ID    forest_top_tile_id;
+    Tile_ID    flag_tile_id;
 
     Texture_ID human_texture;
     Texture_ID building_in_progress_texture;

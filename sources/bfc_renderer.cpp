@@ -358,6 +358,18 @@ void Add_Building_Sprite(
     rstate.sprites.Add(building_id, building_sprite, ctx);
 }
 
+void Set_Flag_Tile(Game_Renderer_State& rstate, Game_Map& game_map, v2i pos, MCTX) {
+    auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
+
+    auto t = pos.y * placeables_tilemap.size.x + pos.x;
+
+    auto& tile_id    = placeables_tilemap.tiles[t];
+    auto& texture_id = placeables_tilemap.textures[t];
+
+    tile_id    = rstate.flag_tile_id;
+    texture_id = rstate.flag_textures[0];
+}
+
 void Post_Init_Renderer(
     bool        first_time_initializing,
     bool        hot_reloaded,
@@ -615,6 +627,7 @@ void main() {
     rstate.grass_smart_tile.id  = 1;
     rstate.forest_smart_tile.id = 2;
     rstate.forest_top_tile_id   = 3;
+    rstate.flag_tile_id         = 4;
 
     {
         auto art = state.gamelib->art();
@@ -822,12 +835,9 @@ void main() {
                         rstate, game_map, {x, y}, element_tile.building_id, ctx
                     );
 
-                if (element_tile.type == Element_Tile_Type::Flag) {
-                    // TODO: FLAG TILEMAP TEXTURE
-                }
+                if (element_tile.type == Element_Tile_Type::Flag)
+                    Set_Flag_Tile(rstate, game_map, {x, y}, ctx);
             }
-
-            //
         }
     }
     // --- Element Tiles End ---
@@ -1883,6 +1893,9 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
 
     if (element_tile.type == Element_Tile_Type::Building)
         Add_Building_Sprite(rstate, game_map, pos, element_tile.building_id, ctx);
+
+    if (element_tile.type == Element_Tile_Type::Flag)
+        Set_Flag_Tile(rstate, game_map, pos, ctx);
 
     for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;

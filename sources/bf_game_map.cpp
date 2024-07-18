@@ -1658,22 +1658,29 @@ void Regenerate_Element_Tiles(
         {8, 3},
     };
 
+    v2i16 flag_tiles[] = {
+        {2, 2},
+        {3, 3},
+    };
+
     auto base_offset = v2i16(1, 1);
+
     for (auto offset : road_tiles) {
-        auto off = offset + base_offset;
-        auto t   = off.y * gsize.x + off.x;
+        auto          off  = offset + base_offset;
+        Element_Tile& tile = game_map.element_tiles[off.y * gsize.x + off.x];
+        tile.type          = Element_Tile_Type::Road;
+    }
 
-        Element_Tile& tile = game_map.element_tiles[t];
-
-        tile.type = Element_Tile_Type::Road;
+    for (auto offset : flag_tiles) {
+        auto          off  = offset + base_offset;
+        Element_Tile& tile = game_map.element_tiles[off.y * gsize.x + off.x];
+        tile.type          = Element_Tile_Type::Flag;
     }
 
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto          t    = y * gsize.x + x;
-            Element_Tile& tile = game_map.element_tiles[t];
-
-            tile.building_id = Building_ID_Missing;
+            Element_Tile& tile = game_map.element_tiles[y * gsize.x + x];
+            tile.building_id   = Building_ID_Missing;
             Validate_Element_Tile(tile);
         }
     }
