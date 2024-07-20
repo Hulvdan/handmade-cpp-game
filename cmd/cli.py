@@ -620,9 +620,10 @@ def action_cmake_vs_files():
 
 
 @app.command("build_game")
-def action_run():
+def action_build_game():
     do_test_shaders()
     do_generate()
+    do_cmake_vs_files()
     do_build_game()
 
 
@@ -630,6 +631,7 @@ def action_run():
 def action_run():
     do_test_shaders()
     do_generate()
+    do_cmake_vs_files()
     do_build_game()
 
     do_run()

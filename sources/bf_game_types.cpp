@@ -689,8 +689,11 @@ static constexpr BF_Color BF_Color_Magenta = {1, 0, 1};
 
 struct Game_UI_State : public Non_Copyable {
     UI_Sprite_Params buildables_panel_params;
-    Loaded_Texture   buildables_panel_background;
-    Loaded_Texture   buildables_placeholder_background;
+    // Loaded_Texture   buildables_panel_background;
+    // Loaded_Texture   buildables_placeholder_background;
+
+    Texture_ID buildables_panel_texture;
+    Texture_ID buildables_placeholder_texture;
 
     u16            buildables_count;
     Item_To_Build* buildables;
