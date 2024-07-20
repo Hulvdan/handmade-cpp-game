@@ -56,37 +56,37 @@ bool UI_Clicked(Game_State& state) {
 
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
-    auto gsize   = game_map.size;
-    auto swidth  = (f32)bitmap.width;
-    auto sheight = (f32)bitmap.height;
+    const auto gsize   = game_map.size;
+    const auto swidth  = (f32)bitmap.width;
+    const auto sheight = (f32)bitmap.height;
 
-    auto  sprite_params = ui_state.buildables_panel_params;
-    auto& pad_h         = sprite_params.stretch_paddings_h;
-    auto& pad_v         = sprite_params.stretch_paddings_v;
+    const auto  sprite_params = ui_state.buildables_panel_params;
+    const auto& pad_h         = sprite_params.stretch_paddings_h;
+    const auto& pad_v         = sprite_params.stretch_paddings_v;
 
-    // auto texture             = ui_state.buildables_panel_background;
-    auto& placeholder_texture
+    const auto& placeholder_texture
         = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
-    auto psize = v2f(placeholder_texture.size);
 
-    v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+    const auto psize = v2f(placeholder_texture.size);
 
-    v2f  padding          = ui_state.padding;
-    f32  placeholders_gap = ui_state.placeholders_gap;
-    auto placeholders     = ui_state.placeholders;
-    auto panel_size       = v2f(
+    const v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+
+    const v2f  padding          = ui_state.padding;
+    const f32  placeholders_gap = ui_state.placeholders_gap;
+    const auto placeholders     = ui_state.placeholders;
+    const auto panel_size       = v2f(
         psize.x + 2 * padding.x,
-        2 * padding.y + placeholders_gap * (f32)(placeholders - 1)
-            + (f32)placeholders * psize.y
+        2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
     );
 
-    v2f outer_anchor         = ui_state.buildables_panel_container_anchor;
-    v2i outer_container_size = v2i(swidth, sheight);
-    f32 outer_x              = (f32)outer_container_size.x * outer_anchor.x;
-    f32 outer_y              = (f32)outer_container_size.y * outer_anchor.y;
+    const v2f  outer_anchor         = ui_state.buildables_panel_container_anchor;
+    const v2i  outer_container_size = v2i(swidth, sheight);
+    const auto outer_pos            = v2f(
+        outer_container_size.x * outer_anchor.x, outer_container_size.y * outer_anchor.y
+    );
 
     auto VIEW = glm::mat3(1);
-    VIEW      = glm::translate(VIEW, v2f((int)outer_x, (int)outer_y));
+    VIEW      = glm::translate(VIEW, v2f((int)outer_pos.x, (int)outer_pos.y));
     VIEW      = glm::scale(VIEW, v2f(ui_state.scale));
 
     i8 clicked_buildable_index = -1;

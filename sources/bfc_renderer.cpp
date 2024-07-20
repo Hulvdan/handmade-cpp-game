@@ -898,10 +898,10 @@ void main() {
     ui_state.placeholders                      = ui_state.buildables_count;
     ui_state.placeholders_gap                  = 4;
     ui_state.selected_buildable_index          = -1;
-    ui_state.buildables_panel_sprite_anchor    = {0.0f, 0.9f};
+    ui_state.buildables_panel_sprite_anchor    = {0.0f, 0.5f};
     ui_state.scale                             = 3;
     ui_state.buildables_panel_in_scale         = 1;
-    ui_state.buildables_panel_container_anchor = {0.0f, 0.9f};
+    ui_state.buildables_panel_container_anchor = {0.0f, 0.5f};
 
     ui_state.not_selected_buildable_color.r = 255.0f / 255.0f;
     ui_state.not_selected_buildable_color.g = 255.0f / 255.0f;
@@ -995,6 +995,8 @@ void Draw_UI_Sprite(
     BF_Color             color,
     Game_Renderer_State& rstate
 ) {
+    std::swap(tex_coord_y0, tex_coord_y1);
+
     f32 xx0 = gl_pos.x + gl_size.x * (0 - anchor.x);
     f32 xx1 = gl_pos.x + gl_size.x * (1 - anchor.x);
     f32 yy0 = gl_pos.y + gl_size.y * (0 - anchor.y);
@@ -1090,16 +1092,16 @@ v2i16 World_Pos_To_Tile(v2f pos) {
 }
 
 void Draw_Stretchable_Sprite(
-    Atlas&               atlas,
-    Texture_ID           id,
-    f32                  gl_pos_x0,
-    f32                  gl_pos_x3,
-    f32                  gl_pos_y0,
-    f32                  gl_pos_y3,
-    UI_Sprite_Params&    sprite_params,
-    v2i16                sprite_size,
-    f32                  in_scale,
-    Game_Renderer_State& rstate
+    Atlas&                  atlas,
+    const Texture_ID        id,
+    const f32               gl_pos_x0,
+    const f32               gl_pos_x3,
+    const f32               gl_pos_y0,
+    const f32               gl_pos_y3,
+    const UI_Sprite_Params& sprite_params,
+    const v2i16             sprite_size,
+    const f32               in_scale,
+    Game_Renderer_State&    rstate
 ) {
     const auto& tex = *Get_Texture(atlas, id);
 
@@ -1153,8 +1155,8 @@ void Draw_Stretchable_Sprite(
     v3f points[] = {gl_p0, gl_p1, gl_p2, gl_p3};
 
     FOR_RANGE (int, y, 3) {
-        auto tex_y0 = tex_coords_y[2 - y];
-        auto tex_y1 = tex_coords_y[3 - y];
+        auto tex_y0 = 1 - tex_coords_y[3 - y];
+        auto tex_y1 = 1 - tex_coords_y[2 - y];
         auto gl_y0  = points[2 - y].y;
         auto sy     = points[3 - y].y - points[2 - y].y;
 
@@ -1302,23 +1304,11 @@ void Delete_Framebuffer(const OpenGL_Framebuffer& fb) {
 }
 
 glm::mat3 Get_UI_Projection_Matrix(v2f screen_size) {
-    auto matrix = glm::mat3(
-        // x
-        2.0f / screen_size.x,
-        0,
-        -1,
-        // y
-        0,
-        -2.0f / screen_size.y,
-        1,
-        //
-        0,
-        0,
-        1
-    );
-    // matrix = glm::translate(matrix, v2f(-1, 1));
-    // matrix = glm::scale(matrix, v2f(2, -2) / screen_size);
-    return matrix;
+    auto mat = glm::mat3(1);
+    mat      = glm::scale(mat, v2f(1, -1));
+    mat      = glm::translate(mat, v2f(-1, 1));
+    mat      = glm::scale(mat, v2f(2, -2) / screen_size);
+    return mat;
 }
 
 void Render_UI(Game_State& state, f32 dt, MCTX) {
@@ -1341,35 +1331,38 @@ void Render_UI(Game_State& state, f32 dt, MCTX) {
     {
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
 
-        auto  sprite_params = ui_state.buildables_panel_params;
-        auto& pad_h         = sprite_params.stretch_paddings_h;
-        auto& pad_v         = sprite_params.stretch_paddings_v;
+        const auto  sprite_params = ui_state.buildables_panel_params;
+        const auto& pad_h         = sprite_params.stretch_paddings_h;
+        const auto& pad_v         = sprite_params.stretch_paddings_v;
 
-        // auto  texture             = ui_state.buildables_panel_background;
         const auto& panel_texture
             = *Get_Texture(rstate.atlas, ui_state.buildables_panel_texture);
-        auto& psize = panel_texture.size;
 
-        auto in_scale      = ui_state.buildables_panel_in_scale;
-        v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+        const auto& placeholder_texture
+            = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
 
-        v2f  padding          = ui_state.padding;
-        f32  placeholders_gap = ui_state.placeholders_gap;
-        auto placeholders     = ui_state.placeholders;
-        auto panel_size       = v2f(
+        const auto& psize = placeholder_texture.size;
+
+        const auto in_scale      = ui_state.buildables_panel_in_scale;
+        const v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
+
+        const v2f  padding          = ui_state.padding;
+        const f32  placeholders_gap = ui_state.placeholders_gap;
+        const auto placeholders     = ui_state.placeholders;
+        const auto panel_size       = v2f(
             psize.x + 2 * padding.x,
             2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
         );
 
-        auto outer_anchor         = ui_state.buildables_panel_container_anchor;
-        auto outer_container_size = v2i(swidth, sheight);
-
-        auto outer_x = outer_container_size.x * outer_anchor.x;
-        // auto outer_x              = outer_container_size.x * (outer_anchor.x - 0.5f);
-        auto outer_y = outer_container_size.y * outer_anchor.y;
+        const auto outer_anchor         = ui_state.buildables_panel_container_anchor;
+        const auto outer_container_size = v2i(swidth, sheight);
+        const auto outer_pos            = v2f(
+            outer_container_size.x * outer_anchor.x,
+            outer_container_size.y * outer_anchor.y
+        );
 
         auto VIEW = glm::mat3(1);
-        VIEW      = glm::translate(VIEW, v2f((int)outer_x, (int)outer_y));
+        VIEW      = glm::translate(VIEW, v2f((int)outer_pos.x, (int)outer_pos.y));
         VIEW      = glm::scale(VIEW, v2f(ui_state.scale));
 
         {
@@ -1379,8 +1372,8 @@ void Render_UI(Game_State& state, f32 dt, MCTX) {
             auto p0_local = MODEL * v3f(v2f_zero - sprite_anchor, 1);
             auto p1_local = MODEL * v3f(v2f_one - sprite_anchor, 1);
 
-            auto p0 = PROJECTION * (VIEW * p0_local);
-            auto p1 = PROJECTION * (VIEW * p1_local);
+            auto p0 = PROJECTION * VIEW * p0_local;
+            auto p1 = PROJECTION * VIEW * p1_local;
 
             Draw_Stretchable_Sprite(
                 rstate.atlas,
@@ -1399,9 +1392,6 @@ void Render_UI(Game_State& state, f32 dt, MCTX) {
 
             // Aligning items in a column
             // justify-content: center
-
-            const auto& placeholder_texture
-                = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
 
             FOR_RANGE (int, i, placeholders) {
                 const auto& tex = placeholder_texture;
