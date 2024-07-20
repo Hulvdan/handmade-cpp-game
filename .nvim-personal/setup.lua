@@ -39,6 +39,13 @@ vim.keymap.set("n", "<leader>0", function()
         vim.fn.execute("%g/^#if 0/silent!normal! zDzf%")
         vim.api.nvim_input("<C-o>")
 
+        -- NOTE: пытался прикрутить region / endregion folding.
+        --
+        -- vim.fn.execute("g/^#pragma region/silent!normal! ia<esc>")
+        -- vim.fn.execute("%g/^#pragma region/silent!normal! v/endregion<CR>zf")
+        -- vim.fn.execute([[%g/^#pragma region/silent!normal! zf/#pragma endregion<CR> _]])
+        -- vim.api.nvim_input("<C-o>")
+
         -- NOTE: пытался сделать так, чтобы при нахождении `if 1`,
         -- курсор бы прыгал на `#else` блок, и его бы закрывал.
         -- Но в случае, когда у `#if 1` нет `#else`, закрывался этот `#if 1`.
