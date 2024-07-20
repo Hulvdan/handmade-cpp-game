@@ -38,6 +38,13 @@ vim.keymap.set("n", "<leader>0", function()
     if vim.bo.filetype == "cpp" then
         vim.fn.execute("%g/^#if 0/silent!normal! zDzf%")
         vim.api.nvim_input("<C-o>")
+
+        -- NOTE: пытался сделать так, чтобы при нахождении `if 1`,
+        -- курсор бы прыгал на `#else` блок, и его бы закрывал.
+        -- Но в случае, когда у `#if 1` нет `#else`, закрывался этот `#if 1`.
+        --
+        -- vim.fn.execute("%g/^#if 1/silent!normal! %zDzf%")
+        -- vim.api.nvim_input("<C-o>")
     end
 end, opts)
 
