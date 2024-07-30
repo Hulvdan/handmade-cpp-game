@@ -3,7 +3,9 @@
 -- =========================================================
 local opts = { remap = false, silent = true }
 
-run_command = vim.g.hulvdan_run_command
+function run_command()
+    return vim.g.hulvdan_run_command
+end
 
 function cli_command(cmd)
     return [[.venv\Scripts\python.exe cmd\cli.py ]] .. cmd
@@ -61,40 +63,40 @@ end, opts)
 
 -- Линтинг.
 vim.keymap.set("n", "<leader>l", function()
-    run_command(cli_command("lint"))
+    run_command()(cli_command("lint"))
 end, opts)
 
 -- Билд.
 vim.keymap.set("n", "<A-b>", function()
-    run_command(cli_command("build_game"))
+    run_command()(cli_command("build_game"))
 end, opts)
 
 -- Кодген.
 vim.keymap.set("n", "<A-g>", function()
-    run_command(cli_command("generate"))
+    run_command()(cli_command("generate"))
 end, opts)
 
 -- Пересоздание файлов VS.
 vim.keymap.set("n", "<C-S-b>", function()
-    run_command(cli_command("cmake_vs_files"))
+    run_command()(cli_command("cmake_vs_files"))
 end, opts)
 
 -- Билд + переключение окна на VS с одновременным запуском проекта.
 vim.keymap.set("n", "<f5>", function()
-    run_command(cli_command("stoopid_windows_visual_studio_run"))
+    run_command()(cli_command("stoopid_windows_visual_studio_run"))
 end, opts)
 
 -- Тесты.
 vim.keymap.set("n", "<A-t>", function()
-    run_command(cli_command("test"))
+    run_command()(cli_command("test"))
 end, opts)
 
 -- Тестирование компиляции шейдеров.
 vim.keymap.set("n", "<A-S-t>", function()
-    run_command(cli_command("test_shaders"))
+    run_command()(cli_command("test_shaders"))
 end, opts)
 
 -- Отформатировать C++ код в репозитории.
 vim.keymap.set("n", "<A-S-f>", function()
-    run_command(cli_command("format"))
+    run_command()(cli_command("format"))
 end, opts)
