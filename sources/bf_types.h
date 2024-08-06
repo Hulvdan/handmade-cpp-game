@@ -13,7 +13,6 @@ using u64  = uint64_t;
 using i64  = int64_t;
 using f32  = float;
 using f64  = double;
-using ptrd = ptrdiff_t;
 
 constexpr u8     u8_max     = std::numeric_limits<u8>::max();
 constexpr u16    u16_max    = std::numeric_limits<u16>::max();
@@ -32,20 +31,3 @@ constexpr i32 i32_min = std::numeric_limits<i32>::min();
 constexpr i64 i64_min = std::numeric_limits<i64>::min();
 
 constexpr f32 f32_inf = std::numeric_limits<f32>::infinity();
-
-// template <typename T>
-// struct bf_uptr {
-//     bf_uptr() noexcept {}
-//
-//     explicit bf_uptr(T* ptr) noexcept {
-//         value = ptr;
-//     }
-//
-//     bf_uptr(bf_uptr<T>&& other) {
-//         value       = other.value;
-//         other.value = nullptr;
-//     }
-//
-// private:
-//     T* value = nullptr;
-// }

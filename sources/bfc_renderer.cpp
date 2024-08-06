@@ -965,7 +965,7 @@ void Draw_Sprite(
     }
 
     f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
-    for (ptrd i : {0, 1, 2, 2, 1, 3}) {
+    for (int i : {0, 1, 2, 2, 1, 3}) {
         // TODO: How bad is that there are 2 vertices duplicated?
         glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
         glVertex2f(vertices[i].x, vertices[i].y);

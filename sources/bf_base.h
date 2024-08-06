@@ -4,10 +4,15 @@
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
 
+#define STATEMENT(statement) \
+    do {                     \
+        statement;           \
+    } while (false)
+
 #ifdef BF_INTERNAL
-#    define BREAKPOINT __debugbreak()
+#    define BREAKPOINT STATEMENT({ __debugbreak(); })
 #else  // BF_INTERNAL
-#    define BREAKPOINT
+#    define BREAKPOINT STATEMENT({})
 #endif  // BF_INTERNAL
 
 #ifdef BF_INTERNAL
@@ -110,26 +115,14 @@ constexpr v3f v3f_one  = v3f(1, 1, 1);
 
 #include "bf_types.h"
 
-#define STATEMENT(statement) \
-    do {                     \
-        statement;           \
-    } while (false)
-
 #ifdef TESTS
 #    define Assert(expr) REQUIRE(expr)
 #    define Assert_False(expr) REQUIRE_FALSE(expr)
-#else  // TESTS
-#    define Assert(expr)         \
-        STATEMENT({              \
-            if (!(bool)(expr))   \
-                *(char*)(0) = 0; \
-        })
-#    define Assert_False(expr)   \
-        STATEMENT({              \
-            if ((bool)(expr))    \
-                *(char*)(0) = 0; \
-        })
-#endif  // TESTS
+#else
+#    include <cassert>
+#    define Assert(expr) STATEMENT({ assert((bool)(expr)); })
+#    define Assert_False(expr) STATEMENT({ assert(!(bool)(expr)); })
+#endif
 
 template <typename T>
 BF_FORCE_INLINE T& Assert_Deref(T* value) {
