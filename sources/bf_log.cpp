@@ -427,6 +427,7 @@ consteval auto extract_substring(const char* src) {
 
 // TODO: А можно ли как-то убрать const_cast тут?
 // TODO: Вычислять `static constexpr const scope_name = ...`.
+// NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
 #define LOG_TRACING_SCOPE                                                                  \
     if (logger_tracing_routine != nullptr) {                                               \
         constexpr const auto   loc = std::source_location::current();                      \
@@ -459,6 +460,7 @@ consteval auto extract_substring(const char* src) {
         if (logger_tracing_routine != nullptr)                                             \
             logger_tracing_routine(logger_data, false, nullptr);                           \
     };
+// NOLINTEND(cppcoreguidelines-pro-type-const-cast)
 
 #define CTX_LOGGER                                              \
     auto& logger_routine         = ctx->logger_routine;         \

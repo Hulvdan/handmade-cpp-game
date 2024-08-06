@@ -1,7 +1,8 @@
 #pragma once
 
 #include "bf_base.h"
-#define GRID_PTR_VALUE(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
+#define GRID_PTR_VALUE(arr_ptr, pos) \
+    (*((arr_ptr) + (ptrdiff_t)(gsize.x * (pos).y + (pos).x)))
 
 #define Array_Push(array, array_count, array_max_count, value) \
     STATEMENT({                                                \
@@ -162,12 +163,12 @@ Path_Find_Result Find_Path(
 
 Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i16 pos) {
     Assert(Pos_Is_In_Bounds(pos, game_map.size));
-    return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
+    return *(game_map.terrain_tiles + (ptrdiff_t)(pos.y * game_map.size.x + pos.x));
 }
 
 Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i16 pos) {
     Assert(Pos_Is_In_Bounds(pos, game_map.size));
-    return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
+    return *(game_map.terrain_resources + (ptrdiff_t)(pos.y * game_map.size.x + pos.x));
 }
 
 template <typename T>
@@ -345,7 +346,7 @@ void Place_Building(
 
     // state.renderer_state->sprites.Add(bid, sprite, ctx);
 
-    auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
+    auto& tile = *(game_map.element_tiles + (ptrdiff_t)(gsize.x * pos.y + pos.x));
     Assert(tile.type == Element_Tile_Type::None);
     tile.type        = Element_Tile_Type::Building;
     tile.building_id = bid;
@@ -376,7 +377,7 @@ void Root_Set_Human_State(
     MCTX
 );
 
-void Advance_Moving_To(Human_Moving_Component& moving, MCTX) {
+void Advance_Moving_To(Human_Moving_Component& moving) {
     if (moving.path.count == 0) {
         moving.elapsed  = 0;
         moving.progress = 0;
@@ -411,7 +412,7 @@ void Human_Moving_Component_Add_Path(
     }
 
     if (!moving.to.has_value())
-        Advance_Moving_To(moving, ctx);
+        Advance_Moving_To(moving);
 }
 
 Building* Query_Building(Game_Map& game_map, Building_ID id) {
@@ -478,7 +479,7 @@ struct Human_Moving_In_The_World_Controller {
         }
     }
 
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
+    static void Update(Human& human, const Human_Data& data, f32 /* dt */, MCTX) {
         Update_States(
             human,
             data,
@@ -535,7 +536,7 @@ struct Human_Moving_In_The_World_Controller {
         const Human_Data& data,
         Graph_Segment_ID  old_segment_id,
         Building_ID       old_building_id,
-        Building*         old_building,
+        Building* /* old_building */,
         MCTX
     ) {
         CTX_LOGGER;
@@ -699,14 +700,14 @@ struct Human_Moving_Inside_Segment {
         }
     }
 
-    static void On_Exit(Human& human, const Human_Data& data, MCTX) {
+    static void On_Exit(Human& human, const Human_Data& /* data */, MCTX) {
         CTX_LOGGER;
         LOG_TRACING_SCOPE;
 
         human.moving.path.Reset();
     }
 
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
+    static void Update(Human& human, const Human_Data& data, f32 /* dt */, MCTX) {
         Update_States(
             human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
         );
@@ -715,7 +716,7 @@ struct Human_Moving_Inside_Segment {
     static void On_Human_Current_Segment_Changed(
         Human&            human,
         const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
+        Graph_Segment_ID /* old_segment_id */,
         MCTX
     ) {
         CTX_LOGGER;
@@ -725,8 +726,11 @@ struct Human_Moving_Inside_Segment {
         Root_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
     }
 
-    static void
-    On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
+    static void On_Human_Moved_To_The_Next_Tile(
+        Human& /* human */,
+        const Human_Data& /* data */,
+        MCTX
+    ) {
         CTX_LOGGER;
         LOG_TRACING_SCOPE;
 
@@ -736,9 +740,9 @@ struct Human_Moving_Inside_Segment {
     static void Update_States(
         Human&            human,
         const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        Building_ID       old_building_id,
-        Building*         old_building,
+        Graph_Segment_ID /* old_segment_id */,
+        Building_ID /* old_building_id */,
+        Building* /* old_building */,
         MCTX
     ) {
         CTX_LOGGER;
@@ -910,7 +914,7 @@ void Human_Root_Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
 }
 
 void Root_On_Human_Current_Segment_Changed(
-    Human_ID          id,
+    Human_ID /* id */,
     Human&            human,
     const Human_Data& data,
     Graph_Segment_ID  old_segment_id,
@@ -1137,7 +1141,7 @@ void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX)
 
     Map_Buildings_With_City_Halls(
         game_map,
-        [&](Building_ID id, Building* building, City_Hall* city_hall) {
+        [&](Building_ID /* id */, Building* building, City_Hall* city_hall) {
             auto delay = building->scriptable->human_spawning_delay;
 
             auto& since_created = city_hall->time_since_human_was_created;
@@ -1210,11 +1214,11 @@ void Update_Human_Moving_Component(
     const auto duration = game_map_data.human_moving_one_tile_duration;
     moving.elapsed += dt;
 
-    constexpr int _GUARD_MAX_MOVING_TILES_PER_FRAME = 4;
+    constexpr int GUARD_MAX_MOVING_TILES_PER_FRAME = 4;
 
     auto iteration = 0;
-    while (iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME  //
-           && moving.to.has_value()                            //
+    while (iteration < 10 * GUARD_MAX_MOVING_TILES_PER_FRAME  //
+           && moving.to.has_value()                           //
            && moving.elapsed > duration)
     {
         LOG_TRACING_SCOPE;
@@ -1225,16 +1229,16 @@ void Update_Human_Moving_Component(
 
         moving.pos  = moving.to.value();
         moving.from = moving.pos;
-        Advance_Moving_To(moving, ctx);
+        Advance_Moving_To(moving);
 
         Root_On_Human_Moved_To_The_Next_Tile(human, data, ctx);
         // TODO: on_Human_Moved_To_The_Next_Tile.On_Next(new (){ human = human });
     }
 
-    Assert(iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME);
-    if (iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME) {
+    Assert(iteration < 10 * GUARD_MAX_MOVING_TILES_PER_FRAME);
+    if (iteration >= GUARD_MAX_MOVING_TILES_PER_FRAME) {
         LOG_TRACING_SCOPE;
-        LOG_WARN("WTF? iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME");
+        LOG_WARN("WTF? iteration >= GUARD_MAX_MOVING_TILES_PER_FRAME");
     }
 
     moving.progress = MIN(1.0f, moving.elapsed / duration);
@@ -1389,8 +1393,8 @@ void Add_Map_Resource(
 }
 
 void Init_Game_Map(
-    bool        first_time_initializing,
-    bool        hot_reloaded,
+    bool /* first_time_initializing */,
+    bool /* hot_reloaded */,
     Game_State& state,
     Arena&      arena,
     MCTX
@@ -1398,8 +1402,6 @@ void Init_Game_Map(
     auto& game_map = state.game_map;
 
     game_map.last_entity_id = 0;
-
-    const auto tiles_count = game_map.size.x * game_map.size.y;
 
     game_map.data = std::construct_at(Allocate_For(arena, Game_Map_Data), 0.3f);
     {
@@ -1426,10 +1428,10 @@ void Init_Game_Map(
 }
 
 void Post_Init_Game_Map(
-    bool        first_time_initializing,
-    bool        hot_reloaded,
+    bool /* first_time_initializing */,
+    bool /* hot_reloaded */,
     Game_State& state,
-    Arena&      arena,
+    Arena& /* arena */,
     MCTX
 ) {
     bool built = true;
@@ -1488,13 +1490,13 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
 }
 
 void Regenerate_Terrain_Tiles(
-    Game_State&  state,
-    Game_Map&    game_map,
-    Arena&       arena,
-    Arena&       trash_arena,
-    uint         seed,
+    Game_State& /* state */,
+    Game_Map& game_map,
+    Arena& /* arena */,
+    Arena& trash_arena,
+    uint /* seed */,
     Editor_Data& data,
-    MCTX
+    MCTX_
 ) {
     auto gsize = game_map.size;
 
@@ -1526,7 +1528,7 @@ void Regenerate_Terrain_Tiles(
         FOR_RANGE (int, x, gsize.x) {
             auto& tile   = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::Grass;
-            auto noise   = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
+            auto noise   = (f32)(*(terrain_perlin + noise_pitch * y + x)) / (f32)u16_max;
             tile.height  = int((data.terrain_max_height + 1) * noise);
 
             Assert(tile.height >= 0);
@@ -1599,13 +1601,13 @@ void Regenerate_Terrain_Tiles(
 }
 
 void Regenerate_Element_Tiles(
-    Game_State&  state,
-    Game_Map&    game_map,
-    Arena&       arena,
-    Arena&       trash_arena,
-    uint         seed,
-    Editor_Data& data,
-    MCTX
+    Game_State& /* state */,
+    Game_Map& game_map,
+    Arena& /* arena */,
+    Arena& /* trash_arena */,
+    uint /* seed */,
+    Editor_Data& /* data */,
+    MCTX_
 ) {
     auto gsize = game_map.size;
 
@@ -1700,11 +1702,13 @@ bool Should_Segment_Be_Deleted(
                 if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                     continue;
 
-                auto node = *(graph.nodes + graph.size.x * graph_pos.y + graph_pos.x);
+                auto node
+                    = *(graph.nodes
+                        + (ptrdiff_t)(graph.size.x * graph_pos.y + graph_pos.x));
                 if (node == 0)
                     continue;
 
-                auto& tile = *(element_tiles + gsize.x * pos.y + pos.x);
+                auto& tile = *(element_tiles + (ptrdiff_t)(gsize.x * pos.y + pos.x));
                 if (tile.type == Element_Tile_Type::Road)
                     return true;
             }
@@ -1726,7 +1730,8 @@ bool Should_Segment_Be_Deleted(
             if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                 break;
 
-            u8 node = *(graph.nodes + graph.size.x * graph_pos.y + graph_pos.x);
+            u8 node
+                = *(graph.nodes + (ptrdiff_t)(graph.size.x * graph_pos.y + graph_pos.x));
             if (node == 0)
                 break;
 
@@ -1771,14 +1776,18 @@ bool Should_Segment_Be_Deleted(
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     FOR_RANGE (int, i, rows) {
-        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
+        memcpy(
+            dest + (ptrdiff_t)(i * bytes_per_line),
+            source + (ptrdiff_t)(i * stride),
+            bytes_per_line
+        );
     }
 }
 
 bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
-    auto gx   = graph.size.x;
-    auto gy   = graph.size.y;
-    u8   node = *(graph.nodes + y * gx + x);
+    const auto gx = graph.size.x;
+
+    u8 node = *(graph.nodes + (ptrdiff_t)(y * gx + x));
 
     FOR_DIRECTION (dir) {
         if (!Graph_Node_Has(node, dir))

@@ -46,6 +46,7 @@
 #endif
 
 #define MCTX Context* ctx
+#define MCTX_ Context* /* ctx */
 
 #define CTX_ALLOCATOR                      \
     auto& allocator      = ctx->allocator; \
