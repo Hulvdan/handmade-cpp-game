@@ -174,10 +174,10 @@ using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
 using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration);
 
 // NOTE: These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
-DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState) {
+DWORD XInputGetStateStub(DWORD /* dwUserIndex */, XINPUT_STATE* /* pState */) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
-DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration) {
+DWORD XInputSetStateStub(DWORD /* dwUserIndex */, XINPUT_VIBRATION* /* pVibration */) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
 
@@ -204,9 +204,9 @@ using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
 
 HRESULT
 XAudio2CreateStub(
-    IXAudio2**        ppXAudio2,
-    UINT32            Flags,
-    XAUDIO2_PROCESSOR XAudio2Processor
+    IXAudio2** /* ppXAudio2 */,
+    UINT32 /* Flags */,
+    XAUDIO2_PROCESSOR /* XAudio2Processor */
 ) {
     // TODO: Diagnostic
     return XAUDIO2_E_INVALID_CALL;
@@ -345,7 +345,7 @@ void Win32UpdateBitmap(HDC device_context) {
     );
 }
 
-void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
+void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
@@ -632,9 +632,9 @@ Allocate_Pages__Function(Win32_Allocate_Pages) {
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
-    HINSTANCE previous_window_instance_handle,
-    LPSTR     command_line,
-    int       show_command
+    HINSTANCE /* previous_window_instance_handle */,
+    LPSTR /* command_line */,
+    int show_command
 ) {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);

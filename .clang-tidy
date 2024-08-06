@@ -31,7 +31,7 @@ Checks: '
          -modernize-use-trailing-return-type
          '
 WarningsAsErrors: true
-HeaderFilterRegex: ''
+HeaderFilterRegex: 'sources/.*'
 AnalyzeTemporaryDtors: false
 FormatStyle:     google
 CheckOptions:

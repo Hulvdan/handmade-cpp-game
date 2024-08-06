@@ -740,24 +740,10 @@ struct Bucket_Locator : Equatable<Bucket_Locator> {
     Bucket_Index bucket_index;
     u32          slot_index;
 
-    constexpr Bucket_Locator()                            = default;
-    constexpr Bucket_Locator(Bucket_Locator&& other)      = default;
-    constexpr Bucket_Locator(const Bucket_Locator& other) = default;
-
-    constexpr Bucket_Locator(Bucket_Index a_bucket_index, u32 a_slot_index)
-        : bucket_index(a_bucket_index)
-        , slot_index(a_slot_index) {}
-    constexpr Bucket_Locator& operator=(const Bucket_Locator&) = default;
-
-    // Bucket_Locator(Bucket_Locator&& other)
-    //     : bucket_index(other.bucket_index), slot_index(other.slot_index) {}
-
     bool Equal_To(const Bucket_Locator& o) const {
         return bucket_index == o.bucket_index && slot_index == o.slot_index;
     }
 };
-
-constexpr const Bucket_Locator Incorrect_Bucket_Locator(-1, -1);
 
 template <typename T>
 struct Bucket_Array : Non_Copyable {
