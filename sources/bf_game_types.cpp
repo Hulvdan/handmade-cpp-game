@@ -81,7 +81,7 @@ struct Calculated_Graph_Data {
     v2i16 center;
 };
 
-struct Graph : public Non_Copyable {
+struct Graph {
     Graph_Nodes_Count nodes_count;
     size_t            nodes_allocation_count;
     u8*               nodes;  // 0b0000DLUR
@@ -272,7 +272,7 @@ enum class Building_Type {
     Produce,
 };
 
-struct Scriptable_Building : public Non_Copyable {
+struct Scriptable_Building {
     const char*   code;
     Building_Type type;
 
@@ -336,7 +336,7 @@ enum class Human_Main_State {
     Employee,
 };
 
-struct Map_Resource_To_Book : public Non_Copyable {
+struct Map_Resource_To_Book {
     Scriptable_Resource* scriptable;
     u8                   count;
     Building_ID          building_id;
@@ -351,7 +351,7 @@ struct Map_Resource_To_Book : public Non_Copyable {
         , building_id(a_building_id) {}
 };
 
-struct Resource_To_Book : public Non_Copyable {
+struct Resource_To_Book {
     Scriptable_Resource* scriptable;
     u8                   count;
 };
@@ -361,7 +361,7 @@ enum class Terrain {
     Grass,
 };
 
-struct Terrain_Tile : public Non_Copyable {
+struct Terrain_Tile {
     Terrain terrain;
 
     int  height;  // NOTE: starts at 0
@@ -378,7 +378,7 @@ enum class Element_Tile_Type {
     Flag     = 3,
 };
 
-struct Element_Tile : public Non_Copyable {
+struct Element_Tile {
     Element_Tile_Type type;
     Building_ID       building_id;
     Player_ID         player_id;
@@ -394,7 +394,7 @@ void Validate_Element_Tile(Element_Tile& tile) {
         Assert(tile.building_id == Building_ID_Missing);
 }
 
-struct Scriptable_Resource : public Non_Copyable {
+struct Scriptable_Resource {
     const char* code;
 
 #ifdef BF_CLIENT
@@ -417,7 +417,7 @@ enum class Item_To_Build_Type {
     Building,
 };
 
-struct Item_To_Build : public Non_Copyable {
+struct Item_To_Build {
     Item_To_Build_Type   type;
     Scriptable_Building* scriptable_building;
 
@@ -476,7 +476,7 @@ struct Game_Map_Data {
 
 struct Human_Data;
 
-struct Game_Map : public Non_Copyable {
+struct Game_Map {
     Entity_ID last_entity_id;
 
     v2i16             size;
@@ -504,7 +504,7 @@ struct Game_Map : public Non_Copyable {
 };
 
 template <typename T>
-struct Observer : public Non_Copyable {
+struct Observer {
     size_t count;
     T*     functions;
 };
@@ -535,7 +535,7 @@ struct Observer : public Non_Copyable {
 #define On_Item_Built__Function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
-struct Game_State : public Non_Copyable {
+struct Game_State {
     bool hot_reloaded;
     u16  dll_reloads_count;
 
@@ -563,7 +563,7 @@ struct Game_State : public Non_Copyable {
     const BFGame::Game_Library* gamelib;
 };
 
-struct Game_Memory : public Non_Copyable {
+struct Game_Memory {
     bool       is_initialized;
     Game_State state;
 };
@@ -685,7 +685,7 @@ static constexpr BF_Color BF_Color_Yellow  = {1, 1, 0};
 static constexpr BF_Color BF_Color_Cyan    = {0, 1, 1};
 static constexpr BF_Color BF_Color_Magenta = {1, 0, 1};
 
-struct Game_UI_State : public Non_Copyable {
+struct Game_UI_State {
     UI_Sprite_Params buildables_panel_params;
     // Loaded_Texture   buildables_panel_background;
     // Loaded_Texture   buildables_placeholder_background;
@@ -721,7 +721,7 @@ struct OpenGL_Framebuffer {
     GLuint color;  // color_texture_id
 };
 
-struct Game_Renderer_State : public Non_Copyable {
+struct Game_Renderer_State {
     Game_UI_State* ui_state;
     Game_Bitmap*   bitmap;
 

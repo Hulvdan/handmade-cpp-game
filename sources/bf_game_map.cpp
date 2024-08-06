@@ -389,7 +389,7 @@ void Place_Building(
 // }
 
 // TODO: rename to Human_Controller_Dependencies
-struct Human_Data : public Non_Copyable {
+struct Human_Data {
     Game_State* state;
     Game_Map*   game_map;
     Arena*      trash_arena;

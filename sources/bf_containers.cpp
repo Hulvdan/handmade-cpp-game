@@ -746,7 +746,7 @@ struct Bucket_Locator : Equatable<Bucket_Locator> {
 };
 
 template <typename T>
-struct Bucket_Array : Non_Copyable {
+struct Bucket_Array {
     Bucket<T>*    buckets;
     Bucket_Index* unfull_buckets;
 

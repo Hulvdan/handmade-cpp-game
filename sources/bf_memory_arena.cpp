@@ -1,6 +1,6 @@
 #pragma once
 
-struct Arena : public Non_Copyable {
+struct Arena {
     size_t      used;
     size_t      size;
     u8*         base;

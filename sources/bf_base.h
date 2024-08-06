@@ -209,12 +209,6 @@ Defer_<F> operator+(defer_dummy_, F&& f) {
 // =============================================================
 // Other
 // =============================================================
-struct Non_Copyable {
-    Non_Copyable()                               = default;
-    Non_Copyable(const Non_Copyable&)            = delete;
-    Non_Copyable& operator=(const Non_Copyable&) = delete;
-};
-
 template <typename T>
 BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
