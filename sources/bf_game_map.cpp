@@ -76,11 +76,7 @@ std::tuple<v2i16*, i32> Build_Path(
 #endif
 
     i32  path_count = 0;
-    auto path       = Allocate_Array(trash_arena, v2i16, path_max_count);
-
-#ifdef SHIT_MEMORY_DEBUG
-    memset(path, SHIT_BYTE_MASK, sizeof(v2i16) * path_max_count);
-#endif  // SHIT_MEMORY_DEBUG
+    auto path       = Allocate_Zeros_Array(trash_arena, v2i16, path_max_count);
 
     Array_Push(path, path_count, path_max_count, destination);
     while (GRID_PTR_VALUE(bfs_parents_mtx, destination).has_value()) {
@@ -1981,16 +1977,14 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
 ) {
     CTX_ALLOCATOR;
 
-    auto id           = Next_Graph_Segment_ID(last_entity_id);
+    auto id = Next_Graph_Segment_ID(last_entity_id);
+
     auto segment1_ptr = segments.Occupy(id, ctx);
+    memset(segment1_ptr, 0, sizeof(Graph_Segment));
 
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
     {
-#ifdef SHIT_MEMORY_DEBUG
-        memset(segment1_ptr, SHIT_BYTE_MASK, sizeof(Graph_Segment));
-#endif  // SHIT_MEMORY_DEBUG
-
         auto& segment                        = *segment1_ptr;
         segment.vertices_count               = added_segment.vertices_count;
         segment.vertices                     = added_segment.vertices;
@@ -2015,8 +2009,7 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
         if (segment2_id == id)
             continue;
 
-        // PERF: Мб тут стоит что-то из разряда
-        // AABB(graph1, graph2) для оптимизации заюзать.
+        // PERF: Мб AABB / QuadTree стоит заюзать.
         auto& segment1 = *segment1_ptr;
         auto& segment2 = *segment2_ptr;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {

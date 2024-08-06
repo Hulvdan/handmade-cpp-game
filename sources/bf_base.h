@@ -110,8 +110,6 @@ constexpr v3f v3f_one  = v3f(1, 1, 1);
 
 #include "bf_types.h"
 
-constexpr u8 SHIT_BYTE_MASK = (u8)0xCC;
-
 #ifdef TESTS
 #define Assert(expr) REQUIRE(expr)
 #define Assert_False(expr) REQUIRE_FALSE(expr)
