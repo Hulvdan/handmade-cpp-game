@@ -1,4 +1,3 @@
-#pragma once
 
 struct Arena {
     size_t used;

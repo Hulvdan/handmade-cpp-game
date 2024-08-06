@@ -1,4 +1,3 @@
-#pragma once
 
 #define COALESCE(value, fallback) (((value) != nullptr) ? (value) : (fallback))
 

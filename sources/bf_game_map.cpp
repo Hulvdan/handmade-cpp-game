@@ -1,6 +1,3 @@
-#pragma once
-
-#include "bf_base.h"
 #define GRID_PTR_VALUE(arr_ptr, pos) \
     (*((arr_ptr) + (ptrdiff_t)(gsize.x * (pos).y + (pos).x)))
 

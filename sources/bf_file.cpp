@@ -1,4 +1,3 @@
-#pragma once
 
 struct Debug_Load_File_Result {
     bool success;

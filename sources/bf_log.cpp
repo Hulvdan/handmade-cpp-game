@@ -1,8 +1,3 @@
-#pragma once
-
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/sink.h"
-
 // TODO: ВЫЧИСТИТЬ ЭТОТ СРАЧ
 // Набор функций для отбрасывания абсолютного пути файла. Оставляем только название.
 consteval const char* str_end(const char* str) {
@@ -57,142 +52,6 @@ consteval int string_length(const char* str) {
     return n;
 }
 
-// Sink, логи которого видны в консоли Visual Studio.
-class Sink : public spdlog::sinks::sink {
-public:
-    Sink(spdlog::color_mode mode = spdlog::color_mode::automatic) {
-#ifdef _WIN32
-        handle_            = ::GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD console_mode = 0;
-        in_console_        = ::GetConsoleMode(handle_, &console_mode) != 0;
-        CONSOLE_SCREEN_BUFFER_INFO info{};
-        ::GetConsoleScreenBufferInfo(handle_, &info);
-        colors_[spdlog::level::trace] = FOREGROUND_INTENSITY;
-        colors_[spdlog::level::debug]
-            = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
-        colors_[spdlog::level::info] = FOREGROUND_INTENSITY | FOREGROUND_GREEN;
-        colors_[spdlog::level::warn]
-            = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_GREEN;
-        colors_[spdlog::level::err] = FOREGROUND_INTENSITY | FOREGROUND_RED;
-        colors_[spdlog::level::critical]
-            = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_BLUE;
-        colors_[spdlog::level::off] = info.wAttributes;
-#endif
-        set_color_mode(mode);
-    }
-
-    Sink(const Sink& other)            = delete;
-    Sink& operator=(const Sink& other) = delete;
-
-    ~Sink() override = default;
-
-    void log(const spdlog::details::log_msg& msg) override {
-        spdlog::memory_buf_t formatted;
-        std::lock_guard      lock{mutex_};
-        formatter_->format(msg, formatted);
-        if (should_color_ && msg.color_range_end > msg.color_range_start) {
-            print_range(formatted, 0, msg.color_range_start);
-            print_range(formatted, msg.color_range_start, msg.color_range_end, msg.level);
-            print_range(formatted, msg.color_range_end, formatted.size());
-        }
-        else {
-            print_range(formatted, 0, formatted.size());
-        }
-        fflush(stdout);
-
-        auto s   = formatted.size();
-        auto d   = formatted.data();
-        d[s - 2] = '\0';
-        d[s - 3] = '\n';
-        DEBUG_Print(formatted.data());
-    }
-
-    void set_pattern(const std::string& pattern) final {
-        std::lock_guard lock{mutex_};
-        formatter_ = std::make_unique<spdlog::pattern_formatter>(pattern);
-    }
-
-    void set_formatter(std::unique_ptr<spdlog::formatter> formatter) override {
-        std::lock_guard lock{mutex_};
-        formatter_ = std::move(formatter);
-    }
-
-    void flush() override {
-        std::lock_guard lock{mutex_};
-        fflush(stdout);
-    }
-
-    void set_color_mode(spdlog::color_mode mode) {
-        std::lock_guard lock{mutex_};
-        switch (mode) {
-        case spdlog::color_mode::always:
-            should_color_ = true;
-            break;
-        case spdlog::color_mode::automatic:
-#if _WIN32
-            should_color_
-                = spdlog::details::os::in_terminal(stdout) || IsDebuggerPresent();
-#else
-            should_color_ = spdlog::details::os::in_terminal(stdout)
-                            && spdlog::details::os::is_color_terminal();
-#endif
-            break;
-        case spdlog::color_mode::never:
-            should_color_ = false;
-            break;
-        }
-    }
-
-private:
-    void print_range(const spdlog::memory_buf_t& formatted, size_t start, size_t end) {
-#ifdef _WIN32
-        if (in_console_) {
-            auto data = formatted.data() + start;
-            auto size = static_cast<DWORD>(end - start);
-            while (size > 0) {
-                DWORD written = 0;
-                if (!::WriteFile(handle_, data, size, &written, nullptr) || written == 0
-                    || written > size)
-                {
-                    SPDLOG_THROW(spdlog::spdlog_ex(
-                        "sink: print_range failed. GetLastError(): "
-                        + std::to_string(::GetLastError())
-                    ));
-                }
-                size -= written;
-            }
-            return;
-        }
-#endif
-        fwrite(formatted.data() + start, sizeof(char), end - start, stdout);
-    }
-
-    void print_range(
-        const spdlog::memory_buf_t& formatted,
-        size_t                      start,
-        size_t                      end,
-        spdlog::level::level_enum   level
-    ) {
-#ifdef _WIN32
-        if (in_console_) {
-            ::SetConsoleTextAttribute(handle_, colors_[level]);
-            print_range(formatted, start, end);
-            ::SetConsoleTextAttribute(handle_, colors_[spdlog::level::off]);
-            return;
-        }
-#endif
-    }
-
-    std::mutex                         mutex_;
-    std::unique_ptr<spdlog::formatter> formatter_;
-#ifdef _WIN32
-    std::array<DWORD, 7> colors_;
-    bool                 in_console_ = true;
-    HANDLE               handle_     = nullptr;
-#endif
-    bool should_color_ = false;
-};
-
 enum class Log_Type { DEBUG = 0, INFO, WARN, ERR };
 
 #define Logger__Function(name_) \
@@ -212,9 +71,6 @@ struct Tracing_Logger {
     char* previous_buffer;
     int   previous_indentation;
 
-    spdlog::logger spdlog_logger;
-    Sink           sink;
-
     char* rendering_buffer;
     char* trash_buffer;
     char* trash_buffer2;
@@ -222,9 +78,7 @@ struct Tracing_Logger {
     Tracing_Logger(Arena& arena)
         : current_indentation(0)
         , collapse_number(0)
-        , previous_indentation(0)
-        , spdlog_logger("", spdlog::sink_ptr(&sink))
-        , sink(Sink())  //
+        , previous_indentation(0)  //
     {
         previous_buffer  = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
         rendering_buffer = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
@@ -233,13 +87,7 @@ struct Tracing_Logger {
 
         *previous_buffer = '\0';
 
-        sink.set_level(spdlog::level::level_enum::trace);
-        spdlog_logger.set_level(spdlog::level::level_enum::trace);
-
-        // "[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n"
-        // sink.set_pattern("[%H:%M:%S %z] [%n] [%^%L%$] [thread %t] %v\n\0");
-        spdlog_logger.set_pattern("[%L] %v\n\0");
-        sink.set_pattern("[%L] %v\n\0");
+        // PATTERN [%L] %v\n\0
     }
 };
 
@@ -335,7 +183,8 @@ Logger__Function(Tracing_Logger_Routine) {
             );
         }
 
-        data.spdlog_logger.info(buffer_to_log);
+        DEBUG_Print(buffer_to_log);
+        // data.spdlog_logger.info(buffer_to_log);
     }
 
     // NOTE: Запоминаем сообщение в качестве предыдущего
@@ -356,22 +205,26 @@ Logger__Function(Tracing_Logger_Routine) {
     switch (log_type) {
     case Log_Type::DEBUG:
         common_log(data, message, [&data](const char* message) {
-            data.spdlog_logger.debug(message);
+            DEBUG_Print("D: %s", message);
+            // data.spdlog_logger.debug(message);
         });
         break;
     case Log_Type::INFO:
         common_log(data, message, [&data](const char* message) {
-            data.spdlog_logger.info(message);
+            DEBUG_Print("I: %s", message);
+            // data.spdlog_logger.info(message);
         });
         break;
     case Log_Type::WARN:
         common_log(data, message, [&data](const char* message) {
-            data.spdlog_logger.warn(message);
+            DEBUG_Print("W: %s", message);
+            // data.spdlog_logger.warn(message);
         });
         break;
     case Log_Type::ERR:
         common_log(data, message, [&data](const char* message) {
-            data.spdlog_logger.error(message);
+            DEBUG_Print("E: %s", message);
+            // data.spdlog_logger.error(message);
         });
         break;
     default:
@@ -379,14 +232,29 @@ Logger__Function(Tracing_Logger_Routine) {
     }
 }
 
-#define _LOG_COMMON(log_type_, message_, ...)                              \
-    STATEMENT({                                                            \
-        if (logger_routine != nullptr) {                                   \
-            auto str = spdlog::fmt_lib::vformat(                           \
-                (message_), spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
-            );                                                             \
-            logger_routine(logger_data, (log_type_), str.c_str());         \
-        }                                                                  \
+const char* Text_Format(const char* text, ...) {
+#if !defined(BF_TEXTFORMAT_MAX_SIZE)
+#    define BF_TEXTFORMAT_MAX_SIZE 256
+#endif
+
+    static char buffer[BF_TEXTFORMAT_MAX_SIZE];
+
+    va_list args;
+    va_start(args, text);
+    vsprintf(buffer, text, args);
+    va_end(args);
+
+    buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';
+
+    return buffer;
+}
+
+#define _LOG_COMMON(log_type_, message_, ...)                  \
+    STATEMENT({                                                \
+        if (logger_routine != nullptr) {                       \
+            auto str = Text_Format((message_), ##__VA_ARGS__); \
+            logger_routine(logger_data, (log_type_), str);     \
+        }                                                      \
     })
 
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
@@ -428,37 +296,23 @@ consteval auto extract_substring(const char* src) {
 // TODO: А можно ли как-то убрать const_cast тут?
 // TODO: Вычислять `static constexpr const scope_name = ...`.
 // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
-#define LOG_TRACING_SCOPE                                                                  \
-    if (logger_tracing_routine != nullptr) {                                               \
-        constexpr const auto   loc = std::source_location::current();                      \
-        constexpr const auto   n   = index_of_brace_in_function_name(loc.function_name()); \
-        constexpr const auto   function_name = extract_substring<n>(loc.function_name());  \
-        constexpr const char*  file_n        = extract_file_name(loc.file_name());         \
-        constexpr const size_t nn            = fmt::formatted_size(                        \
-            FMT_COMPILE("[{}:{}:{}:{}]"),                                       \
-            file_n,                                                             \
-            loc.line(),                                                         \
-            loc.column(),                                                       \
-            function_name.data()                                                \
-        );                                                                      \
-        constexpr char scope_name[nn + 1] = {};                                            \
-        fmt::format_to(                                                                    \
-            const_cast<char*>(scope_name),                                                 \
-            FMT_COMPILE("[{}:{}:{}:{}]"),                                                  \
-            file_n,                                                                        \
-            loc.line(),                                                                    \
-            loc.column(),                                                                  \
-            function_name.data()                                                           \
-        );                                                                                 \
-        const_cast<char*>(scope_name)[nn] = '\0';                                          \
-        static_assert(scope_name != nullptr);                                              \
-                                                                                           \
-        logger_tracing_routine(logger_data, true, scope_name);                             \
-    }                                                                                      \
-                                                                                           \
-    defer {                                                                                \
-        if (logger_tracing_routine != nullptr)                                             \
-            logger_tracing_routine(logger_data, false, nullptr);                           \
+#define LOG_TRACING_SCOPE                                                                \
+    if (logger_tracing_routine != nullptr) {                                             \
+        constexpr const auto  loc    = std::source_location::current();                  \
+        constexpr const char* file_n = extract_file_name(loc.file_name());               \
+        constexpr const auto  n = index_of_brace_in_function_name(loc.function_name());  \
+        constexpr const auto  function_name = extract_substring<n>(loc.function_name()); \
+                                                                                         \
+        /* const auto scope_name = Text_Format(                                          \
+            "[%s:%d:%d:%s]", file_n, loc.line(), loc.column(), function_name.data()      \
+        ); */                                                                            \
+                                                                                         \
+        logger_tracing_routine(logger_data, true, "[]");                                 \
+    }                                                                                    \
+                                                                                         \
+    defer {                                                                              \
+        if (logger_tracing_routine != nullptr)                                           \
+            logger_tracing_routine(logger_data, false, nullptr);                         \
     };
 // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
 

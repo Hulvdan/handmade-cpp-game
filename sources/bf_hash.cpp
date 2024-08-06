@@ -1,4 +1,3 @@
-#pragma once
 
 constexpr u32 EMPTY_HASH32 = 0x811c9dc5;
 

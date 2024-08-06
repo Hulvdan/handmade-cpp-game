@@ -18,8 +18,6 @@
 
 #include <optional>
 
-#include "fmt/compile.h"
-
 #include "generated/bf_atlas_generated.h"
 #include "generated/bf_gamelib_generated.h"
 

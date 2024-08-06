@@ -1,4 +1,3 @@
-#pragma once
 #include "bf_base.h"
 
 #define Kilobytes(value) ((value) * 1024)
