@@ -249,12 +249,21 @@ const char* Text_Format(const char* text, ...) {
     return buffer;
 }
 
-#define _LOG_COMMON(log_type_, message_, ...)                  \
-    STATEMENT({                                                \
-        if (logger_routine != nullptr) {                       \
-            auto str = Text_Format((message_), ##__VA_ARGS__); \
-            logger_routine(logger_data, (log_type_), str);     \
-        }                                                      \
+// FIXME:
+// #define _LOG_COMMON(log_type_, message_, ...)                        \
+//     STATEMENT({                                                      \
+//         if (logger_routine != nullptr) {                             \
+//             const auto str = Text_Format((message_), ##__VA_ARGS__); \
+//             logger_routine(logger_data, (log_type_), str);           \
+//         }                                                            \
+//     })
+
+#define _LOG_COMMON(log_type_, message_, ...)              \
+    STATEMENT({                                            \
+        if (0) {                                           \
+            const auto str = Text_Format((message_));      \
+            logger_routine(logger_data, (log_type_), str); \
+        }                                                  \
     })
 
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
@@ -293,26 +302,15 @@ consteval auto extract_substring(const char* src) {
     return res;
 }
 
-// TODO: А можно ли как-то убрать const_cast тут?
-// TODO: Вычислять `static constexpr const scope_name = ...`.
 // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
-#define LOG_TRACING_SCOPE                                                                \
-    if (logger_tracing_routine != nullptr) {                                             \
-        constexpr const auto  loc    = std::source_location::current();                  \
-        constexpr const char* file_n = extract_file_name(loc.file_name());               \
-        constexpr const auto  n = index_of_brace_in_function_name(loc.function_name());  \
-        constexpr const auto  function_name = extract_substring<n>(loc.function_name()); \
-                                                                                         \
-        /* const auto scope_name = Text_Format(                                          \
-            "[%s:%d:%d:%s]", file_n, loc.line(), loc.column(), function_name.data()      \
-        ); */                                                                            \
-                                                                                         \
-        logger_tracing_routine(logger_data, true, "[]");                                 \
-    }                                                                                    \
-                                                                                         \
-    defer {                                                                              \
-        if (logger_tracing_routine != nullptr)                                           \
-            logger_tracing_routine(logger_data, false, nullptr);                         \
+#define LOG_TRACING_SCOPE                                        \
+    if (logger_tracing_routine != nullptr) {                     \
+        logger_tracing_routine(logger_data, true, "[]");         \
+    }                                                            \
+                                                                 \
+    defer {                                                      \
+        if (logger_tracing_routine != nullptr)                   \
+            logger_tracing_routine(logger_data, false, nullptr); \
     };
 // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
 
