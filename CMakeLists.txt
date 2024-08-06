@@ -8,8 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 set(FLATBUFFERS_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/flatbuffers-24.3.25")
-set(SPDLOG_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/spdlog-1.13.0/include")
-set(FMT_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/fmt-10.2.0")
 
 add_compile_definitions(
     BF_INTERNAL
@@ -20,8 +18,6 @@ add_compile_definitions(
     TRACY_ENABLE
     # TRACY_ON_DEMAND
 )
-
-add_subdirectory(vendor/libraries/fmt-10.2.0)
 
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
@@ -63,8 +59,6 @@ ENDIf()
 target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
-    "${SPDLOG_DIR}"
-    "${FMT_DIR}/include"
     "${FLATBUFFERS_DIR}/include"
 )
 target_sources(bf_game PRIVATE
@@ -76,7 +70,7 @@ target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/imgui_widgets.cpp"
 )
 # TODO: How to decouple from windows OpenGL?
-target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib tracy fmt::fmt)
+target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib tracy)
 
 # === Building win32_platform.exe ===
 add_executable(win32 WIN32 sources/win32_platform.cpp)
@@ -132,14 +126,11 @@ add_executable(tests sources/tests.cpp)
 target_include_directories(tests PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
-    "${SPDLOG_DIR}"
-    "${FMT_DIR}/include"
     "${FLATBUFFERS_DIR}/include"
 )
 target_compile_definitions(tests PRIVATE
     GAME_LIBRARY_BUILD
     TESTS
-    SPDLOG_FMT_EXTERNAL
 
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
@@ -154,7 +145,7 @@ target_sources(tests PRIVATE
     "${IMGUI_DIR}/imgui_widgets.cpp"
 )
 target_link_libraries(tests PRIVATE opengl32.lib)
-target_link_libraries(tests PRIVATE glew glm tracy fmt::fmt)
+target_link_libraries(tests PRIVATE glew glm tracy)
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/sources")
 target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 
@@ -200,8 +191,6 @@ IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends")
-    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/spdlog-1.13.0/include")
-    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/fmt-10.2.0")
 ENDIf()
 
 # === Other Win32 Bullshiet ===
