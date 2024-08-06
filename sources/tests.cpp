@@ -197,14 +197,9 @@ struct Test_Node {
 };
 
 #define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
-    do {                                                        \
-        (allocator_).Allocate((size_), (alignment_));           \
-    } while (0)
+    STATEMENT({ (allocator_).Allocate((size_), (alignment_)); })
 
-#define Allocator_Free_Macro(allocator_, key_) \
-    do {                                       \
-        (allocator_).Free((key_));             \
-    } while (0)
+#define Allocator_Free_Macro(allocator_, key_) STATEMENT({ (allocator_).Free((key_)); })
 
 TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);

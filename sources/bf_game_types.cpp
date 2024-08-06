@@ -512,12 +512,12 @@ struct Observer : public Non_Copyable {
 // Usage:
 //     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
 #define INVOKE_OBSERVER(observer, code)                    \
-    do {                                                   \
+    STATEMENT({                                                   \
         FOR_RANGE (size_t, i, observer.count) {            \
             auto&    function = *(observer.functions + i); \
             function code;                                 \
-        }                                                  \
-    } while (0)
+    }                                                      \
+    })
 
 // Usage:
 //     On_Item_Built__Function((*callbacks[])) = {
@@ -525,12 +525,12 @@ struct Observer : public Non_Copyable {
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
-    do {                                                                               \
+    STATEMENT({                                                                        \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                   \
         (observer).functions                                                           \
             = (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
         memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
-    } while (0)
+    })
 
 #define On_Item_Built__Function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)

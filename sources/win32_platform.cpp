@@ -393,13 +393,13 @@ extern IMGUI_IMPL_API LRESULT
 ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #define BF_MOUSE_POS                            \
-    do {                                        \
+    STATEMENT({                                 \
         POINT p;                                \
         GetCursorPos(&p);                       \
         ScreenToClient(window_handle, &p);      \
         event.position.x = p.x;                 \
         event.position.y = client_height - p.y; \
-    } while (0)
+    })
 
 LRESULT
 WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {

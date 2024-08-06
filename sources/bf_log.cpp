@@ -246,10 +246,8 @@ struct Tracing_Logger {
 #if 1
 
 using Root_Logger_Type = Tracing_Logger;
-#    define MAKE_LOGGER(logger_ptr, arena)                           \
-        do {                                                         \
-            (logger_ptr) = std::construct_at((logger_ptr), (arena)); \
-        } while (0)
+#    define MAKE_LOGGER(logger_ptr, arena) \
+        STATEMENT({ (logger_ptr) = std::construct_at((logger_ptr), (arena)); })
 
 #else
 
@@ -382,14 +380,14 @@ Logger__Function(Tracing_Logger_Routine) {
 }
 
 #define _LOG_COMMON(log_type_, message_, ...)                              \
-    do {                                                                   \
+    STATEMENT({                                                            \
         if (logger_routine != nullptr) {                                   \
             auto str = spdlog::fmt_lib::vformat(                           \
                 (message_), spdlog::fmt_lib::make_format_args(__VA_ARGS__) \
             );                                                             \
             logger_routine(logger_data, (log_type_), str.c_str());         \
         }                                                                  \
-    } while (0)
+    })
 
 #define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
 #define LOG_INFO(message_, ...) _LOG_COMMON(Log_Type::INFO, (message_), ##__VA_ARGS__)
