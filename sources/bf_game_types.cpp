@@ -71,8 +71,6 @@ Direction Opposite(Direction dir) {
     return (Direction)(((u8)(dir) + 2) % 4);
 }
 
-using Graph_Nodes_Count = u16;
-
 struct Calculated_Graph_Data {
     i16* dist;
     i16* prev;
@@ -84,9 +82,9 @@ struct Calculated_Graph_Data {
 };
 
 struct Graph {
-    Graph_Nodes_Count nodes_count;
-    size_t            nodes_allocation_count;
-    u8*               nodes;  // 0b0000DLUR
+    u16    nodes_count;
+    size_t nodes_allocation_count;
+    u8*    nodes;  // 0b0000DLUR
 
     v2i16 size;
     v2i16 offset;
@@ -196,7 +194,7 @@ using Graph_Segment_ID = u32;
 struct Graph_Segment {
     static const Entity_ID component_mask = Component_Mask(1);
 
-    Graph_Nodes_Count vertices_count;
+    u16 vertices_count;
     v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
 
     Graph graph;

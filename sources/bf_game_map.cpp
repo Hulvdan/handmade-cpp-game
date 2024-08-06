@@ -1410,7 +1410,7 @@ void Regenerate_Terrain_Tiles(
 ) {
     auto gsize = game_map.size;
 
-    auto noise_pitch = Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
+    auto noise_pitch = (size_t)Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
     auto output_size = noise_pitch * noise_pitch;
     TEMP_USAGE(trash_arena);
 
@@ -1438,8 +1438,9 @@ void Regenerate_Terrain_Tiles(
         FOR_RANGE (int, x, gsize.x) {
             auto& tile   = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::Grass;
-            auto noise   = (f32)(*(terrain_perlin + noise_pitch * y + x)) / (f32)u16_max;
-            tile.height  = int((data.terrain_max_height + 1) * noise);
+            auto noise   = (f32)(*(terrain_perlin + (ptrdiff_t)(noise_pitch * y + x)))
+                         / (f32)u16_max;
+            tile.height = int((f32)(data.terrain_max_height + 1) * noise);
 
             Assert(tile.height >= 0);
             Assert(tile.height <= data.terrain_max_height);
@@ -1490,7 +1491,8 @@ void Regenerate_Terrain_Tiles(
             auto& tile     = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
-            auto noise    = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
+            auto noise = (f32)(*(forest_perlin + (ptrdiff_t)(noise_pitch * y + x)))
+                         / (f32)u16_max;
             bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
             // TODO: прикрутить terrain-ресурс леса
