@@ -1201,8 +1201,6 @@ TEST_CASE ("Update_Tiles") {
 
     delete[] trash_arena.base;
     Free_Allocations();
-    // if (segments != nullptr)
-    //     Deinitialize_Bucket_Array(*segments);
 }
 
 TEST_CASE ("Queue") {

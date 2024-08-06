@@ -171,46 +171,9 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i16 pos) {
 }
 
 template <typename T>
-void Init_Bucket_Array(
-    Bucket_Array<T>& container,
-    u32              buckets_count,
-    u32              items_per_bucket,
-    MCTX
-) {
-    container.allocator      = ctx->allocator;
-    container.allocator_data = ctx->allocator_data;
-
-    container.items_per_bucket = items_per_bucket;
-    container.buckets_count    = buckets_count;
-
-    container.buckets              = nullptr;
-    container.unfull_buckets       = nullptr;
-    container.count                = 0;
-    container.used_buckets_count   = 0;
-    container.unfull_buckets_count = 0;
-}
-
-template <typename T>
 void Set_Container_Allocator_Context(T& container, MCTX) {
     container.allocator_      = ctx->allocator;
     container.allocator_data_ = ctx->allocator_data;
-}
-
-template <typename T>
-void Deinit_Bucket_Array(Bucket_Array<T>& container, MCTX) {
-    CONTAINER_ALLOCATOR;
-
-    for (auto bucket_ptr = container.buckets;
-         bucket_ptr != container.buckets + container.used_buckets_count;
-         bucket_ptr++)
-    {
-        auto& bucket = *bucket_ptr;
-        FREE((u8*)bucket.occupied, container.items_per_bucket / 8);
-        FREE((T*)bucket.data, sizeof(T) * container.items_per_bucket);
-    }
-
-    FREE(container.buckets, sizeof(Bucket<T>) * container.buckets_count);
-    FREE(container.unfull_buckets, sizeof(Bucket<T>) * container.buckets_count);
 }
 
 template <typename T>
