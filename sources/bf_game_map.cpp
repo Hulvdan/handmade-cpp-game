@@ -1490,7 +1490,7 @@ void Regenerate_Terrain_Tiles(
             auto& tile     = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
-            auto noise    = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
+            auto noise    = *(f32)(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
             bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
             // TODO: прикрутить terrain-ресурс леса
@@ -1707,7 +1707,7 @@ bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
         if (!Pos_Is_In_Bounds(new_pos, graph.size))
             return false;
 
-        u8 adjacent_node = *(graph.nodes + gx * new_pos.y + new_pos.x);
+        u8 adjacent_node = *(graph.nodes + (ptrdiff_t)(gx * new_pos.y + new_pos.x));
         if (!Graph_Node_Has(adjacent_node, Opposite(dir)))
             return false;
     }
@@ -1726,8 +1726,8 @@ void Assert_Is_Undirected(Graph& graph) {
     }
 }
 
-#define _Anon_Variable(name, counter) name##counter
-#define Anon_Variable(name, counter) _Anon_Variable(name, counter)
+#define Anon_Variable_(name, counter) name##counter
+#define Anon_Variable(name, counter) Anon_Variable_(name, counter)
 
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     TEMP_USAGE(trash_arena);
@@ -1780,7 +1780,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
     // >     prev[u][v] ← u
     {
-        int node_index = 0;
+        i16 node_index = 0;
         FOR_RANGE (int, y, height) {
             FOR_RANGE (int, x, width) {
                 u8 node = nodes[y * width + x];
@@ -1809,7 +1809,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // >     dist[v][v] ← 0
     // >     prev[v][v] ← v
     {
-        FOR_RANGE (int, node_index, n) {
+        FOR_RANGE (i16, node_index, n) {
             dist[node_index * n + node_index] = 0;
             prev[node_index * n + node_index] = node_index;
         }
@@ -1823,9 +1823,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     //                 dist[i][j] ← dist[i][k] + dist[k][j]
     //                 prev[i][j] ← prev[k][j]
     //
-    FOR_RANGE (int, k, n) {
-        FOR_RANGE (int, j, n) {
-            FOR_RANGE (int, i, n) {
+    FOR_RANGE (i16, k, n) {
+        FOR_RANGE (i16, j, n) {
+            FOR_RANGE (i16, i, n) {
                 auto ij = dist[n * i + j];
                 auto ik = dist[n * i + k];
                 auto kj = dist[n * k + j];

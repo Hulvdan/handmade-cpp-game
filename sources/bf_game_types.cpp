@@ -403,43 +403,41 @@ enum class Human_Removal_Reason {
     Employee_Reached_Building,
 };
 
-#define HumanState_OnEnter_Function(name_)                             \
-    /* NOLINTBEGIN(misc-unused-parameters) */                          \
-    void name_(                                                        \
-        Human_State& state, Human& human, const Human_Data& data, MCTX \
-    ) /* NOLINTEND(misc-unused-parameters) */
+#define NOLINT_UNUSED_PARAMETERS(code)        \
+    /* NOLINTBEGIN(misc-unused-parameters) */ \
+    code /* NOLINTEND(misc-unused-parameters) */
 
-#define HumanState_OnExit_Function(name_)                              \
-    /* NOLINTBEGIN(misc-unused-parameters) */                          \
-    void name_(                                                        \
-        Human_State& state, Human& human, const Human_Data& data, MCTX \
-    ) /* NOLINTEND(misc-unused-parameters) */
+#define HumanState_OnEnter_Function(name_)                                         \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
+
+#define HumanState_OnExit_Function(name_)                                          \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
 
 #define HumanState_Update_Function(name_)                                      \
-    /* NOLINTBEGIN(misc-unused-parameters) */                                  \
-    void name_(                                                                \
+    NOLINT_UNUSED_PARAMETERS(void name_(                                       \
         Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
-    ) /* NOLINTEND(misc-unused-parameters) */
+    ))
 
 #define HumanState_OnHumanCurrentSegmentChanged_Function(name_) \
-    /* NOLINTBEGIN(misc-unused-parameters) */                   \
-    void name_(                                                 \
+    NOLINT_UNUSED_PARAMETERS(void name_(                        \
         Human_State&      state,                                \
         Human&            human,                                \
         const Human_Data& data,                                 \
         Graph_Segment_ID  old_segment_id,                       \
         MCTX                                                    \
-    ) /* NOLINTEND(misc-unused-parameters) */
+    ))
 
-#define HumanState_OnHumanMovedToTheNextTile_Function(name_)           \
-    /* NOLINTBEGIN(misc-unused-parameters) */                          \
-    void name_(                                                        \
-        Human_State& state, Human& human, const Human_Data& data, MCTX \
-    ) /* NOLINTEND(misc-unused-parameters) */
+#define HumanState_OnHumanMovedToTheNextTile_Function(name_)                       \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
 
 #define HumanState_UpdateStates_Function(name_) \
-    /* NOLINTBEGIN(misc-unused-parameters) */   \
-    void name_(                                 \
+    NOLINT_UNUSED_PARAMETERS(void name_(        \
         Human_State&      state,                \
         Human&            human,                \
         const Human_Data& data,                 \
@@ -447,7 +445,7 @@ enum class Human_Removal_Reason {
         Building_ID       old_building_id,      \
         Building*         old_building,         \
         MCTX                                    \
-    ) /* NOLINTEND(misc-unused-parameters) */
+    ))
 
 enum class Human_States {
     None             = -1,
@@ -559,7 +557,8 @@ struct Observer {
 //     On_Item_Built__Function((*callbacks[])) = {
 //         Renderer__On_Item_Built,
 //     };
-//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks,
+//     arena);
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
     STATEMENT({                                                                        \
         (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                   \
