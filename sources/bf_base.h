@@ -267,7 +267,7 @@ private:
     Self_Type& _self() {
         return scast<Self_Type&>(*this);
     }
-    const Self_Type& _self() const {
+    [[nodiscard]] const Self_Type& _self() const {
         return scast<const Self_Type&>(*this);
     }
 

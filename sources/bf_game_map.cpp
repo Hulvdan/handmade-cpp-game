@@ -1,11 +1,11 @@
 #pragma once
 
 #include "bf_base.h"
-#define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
+#define GRID_PTR_VALUE(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
 
 #define Array_Push(array, array_count, array_max_count, value) \
     STATEMENT({                                                \
-        *(array + (array_count)) = value;                      \
+        *((array) + (array_count)) = value;                    \
         (array_count)++;                                       \
         Assert((array_count) <= (array_max_count));            \
     })
@@ -22,7 +22,7 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
     STATEMENT({                              \
         Assert((count) >= 0);                \
         FOR_RANGE (i32, l, (count) / 2) {    \
-            auto r         = count - l - 1;  \
+            auto r         = (count)-l - 1;  \
             auto t         = *((array) + l); \
             *((array) + l) = *((array) + r); \
             *((array) + r) = t;              \

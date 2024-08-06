@@ -26,7 +26,7 @@ struct Fixed_Size_Slice {
     i32 max_count = 0;
     T*  items     = nullptr;
 
-    T* Add_Unsafe() {
+    [[nodiscard]] T* Add_Unsafe() {
         Assert(count < max_count);
         auto result = items + count;
         count++;
@@ -207,8 +207,6 @@ struct Vector {
 
     T* Vector_Occupy_Slot(MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
-
-        i32 locator = count;
 
         if (base == nullptr) {
             Assert(max_count == 0);
