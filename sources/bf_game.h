@@ -16,26 +16,26 @@
 #ifdef GAME_LIBRARY_BUILD
 // #error "We are compiling the library"
 // Building the library
-#if _WIN32
+#    if _WIN32
 // Use the Windows-specific export attribute
-#define GAME_LIBRARY_EXPORT __declspec(dllexport)
-#elif __GNUC__ >= 4
+#        define GAME_LIBRARY_EXPORT __declspec(dllexport)
+#    elif __GNUC__ >= 4
 // Use the GCC-specific export attribute
-#define GAME_LIBRARY_EXPORT __attribute__((visibility("default")))
-#else
+#        define GAME_LIBRARY_EXPORT __attribute__((visibility("default")))
+#    else
 // Assume that no export attributes are needed
-#define GAME_LIBRARY_EXPORT
-#endif
+#        define GAME_LIBRARY_EXPORT
+#    endif
 #else  // GAME_LIBRARY_BUILD
 // #error "We are including the library"
 // Using (including) the library
-#if _WIN32
+#    if _WIN32
 // Use the Windows-specific import attribute
-#define GAME_LIBRARY_EXPORT __declspec(dllimport)
-#else
+#        define GAME_LIBRARY_EXPORT __declspec(dllimport)
+#    else
 // Assume that no import attributes are needed
-#define GAME_LIBRARY_EXPORT
-#endif
+#        define GAME_LIBRARY_EXPORT
+#    endif
 #endif  // GAME_LIBRARY_BUILD
 
 #define Allocate_Pages__Function(name_) u8* name_(u32 count)

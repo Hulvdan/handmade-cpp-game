@@ -246,16 +246,16 @@ struct Tracing_Logger {
 #if 1
 
 using Root_Logger_Type = Tracing_Logger;
-#define MAKE_LOGGER(logger_ptr, arena)                           \
-    do {                                                         \
-        (logger_ptr) = std::construct_at((logger_ptr), (arena)); \
-    } while (0)
+#    define MAKE_LOGGER(logger_ptr, arena)                           \
+        do {                                                         \
+            (logger_ptr) = std::construct_at((logger_ptr), (arena)); \
+        } while (0)
 
 #else
 
 // NOTE: void* = отключение логирования
 using Root_Logger_Type = void*;
-#define MAKE_LOGGER(logger_ptr, arena) (void)0
+#    define MAKE_LOGGER(logger_ptr, arena) (void)0
 
 #endif
 

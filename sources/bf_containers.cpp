@@ -941,9 +941,10 @@ BF_FORCE_INLINE u8 Bucket_Occupied(Bucket<T>& bucket_ref, u32 index) {
     return result;
 }
 
-#define BUCKET_MARK_OCCUPIED(bucket_ref, index) MARK_BIT((bucket_ref).occupied, (index))
-#define BUCKET_UNMARK_OCCUPIED(bucket_ref, index) \
-    UNMARK_BIT((bucket_ref).occupied, (index))
+#    define BUCKET_MARK_OCCUPIED(bucket_ref, index) \
+        MARK_BIT((bucket_ref).occupied, (index))
+#    define BUCKET_UNMARK_OCCUPIED(bucket_ref, index) \
+        UNMARK_BIT((bucket_ref).occupied, (index))
 #else
 // NOTE: Здесь можно будет переписать
 // на использование просто bool, если понадобится

@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef BF_CLIENT
-#error "This code should run on a client! BF_CLIENT must be defined!"
+#    error "This code should run on a client! BF_CLIENT must be defined!"
 #endif  // BF_CLIENT
 #pragma pack(push, 1)
 struct Debug_BMP_Header {

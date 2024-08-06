@@ -33,3 +33,4 @@ ForEachMacros: [
     'FOREACH',
     'TEST_CASE',
 ]
+IndentPPDirectives: 'AfterHash'

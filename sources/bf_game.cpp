@@ -2,7 +2,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_win32.h"
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
 #endif
 
 #include <cstdlib>
@@ -41,8 +41,8 @@ global_var OS_Data* global_os_data = nullptr;
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
-#include "bfc_tilemap.cpp"
-#include "bfc_renderer.cpp"
+#    include "bfc_tilemap.cpp"
+#    include "bfc_renderer.cpp"
 #endif  // BF_CLIENT
 
 #if BF_SERVER

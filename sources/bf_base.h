@@ -5,9 +5,9 @@
 #include "glm/vec2.hpp"
 
 #ifdef BF_INTERNAL
-#define BREAKPOINT __debugbreak()
+#    define BREAKPOINT __debugbreak()
 #else  // BF_INTERNAL
-#define BREAKPOINT
+#    define BREAKPOINT
 #endif  // BF_INTERNAL
 
 #ifdef BF_INTERNAL
@@ -34,8 +34,8 @@ void DEBUG_Print(const char* text, ...) {
 }
 
 #else  // BF_INTERNAL
-#define DEBUG_Error(text_, ...)
-#define DEBUG_Print(text_, ...)
+#    define DEBUG_Error(text_, ...)
+#    define DEBUG_Print(text_, ...)
 #endif  // BF_INTERNAL
 
 // =============================================================
@@ -43,26 +43,26 @@ void DEBUG_Print(const char* text, ...) {
 // =============================================================
 // NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
 #if BF_NO_INLINE_HINTS /* disable inlining hints */
-#if defined(__GNUC__) || defined(__clang__)
-#define BF_FORCE_INLINE static __attribute__((unused))
-#else
-#define BF_FORCE_INLINE static
-#endif
-#define BF_NO_INLINE static
+#    if defined(__GNUC__) || defined(__clang__)
+#        define BF_FORCE_INLINE static __attribute__((unused))
+#    else
+#        define BF_FORCE_INLINE static
+#    endif
+#    define BF_NO_INLINE static
 /* enable inlining hints */
 #elif defined(__GNUC__) || defined(__clang__)
-#define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
-#define BF_NO_INLINE static __attribute__((noinline))
+#    define BF_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
+#    define BF_NO_INLINE static __attribute__((noinline))
 #elif defined(_MSC_VER) /* Visual Studio */
-#define BF_FORCE_INLINE static __forceinline
-#define BF_NO_INLINE static __declspec(noinline)
+#    define BF_FORCE_INLINE static __forceinline
+#    define BF_NO_INLINE static __declspec(noinline)
 #elif defined(__cplusplus) \
     || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) /* C99 */
-#define BF_FORCE_INLINE static inline
-#define BF_NO_INLINE static
+#    define BF_FORCE_INLINE static inline
+#    define BF_NO_INLINE static
 #else
-#define BF_FORCE_INLINE static
-#define BF_NO_INLINE static
+#    define BF_FORCE_INLINE static
+#    define BF_NO_INLINE static
 #endif
 
 // =============================================================
@@ -110,13 +110,29 @@ constexpr v3f v3f_one  = v3f(1, 1, 1);
 
 #include "bf_types.h"
 
+#define STATEMENT1(statement) \
+    do {                      \
+        statement;            \
+    } while (false)
+
 #ifdef TESTS
-#define Assert(expr) REQUIRE(expr)
-#define Assert_False(expr) REQUIRE_FALSE(expr)
+
+#    define Assert(expr) REQUIRE(expr)
+#    define Assert_False(expr) REQUIRE_FALSE(expr)
+
 #else  // TESTS
-#include <cassert>
-#define Assert(expr) assert(expr)
-#define Assert_False(expr) assert(!((bool)(expr)))
+
+#    define Assert(expr)         \
+        STATEMENT1({             \
+            if (!(bool)(expr))   \
+                *(char*)(0) = 0; \
+        })
+#    define Assert_False(expr)   \
+        STATEMENT1({             \
+            if ((bool)(expr))    \
+                *(char*)(0) = 0; \
+        })
+
 #endif  // TESTS
 
 template <typename T>
@@ -132,7 +148,7 @@ BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
     return value;
 }
 #else
-#define Assert_Not_Null(value) value
+#    define Assert_Not_Null(value) value
 #endif
 
 #define INVALID_PATH Assert(false)

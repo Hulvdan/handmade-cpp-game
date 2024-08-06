@@ -37,12 +37,12 @@
     )
 
 #if 1
-#define SANITIZE                                              \
-    (COALESCE(allocator, Root_Allocator_Routine))(            \
-        Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \
-    )
+#    define SANITIZE                                              \
+        (COALESCE(allocator, Root_Allocator_Routine))(            \
+            Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \
+        )
 #else
-#define SANITIZE (void)0
+#    define SANITIZE (void)0
 #endif
 
 #define MCTX Context* ctx
@@ -894,12 +894,12 @@ struct Stoopid_Affix {
 
 #ifndef Root_Allocator_Type
 
-#if 1
-#define Root_Allocator_Type \
-    Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
-#else
-#define Root_Allocator_Type Malloc_Allocator
-#endif
+#    if 1
+#        define Root_Allocator_Type \
+            Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
+#    else
+#        define Root_Allocator_Type Malloc_Allocator
+#    endif
 
 #endif  // Root_Allocator_Type
 
