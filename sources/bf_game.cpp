@@ -292,11 +292,11 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
 
-    Arena root_arena = {};
-    root_arena.name  = "root_arena";
-    root_arena.base  = (u8*)memory_ptr;
-    root_arena.size  = memory_size;
-    root_arena.used  = 0;
+    Arena root_arena      = {};
+    root_arena.debug_name = "root_arena";
+    root_arena.base       = (u8*)memory_ptr;
+    root_arena.size       = memory_size;
+    root_arena.used       = 0;
 
     auto& memory       = *Allocate_For(root_arena, Game_Memory);
     auto& state        = memory.state;
@@ -414,11 +414,11 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
-        state.arena.name          = "arena";
-        non_persistent_arena.name = Allocate_Formatted_String(
+        state.arena.debug_name          = "arena";
+        non_persistent_arena.debug_name = Allocate_Formatted_String(
             non_persistent_arena, "non_persistent_arena_%d", state.dll_reloads_count
         );
-        trash_arena.name = Allocate_Formatted_String(
+        trash_arena.debug_name = Allocate_Formatted_String(
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count
         );
 

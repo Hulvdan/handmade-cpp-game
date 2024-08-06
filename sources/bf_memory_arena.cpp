@@ -1,10 +1,11 @@
 #pragma once
 
 struct Arena {
-    size_t      used;
-    size_t      size;
-    u8*         base;
-    const char* name;
+    size_t used;
+    size_t size;
+    u8*    base;
+
+    const char* debug_name;
 };
 
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
