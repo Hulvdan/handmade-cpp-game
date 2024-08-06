@@ -47,9 +47,9 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     // |@@@|
     // | @ |
 
-    Load_Smart_Tile_Result res = {};
-    tile.rules_count           = 0;
-    tile.rules                 = nullptr;
+    Load_Smart_Tile_Result res{};
+    tile.rules_count = 0;
+    tile.rules       = nullptr;
 
     // 1. Parsing fallback_texture_name
     {

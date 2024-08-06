@@ -32,7 +32,7 @@ struct Load_BMP_RGBA_Result {
 };
 
 Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* data) {
-    Load_BMP_RGBA_Result res = {};
+    Load_BMP_RGBA_Result res{};
 
     auto& header = *(Debug_BMP_Header*)data;
 
@@ -98,7 +98,7 @@ void DEBUG_Load_Texture(
     char filepath[512];
     sprintf(filepath, "assets/art/%s.bmp", texture_name);
 
-    Load_BMP_RGBA_Result bmp_result = {};
+    Load_BMP_RGBA_Result bmp_result{};
     {
         TEMP_USAGE(trash_arena);
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
@@ -151,7 +151,7 @@ Atlas Load_Atlas(
     FOR_RANGE (int, i, textures_count) {
         auto& texture = *atlas_spec->textures()->Get(i);
 
-        C_Texture t{
+        C_Texture t = {
             scast<Texture_ID>(texture.id()),
             {
                 f32(texture.atlas_x()) / f32(atlas.size.x),
@@ -160,7 +160,7 @@ Atlas Load_Atlas(
             {texture.size_x(), texture.size_y()},
         };
 
-        atlas.textures.Add(std::move(t), ctx);
+        *atlas.textures.Vector_Occupy_Slot(ctx) = t;
     }
 
     auto& atlas_texture = atlas.texture;
@@ -355,7 +355,11 @@ void Add_Building_Sprite(
     building_sprite.texture  = scriptable.texture;
     building_sprite.z        = 0;
 
-    rstate.sprites.Add(building_id, building_sprite, ctx);
+    {
+        auto [pid, pvalue] = rstate.sprites.Add(ctx);
+        *pid               = building_id;
+        *pvalue            = building_sprite;
+    }
 }
 
 void Set_Flag_Tile(Game_Renderer_State& rstate, Game_Map& game_map, v2i pos, MCTX) {
@@ -396,7 +400,7 @@ void Post_Init_Renderer(
         &rstate.atlas, Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx)
     );
 
-    std::construct_at(&rstate.sprites, 32, ctx);
+    std::construct_at(&rstate.sprites);
 
     // Перезагрузка шейдеров.
     Create_Shader_Program(
@@ -1192,8 +1196,8 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     auto& rstate   = Assert_Deref(state.renderer_state);
     auto& ui_state = Assert_Deref(rstate.ui_state);
 
-    Get_Buildable_Textures_Result res = {};
-    auto allocation_size              = sizeof(GLuint) * ui_state.buildables_count;
+    Get_Buildable_Textures_Result res{};
+    auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
 
     res.deallocation_size = allocation_size;
     res.textures = Allocate_Array(trash_arena, Texture_ID, ui_state.buildables_count);
@@ -1877,7 +1881,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             C_Sprite&  s  //
         ) {
             auto texture_id   = tex.id;
-            auto required_mem = 7 * 6 * sizeof(GLfloat);
+            auto required_mem = sizeof(GLfloat) * 7 * 6;
             vertex_data.Reserve(vertex_data.max_count + required_mem, ctx);
 
             // TODO: rotation

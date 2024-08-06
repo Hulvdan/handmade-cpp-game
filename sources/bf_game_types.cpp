@@ -150,18 +150,6 @@ struct Map_Resource {
 
     Human_ID targeted_human;  // optional
     Human_ID carrying_human;  // optional
-
-    Map_Resource() {}
-
-    Map_Resource(Map_Resource&& other)
-        : scriptable(other.scriptable)
-        , pos(other.pos)
-        , booking(other.booking)
-        , transportation_segments(std::move(other.transportation_segments))
-        , transportation_vertices(std::move(other.transportation_vertices))
-        , targeted_human(other.targeted_human)
-        , carrying_human(other.carrying_human)  //
-    {}
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -418,16 +406,12 @@ enum class Item_To_Build_Type {
 };
 
 struct Item_To_Build {
-    Item_To_Build_Type   type;
-    Scriptable_Building* scriptable_building;
-
-    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building* a_scriptable_building)
-        : type(a_type)
-        , scriptable_building(a_scriptable_building) {}
+    Item_To_Build_Type   type                = Item_To_Build_Type::None;
+    Scriptable_Building* scriptable_building = nullptr;
 };
 
-static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
-static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
+#define Item_To_Build_Road Item_To_Build(Item_To_Build_Type::Road, nullptr)
+#define Item_To_Build_Flag Item_To_Build(Item_To_Build_Type::Flag, nullptr)
 
 enum class Human_Removal_Reason {
     Transporter_Returned_To_City_Hall,

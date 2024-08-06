@@ -73,7 +73,7 @@ struct Peek_Filetime_Result {
 };
 
 Peek_Filetime_Result Peek_Filetime(const char* filename) {
-    Peek_Filetime_Result res = {};
+    Peek_Filetime_Result res{};
 
     WIN32_FIND_DATAA find_data;
     auto             handle = FindFirstFileA(filename, &find_data);
@@ -426,8 +426,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_LBUTTONDOWN: {
         if (!mouse_captured) {
-            Mouse_Pressed event = {};
-            event.type          = Mouse_Button_Type::Left;
+            Mouse_Pressed event{};
+            event.type = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -435,8 +435,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_LBUTTONUP: {
         if (!mouse_captured) {
-            Mouse_Released event = {};
-            event.type           = Mouse_Button_Type::Left;
+            Mouse_Released event{};
+            event.type = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -444,8 +444,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_RBUTTONDOWN: {
         if (!mouse_captured) {
-            Mouse_Pressed event = {};
-            event.type          = Mouse_Button_Type::Right;
+            Mouse_Pressed event{};
+            event.type = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -453,8 +453,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_RBUTTONUP: {
         if (!mouse_captured) {
-            Mouse_Released event = {};
-            event.type           = Mouse_Button_Type::Right;
+            Mouse_Released event{};
+            event.type = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -462,8 +462,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MBUTTONDOWN: {
         if (!mouse_captured) {
-            Mouse_Pressed event = {};
-            event.type          = Mouse_Button_Type::Middle;
+            Mouse_Pressed event{};
+            event.type = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -471,8 +471,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MBUTTONUP: {
         if (!mouse_captured) {
-            Mouse_Released event = {};
-            event.type           = Mouse_Button_Type::Middle;
+            Mouse_Released event{};
+            event.type = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -480,7 +480,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MOUSEWHEEL: {
         if (!mouse_captured) {
-            Mouse_Scrolled event  = {};
+            Mouse_Scrolled event{};
             i16            scroll = (short)HIWORD(wParam);
             event.value           = scroll;
             push_event(event);
@@ -489,7 +489,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MOUSEMOVE: {
         if (!mouse_captured) {
-            Mouse_Moved event = {};
+            Mouse_Moved event{};
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -652,7 +652,7 @@ static int WinMain(
 
     const f32 starting_frequency = 523.25f / 2;
 
-    BFVoiceCallback voice_callback           = {};
+    BFVoiceCallback voice_callback{};
     voice_callback.frequency                 = starting_frequency;
     voice_callback.samples_count_per_channel = -1;
     voice_callback.channels                  = channels;
@@ -667,7 +667,7 @@ static int WinMain(
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                WAVEFORMATEX voice_struct    = {};
+                WAVEFORMATEX voice_struct{};
                 voice_struct.wFormatTag      = WAVE_FORMAT_PCM;
                 voice_struct.nChannels       = channels;
                 voice_struct.nSamplesPerSec  = SAMPLES_HZ;
@@ -757,7 +757,7 @@ static int WinMain(
     }
     // --- XAudio stuff end ---
 
-    WNDCLASSA windowClass = {};
+    WNDCLASSA windowClass{};
     // NOTE: Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -811,9 +811,9 @@ static int WinMain(
         auto hdc = GetDC(window_handle);
 
         // --- Setting up pixel format start ---
-        PIXELFORMATDESCRIPTOR pfd = {};
-        pfd.nSize                 = sizeof(PIXELFORMATDESCRIPTOR);
-        pfd.nVersion              = 1;
+        PIXELFORMATDESCRIPTOR pfd{};
+        pfd.nSize       = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion    = 1;
         pfd.dwFlags     = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
         pfd.dwLayerMask = PFD_MAIN_PLANE;
         pfd.iPixelType  = PFD_TYPE_RGBA;
@@ -903,7 +903,7 @@ static int WinMain(
     while (running) {
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
 
-        MSG message = {};
+        MSG message{};
         while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;
@@ -920,7 +920,7 @@ static int WinMain(
         // CONTROLLER STUFF
         // TODO: Improve on latency?
         for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
-            XINPUT_STATE state = {};
+            XINPUT_STATE state{};
 
             DWORD dwResult = XInputGetState_(i, &state);
 
@@ -930,9 +930,9 @@ static int WinMain(
                 f32       stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
                 f32       stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                Controller_Axis_Changed event = {};
-                event.axis                    = 0;
-                event.value                   = stick_x_normalized;
+                Controller_Axis_Changed event{};
+                event.axis  = 0;
+                event.value = stick_x_normalized;
                 push_event(event);
 
                 event.axis  = 1;

@@ -264,7 +264,7 @@ int main(int, char**) {
     const i32 SLEEP_MSEC_GRANULARITY = 1;
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
-    WNDCLASSA windowClass = {};
+    WNDCLASSA windowClass{};
     // NOTE: Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -321,9 +321,9 @@ int main(int, char**) {
         auto hdc = GetDC(window_handle);
 
         // --- Setting up pixel format start ---
-        PIXELFORMATDESCRIPTOR pfd = {};
-        pfd.nSize                 = sizeof(PIXELFORMATDESCRIPTOR);
-        pfd.nVersion              = 1;
+        PIXELFORMATDESCRIPTOR pfd{};
+        pfd.nSize       = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion    = 1;
         pfd.dwFlags     = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
         pfd.dwLayerMask = PFD_MAIN_PLANE;
         pfd.iPixelType  = PFD_TYPE_RGBA;
@@ -410,7 +410,7 @@ int main(int, char**) {
     while (running) {
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
 
-        MSG message = {};
+        MSG message{};
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;

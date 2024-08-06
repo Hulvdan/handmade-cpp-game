@@ -292,7 +292,7 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
 
-    Arena root_arena      = {};
+    Arena root_arena{};
     root_arena.debug_name = "root_arena";
     root_arena.base       = (u8*)memory_ptr;
     root_arena.size       = memory_size;
@@ -487,9 +487,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                     }
 
                     Assert(scriptable_resource != nullptr);
-                    building.construction_resources.Add(
-                        {scriptable_resource, count}, ctx
-                    );
+                    *building.construction_resources.Vector_Occupy_Slot(ctx)
+                        = {scriptable_resource, count};
                 }
             }
         }

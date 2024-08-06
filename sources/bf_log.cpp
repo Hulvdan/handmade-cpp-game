@@ -62,10 +62,10 @@ class Sink : public spdlog::sinks::sink {
 public:
     Sink(spdlog::color_mode mode = spdlog::color_mode::automatic) {
 #ifdef _WIN32
-        handle_                         = ::GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD console_mode              = 0;
-        in_console_                     = ::GetConsoleMode(handle_, &console_mode) != 0;
-        CONSOLE_SCREEN_BUFFER_INFO info = {};
+        handle_            = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD console_mode = 0;
+        in_console_        = ::GetConsoleMode(handle_, &console_mode) != 0;
+        CONSOLE_SCREEN_BUFFER_INFO info{};
         ::GetConsoleScreenBufferInfo(handle_, &info);
         colors_[spdlog::level::trace] = FOREGROUND_INTENSITY;
         colors_[spdlog::level::debug]
@@ -419,7 +419,7 @@ Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
 
 template <auto N>
 consteval auto extract_substring(const char* src) {
-    std::array<char, N + 1> res = {};
+    std::array<char, N + 1> res{};
     std::copy_n(src, N, res.data());
     res.data()[N] = '\0';
     return res;

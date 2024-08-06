@@ -474,7 +474,7 @@ struct Affix_Allocator {
 
         {  // NOTE: Забываем об адресе
             bool found = false;
-            for (auto [aptr, alength] : _allocations) {
+            for (const auto& [aptr, alength] : _allocations) {
                 if (aptr == b.ptr) {
                     Assert(!found);
                     Assert(alength == b.length);
@@ -918,7 +918,10 @@ Allocator__Function(Root_Allocator_Routine) {
     } break;
 
     case Allocator_Mode::Resize: {
-        NOT_IMPLEMENTED;
+        auto p = root_allocator->Allocate(size).ptr;
+        memcpy(p, old_memory_ptr, old_size);
+        root_allocator->Deallocate(Blk(old_memory_ptr, old_size));
+        return p;
     } break;
 
     case Allocator_Mode::Free: {

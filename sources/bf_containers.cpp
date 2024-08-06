@@ -26,20 +26,11 @@ struct Fixed_Size_Slice {
     i32 max_count = 0;
     T*  items     = nullptr;
 
-    Fixed_Size_Slice()                           = default;
-    Fixed_Size_Slice(const Fixed_Size_Slice<T>&) = delete;
-    Fixed_Size_Slice(Fixed_Size_Slice<T>&&)      = default;
-
-    void Add_Unsafe(T&& value) {
+    T* Add_Unsafe() {
         Assert(count < max_count);
-        items[count] = value;
+        auto result = items + count;
         count++;
-    }
-
-    void Add_Unsafe(const T& value) {
-        Assert(count < max_count);
-        items[count] = value;
-        count++;
+        return result;
     }
 };
 
@@ -50,15 +41,11 @@ struct Fixed_Size_Queue {
     i32    count       = 0;
     T*     base        = nullptr;
 
-    Fixed_Size_Queue()                           = default;
-    Fixed_Size_Queue(const Fixed_Size_Queue<T>&) = delete;
-    Fixed_Size_Queue(Fixed_Size_Queue<T>&&)      = default;
-
-    void Enqueue_Unsafe(const T value) {
+    T* Enqueue_Unsafe() {
         Assert(memory_size >= (count + 1) * sizeof(T));
-
-        base[count] = value;
+        auto result = base + count;
         count++;
+        return result;
     }
 
     // PERF: Много memmove происходит
@@ -86,23 +73,6 @@ struct Queue {
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    Queue()                            = default;
-    Queue(const Queue& other) noexcept = delete;
-
-    Queue(Queue&& other) noexcept
-        : base(other.base)
-        , count(other.count)
-        , max_count(other.max_count)
-        , allocator_(other.allocator_)
-        , allocator_data_(other.allocator_data_)  //
-    {
-        other.base            = nullptr;
-        other.count           = 0;
-        other.max_count       = 0;
-        other.allocator_      = nullptr;
-        other.allocator_data_ = nullptr;
-    }
-
     i32 Index_Of(const T& value) {
         FOR_RANGE (i32, i, count) {
             auto& v = base[i];
@@ -113,17 +83,7 @@ struct Queue {
         return -1;
     }
 
-    i32 Index_Of(T&& value) {
-        FOR_RANGE (i32, i, count) {
-            auto& v = base[i];
-            if (v == value)
-                return i;
-        }
-
-        return -1;
-    }
-
-    void Enqueue(const T value, MCTX) {
+    T* Enqueue(MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         if (base == nullptr) {
@@ -144,11 +104,11 @@ struct Queue {
             max_count = new_max_count;
         }
 
-        base[count] = value;
         count++;
+        return base + (count - 1);
     }
 
-    void Bulk_Enqueue(const T* values, const u32 values_count, MCTX) {
+    T* Bulk_Enqueue(const u32 values_count, MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         // TODO: Test!
@@ -171,8 +131,9 @@ struct Queue {
             max_count = new_max_count;
         }
 
-        memcpy(base + count, values, sizeof(T) * values_count);
         count += values_count;
+
+        return base + (count - values_count);
     }
 
     // PERF: Много memmove происходит
@@ -216,12 +177,7 @@ struct Vector {
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    Vector()               = default;
-    Vector(Vector&& other) = default;
-
-    Vector(const Vector& other) = delete;
-
-    i32 Index_Of(T value) {
+    i32 Index_Of(const T& value) {
         FOR_RANGE (i32, i, count) {
             auto& v = base[i];
             if (v == value)
@@ -231,7 +187,7 @@ struct Vector {
         return -1;
     }
 
-    i32 Index_Of(T value, std::invocable<const T&, const T&, bool&> auto&& func) {
+    i32 Index_Of(const T& value, std::invocable<const T&, const T&, bool&> auto&& func) {
         bool found = false;
         FOR_RANGE (i32, i, count) {
             func(value, base[i], found);
@@ -242,14 +198,14 @@ struct Vector {
         return -1;
     }
 
-    i32 Index_By_Ptr(T* value_ptr) {
+    i32 Index_By_Ptr(const T* const value_ptr) {
         Assert(base <= value_ptr);
         Assert(value_ptr < base + count * sizeof(T));
         Assert((value_ptr - base) % sizeof(T) == 0);
         return (value_ptr - base) / sizeof(T);
     }
 
-    i32 Add(const T& value, MCTX) {
+    T* Vector_Occupy_Slot(MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         i32 locator = count;
@@ -270,48 +226,15 @@ struct Vector {
 
             base = rcast<T*>(ALLOC(old_size * 2));
             memcpy(base, old_ptr, old_size);
-            FREE(old_ptr, sizeof(T) * max_count);
+            FREE(old_ptr, old_size);
 
             max_count = new_max_count;
         }
 
-        base[count] = value;
+        auto result = base + count;
         count += 1;
 
-        return locator;
-    }
-
-    i32 Add(T&& value, MCTX) {
-        CONTAINER_MEMBER_ALLOCATOR;
-
-        i32 locator = count;
-
-        if (base == nullptr) {
-            Assert(max_count == 0);
-            Assert(count == 0);
-
-            max_count = 8;
-            base      = (T*)ALLOC(sizeof(T) * max_count);
-        }
-        else if (max_count == count) {
-            u32 new_max_count = max_count * 2;
-            Assert(max_count < new_max_count);  // Ловим overflow
-
-            auto old_size = sizeof(T) * max_count;
-            auto old_ptr  = base;
-
-            base = rcast<T*>(ALLOC(old_size * 2));
-            memcpy(base, old_ptr, old_size);
-            FREE(old_ptr, sizeof(T) * max_count);
-
-            max_count = new_max_count;
-        }
-
-        memcpy(base + count, &value, sizeof(value));
-        // *(base + count) = value;
-        count += 1;
-
-        return locator;
+        return result;
     }
 
     void Remove_At(i32 i) {
@@ -397,13 +320,6 @@ struct Memory_Buffer {
     Allocator__Function((*allocator_)) = nullptr;
     void* allocator_data_              = nullptr;
 
-    explicit Memory_Buffer(MCTX) {
-        if (ctx->allocator != nullptr) {
-            allocator_      = ctx->allocator;
-            allocator_data_ = ctx->allocator_data;
-        }
-    }
-
     void Add(void* ptr, size_t size, MCTX) {
         Assert(size > 0);
         Assert(ptr != nullptr);
@@ -452,7 +368,7 @@ struct Memory_Buffer {
 
         CONTAINER_MEMBER_ALLOCATOR;
 
-        if (base == nullptr) {
+        if (base == nullptr || max_count == 0) {
             auto ceiled_size = Ceil_To_Power_Of_2(size);
             base             = (void*)ALLOC(ceiled_size);
             max_count        = ceiled_size;
@@ -465,91 +381,19 @@ struct Memory_Buffer {
     }
 };
 
-template <typename T, typename U>
-struct HashMap {
-    i32 allocated = 0;
-    i32 count     = 0;
-
-    struct Slot {
-        bool occupied;
-        u32  hash;
-        T    key;
-        U    value;
-    };
-
-    Vector<Slot> slots;
-
-    static constexpr int SIZE_MIN = 32;
-
-    Allocator__Function((*allocator_)) = nullptr;
-    void* allocator_data_              = nullptr;
-
-    HashMap(MCTX)
-        : slots() {
-        if (ctx->allocator != nullptr) {
-            allocator_      = ctx->allocator;
-            allocator_data_ = ctx->allocator_data;
-        }
-    }
-
-    void Set(const T& key, const U& value) {
-        // TODO
-    }
-    void Set(const T&& key, const U& value) {
-        // TODO
-    }
-    void Set(const T& key, U&& value) {
-        // TODO
-    }
-    void Set(const T&& key, U&& value) {
-        // TODO
-    }
-
-    void Remove(const T& key) {
-        // TODO
-    }
-
-    void Remove(const T&& key) {
-        // TODO
-    }
-
-    bool Contains(const T& key) {
-        // TODO
-        return false;
-    }
-
-    bool Contains(const T&& key) {
-        // TODO
-        return false;
-    }
-
-    void Reset() {
-        // TODO
-    }
-};
-
 template <typename T>
 struct Sparse_Array_Of_Ids {
     T*  ids       = nullptr;
     i32 count     = 0;
     i32 max_count = 0;
 
-    Sparse_Array_Of_Ids(i32 max_count_, MCTX)
-        : max_count(max_count_)  //
-    {
-        CTX_ALLOCATOR;
-        ids   = rcast<T*>(ALLOC(sizeof(T) * max_count));
-        count = 0;
-    }
-
-    void Add(const T id, MCTX) {
-        Assert(!Contains(this, id));
-
+    T* Add(MCTX) {
         if (max_count == count)
             Enlarge(ctx);
 
-        *(ids + count) = id;
+        auto result = ids + count;
         count += 1;
+        return result;
     }
 
     void Unstable_Remove(const T id) {
@@ -565,7 +409,7 @@ struct Sparse_Array_Of_Ids {
         Assert(false);
     }
 
-    bool Contains(const T id) {
+    bool Contains(const T& id) {
         FOR_RANGE (int, i, count) {
             if (ids[i] == id)
                 return true;
@@ -595,63 +439,21 @@ struct Sparse_Array_Of_Ids {
 
 template <typename T, typename U>
 struct Sparse_Array {
-    T*  ids   = nullptr;
-    U*  base  = nullptr;
-    i32 count = 0;
-    i32 max_count;
+    T*  ids       = nullptr;
+    U*  base      = nullptr;
+    i32 count     = 0;
+    i32 max_count = 0;
 
-    Sparse_Array(i32 max_count_, MCTX)
-        : max_count(max_count_)
-        , count(0)  //
-    {
-        CTX_ALLOCATOR;
-        ids  = rcast<T*>(ALLOC(sizeof(T) * max_count));
-        base = rcast<U*>(ALLOC(sizeof(U) * max_count));
-    }
-    Sparse_Array(const Sparse_Array& other) = delete;
-    Sparse_Array(Sparse_Array&& other)      = delete;
-
-    U* Add(const T id, const U& value, MCTX) {
-        Assert(!Contains(id));
+    std::tuple<T*, U*> Add(MCTX) {
         Assert(count >= 0);
         Assert(max_count >= 0);
 
         if (max_count == count)
             Enlarge(ctx);
 
-        ids[count]  = id;
-        base[count] = value;
+        std::tuple<T*, U*> result = {ids + count, base + count};
         count += 1;
-        return base + count - 1;
-    }
-
-    U* Add(const T id, U&& value, MCTX) {
-        Assert(!Contains(id));
-        Assert(count >= 0);
-        Assert(max_count >= 0);
-
-        if (max_count == count)
-            Enlarge(ctx);
-
-        ids[count] = id;
-        std::construct_at(base + count, std::move(value));
-        count += 1;
-
-        return base + count - 1;
-    }
-
-    U* Occupy(const T id, MCTX) {
-        Assert(!Contains(id));
-        Assert(count >= 0);
-        Assert(max_count >= 0);
-
-        if (max_count == count)
-            Enlarge(ctx);
-
-        ids[count] = id;
-        count += 1;
-
-        return base + count - 1;
+        return result;
     }
 
     U* Find(const T id) {
@@ -662,7 +464,7 @@ struct Sparse_Array {
         return nullptr;
     }
 
-    i32 Index_Of(T value, std::invocable<const T&, const T&, bool&> auto&& func) {
+    i32 Index_Of(const T& value, std::invocable<const T&, const T&, bool&> auto&& func) {
         bool found = false;
         FOR_RANGE (i32, i, count) {
             func(value, base[i], found);
@@ -702,7 +504,9 @@ struct Sparse_Array {
     void Enlarge(MCTX) {
         CTX_ALLOCATOR;
 
-        u32 new_max_count = max_count * 2;
+        i32 new_max_count = max_count * 2;
+        if (new_max_count == 0)
+            new_max_count = 8;
         Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
         auto old_ids_size  = sizeof(T) * max_count;
@@ -710,12 +514,18 @@ struct Sparse_Array {
         auto old_ids_ptr   = ids;
         auto old_base_ptr  = base;
 
-        ids  = rcast<T*>(ALLOC(old_ids_size * 2));
-        base = rcast<U*>(ALLOC(old_base_size * 2));
-        memcpy(ids, old_ids_ptr, old_ids_size);
-        memcpy(base, old_base_ptr, old_base_size);
-        FREE(old_ids_ptr, old_ids_size);
-        FREE(old_base_ptr, old_base_size);
+        ids  = rcast<T*>(ALLOC(sizeof(T) * new_max_count));
+        base = rcast<U*>(ALLOC(sizeof(U) * new_max_count));
+
+        if (old_ids_ptr)
+            memcpy(ids, old_ids_ptr, old_ids_size);
+        if (old_base_ptr)
+            memcpy(base, old_base_ptr, old_base_size);
+
+        if (old_ids_ptr)
+            FREE(old_ids_ptr, old_ids_size);
+        if (old_base_ptr)
+            FREE(old_base_ptr, old_base_size);
 
         max_count = new_max_count;
     }
@@ -751,14 +561,14 @@ struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U
         Assert(container != nullptr);
     }
 
-    Sparse_Array_Iterator begin() const {
+    [[nodiscard]] Sparse_Array_Iterator begin() const {
         return {_container, _current};
     }
-    Sparse_Array_Iterator end() const {
+    [[nodiscard]] Sparse_Array_Iterator end() const {
         return {_container, _container->count};
     }
 
-    std::tuple<T, U*> Dereference() const {
+    [[nodiscard]] std::tuple<T, U*> Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
         return std::tuple(_container->ids[_current], _container->base + _current);
@@ -768,7 +578,7 @@ struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U
         _current++;
     }
 
-    bool Equal_To(const Sparse_Array_Iterator& o) const {
+    [[nodiscard]] bool Equal_To(const Sparse_Array_Iterator& o) const {
         return _current == o._current;
     }
 
@@ -789,14 +599,14 @@ struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
         Assert(container != nullptr);
     }
 
-    Vector_Iterator begin() const {
+    [[nodiscard]] Vector_Iterator begin() const {
         return {_container, _current};
     }
-    Vector_Iterator end() const {
+    [[nodiscard]] Vector_Iterator end() const {
         return {_container, _container->count};
     }
 
-    T* Dereference() const {
+    [[nodiscard]] T* Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
         return _container->base + _current;
@@ -806,7 +616,7 @@ struct Vector_Iterator : public Iterator_Facade<Vector_Iterator<T>> {
         _current++;
     }
 
-    bool Equal_To(const Vector_Iterator& o) const {
+    [[nodiscard]] bool Equal_To(const Vector_Iterator& o) const {
         return _current == o._current;
     }
 
