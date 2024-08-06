@@ -1490,7 +1490,7 @@ void Regenerate_Terrain_Tiles(
             auto& tile     = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
-            auto noise    = *(f32)(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
+            auto noise    = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
             bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
             // TODO: прикрутить terrain-ресурс леса

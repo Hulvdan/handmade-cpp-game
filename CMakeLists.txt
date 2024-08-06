@@ -60,6 +60,7 @@ target_include_directories(bf_game PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
     "${FLATBUFFERS_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/codegen/generated"
 )
 target_sources(bf_game PRIVATE
     "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"

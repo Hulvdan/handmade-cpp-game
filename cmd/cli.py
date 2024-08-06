@@ -462,7 +462,9 @@ def do_build_tests() -> None:
 def do_generate() -> None:
     remove_intermediate_generation_files()
 
-    hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
+    hashes_for_msbuild = listfiles_with_hashes_in_dir(
+        SOURCES_DIR / ".." / "codegen" / "generated"
+    )
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
     # Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
@@ -474,7 +476,9 @@ def do_generate() -> None:
 
         for file, file_hash in listfiles_with_hashes_in_dir(td).items():
             if file_hash != hashes_for_msbuild.get(file):
-                shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
+                shutil.copyfile(
+                    Path(td) / file, SOURCES_DIR / ".." / "codegen" / "generated" / file
+                )
 
     # Собираем атлас.
     texture_name_hashes: set[int] = set()

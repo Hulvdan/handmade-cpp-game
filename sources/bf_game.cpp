@@ -18,8 +18,8 @@
 
 #include <optional>
 
-#include "generated/bf_atlas_generated.h"
-#include "generated/bf_gamelib_generated.h"
+#include "bf_atlas_generated.h"
+#include "bf_gamelib_generated.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_opengl.cpp"
@@ -287,7 +287,7 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
     return BFGame::GetGame_Library(result.output);
 }
 
-extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
+extern "C" GAME_LIBRARY_EXPORT GameUpdateAndRender_Function(Game_Update_And_Render) {
     ZoneScoped;
 
     Arena root_arena{};
