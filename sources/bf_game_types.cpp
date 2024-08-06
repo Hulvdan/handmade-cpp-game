@@ -4,6 +4,9 @@
 // =============================================================
 // SHIT: Oh, god, I hate this shit
 struct Game_State;
+struct Human;
+struct Human_Data;
+struct Building;
 
 #ifdef BF_CLIENT
 struct Game_Renderer_State;
@@ -306,23 +309,6 @@ struct Moving_In_The_World {
     Main_Controller*          controller;
 };
 
-enum class Human_Main_State {
-    None = 0,
-
-    // Common
-    Moving_In_The_World,
-
-    // Transporter
-    Moving_Inside_Segment,
-    Moving_Resource,
-
-    // Builder
-    Building,
-
-    // Employee
-    Employee,
-};
-
 struct Map_Resource_To_Book {
     Scriptable_Resource* scriptable;
     u8                   count;
@@ -417,6 +403,73 @@ enum class Human_Removal_Reason {
     Employee_Reached_Building,
 };
 
+#define HumanState_OnEnter_Function(name_)                             \
+    /* NOLINTBEGIN(misc-unused-parameters) */                          \
+    void name_(                                                        \
+        Human_State& state, Human& human, const Human_Data& data, MCTX \
+    ) /* NOLINTEND(misc-unused-parameters) */
+
+#define HumanState_OnExit_Function(name_)                              \
+    /* NOLINTBEGIN(misc-unused-parameters) */                          \
+    void name_(                                                        \
+        Human_State& state, Human& human, const Human_Data& data, MCTX \
+    ) /* NOLINTEND(misc-unused-parameters) */
+
+#define HumanState_Update_Function(name_)                                      \
+    /* NOLINTBEGIN(misc-unused-parameters) */                                  \
+    void name_(                                                                \
+        Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
+    ) /* NOLINTEND(misc-unused-parameters) */
+
+#define HumanState_OnHumanCurrentSegmentChanged_Function(name_) \
+    /* NOLINTBEGIN(misc-unused-parameters) */                   \
+    void name_(                                                 \
+        Human_State&      state,                                \
+        Human&            human,                                \
+        const Human_Data& data,                                 \
+        Graph_Segment_ID  old_segment_id,                       \
+        MCTX                                                    \
+    ) /* NOLINTEND(misc-unused-parameters) */
+
+#define HumanState_OnHumanMovedToTheNextTile_Function(name_)           \
+    /* NOLINTBEGIN(misc-unused-parameters) */                          \
+    void name_(                                                        \
+        Human_State& state, Human& human, const Human_Data& data, MCTX \
+    ) /* NOLINTEND(misc-unused-parameters) */
+
+#define HumanState_UpdateStates_Function(name_) \
+    /* NOLINTBEGIN(misc-unused-parameters) */   \
+    void name_(                                 \
+        Human_State&      state,                \
+        Human&            human,                \
+        const Human_Data& data,                 \
+        Graph_Segment_ID  old_segment_id,       \
+        Building_ID       old_building_id,      \
+        Building*         old_building,         \
+        MCTX                                    \
+    ) /* NOLINTEND(misc-unused-parameters) */
+
+enum class Human_States {
+    None             = -1,
+    MovingInTheWorld = 0,
+    MovingInsideSegment,
+    MovingResources,
+    Construction,
+    Employee,
+    COUNT
+};
+
+struct Human_State {
+    HumanState_OnEnter_Function((*OnEnter));
+    HumanState_OnExit_Function((*OnExit));
+    HumanState_Update_Function((*Update));
+    HumanState_OnHumanCurrentSegmentChanged_Function((*OnHumanCurrentSegmentChanged));
+    HumanState_OnHumanMovedToTheNextTile_Function((*OnHumanMovedToTheNextTile));
+    HumanState_UpdateStates_Function((*UpdateStates));
+};
+
+global_var Human_State human_states[(int)Human_States::COUNT];
+
 struct Human {
     static const Entity_ID component_mask = Component_Mask(1);
 
@@ -425,7 +478,7 @@ struct Human {
     Player_ID  player_id;
     Human_Type type;
 
-    Human_Main_State          state;
+    Human_States              state;
     Moving_In_The_World_State state_moving_in_the_world;
 
     Graph_Segment_ID segment_id;
