@@ -25,8 +25,6 @@
 #include "bf_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-global_var OS_Data os_data;
-
 // -- RENDERING STUFF
 struct BF_Bitmap {
     Game_Bitmap bitmap;
@@ -361,7 +359,6 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
         (void*)events.data(),
         events_count,
         editor_data,
-        os_data,
         hot_reloaded
     );
 
@@ -613,22 +610,6 @@ u64 Win32Frequency() {
     return res.QuadPart;
 }
 
-Allocate_Pages__Function(Win32_Allocate_Pages) {
-    Assert(count % os_data.min_pages_per_allocation == 0);
-
-    return (u8*)VirtualAlloc(
-        nullptr,
-        os_data.page_size * count,
-        MEM_RESERVE | MEM_COMMIT,
-        PAGE_EXECUTE_READWRITE
-    );
-}
-
-// Deallocate_Pages__Function(Win32_Deallocate_Pages) {
-//     return (u8*)VirtualAlloc(0, os_data.page_size * count, MEM_RESET,
-//     PAGE_EXECUTE_READWRITE);
-// }
-
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
@@ -638,10 +619,6 @@ static int WinMain(
 ) {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
-    os_data.page_size = system_info.dwPageSize;
-    os_data.min_pages_per_allocation
-        = system_info.dwAllocationGranularity / os_data.page_size;
-    os_data.Allocate_Pages = Win32_Allocate_Pages;
 
     Load_Or_Update_Game_Dll();
     Load_XInput_Dll();
@@ -649,7 +626,7 @@ static int WinMain(
 
     events.reserve(Kilobytes(64LL));
 
-    initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
+    initial_game_memory_size = Megabytes(64LL);
     initial_game_memory      = VirtualAlloc(
         nullptr,
         initial_game_memory_size,

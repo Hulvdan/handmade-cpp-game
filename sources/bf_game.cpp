@@ -20,9 +20,6 @@
 
 #include "fmt/compile.h"
 
-global_var OS_Data* global_os_data = nullptr;
-#define OS_DATA (Assert_Deref(global_os_data))
-
 #include "generated/bf_atlas_generated.h"
 #include "generated/bf_gamelib_generated.h"
 
@@ -133,7 +130,7 @@ void Process_Events(
     Game_State& state,
     const u8*   events,
     size_t      input_events_count,
-    float       dt,
+    float /* dt */,
     MCTX
 ) {
     auto& rstate   = *state.renderer_state;
@@ -294,7 +291,6 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
     ZoneScoped;
-    global_os_data = &os_data;
 
     Arena root_arena = {};
     root_arena.name  = "root_arena";
@@ -425,18 +421,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         trash_arena.name = Allocate_Formatted_String(
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count
         );
-
-        if (first_time_initializing) {
-            auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / OS_DATA.page_size;
-
-            state.pages.base
-                = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
-
-            state.pages.in_use
-                = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
-
-            state.pages.total_count_cap = pages_count_that_fit_2GB;
-        }
 
         Initialize_As_Zeros<Game_Map>(state.game_map);
         state.game_map.size = {32, 24};

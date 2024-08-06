@@ -1934,9 +1934,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
     {
         glUseProgram(rstate.sprites_shader_program);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
-        GLuint vao;
+        GLuint vao = 0;
         glGenVertexArrays(1, &vao);
-        GLuint vbo;
+        GLuint vbo = 0;
         glGenBuffers(1, &vbo);
 
         glBindVertexArray(vao);

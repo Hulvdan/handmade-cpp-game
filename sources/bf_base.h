@@ -19,6 +19,7 @@
 static constexpr auto DEBUG_MAX_LEN = 512;
 
 void DEBUG_Error(const char* text, ...) {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
@@ -29,6 +30,7 @@ void DEBUG_Error(const char* text, ...) {
 }
 
 void DEBUG_Print(const char* text, ...) {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
@@ -156,34 +158,39 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 #define Pos_Is_In_Bounds(pos, bounds) \
     (!((pos).x < 0 || (pos).x >= (bounds).x || (pos).y < 0 || (pos).y >= (bounds).y))
 
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
+// NOLINTEND(bugprone-macro-parentheses)
 
-// =============================================================
-// Defer
-// =============================================================
+//----------------------------------------------------------------------------------
+// Defer.
+//----------------------------------------------------------------------------------
 template <typename F>
-struct _Defer {
-    _Defer(F f)
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct Defer_ {
+    Defer_(F f)
         : f(f) {}
-    ~_Defer() {
+    ~Defer_() {
         f();
     }
     F f;
 };
 
 template <typename F>
-BF_FORCE_INLINE _Defer<F> _makeDefer(F f) {
-    return _Defer<F>(f);
+Defer_<F> makeDefer_(F f) {
+    return Defer_<F>(f);
 };
 
-#define __defer(counter) defer_##counter
-#define _defer(counter) __defer(counter)
+#define defer_with_counter_(counter) defer_##counter
+#define defer_(counter) defer_with_counter_(counter)
 
-struct _defer_dummy {};
+struct defer_dummy_ {};
+
 template <typename F>
-BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
-    return _makeDefer<F>(std::forward<F>(f));
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+Defer_<F> operator+(defer_dummy_, F&& f) {
+    return makeDefer_<F>(std::forward<F>(f));
 }
 
 // Usage:
@@ -196,7 +203,8 @@ BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
 //     Normal
 //     Deferred
 //
-#define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
+#define defer auto defer_(__COUNTER__) = defer_dummy_() + [&]()
 
 // =============================================================
 // Other
@@ -226,18 +234,33 @@ struct Arrow_Proxy {
     }
 };
 
+// Usage:
+//
+//     struct A : public Equatable<A> {
+//         int field1;
+//         int field2;
+//
+//         NOTE: Требуется реализовать этот метод
+//         bool Equal_To(const A& v1, const A& v2) {
+//             auto result = (
+//                 v1.field1 == v2.field1
+//                 && v1.field2 == v2.field2
+//             );
+//             return result;
+//         }
+//     }
 template <typename Derived>
 struct Equatable {
-protected:
+private:
     using Self_Type = Derived;
 
 public:
-    friend bool operator==(const Self_Type& left, const Self_Type& right) {
-        return left.Equal_To(right);
+    friend bool operator==(const Self_Type& v1, const Self_Type& v2) {
+        return v1.Equal_To(v2);
     }
     // SHIT: Fuken `clang-tidy` requires this function to be specified
-    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
-        return !left.Equal_To(right);
+    friend bool operator!=(const Self_Type& v1, const Self_Type& v2) {
+        return !v1.Equal_To(v2);
     }
 };
 
@@ -267,12 +290,12 @@ public:
             return Arrow_Proxy<Derived>(std::move(ref));
     }
 
-    friend bool operator==(const Self_Type& left, const Self_Type& right) {
-        return left.Equal_To(right);
+    friend bool operator==(const Self_Type& v1, const Self_Type& v2) {
+        return v1.Equal_To(v2);
     }
     // SHIT: Fuken `clang-tidy` requires this function to be specified
-    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
-        return !left.Equal_To(right);
+    friend bool operator!=(const Self_Type& v1, const Self_Type& v2) {
+        return !v1.Equal_To(v2);
     }
 
     Self_Type& operator++() {

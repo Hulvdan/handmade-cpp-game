@@ -7,17 +7,6 @@ struct Arena : public Non_Copyable {
     const char* name;
 };
 
-struct Page : public Non_Copyable {
-    u8* base;
-};
-
-struct Pages : public Non_Copyable {
-    size_t total_count_cap;
-    size_t allocated_count;
-    Page*  base;
-    bool*  in_use;
-};
-
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
 #define Allocate_Array(arena, type, count) \
     rcast<type*>(Allocate_(arena, sizeof(type) * (count)))

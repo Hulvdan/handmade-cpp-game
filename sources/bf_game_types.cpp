@@ -554,8 +554,6 @@ struct Game_State : public Non_Copyable {
     Arena non_persistent_arena;  // Gets flushed on DLL reloads
     Arena trash_arena;           // Use for transient calculations
 
-    Pages pages;
-
 #ifdef BF_CLIENT
     Game_Renderer_State* renderer_state;
 #endif  // BF_CLIENT
