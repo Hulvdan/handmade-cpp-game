@@ -110,29 +110,25 @@ constexpr v3f v3f_one  = v3f(1, 1, 1);
 
 #include "bf_types.h"
 
-#define STATEMENT1(statement) \
-    do {                      \
-        statement;            \
+#define STATEMENT(statement) \
+    do {                     \
+        statement;           \
     } while (false)
 
 #ifdef TESTS
-
 #    define Assert(expr) REQUIRE(expr)
 #    define Assert_False(expr) REQUIRE_FALSE(expr)
-
 #else  // TESTS
-
 #    define Assert(expr)         \
-        STATEMENT1({             \
+        STATEMENT({              \
             if (!(bool)(expr))   \
                 *(char*)(0) = 0; \
         })
 #    define Assert_False(expr)   \
-        STATEMENT1({             \
+        STATEMENT({              \
             if ((bool)(expr))    \
                 *(char*)(0) = 0; \
         })
-
 #endif  // TESTS
 
 template <typename T>
@@ -148,7 +144,7 @@ BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
     return value;
 }
 #else
-#    define Assert_Not_Null(value) value
+#    define Assert_Not_Null(value) (value)
 #endif
 
 #define INVALID_PATH Assert(false)
