@@ -80,6 +80,7 @@ void DEBUG_Print(const char* text, ...) {
 // =============================================================
 using v2f   = glm::vec2;
 using v2i   = glm::ivec2;
+using v2u   = glm::uvec2;
 using v2i16 = glm::vec<2, int16_t, glm::defaultp>;
 using v3f   = glm::vec3;
 using v3i   = glm::ivec3;
@@ -190,10 +191,11 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 #define Pos_Is_In_Bounds(pos, bounds) \
     (!((pos).x < 0 || (pos).x >= (bounds).x || (pos).y < 0 || (pos).y >= (bounds).y))
 
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define FOR_RANGE(type, variable_name, max_value_exclusive) \
-    for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
-// NOLINTEND(bugprone-macro-parentheses)
+#define FOR_RANGE(type, variable_name, max_value_exclusive)               \
+    /* NOLINTBEGIN(bugprone-macro-parentheses) */                         \
+    for (type variable_name = 0; (variable_name) < (max_value_exclusive); \
+         variable_name++)                                                 \
+    /* NOLINTEND(bugprone-macro-parentheses) */
 
 //----------------------------------------------------------------------------------
 // Defer.

@@ -1834,7 +1834,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
                     && (kj != i16_max)  //
                     && (ij > ik + kj))
                 {
-                    dist[i * n + j] = ik + kj;
+                    dist[i * n + j] = (i16)(ik + kj);
                     prev[i * n + j] = prev[k * n + j];
                 }
             }

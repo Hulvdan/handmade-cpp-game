@@ -844,9 +844,9 @@ private:
 //         Malloc_Allocator>>;
 
 struct Stoopid_Affix {
-    char data[2048];
+    char data[2048] = {};
 
-    Stoopid_Affix(size_t n) {
+    Stoopid_Affix(size_t /* n */) {
         FOR_RANGE (int, i, 2048 / 4) {
             data[i * 4 + 0] = (char)124;
             data[i * 4 + 1] = (char)125;
@@ -887,6 +887,7 @@ struct Stoopid_Affix {
 
 global_var Root_Allocator_Type* root_allocator = nullptr;
 
+// NOLINTNEXTLINE(misc-unused-parameters)
 Allocator_function(Root_Allocator_Routine) {
     Assert(allocator_data == nullptr);
 
@@ -933,6 +934,7 @@ Allocator_function(Root_Allocator_Routine) {
     return nullptr;
 }
 
+// NOLINTNEXTLINE(misc-unused-parameters)
 Allocator_function(Only_Once_Free_All_Root_Allocator) {
     switch (mode) {
     case Allocator_Mode::Allocate: {

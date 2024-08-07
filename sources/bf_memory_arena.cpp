@@ -15,13 +15,14 @@ struct Arena {
 #define Allocate_Zeros_Array(arena, type, count) \
     rcast<type*>(Allocate_Zeros_(arena, sizeof(type) * (count)))
 
-#define Allocate_Array_And_Initialize(arena, type, count)                  \
-    [&]() {                                                                \
-        auto ptr = rcast<type*>(Allocate_(arena, sizeof(type) * (count))); \
-        FOR_RANGE (int, i, (count)) {                                      \
-            std::construct_at(ptr + i);                                    \
-        }                                                                  \
-        return ptr;                                                        \
+#define Allocate_Array_And_Initialize(arena, type, count)                    \
+    [&]() {                                                                  \
+        /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                     \
+        auto ptr = rcast<type*>(Allocate_((arena), sizeof(type) * (count))); \
+        FOR_RANGE (int, i, (count)) {                                        \
+            std::construct_at(ptr + i);                                      \
+        }                                                                    \
+        return ptr;                                                          \
     }()
 
 #define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))

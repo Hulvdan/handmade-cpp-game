@@ -52,8 +52,8 @@ void Fill_Perlin_1D(
 ) {
     Assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
 
-    u8 sx_power;
-    u8 sy_power;
+    u8 sx_power = 0;
+    u8 sy_power = 0;
     Assert(sx > 0);
     Assert(sx <= u16_max);
     Assert(Is_Multiple_Of_2(sx, sx_power));
@@ -104,7 +104,7 @@ void Fill_Perlin_1D(
         Assert(t <= 1.0f);
         Assert(t >= 0);
 
-        u16 value     = u16_max * t;
+        u16 value     = (u16)(u16_max * t);
         *(output + x) = value;
     }
 }
@@ -122,8 +122,8 @@ void Perlin_1D(
     auto sy = texture.size.y;
     Assert(free_temp_storage_space >= 2 * sizeof(f32) * sx);
 
-    u8 sx_power;
-    u8 sy_power;
+    u8 sx_power = 0;
+    u8 sy_power = 0;
     Assert(sx > 0);
     Assert(sx <= u16_max);
     Assert(sy > 0);
@@ -156,7 +156,7 @@ void Perlin_1D(
         f32 r      = *(cover + rindex);
 
         u16 it = 0;
-        FOR_RANGE (u16, i, sx) {
+        FOR_RANGE (int, i, sx) {
             if (it == offset) {
                 l      = r;
                 rindex = (rindex + offset) % sx;
@@ -179,14 +179,13 @@ void Perlin_1D(
             auto t = (*(accumulator + x)) / sum_of_division;
             Assert(t <= 1.0f);
             Assert(t >= 0);
-            u8 value = u8_max * t;
+            u8 value = (u8)((f32)u8_max * t);
 
-            u32 r, g, b;
-            b = value;
-            g = value;
-            r = value;
+            u32 r = value;
+            u32 g = value;
+            u32 b = value;
 
-            *(pixel + y * sx + x) = b + (g << 8) + (r << 16) + (255 << 24);
+            *(pixel + (ptrdiff_t)(y * sx + x)) = b + (g << 8) + (r << 16) + (255 << 24);
         }
     }
 }
@@ -204,8 +203,8 @@ void Fill_Perlin_2D(
 
     auto octaves = params.octaves;
 
-    u8 sx_power;
-    u8 sy_power;
+    u8 sx_power = 0;
+    u8 sy_power = 0;
     Assert(sx > 0);
     Assert(sx <= u16_max);
     Assert(sy > 0);
@@ -262,7 +261,7 @@ void Fill_Perlin_2D(
                 auto blend23 = Lerp(a2, a3, xb);
                 auto value   = octave_c * Lerp(blend01, blend23, yb);
 
-                *(accumulator + sx * y + x) += value;
+                *(accumulator + (ptrdiff_t)(sx * y + x)) += value;
                 xit++;
             }
 
@@ -280,13 +279,13 @@ void Fill_Perlin_2D(
 
     FOR_RANGE (int, y, sy) {
         FOR_RANGE (int, x, sx) {
-            auto t = (*(accumulator + y * sy + x)) / sum_of_division;
+            auto t = (*(accumulator + (ptrdiff_t)(y * sy + x))) / sum_of_division;
             Assert(t <= 1.0f);
             Assert(t >= 0);
 
-            u16 value = u16_max * t;
+            u16 value = (u16)((f32)u16_max * t);
 
-            *(output + y * sx + x) = value;
+            *(output + (ptrdiff_t)(y * sx + x)) = value;
         }
     }
 }
@@ -304,8 +303,8 @@ void Perlin_2D(
     auto sy = texture.size.y;
     Assert(free_temp_storage_space >= 2 * sizeof(f32) * sx * sy);
 
-    u8 sx_power;
-    u8 sy_power;
+    u8 sx_power = 0;
+    u8 sy_power = 0;
     Assert(sx > 0);
     Assert(sx <= u16_max);
     Assert(sy > 0);
@@ -315,10 +314,10 @@ void Perlin_2D(
     Assert(Is_Multiple_Of_2(sy, sy_power));
 
     f32* cover       = (f32*)temp_storage;
-    f32* accumulator = cover + sx * sy;
+    f32* accumulator = cover + (ptrdiff_t)(sx * sy);
 
     srand(seed);
-    FOR_RANGE (size_t, i, sx * sy) {
+    FOR_RANGE (size_t, i, (size_t)sx * sy) {
         *(cover + i)       = frand();
         *(accumulator + i) = 0;
     }

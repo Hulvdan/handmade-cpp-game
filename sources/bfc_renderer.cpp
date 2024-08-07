@@ -1806,9 +1806,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 v2f(1, 1),
             };
 
-            GLuint vao;
+            GLuint vao = 0;
             glGenVertexArrays(1, &vao);
-            GLuint vbo;
+            GLuint vbo = 0;
             glGenBuffers(1, &vbo);
 
             glBindVertexArray(vao);
@@ -1877,8 +1877,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
     Map_Sprites_With_Textures(
         rstate,
         [&](C_Texture& tex,
-            Entity_ID  sprite_id,
-            C_Sprite&  s  //
+            Entity_ID /* sprite_id */,
+            C_Sprite& s  //
         ) {
             auto texture_id   = tex.id;
             auto required_mem = sizeof(GLfloat) * 7 * 6;

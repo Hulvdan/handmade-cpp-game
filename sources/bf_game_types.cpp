@@ -611,7 +611,7 @@ using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
     BF_Texture_ID id   = {};
-    v2i           size = {};
+    v2u           size = {};
     u8*           base = {};
 };
 

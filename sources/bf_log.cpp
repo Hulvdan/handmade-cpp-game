@@ -93,10 +93,10 @@ void Initialize_Tracing_Logger(Tracing_Logger& logger, Arena& arena) {
 
 #if 1
 using Root_Logger_Type = Tracing_Logger;
-#    define MAKE_LOGGER(logger_ptr, arena)                 \
-        STATEMENT({                                        \
-            std::construct_at(logger_ptr);                 \
-            Initialize_Tracing_Logger(*logger_ptr, arena); \
+#    define MAKE_LOGGER(logger_ptr, arena)                   \
+        STATEMENT({                                          \
+            std::construct_at(logger_ptr);                   \
+            Initialize_Tracing_Logger(*(logger_ptr), arena); \
         })
 #else
 // NOTE: void* = отключение логирования
