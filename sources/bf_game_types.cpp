@@ -398,22 +398,22 @@ enum class Human_Removal_Reason {
     /* NOLINTBEGIN(misc-unused-parameters) */ \
     code /* NOLINTEND(misc-unused-parameters) */
 
-#define HumanState_OnEnter_Function(name_)                                         \
+#define HumanState_OnEnter_function(name_)                                         \
     NOLINT_UNUSED_PARAMETERS(                                                      \
         void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
     )
 
-#define HumanState_OnExit_Function(name_)                                          \
+#define HumanState_OnExit_function(name_)                                          \
     NOLINT_UNUSED_PARAMETERS(                                                      \
         void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
     )
 
-#define HumanState_Update_Function(name_)                                      \
+#define HumanState_Update_function(name_)                                      \
     NOLINT_UNUSED_PARAMETERS(void name_(                                       \
         Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
     ))
 
-#define HumanState_OnHumanCurrentSegmentChanged_Function(name_) \
+#define HumanState_OnHumanCurrentSegmentChanged_function(name_) \
     NOLINT_UNUSED_PARAMETERS(void name_(                        \
         Human_State&      state,                                \
         Human&            human,                                \
@@ -422,12 +422,12 @@ enum class Human_Removal_Reason {
         MCTX                                                    \
     ))
 
-#define HumanState_OnHumanMovedToTheNextTile_Function(name_)                       \
+#define HumanState_OnHumanMovedToTheNextTile_function(name_)                       \
     NOLINT_UNUSED_PARAMETERS(                                                      \
         void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
     )
 
-#define HumanState_UpdateStates_Function(name_) \
+#define HumanState_UpdateStates_function(name_) \
     NOLINT_UNUSED_PARAMETERS(void name_(        \
         Human_State&      state,                \
         Human&            human,                \
@@ -449,13 +449,13 @@ enum class Human_States {
 };
 
 struct Human_State {
-    HumanState_OnEnter_Function((*OnEnter)) = {};
-    HumanState_OnExit_Function((*OnExit))   = {};
-    HumanState_Update_Function((*Update))   = {};
-    HumanState_OnHumanCurrentSegmentChanged_Function((*OnHumanCurrentSegmentChanged))
+    HumanState_OnEnter_function((*OnEnter)) = {};
+    HumanState_OnExit_function((*OnExit))   = {};
+    HumanState_Update_function((*Update))   = {};
+    HumanState_OnHumanCurrentSegmentChanged_function((*OnHumanCurrentSegmentChanged))
         = {};
-    HumanState_OnHumanMovedToTheNextTile_Function((*OnHumanMovedToTheNextTile)) = {};
-    HumanState_UpdateStates_Function((*UpdateStates))                           = {};
+    HumanState_OnHumanMovedToTheNextTile_function((*OnHumanMovedToTheNextTile)) = {};
+    HumanState_UpdateStates_function((*UpdateStates))                           = {};
 };
 
 global_var Human_State human_states[(int)Human_States::COUNT] = {};
@@ -541,7 +541,7 @@ struct Observer {
     })
 
 // Usage:
-//     OnItemBuilt_Function((*callbacks[])) = {
+//     OnItemBuilt_function((*callbacks[])) = {
 //         Renderer_OnItemBuilt,
 //     };
 //     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks,
@@ -554,7 +554,7 @@ struct Observer {
         memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
     })
 
-#define OnItemBuilt_Function(name_) \
+#define On_Item_Built_function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
 struct Game_State {
@@ -580,7 +580,7 @@ struct Game_State {
     Game_Renderer_State* renderer_state = {};
 #endif  // BF_CLIENT
 
-    Observer<OnItemBuilt_Function((*))> On_Item_Built = {};
+    Observer<On_Item_Built_function((*))> On_Item_Built = {};
 
     const BFGame::Game_Library* gamelib = {};
 };

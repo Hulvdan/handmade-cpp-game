@@ -1980,7 +1980,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
 }
 
 // NOTE: Game_State& state, v2i16 pos, Item_To_Build item
-OnItemBuilt_Function(Renderer_OnItemBuilt) {
+On_Item_Built_function(Renderer_On_Item_Built) {
     Assert(state.renderer_state != nullptr);
 
     CTX_ALLOCATOR;

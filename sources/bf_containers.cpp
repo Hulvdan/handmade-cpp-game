@@ -70,8 +70,8 @@ struct Queue {
     i32 count     = 0;
     u32 max_count = 0;
 
-    Allocator__Function((*allocator_)) = nullptr;
-    void* allocator_data_              = nullptr;
+    Allocator_function((*allocator_)) = nullptr;
+    void* allocator_data_             = nullptr;
 
     i32 Index_Of(const T& value) {
         FOR_RANGE (i32, i, count) {
@@ -174,8 +174,8 @@ struct Vector {
     i32 count     = 0;
     u32 max_count = 0;
 
-    Allocator__Function((*allocator_)) = nullptr;
-    void* allocator_data_              = nullptr;
+    Allocator_function((*allocator_)) = nullptr;
+    void* allocator_data_             = nullptr;
 
     i32 Index_Of(const T& value) {
         FOR_RANGE (i32, i, count) {
@@ -316,8 +316,8 @@ struct Memory_Buffer {
     size_t count     = 0;
     size_t max_count = 0;
 
-    Allocator__Function((*allocator_)) = nullptr;
-    void* allocator_data_              = nullptr;
+    Allocator_function((*allocator_)) = nullptr;
+    void* allocator_data_             = nullptr;
 
     void Add(void* ptr, size_t size, MCTX) {
         Assert(size > 0);

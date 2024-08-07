@@ -88,9 +88,9 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
 }
 #endif  // BF_INTERNAL
 
-using GameUpdateAndRender_Type = GameUpdateAndRender_Function((*));
-GameUpdateAndRender_Function(GameUpdateAndRender_Stub) {}
-GameUpdateAndRender_Type GameUpdateAndRender_ = GameUpdateAndRender_Stub;
+using Game_Update_And_Render_t = Game_Update_And_Render_function((*));
+Game_Update_And_Render_function(Game_Update_And_Render_stub) {}
+Game_Update_And_Render_t Game_Update_And_Render_ = Game_Update_And_Render_stub;
 
 void Load_Or_Update_Game_Dll() {
     auto path = R"(bf_game.dll)";
@@ -129,15 +129,15 @@ void Load_Or_Update_Game_Dll() {
             INVALID_PATH;
         }
 
-        hot_reloaded         = true;
-        game_lib             = nullptr;
-        GameUpdateAndRender_ = nullptr;
+        hot_reloaded            = true;
+        game_lib                = nullptr;
+        Game_Update_And_Render_ = nullptr;
     }
 
     path = temp_path;
 #endif  // BF_INTERNAL
 
-    GameUpdateAndRender_ = GameUpdateAndRender_Stub;
+    Game_Update_And_Render_ = Game_Update_And_Render_stub;
 
     HMODULE lib = LoadLibraryA(path);
     if (!lib) {
@@ -145,10 +145,10 @@ void Load_Or_Update_Game_Dll() {
         INVALID_PATH;
     }
 
-    auto loaded_GameUpdateAndRender
-        = (GameUpdateAndRender_Type)GetProcAddress(lib, "Game_Update_And_Render");
+    auto loaded_Game_Update_And_Render
+        = (Game_Update_And_Render_t)GetProcAddress(lib, "Game_Update_And_Render");
 
-    bool functions_loaded = loaded_GameUpdateAndRender;
+    bool functions_loaded = loaded_Game_Update_And_Render;
     if (!functions_loaded) {
         DEBUG_Error("ERROR: Win32: Load_Or_Update_Game_Dll: Functions couldn't be loaded!"
         );
@@ -162,8 +162,8 @@ void Load_Or_Update_Game_Dll() {
     editor_data.dll_reloads_count++;
 #endif  // BF_INTERNAL
 
-    game_lib             = lib;
-    GameUpdateAndRender_ = loaded_GameUpdateAndRender;
+    game_lib                = lib;
+    Game_Update_And_Render_ = loaded_Game_Update_And_Render;
 }
 // -- GAME STUFF END
 
@@ -351,7 +351,7 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    GameUpdateAndRender_(
+    Game_Update_And_Render_(
         dt,
         initial_game_memory,
         initial_game_memory_size,

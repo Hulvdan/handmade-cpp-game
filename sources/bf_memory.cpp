@@ -70,7 +70,7 @@ enum class Allocator_Mode {
     Sanity,
 };
 
-#define Allocator__Function(name_)     \
+#define Allocator_function(name_)      \
     void* name_(                       \
         Allocator_Mode mode,           \
         size_t         size,           \
@@ -81,43 +81,22 @@ enum class Allocator_Mode {
         u64            options         \
     )
 
-using Allocator_Function_Type = Allocator__Function((*));
+using Allocator_function_t = Allocator_function((*));
 
 struct Context {
-    u32 thread_index;
+    u32 thread_index = {};
 
-    Allocator_Function_Type allocator;
-    void*                   allocator_data;
+    Allocator_function_t allocator      = {};
+    void*                allocator_data = {};
 
-    Logger_Function_Type         logger_routine;
-    Logger_Tracing_Function_Type logger_tracing_routine;
-    void*                        logger_data;
-
-    // Context() = default;
-
-    Context(
-        u32                          a_thread_index,
-        Allocator_Function_Type      a_allocator,
-        void*                        a_allocator_data,
-        Logger_Function_Type         a_logger_routine,
-        Logger_Tracing_Function_Type a_logger_tracing_routine,
-        void*                        a_logger_data
-    )
-        : thread_index(a_thread_index)
-        , allocator(a_allocator)
-        , allocator_data(a_allocator_data)
-        , logger_routine(a_logger_routine)
-        , logger_tracing_routine(a_logger_tracing_routine)
-        , logger_data(a_logger_data) {}
+    Logger_function_t         logger_routine         = {};
+    Logger_Tracing_function_t logger_tracing_routine = {};
+    void*                     logger_data            = {};
 };
 
 struct Blk {
-    void*  ptr;
-    size_t length;
-
-    Blk(void* a_ptr, size_t a_length)
-        : ptr(a_ptr)
-        , length(a_length) {}
+    void*  ptr    = {};
+    size_t length = {};
 
     friend bool operator==(const Blk& a, const Blk& b) {
         return a.ptr == b.ptr && a.length == b.length;
@@ -905,7 +884,7 @@ struct Stoopid_Affix {
 
 global_var Root_Allocator_Type* root_allocator = nullptr;
 
-Allocator__Function(Root_Allocator_Routine) {
+Allocator_function(Root_Allocator_Routine) {
     Assert(allocator_data == nullptr);
 
     switch (mode) {
@@ -951,7 +930,7 @@ Allocator__Function(Root_Allocator_Routine) {
     return nullptr;
 }
 
-Allocator__Function(Only_Once_Free_All_Root_Allocator) {
+Allocator_function(Only_Once_Free_All_Root_Allocator) {
     switch (mode) {
     case Allocator_Mode::Allocate: {
         Assert(old_memory_ptr == nullptr);

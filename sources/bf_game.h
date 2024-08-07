@@ -190,17 +190,17 @@ struct Controller_Axis_Changed {
 // --- EVENTS END ---
 
 // --- EXPORTED FUNCTIONS ---
-#define GameUpdateAndRender_Function(name_)  \
-    void name_(                              \
-        f32          dt,                     \
-        void*        memory_ptr,             \
-        size_t       memory_size,            \
-        Game_Bitmap& bitmap,                 \
-        void*        input_events_bytes_ptr, \
-        size_t       input_events_count,     \
-        Editor_Data& editor_data,            \
-        bool         hot_reloaded            \
+#define Game_Update_And_Render_function(name_) \
+    void name_(                                \
+        f32          dt,                       \
+        void*        memory_ptr,               \
+        size_t       memory_size,              \
+        Game_Bitmap& bitmap,                   \
+        void*        input_events_bytes_ptr,   \
+        size_t       input_events_count,       \
+        Editor_Data& editor_data,              \
+        bool         hot_reloaded              \
     ) noexcept
 
-extern "C" GAME_LIBRARY_EXPORT GameUpdateAndRender_Function(Game_Update_And_Render);
+extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render);
 // --- EXPORTED FUNCTIONS END ---

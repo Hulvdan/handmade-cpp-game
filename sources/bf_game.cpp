@@ -287,7 +287,7 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
     return BFGame::GetGame_Library(result.output);
 }
 
-extern "C" GAME_LIBRARY_EXPORT GameUpdateAndRender_Function(Game_Update_And_Render) {
+extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
     ZoneScoped;
 
     Arena root_arena{};
@@ -536,8 +536,8 @@ extern "C" GAME_LIBRARY_EXPORT GameUpdateAndRender_Function(Game_Update_And_Rend
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
-        OnItemBuilt_Function((*callbacks[])) = {
-            Renderer_OnItemBuilt,
+        On_Item_Built_function((*callbacks[])) = {
+            Renderer_On_Item_Built,
         };
         INITIALIZE_OBSERVER_WITH_CALLBACKS(
             state.On_Item_Built, callbacks, non_persistent_arena

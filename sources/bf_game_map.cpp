@@ -443,7 +443,7 @@ Graph_Segment* Query_Graph_Segment(Game_Map& game_map, Graph_Segment_ID id) {
 //----------------------------------------------------------------------------------
 // MovingInTheWorld State Functions.
 //----------------------------------------------------------------------------------
-HumanState_OnEnter_Function(HumanState_MovingInTheWorld_OnEnter) {
+HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -462,7 +462,7 @@ HumanState_OnEnter_Function(HumanState_MovingInTheWorld_OnEnter) {
     );
 }
 
-HumanState_OnExit_Function(HumanState_MovingInTheWorld_OnExit) {
+HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -478,7 +478,7 @@ HumanState_OnExit_Function(HumanState_MovingInTheWorld_OnExit) {
     }
 }
 
-HumanState_Update_Function(HumanState_MovingInTheWorld_Update) {
+HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
     state.UpdateStates(
         state,
         human,
@@ -490,7 +490,7 @@ HumanState_Update_Function(HumanState_MovingInTheWorld_Update) {
     );
 }
 
-HumanState_OnHumanCurrentSegmentChanged_Function(
+HumanState_OnHumanCurrentSegmentChanged_function(
     HumanState_MovingInTheWorld_OnHumanCurrentSegmentChanged
 ) {
     CTX_LOGGER;
@@ -502,7 +502,7 @@ HumanState_OnHumanCurrentSegmentChanged_Function(
     );
 }
 
-HumanState_OnHumanMovedToTheNextTile_Function(
+HumanState_OnHumanMovedToTheNextTile_function(
     HumanState_MovingInTheWorld_OnHumanMovedToTheNextTile
 ) {
     CTX_LOGGER;
@@ -531,7 +531,7 @@ HumanState_OnHumanMovedToTheNextTile_Function(
     }
 }
 
-HumanState_UpdateStates_Function(HumanState_MovingInTheWorld_UpdateStates) {
+HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -660,7 +660,7 @@ HumanState_UpdateStates_Function(HumanState_MovingInTheWorld_UpdateStates) {
 //----------------------------------------------------------------------------------
 // MovingInsideSegment State Functions.
 //----------------------------------------------------------------------------------
-HumanState_OnEnter_Function(HumanState_MovingInsideSegment_OnEnter) {
+HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -692,20 +692,20 @@ HumanState_OnEnter_Function(HumanState_MovingInsideSegment_OnEnter) {
     }
 }
 
-HumanState_OnExit_Function(HumanState_MovingInsideSegment_OnExit) {
+HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
     human.moving.path.Reset();
 }
 
-HumanState_Update_Function(HumanState_MovingInsideSegment_Update) {
+HumanState_Update_function(HumanState_MovingInsideSegment_Update) {
     state.UpdateStates(
         state, human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
     );
 }
 
-HumanState_OnHumanCurrentSegmentChanged_Function(
+HumanState_OnHumanCurrentSegmentChanged_function(
     HumanState_MovingInsideSegment_OnHumanCurrentSegmentChanged
 ) {
     CTX_LOGGER;
@@ -715,7 +715,7 @@ HumanState_OnHumanCurrentSegmentChanged_Function(
     Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
 }
 
-HumanState_OnHumanMovedToTheNextTile_Function(
+HumanState_OnHumanMovedToTheNextTile_function(
     HumanState_MovingInsideSegment_OnHumanMovedToTheNextTile
 ) {
     CTX_LOGGER;
@@ -724,7 +724,7 @@ HumanState_OnHumanMovedToTheNextTile_Function(
     // NOTE: Intentionally left blank.
 }
 
-HumanState_UpdateStates_Function(HumanState_MovingInsideSegment_UpdateStates) {
+HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -751,93 +751,93 @@ HumanState_UpdateStates_Function(HumanState_MovingInsideSegment_UpdateStates) {
 //----------------------------------------------------------------------------------
 // MovingResources State Functions.
 //----------------------------------------------------------------------------------
-HumanState_OnEnter_Function(HumanState_MovingResources_OnEnter) {
+HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
     // TODO:
 }
 
-HumanState_OnExit_Function(HumanState_MovingResources_OnExit) {
+HumanState_OnExit_function(HumanState_MovingResources_OnExit) {
     // TODO:
 }
 
-HumanState_Update_Function(HumanState_MovingResources_Update) {
+HumanState_Update_function(HumanState_MovingResources_Update) {
     // TODO:
 }
 
-HumanState_OnHumanCurrentSegmentChanged_Function(
+HumanState_OnHumanCurrentSegmentChanged_function(
     HumanState_MovingResources_OnHumanCurrentSegmentChanged
 ) {
     // TODO:
 }
 
-HumanState_OnHumanMovedToTheNextTile_Function(
+HumanState_OnHumanMovedToTheNextTile_function(
     HumanState_MovingResources_OnHumanMovedToTheNextTile
 ) {
     // TODO:
 }
 
-HumanState_UpdateStates_Function(HumanState_MovingResources_UpdateStates) {
+HumanState_UpdateStates_function(HumanState_MovingResources_UpdateStates) {
     // TODO:
 }
 
 //----------------------------------------------------------------------------------
 // Construction State Functions.
 //----------------------------------------------------------------------------------
-HumanState_OnEnter_Function(HumanState_Construction_OnEnter) {
+HumanState_OnEnter_function(HumanState_Construction_OnEnter) {
     // TODO:
 }
 
-HumanState_OnExit_Function(HumanState_Construction_OnExit) {
+HumanState_OnExit_function(HumanState_Construction_OnExit) {
     // TODO:
 }
 
-HumanState_Update_Function(HumanState_Construction_Update) {
+HumanState_Update_function(HumanState_Construction_Update) {
     // TODO:
 }
 
-HumanState_OnHumanCurrentSegmentChanged_Function(
+HumanState_OnHumanCurrentSegmentChanged_function(
     HumanState_Construction_OnHumanCurrentSegmentChanged
 ) {
     // TODO:
 }
 
-HumanState_OnHumanMovedToTheNextTile_Function(
+HumanState_OnHumanMovedToTheNextTile_function(
     HumanState_Construction_OnHumanMovedToTheNextTile
 ) {
     // TODO:
 }
 
-HumanState_UpdateStates_Function(HumanState_Construction_UpdateStates) {
+HumanState_UpdateStates_function(HumanState_Construction_UpdateStates) {
     // TODO:
 }
 
 //----------------------------------------------------------------------------------
 // Employee State Functions.
 //----------------------------------------------------------------------------------
-HumanState_OnEnter_Function(HumanState_Employee_OnEnter) {
+HumanState_OnEnter_function(HumanState_Employee_OnEnter) {
     // TODO:
 }
 
-HumanState_OnExit_Function(HumanState_Employee_OnExit) {
+HumanState_OnExit_function(HumanState_Employee_OnExit) {
     // TODO:
 }
 
-HumanState_Update_Function(HumanState_Employee_Update) {
+HumanState_Update_function(HumanState_Employee_Update) {
     // TODO:
 }
 
-HumanState_OnHumanCurrentSegmentChanged_Function(
+HumanState_OnHumanCurrentSegmentChanged_function(
     HumanState_Employee_OnHumanCurrentSegmentChanged
 ) {
     // TODO:
 }
 
-HumanState_OnHumanMovedToTheNextTile_Function(
+HumanState_OnHumanMovedToTheNextTile_function(
     HumanState_Employee_OnHumanMovedToTheNextTile
 ) {
     // TODO:
 }
 
-HumanState_UpdateStates_Function(HumanState_Employee_UpdateStates) {
+HumanState_UpdateStates_function(HumanState_Employee_UpdateStates) {
     // TODO:
 }
 

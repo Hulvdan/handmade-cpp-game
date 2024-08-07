@@ -54,13 +54,13 @@ consteval int string_length(const char* str) {
 
 enum class Log_Type { DEBUG = 0, INFO, WARN, ERR };
 
-#define Logger__Function(name_) \
+#define Logger_function(name_) \
     void name_(void* logger_data, Log_Type log_type, const char* message)
-#define Logger_Tracing__Function(name_) \
+#define Logger_Tracing_function(name_) \
     void name_(void* logger_data, bool push, const char* location)
 
-using Logger_Function_Type         = Logger__Function((*));
-using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
+using Logger_function_t         = Logger_function((*));
+using Logger_Tracing_function_t = Logger_Tracing_function((*));
 
 struct Tracing_Logger {
     static constexpr int MAX_BUFFER_SIZE = 4096;
@@ -150,7 +150,7 @@ BF_FORCE_INLINE void common_log(
     log_function(data.trash_buffer);
 }
 
-Logger__Function(Tracing_Logger_Routine) {
+Logger_function(Tracing_Logger_Routine) {
     auto& data = *(Tracing_Logger*)logger_data;
 
     // NOTE: Засчитываем сообщение в collapse, если оно идентично предыдущему
@@ -279,7 +279,7 @@ bool operator==(const std::source_location& a, const std::source_location& b) {
     );
 }
 
-Logger_Tracing__Function(Tracing_Logger_Tracing_Routine) {
+Logger_Tracing_function(Tracing_Logger_Tracing_Routine) {
     Assert(logger_data != nullptr);
     auto  logger_routine = Tracing_Logger_Routine;
     auto& data           = *(Tracing_Logger*)logger_data;
