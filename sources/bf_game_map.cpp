@@ -105,9 +105,9 @@ Path_Find_Result Find_Path(
 
     Path_Find_Result        result{};
     Fixed_Size_Queue<v2i16> queue{};
-    queue.memory_size       = sizeof(v2i16) * tiles_count;
-    queue.base              = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    *queue.Enqueue_Unsafe() = source;
+    queue.memory_size = sizeof(v2i16) * tiles_count;
+    queue.base        = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
+    *queue.Enqueue()  = source;
 
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
     GRID_PTR_VALUE(visited_mtx, source) = true;
@@ -150,7 +150,7 @@ Path_Find_Result Find_Path(
                 return result;
             }
 
-            *queue.Enqueue_Unsafe() = new_pos;
+            *queue.Enqueue() = new_pos;
         }
     }
 
@@ -2125,8 +2125,8 @@ void Update_Graphs(
     while (big_queue.count) {
         TEMP_USAGE(trash_arena);
 
-        auto p                  = big_queue.Dequeue();
-        *queue.Enqueue_Unsafe() = p;
+        auto p           = big_queue.Dequeue();
+        *queue.Enqueue() = p;
 
         auto [_, p_pos] = p;
         if (full_graph_build) {
@@ -2194,7 +2194,7 @@ void Update_Graphs(
                         );
                         FOR_DIRECTION (new_dir_index) {
                             if (!Graph_Node_Has(new_visited_value, new_dir_index))
-                                *big_queue.Enqueue_Unsafe() = {new_dir_index, new_pos};
+                                *big_queue.Enqueue() = {new_dir_index, new_pos};
                         }
                     }
                     continue;
@@ -2209,7 +2209,7 @@ void Update_Graphs(
                 if (full_graph_build && new_is_vertex) {
                     FOR_DIRECTION (new_dir_index) {
                         if (!Graph_Node_Has(new_visited_value, new_dir_index))
-                            *big_queue.Enqueue_Unsafe() = {new_dir_index, new_pos};
+                            *big_queue.Enqueue() = {new_dir_index, new_pos};
                     }
                 }
 
@@ -2223,7 +2223,7 @@ void Update_Graphs(
                     );
                 }
                 else {
-                    *queue.Enqueue_Unsafe() = {(Direction)0, new_pos};
+                    *queue.Enqueue() = {(Direction)0, new_pos};
                 }
             }
 
@@ -2245,7 +2245,7 @@ void Update_Graphs(
 
                     if (is_vertex && !v1 && !v2) {
                         FOR_DIRECTION (dir_index) {
-                            *big_queue.Enqueue_Unsafe() = {dir_index, pos};
+                            *big_queue.Enqueue() = {dir_index, pos};
                         }
                     }
                 }
@@ -2366,7 +2366,7 @@ void Build_Graph_Segments(
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
 
     FOR_DIRECTION (dir) {
-        *big_queue.Enqueue_Unsafe() = {dir, pos};
+        *big_queue.Enqueue() = {dir, pos};
     }
 
     Fixed_Size_Queue<Dir_v2i16> queue{};
@@ -2462,7 +2462,7 @@ std::tuple<int, int> Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
-                *big_queue.Enqueue_Unsafe() = {dir, pos};
+                *big_queue.Enqueue() = {dir, pos};
             }
         } break;
 
@@ -2474,7 +2474,7 @@ std::tuple<int, int> Update_Tiles(
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road)
-                    *big_queue.Enqueue_Unsafe() = {dir, pos};
+                    *big_queue.Enqueue() = {dir, pos};
             }
         } break;
 
@@ -2486,7 +2486,7 @@ std::tuple<int, int> Update_Tiles(
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type != Element_Tile_Type::None)
-                    *big_queue.Enqueue_Unsafe() = {dir, pos};
+                    *big_queue.Enqueue() = {dir, pos};
             }
         } break;
 
@@ -2501,7 +2501,7 @@ std::tuple<int, int> Update_Tiles(
                     continue;
 
                 FOR_DIRECTION (dir) {
-                    *big_queue.Enqueue_Unsafe() = {dir, new_pos};
+                    *big_queue.Enqueue() = {dir, new_pos};
                 }
             }
         } break;
@@ -2523,7 +2523,7 @@ std::tuple<int, int> Update_Tiles(
                     continue;
 
                 FOR_DIRECTION (dir) {
-                    *big_queue.Enqueue_Unsafe() = {dir, new_pos};
+                    *big_queue.Enqueue() = {dir, new_pos};
                 }
             }
         } break;
@@ -2537,7 +2537,7 @@ std::tuple<int, int> Update_Tiles(
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road) {
                     FOR_DIRECTION (new_dir) {
-                        *big_queue.Enqueue_Unsafe() = {new_dir, new_pos};
+                        *big_queue.Enqueue() = {new_dir, new_pos};
                     }
                 }
             }

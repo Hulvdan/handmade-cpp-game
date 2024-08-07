@@ -41,7 +41,7 @@ struct Fixed_Size_Queue {
     i32    count       = 0;
     T*     base        = nullptr;
 
-    T* Enqueue_Unsafe() {
+    T* Enqueue() {
         Assert(memory_size >= (count + 1) * sizeof(T));
         auto result = base + count;
         count++;
