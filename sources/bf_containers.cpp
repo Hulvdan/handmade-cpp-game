@@ -54,12 +54,12 @@ struct Fixed_Size_Queue {
         Assert(base != nullptr);
         Assert(count > 0);
 
-        T res = *base;
+        T result = *base;
         count -= 1;
         if (count > 0)
             memmove(base, base + 1, sizeof(T) * count);
 
-        return res;
+        return result;
     }
 };
 
@@ -141,12 +141,12 @@ struct Queue {
         Assert(base != nullptr);
         Assert(count > 0);
 
-        T res = *base;
+        T result = *base;
         count -= 1;
         if (count > 0)
             memmove(base, base + 1, sizeof(T) * count);
 
-        return res;
+        return result;
     }
 
     void Remove_At(i32 i) {
@@ -224,7 +224,7 @@ struct Vector {
             auto old_ptr  = base;
 
             base = rcast<T*>(ALLOC(old_size * 2));
-            memcpy(base, old_ptr, old_size);
+            memcpy((void*)base, (void*)old_ptr, old_size);
             FREE(old_ptr, old_size);
 
             max_count = new_max_count;

@@ -70,15 +70,16 @@ enum class Allocator_Mode {
     Sanity,
 };
 
-#define Allocator_function(name_)      \
-    void* name_(                       \
-        Allocator_Mode mode,           \
-        size_t         size,           \
-        size_t         alignment,      \
-        size_t         old_size,       \
-        void*          old_memory_ptr, \
-        void*          allocator_data, \
-        u64            options         \
+#define Allocator_function(name_)                   \
+    /* NOLINTNEXTLINE(bugprone-macro-parentheses)*/ \
+    void* name_(                                    \
+        Allocator_Mode mode,                        \
+        size_t         size,                        \
+        size_t         alignment,                   \
+        size_t         old_size,                    \
+        void*          old_memory_ptr,              \
+        void*          allocator_data,              \
+        u64            options                      \
     )
 
 using Allocator_function_t = Allocator_function((*));
@@ -195,7 +196,9 @@ private:
 
 struct Malloc_Allocator {
     Blk Allocate(size_t n) {
-        return Blk(malloc(n), n);
+        // NOLINTNEXTLINE(clang-analyzer-unix.Malloc)
+        auto result = Blk(malloc(n), n);
+        return result;
     }
 
     void Deallocate(Blk b) {
@@ -215,9 +218,9 @@ struct Malloc_Allocator {
 
 struct Freeable_Malloc_Allocator {
     Blk Allocate(size_t n) {
-        auto res = Blk(malloc(n), n);
-        _allocations.push_back(res);
-        return res;
+        auto result = Blk(malloc(n), n);
+        _allocations.push_back(result);
+        return result;
     }
 
     void Deallocate(Blk b) {
@@ -413,8 +416,8 @@ struct Affix_Allocator {
             }
         }
 
-        auto res = Blk((void*)ptr, n);
-        return res;
+        auto result = Blk((void*)ptr, n);
+        return result;
     }
 
     bool Owns(Blk b) {

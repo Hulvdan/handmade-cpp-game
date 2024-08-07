@@ -238,9 +238,10 @@ const char* Text_Format(const char* text, ...) {
 
     static char buffer[BF_TEXTFORMAT_MAX_SIZE];
 
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     va_list args;
     va_start(args, text);
-    vsprintf(buffer, text, args);
+    vsnprintf(buffer, BF_TEXTFORMAT_MAX_SIZE, text, args);
     va_end(args);
 
     buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';

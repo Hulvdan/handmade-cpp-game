@@ -70,24 +70,24 @@ struct GAME_LIBRARY_EXPORT Editor_Data {
 };
 
 Editor_Data Default_Editor_Data() {
-    Editor_Data res = {};
+    Editor_Data result = {};
 
-    res.changed          = false;
-    res.game_context_set = false;
-    res.context          = nullptr;
+    result.changed          = false;
+    result.game_context_set = false;
+    result.context          = nullptr;
 
-    res.terrain_perlin.octaves      = 9;
-    res.terrain_perlin.scaling_bias = 2.0f;
-    res.terrain_perlin.seed         = 0;
-    res.terrain_max_height          = 6;
+    result.terrain_perlin.octaves      = 9;
+    result.terrain_perlin.scaling_bias = 2.0f;
+    result.terrain_perlin.seed         = 0;
+    result.terrain_max_height          = 6;
 
-    res.forest_perlin.octaves      = 7;
-    res.forest_perlin.scaling_bias = 0.38f;
-    res.forest_perlin.seed         = 0;
-    res.forest_threshold           = 0.54f;
-    res.forest_max_amount          = 5;
+    result.forest_perlin.octaves      = 7;
+    result.forest_perlin.scaling_bias = 0.38f;
+    result.forest_perlin.seed         = 0;
+    result.forest_threshold           = 0.54f;
+    result.forest_max_amount          = 5;
 
-    return res;
+    return result;
 }
 
 // --- EVENTS START ---

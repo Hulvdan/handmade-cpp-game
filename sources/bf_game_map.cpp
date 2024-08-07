@@ -601,12 +601,13 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
             = human.type == Human_Type::Constructor || human.type == Human_Type::Employee;
         Assert(is_constructor_or_employee);
 
-        if (human.type == Human_Type::Constructor) {
-            // TODO: Assert_False(building.is_constructed);
-        }
-        else if (human.type == Human_Type::Employee) {
-            // TODO: Assert(building.is_constructed);
-        }
+        // TODO:
+        // if (human.type == Human_Type::Constructor) {
+        //     // TODO: Assert_False(building.is_constructed);
+        // }
+        // else if (human.type == Human_Type::Employee) {
+        //     // TODO: Assert(building.is_constructed);
+        // }
 
         if (old_building_id != human.building_id) {
             Assert(data.trash_arena != nullptr);
@@ -1607,9 +1608,7 @@ bool Should_Segment_Be_Deleted(
                     continue;
 
                 auto& graph     = segment.graph;
-                auto  graph_pos = pos;
-                graph_pos.x -= graph.offset.x;
-                graph_pos.y -= graph.offset.y;
+                auto  graph_pos = pos - graph.offset;
 
                 if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                     continue;
@@ -1635,9 +1634,7 @@ bool Should_Segment_Be_Deleted(
                 break;
 
             auto& graph     = segment.graph;
-            auto  graph_pos = pos;
-            graph_pos.x -= graph.offset.x;
-            graph_pos.y -= graph.offset.y;
+            auto  graph_pos = pos - graph.offset;
 
             if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                 break;
@@ -1811,9 +1808,10 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // >     dist[v][v] ← 0
     // >     prev[v][v] ← v
     {
-        FOR_RANGE (i16, node_index, n) {
+        Assert(n < (u16)i16_max);
+        FOR_RANGE (u16, node_index, n) {
             dist[node_index * n + node_index] = 0;
-            prev[node_index * n + node_index] = node_index;
+            prev[node_index * n + node_index] = (i16)node_index;
         }
     }
 
@@ -1825,9 +1823,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     //                 dist[i][j] ← dist[i][k] + dist[k][j]
     //                 prev[i][j] ← prev[k][j]
     //
-    FOR_RANGE (i16, k, n) {
-        FOR_RANGE (i16, j, n) {
-            FOR_RANGE (i16, i, n) {
+    FOR_RANGE (u16, k, n) {
+        FOR_RANGE (u16, j, n) {
+            FOR_RANGE (u16, i, n) {
                 auto ij = dist[n * i + j];
                 auto ik = dist[n * i + k];
                 auto kj = dist[n * k + j];
@@ -1849,20 +1847,20 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 
     // NOTE: Вычисление центра графа.
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
-    FOR_RANGE (i16, i, n) {
-        FOR_RANGE (i16, j, n) {
+    FOR_RANGE (u16, i, n) {
+        FOR_RANGE (u16, j, n) {
             node_eccentricities[i] = MAX(node_eccentricities[i], dist[n * i + j]);
         }
     }
 
     i16 rad  = i16_max;
     i16 diam = 0;
-    FOR_RANGE (i16, i, n) {
+    FOR_RANGE (u16, i, n) {
         rad  = MIN(rad, node_eccentricities[i]);
         diam = MAX(diam, node_eccentricities[i]);
     }
 
-    FOR_RANGE (i16, i, n) {
+    FOR_RANGE (u16, i, n) {
         Assert(node_index_2_pos.contains(i));
         if (node_eccentricities[i] == rad) {
             data.center = node_index_2_pos[i] + graph.offset;
@@ -2270,8 +2268,8 @@ void Update_Graphs(
         // NOTE: Вычисление size и offset графа.
         auto& gr_size = segment.graph.size;
         auto& offset  = segment.graph.offset;
-        offset.x      = gsize.x - 1;
-        offset.y      = gsize.y - 1;
+
+        offset = gsize - v2i16_one;
 
         FOR_RANGE (int, y, gsize.y) {
             FOR_RANGE (int, x, gsize.x) {
@@ -2284,10 +2282,8 @@ void Update_Graphs(
                 }
             }
         }
-        gr_size.x -= offset.x;
-        gr_size.y -= offset.y;
-        gr_size.x += 1;
-        gr_size.y += 1;
+        gr_size -= offset;
+        gr_size += v2i16_one;
 
         Assert(gr_size.x > 0);
         Assert(gr_size.y > 0);
