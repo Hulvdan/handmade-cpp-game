@@ -1924,8 +1924,8 @@ using Segment_To_Delete        = std::tuple<Graph_Segment_ID, Graph_Segment*>;
 using Graph_Segments_To_Delete = Fixed_Size_Slice<Segment_To_Delete>;
 
 BF_FORCE_INLINE void Update_Segments(
-    Arena&                    trash_arena,
-    Game_State&               state,
+    Arena& trash_arena,
+    Game_State& /* state */,
     Game_Map&                 game_map,
     Graph_Segments_To_Add&    segments_to_add,
     Graph_Segments_To_Delete& segments_to_delete,
@@ -2097,7 +2097,7 @@ BF_FORCE_INLINE void Update_Segments(
     }
 }
 
-typedef std::tuple<Direction, v2i16> Dir_v2i16;
+using Dir_v2i16 = std::tuple<Direction, v2i16>;
 
 #define QUEUES_SCALE 4
 
@@ -2133,8 +2133,8 @@ void Update_Graphs(
             GRID_PTR_VALUE(vis, p_pos) = true;
         }
 
-        v2i16* vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-        v2i16* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
+        auto vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
+        auto segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
 
         int vertices_count      = 0;
         int segment_tiles_count = 1;
@@ -2275,7 +2275,7 @@ void Update_Graphs(
 
         FOR_RANGE (int, y, gsize.y) {
             FOR_RANGE (int, x, gsize.x) {
-                auto& node = *(temp_graph.nodes + y * gsize.x + x);
+                auto& node = *(temp_graph.nodes + (ptrdiff_t)(y * gsize.x + x));
                 if (node) {
                     gr_size.x = MAX(gr_size.x, x);
                     gr_size.y = MAX(gr_size.y, y);
@@ -2303,9 +2303,10 @@ void Update_Graphs(
         segment.graph.nodes
             = (u8*)ALLOC(sizeof(*segment.graph.nodes) * nodes_allocation_count);
 
-        auto rows          = gr_size.y;
-        auto stride        = gsize.x;
-        auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
+        auto rows   = gr_size.y;
+        auto stride = gsize.x;
+        auto starting_node
+            = temp_graph.nodes + (ptrdiff_t)(offset.y * gsize.x + offset.x);
         Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
 
         SANITIZE;
@@ -2340,7 +2341,7 @@ void Build_Graph_Segments(
     bool  found = false;
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto& tile = *(element_tiles + y * gsize.x + x);
+            auto& tile = *(element_tiles + (ptrdiff_t)(y * gsize.x + x));
 
             if (tile.type == Element_Tile_Type::Flag
                 || tile.type == Element_Tile_Type::Building)
@@ -2593,8 +2594,10 @@ std::tuple<int, int> Update_Tiles(
                     if (!Pos_Is_In_Bounds(g2p_local, g2.size))
                         continue;
 
-                    u8   node1 = *(g1.nodes + y * g1.size.x + x);
-                    u8   node2 = *(g2.nodes + g2p_local.y * g2.size.x + g2p_local.x);
+                    u8 node1 = *(g1.nodes + (ptrdiff_t)(y * g1.size.x + x));
+                    u8 node2
+                        = *(g2.nodes + (ptrdiff_t)(g2p_local.y * g2.size.x + g2p_local.x)
+                        );
                     bool no_intersections = (node1 & node2) == 0;
                     Assert(no_intersections);
                 }
@@ -2648,7 +2651,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
     auto  gsize    = game_map.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
-    auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
+    auto& tile = *(game_map.element_tiles + (ptrdiff_t)(pos.y * gsize.x + pos.x));
 
     switch (item.type) {
     case Item_To_Build_Type::Flag: {

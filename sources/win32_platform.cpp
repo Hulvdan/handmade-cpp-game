@@ -146,7 +146,7 @@ void Load_Or_Update_Game_Dll() {
     }
 
     auto loaded_GameUpdateAndRender
-        = (GameUpdateAndRender_Type)GetProcAddress(lib, "GameUpdateAndRender");
+        = (GameUpdateAndRender_Type)GetProcAddress(lib, "Game_Update_And_Render");
 
     bool functions_loaded = loaded_GameUpdateAndRender;
     if (!functions_loaded) {

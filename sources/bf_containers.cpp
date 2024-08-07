@@ -187,6 +187,7 @@ struct Vector {
         return -1;
     }
 
+    // TODO: Подумать о целесообразности.
     i32 Index_Of(const T& value, std::invocable<const T&, const T&, bool&> auto&& func) {
         bool found = false;
         FOR_RANGE (i32, i, count) {
@@ -462,6 +463,7 @@ struct Sparse_Array {
         return nullptr;
     }
 
+    // TODO: Подумать о целесообразности.
     i32 Index_Of(const T& value, std::invocable<const T&, const T&, bool&> auto&& func) {
         bool found = false;
         FOR_RANGE (i32, i, count) {

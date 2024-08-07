@@ -65,44 +65,43 @@ using Logger_Tracing_Function_Type = Logger_Tracing__Function((*));
 struct Tracing_Logger {
     static constexpr int MAX_BUFFER_SIZE = 4096;
 
-    int current_indentation;
-    int collapse_number;
+    int current_indentation = {};
+    int collapse_number     = {};
 
-    char* previous_buffer;
-    int   previous_indentation;
+    char* previous_buffer      = {};
+    int   previous_indentation = {};
 
-    char* rendering_buffer;
-    char* trash_buffer;
-    char* trash_buffer2;
+    char* rendering_buffer = {};
+    char* trash_buffer     = {};
+    char* trash_buffer2    = {};
 
-    Tracing_Logger(Arena& arena)
-        : current_indentation(0)
-        , collapse_number(0)
-        , previous_indentation(0)  //
-    {
-        previous_buffer  = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
-        rendering_buffer = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
-        trash_buffer     = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
-        trash_buffer2    = Allocate_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
-
-        *previous_buffer = '\0';
-
-        // PATTERN [%L] %v\n\0
-    }
+    bool initialized = {};
 };
 
+void Initialize_Tracing_Logger(Tracing_Logger& logger, Arena& arena) {
+    Assert(!logger.initialized);
+    logger.previous_buffer
+        = Allocate_Zeros_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+    logger.rendering_buffer
+        = Allocate_Zeros_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+    logger.trash_buffer
+        = Allocate_Zeros_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+    logger.trash_buffer2
+        = Allocate_Zeros_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
+    logger.initialized = true;
+}
+
 #if 1
-
 using Root_Logger_Type = Tracing_Logger;
-#    define MAKE_LOGGER(logger_ptr, arena) \
-        STATEMENT({ (logger_ptr) = std::construct_at((logger_ptr), (arena)); })
-
+#    define MAKE_LOGGER(logger_ptr, arena)                 \
+        STATEMENT({                                        \
+            std::construct_at(logger_ptr);                 \
+            Initialize_Tracing_Logger(*logger_ptr, arena); \
+        })
 #else
-
 // NOTE: void* = отключение логирования
 using Root_Logger_Type = void*;
 #    define MAKE_LOGGER(logger_ptr, arena) (void)0
-
 #endif
 
 global_var Root_Logger_Type* root_logger = nullptr;

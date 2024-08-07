@@ -745,6 +745,7 @@ void main() {
         tilemap.tiles = Allocate_Zeros_Array(non_persistent_arena, Tile_ID, tiles_count);
         tilemap.textures
             = Allocate_Zeros_Array(non_persistent_arena, Texture_ID, tiles_count);
+        tilemap.debug_rendering_enabled = true;
     }
 
     // Проставление текстур тайлов в tilemap-е terrain-а.
@@ -1979,7 +1980,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
 }
 
 // NOTE: Game_State& state, v2i16 pos, Item_To_Build item
-On_Item_Built__Function(Renderer__On_Item_Built) {
+OnItemBuilt_Function(Renderer_OnItemBuilt) {
     Assert(state.renderer_state != nullptr);
 
     CTX_ALLOCATOR;

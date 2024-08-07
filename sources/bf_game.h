@@ -200,7 +200,7 @@ struct Controller_Axis_Changed {
         size_t       input_events_count,     \
         Editor_Data& editor_data,            \
         bool         hot_reloaded            \
-    )
+    ) noexcept
 
 extern "C" GAME_LIBRARY_EXPORT GameUpdateAndRender_Function(Game_Update_And_Render);
 // --- EXPORTED FUNCTIONS END ---
