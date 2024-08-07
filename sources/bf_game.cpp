@@ -537,7 +537,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         );
 
         On_Item_Built_function((*callbacks[])) = {
-            Renderer_On_Item_Built,
+            Renderer_OnItemBuilt,
         };
         INITIALIZE_OBSERVER_WITH_CALLBACKS(
             state.On_Item_Built, callbacks, non_persistent_arena
