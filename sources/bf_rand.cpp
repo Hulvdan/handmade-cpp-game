@@ -28,8 +28,8 @@ void Fill_Perlin_2D(
     Assert(sy > 0);
     Assert(sy <= u16_max);
     Assert(sx == sy);
-    Assert(Is_Power_Of_2(sx, sx_power));
-    Assert(Is_Power_Of_2(sy, sy_power));
+    Assert(Is_Power_Of_2(sx, &sx_power));
+    Assert(Is_Power_Of_2(sy, &sy_power));
 
     auto total_pixels = (u32)sx * sy;
     f32* cover        = Allocate_Array(trash_arena, f32, total_pixels);

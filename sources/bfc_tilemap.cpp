@@ -206,27 +206,3 @@ Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Tile& 
 
     return tile.fallback_texture;
 }
-
-//
-// NOTE:
-// Подсчёт самого длинного пути без циклов,
-// который может быть выдан при расчёте кратчайшего пути.
-//
-// В геометрическом смысле его длина
-// равна количеству клеток с буквой R - 20.
-//
-//     R.RRR.RRR
-//     R.R.R.R.R
-//     R.R.R.R.R
-//     RRR.RRR.R
-//
-u32 Longest_Meaningful_Path(v2i16 size) {
-    i32 a = MIN(size.x, size.y);
-    i32 b = MAX(size.x, size.y);
-
-    i32 v1 = a / 2 + Ceiled_Division(a, 2) * b;
-    i32 v2 = b / 2 + Ceiled_Division(b, 2) * a;
-
-    i32 result = MAX(v1, v2);
-    return result;
-}
