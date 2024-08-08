@@ -6,7 +6,13 @@ f32 frand() {
     return result;
 }
 
-void Fill_Perlin_2D(
+struct Perlin_Params {
+    int  octaves;
+    f32  scaling_bias;
+    uint seed;
+};
+
+void Cycled_Perlin_2D(
     u16*          output,
     size_t        free_output_space,
     Arena&        trash_arena,
@@ -17,12 +23,11 @@ void Fill_Perlin_2D(
     auto sx = (u32)sx_;
     auto sy = (u32)sy_;
 
-    TEMP_USAGE(trash_arena);
-
-    auto octaves = params.octaves;
+    Assert(free_output_space <= (size_t)sx * sy);
 
     u32 sx_power = 0;
     u32 sy_power = 0;
+
     Assert(sx > 0);
     Assert(sx <= u16_max);
     Assert(sy > 0);
@@ -30,6 +35,10 @@ void Fill_Perlin_2D(
     Assert(sx == sy);
     Assert(Is_Power_Of_2(sx, &sx_power));
     Assert(Is_Power_Of_2(sy, &sy_power));
+
+    TEMP_USAGE(trash_arena);
+
+    auto octaves = params.octaves;
 
     auto total_pixels = (u32)sx * sy;
     f32* cover        = Allocate_Array(trash_arena, f32, total_pixels);
@@ -44,24 +53,24 @@ void Fill_Perlin_2D(
     f32 sum_of_division = 0;
     octaves             = MIN(sx_power, octaves);
 
-    u16 offset = sx;
+    u32 offset = sx;
 
-    auto octave_c = 1.0f;
+    f32 octave_c = 1.0f;
     FOR_RANGE (int, _, octaves) {
         sum_of_division += octave_c;
 
-        u16 x0_index = 0;
-        u16 x1_index = offset % sx;
-        u16 y0_index = 0;
-        u16 y1_index = offset % sy;
+        u32 x0_index = 0;
+        u32 x1_index = offset % sx;
+        u32 y0_index = 0;
+        u32 y1_index = offset % sy;
 
-        u16 yit = 0;
-        u16 xit = 0;
-        FOR_RANGE (u16, y, sy) {
-            auto y0s = sx * y0_index;
-            auto y1s = sx * y1_index;
+        u32 yit = 0;
+        u32 xit = 0;
+        FOR_RANGE (u32, y, sy) {
+            u32 y0s = sx * y0_index;
+            u32 y1s = sx * y1_index;
 
-            FOR_RANGE (u16, x, sx) {
+            FOR_RANGE (u32, x, sx) {
                 if (xit == offset) {
                     x0_index = x1_index;
                     x1_index = (x1_index + offset) % sx;
@@ -95,15 +104,15 @@ void Fill_Perlin_2D(
         octave_c /= params.scaling_bias;
     }
 
-    FOR_RANGE (int, y, sy) {
-        FOR_RANGE (int, x, sx) {
-            auto t = (*(accumulator + (ptrdiff_t)(y * sy + x))) / sum_of_division;
-            Assert(t <= 1.0f);
+    FOR_RANGE (u64, y, sy) {
+        FOR_RANGE (u64, x, sx) {
+            f32 t = *(accumulator + y * sy + x) / sum_of_division;
             Assert(t >= 0);
+            Assert(t <= 1.0f);
 
             u16 value = (u16)((f32)u16_max * t);
 
-            *(output + (ptrdiff_t)(y * sx + x)) = value;
+            *(output + y * sx + x) = value;
         }
     }
 }

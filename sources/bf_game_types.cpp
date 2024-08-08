@@ -557,6 +557,34 @@ struct Observer {
 #define On_Item_Built_function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
+struct Editor_Data {
+    bool changed = {};
+
+    Perlin_Params terrain_perlin     = {};
+    int           terrain_max_height = {};
+
+    Perlin_Params forest_perlin     = {};
+    f32           forest_threshold  = {};
+    int           forest_max_amount = {};
+};
+
+Editor_Data Default_Editor_Data() {
+    Editor_Data result = {};
+
+    result.terrain_perlin.octaves      = 9;
+    result.terrain_perlin.scaling_bias = 2.0f;
+    result.terrain_perlin.seed         = 0;
+    result.terrain_max_height          = 6;
+
+    result.forest_perlin.octaves      = 7;
+    result.forest_perlin.scaling_bias = 0.38f;
+    result.forest_perlin.seed         = 0;
+    result.forest_threshold           = 0.54f;
+    result.forest_max_amount          = 5;
+
+    return result;
+}
+
 struct Game_State {
     bool hot_reloaded      = {};
     u16  dll_reloads_count = {};
@@ -566,6 +594,8 @@ struct Game_State {
 
     v2f      player_pos = {};
     Game_Map game_map   = {};
+
+    Editor_Data editor_data = {};
 
     size_t               scriptable_resources_count = {};
     Scriptable_Resource* scriptable_resources       = {};

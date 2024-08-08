@@ -37,10 +37,11 @@ struct BF_Bitmap {
 // -- GAME STUFF
 global_var bool hot_reloaded = false;
 
-global_var Editor_Data editor_data;
-global_var HMODULE     game_lib = nullptr;
-global_var size_t      initial_game_memory_size;
-global_var void*       initial_game_memory = nullptr;
+global_var Library_Integration_Data library_integration_data;
+
+global_var HMODULE game_lib = nullptr;
+global_var size_t  initial_game_memory_size;
+global_var void*   initial_game_memory = nullptr;
 
 global_var size_t events_count    = 0;
 global_var std::vector<u8> events = {};
@@ -156,10 +157,9 @@ void Load_Or_Update_Game_Dll() {
     }
 
 #if BF_INTERNAL
-    editor_data.game_context_set = false;
-    editor_data.changed          = true;
-    last_game_dll_write_time     = filetime.filetime;
-    editor_data.dll_reloads_count++;
+    library_integration_data.game_context_set = false;
+    last_game_dll_write_time                  = filetime.filetime;
+    library_integration_data.dll_reloads_count++;
 #endif  // BF_INTERNAL
 
     game_lib                = lib;
@@ -358,7 +358,7 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
         screen_bitmap.bitmap,
         (void*)events.data(),
         events_count,
-        editor_data,
+        library_integration_data,
         hot_reloaded
     );
 
@@ -404,8 +404,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         return 1;
 
     auto mouse_captured = false;
-    if (editor_data.context != nullptr)
-        mouse_captured = editor_data.context->IO.WantCaptureMouse;
+    if (library_integration_data.imgui_context != nullptr)
+        mouse_captured = library_integration_data.imgui_context->IO.WantCaptureMouse;
 
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
@@ -878,8 +878,8 @@ static int WinMain(
 
     ImGui::StyleColorsDark();
 
-    editor_data         = Default_Editor_Data();
-    editor_data.context = ImGui::GetCurrentContext();
+    Library_Integration_Data integration_data{};
+    integration_data.imgui_context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);

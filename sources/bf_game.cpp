@@ -25,6 +25,7 @@
 #include "bf_opengl.cpp"
 #include "bf_math.cpp"
 #include "bf_memory_arena.cpp"
+#include "bf_rand.cpp"
 #include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
@@ -32,7 +33,6 @@
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
-#include "bf_rand.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -295,8 +295,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     root_arena.size       = memory_size;
     root_arena.used       = 0;
 
-    auto& memory       = *Allocate_For(root_arena, Game_Memory);
-    auto& state        = memory.state;
+    auto& memory = *Allocate_For(root_arena, Game_Memory);
+
+    Game_State& state  = memory.state;
     state.hot_reloaded = hot_reloaded;
 
     auto first_time_initializing = !memory.is_initialized;
@@ -318,10 +319,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     );
     auto ctx = &_ctx;
 
-    if (!editor_data.game_context_set) {
-        ImGui::SetCurrentContext(editor_data.context);
-        editor_data.game_context_set = true;
+    if (!library_integration_data.game_context_set) {
+        ImGui::SetCurrentContext(library_integration_data.imgui_context);
+        library_integration_data.game_context_set = true;
     }
+
+    auto& editor_data = state.editor_data;
 
     // --- IMGUI ---
     if (!first_time_initializing) {

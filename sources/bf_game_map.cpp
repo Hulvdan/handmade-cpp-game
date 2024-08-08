@@ -1416,7 +1416,7 @@ void Regenerate_Terrain_Tiles(
     TEMP_USAGE(trash_arena);
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
-    Fill_Perlin_2D(
+    Cycled_Perlin_2D(
         terrain_perlin,
         sizeof(u16) * output_size,
         trash_arena,
@@ -1426,7 +1426,7 @@ void Regenerate_Terrain_Tiles(
     );
 
     auto forest_perlin = Allocate_Array(trash_arena, u16, output_size);
-    Fill_Perlin_2D(
+    Cycled_Perlin_2D(
         forest_perlin,
         sizeof(u16) * output_size,
         trash_arena,

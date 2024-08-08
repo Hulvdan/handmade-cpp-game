@@ -45,50 +45,13 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     void* memory;
 };
 
-struct Perlin_Params {
-    int  octaves;
-    f32  scaling_bias;
-    uint seed;
-};
-
 struct ImGuiContext;
-struct GAME_LIBRARY_EXPORT Editor_Data {
-    bool          changed;
-    bool          game_context_set;
-    ImGuiContext* context;
 
-    Perlin_Params terrain_perlin;
-    int           terrain_max_height;
-
-    Perlin_Params forest_perlin;
-    f32           forest_threshold;
-    int           forest_max_amount;
-
-    int arena_numbers[2];
-
-    int dll_reloads_count;
+struct GAME_LIBRARY_EXPORT Library_Integration_Data {
+    bool          game_context_set  = {};
+    ImGuiContext* imgui_context     = {};
+    int           dll_reloads_count = {};
 };
-
-Editor_Data Default_Editor_Data() {
-    Editor_Data result = {};
-
-    result.changed          = false;
-    result.game_context_set = false;
-    result.context          = nullptr;
-
-    result.terrain_perlin.octaves      = 9;
-    result.terrain_perlin.scaling_bias = 2.0f;
-    result.terrain_perlin.seed         = 0;
-    result.terrain_max_height          = 6;
-
-    result.forest_perlin.octaves      = 7;
-    result.forest_perlin.scaling_bias = 0.38f;
-    result.forest_perlin.seed         = 0;
-    result.forest_threshold           = 0.54f;
-    result.forest_max_amount          = 5;
-
-    return result;
-}
 
 // --- EVENTS START ---
 enum class Event_Type {
@@ -190,16 +153,16 @@ struct Controller_Axis_Changed {
 // --- EVENTS END ---
 
 // --- EXPORTED FUNCTIONS ---
-#define Game_Update_And_Render_function(name_) \
-    void name_(                                \
-        f32          dt,                       \
-        void*        memory_ptr,               \
-        size_t       memory_size,              \
-        Game_Bitmap& bitmap,                   \
-        void*        input_events_bytes_ptr,   \
-        size_t       input_events_count,       \
-        Editor_Data& editor_data,              \
-        bool         hot_reloaded              \
+#define Game_Update_And_Render_function(name_)              \
+    void name_(                                             \
+        f32                       dt,                       \
+        void*                     memory_ptr,               \
+        size_t                    memory_size,              \
+        Game_Bitmap&              bitmap,                   \
+        void*                     input_events_bytes_ptr,   \
+        size_t                    input_events_count,       \
+        Library_Integration_Data& library_integration_data, \
+        bool                      hot_reloaded              \
     ) noexcept
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render);
