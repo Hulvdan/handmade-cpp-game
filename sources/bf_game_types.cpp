@@ -104,7 +104,7 @@ BF_FORCE_INLINE u8 Graph_Node(const Graph& graph, v2i16 pos) {
     auto off = pos - graph.offset;
     Assert(Pos_Is_In_Bounds(off, graph.size));
 
-    u8* node_ptr = graph.nodes + (ptrdiff_t)(off.y * graph.size.x + off.x);
+    u8* node_ptr = graph.nodes + off.y * graph.size.x + off.x;
     u8  result   = *node_ptr;
     return result;
 }
@@ -236,7 +236,7 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
     Assert((u8)dir < 4);
     Assert(graph.offset.x == 0);
     Assert(graph.offset.y == 0);
-    auto& node = *(graph.nodes + (ptrdiff_t)(pos.y * graph.size.x + pos.x));
+    auto& node = *(graph.nodes + pos.y * graph.size.x + pos.x);
 
     bool node_is_zero_but_wont_be_after = (node == 0) && value;
     bool node_is_not_zero_but_will_be

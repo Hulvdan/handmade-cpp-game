@@ -1,5 +1,4 @@
-#define GRID_PTR_VALUE(arr_ptr, pos) \
-    (*((arr_ptr) + (ptrdiff_t)(gsize.x * (pos).y + (pos).x)))
+#define GRID_PTR_VALUE(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
 
 #define Array_Push(array, array_count, array_max_count, value) \
     STATEMENT({                                                \
@@ -160,12 +159,12 @@ Path_Find_Result Find_Path(
 
 Terrain_Tile& Get_Terrain_Tile(Game_Map& game_map, v2i16 pos) {
     Assert(Pos_Is_In_Bounds(pos, game_map.size));
-    return *(game_map.terrain_tiles + (ptrdiff_t)(pos.y * game_map.size.x + pos.x));
+    return *(game_map.terrain_tiles + pos.y * game_map.size.x + pos.x);
 }
 
 Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i16 pos) {
     Assert(Pos_Is_In_Bounds(pos, game_map.size));
-    return *(game_map.terrain_resources + (ptrdiff_t)(pos.y * game_map.size.x + pos.x));
+    return *(game_map.terrain_resources + pos.y * game_map.size.x + pos.x);
 }
 
 template <typename T>
@@ -343,7 +342,7 @@ void Place_Building(
 
     // state.renderer_state->sprites.Add(bid, sprite, ctx);
 
-    auto& tile = *(game_map.element_tiles + (ptrdiff_t)(gsize.x * pos.y + pos.x));
+    auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
     tile.type        = Element_Tile_Type::Building;
     tile.building_id = bid;
@@ -1439,9 +1438,8 @@ void Regenerate_Terrain_Tiles(
         FOR_RANGE (int, x, gsize.x) {
             auto& tile   = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::Grass;
-            auto noise   = (f32)(*(terrain_perlin + (ptrdiff_t)(noise_pitch * y + x)))
-                         / (f32)u16_max;
-            tile.height = int((f32)(data.terrain_max_height + 1) * noise);
+            auto noise   = (f32)(*(terrain_perlin + noise_pitch * y + x)) / (f32)u16_max;
+            tile.height  = int((f32)(data.terrain_max_height + 1) * noise);
 
             Assert(tile.height >= 0);
             Assert(tile.height <= data.terrain_max_height);
@@ -1492,8 +1490,7 @@ void Regenerate_Terrain_Tiles(
             auto& tile     = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
-            auto noise = (f32)(*(forest_perlin + (ptrdiff_t)(noise_pitch * y + x)))
-                         / (f32)u16_max;
+            auto noise    = (f32)(*(forest_perlin + noise_pitch * y + x)) / (f32)u16_max;
             bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
             // TODO: прикрутить terrain-ресурс леса
@@ -1613,13 +1610,11 @@ bool Should_Segment_Be_Deleted(
                 if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                     continue;
 
-                auto node
-                    = *(graph.nodes
-                        + (ptrdiff_t)(graph.size.x * graph_pos.y + graph_pos.x));
+                auto node = *(graph.nodes + graph.size.x * graph_pos.y + graph_pos.x);
                 if (node == 0)
                     continue;
 
-                auto& tile = *(element_tiles + (ptrdiff_t)(gsize.x * pos.y + pos.x));
+                auto& tile = *(element_tiles + gsize.x * pos.y + pos.x);
                 if (tile.type == Element_Tile_Type::Road)
                     return true;
             }
@@ -1639,8 +1634,7 @@ bool Should_Segment_Be_Deleted(
             if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                 break;
 
-            u8 node
-                = *(graph.nodes + (ptrdiff_t)(graph.size.x * graph_pos.y + graph_pos.x));
+            u8 node = *(graph.nodes + graph.size.x * graph_pos.y + graph_pos.x);
             if (node == 0)
                 break;
 
@@ -1685,18 +1679,14 @@ bool Should_Segment_Be_Deleted(
 
 void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
     FOR_RANGE (int, i, rows) {
-        memcpy(
-            dest + (ptrdiff_t)(i * bytes_per_line),
-            source + (ptrdiff_t)(i * stride),
-            bytes_per_line
-        );
+        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
     }
 }
 
 bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     const auto gx = graph.size.x;
 
-    u8 node = *(graph.nodes + (ptrdiff_t)(y * gx + x));
+    u8 node = *(graph.nodes + y * gx + x);
 
     FOR_DIRECTION (dir) {
         if (!Graph_Node_Has(node, dir))
@@ -1706,7 +1696,7 @@ bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
         if (!Pos_Is_In_Bounds(new_pos, graph.size))
             return false;
 
-        u8 adjacent_node = *(graph.nodes + (ptrdiff_t)(gx * new_pos.y + new_pos.x));
+        u8 adjacent_node = *(graph.nodes + gx * new_pos.y + new_pos.x);
         if (!Graph_Node_Has(adjacent_node, Opposite(dir)))
             return false;
     }
@@ -2273,7 +2263,7 @@ void Update_Graphs(
 
         FOR_RANGE (int, y, gsize.y) {
             FOR_RANGE (int, x, gsize.x) {
-                auto& node = *(temp_graph.nodes + (ptrdiff_t)(y * gsize.x + x));
+                auto& node = *(temp_graph.nodes + y * gsize.x + x);
                 if (node) {
                     gr_size.x = MAX(gr_size.x, x);
                     gr_size.y = MAX(gr_size.y, y);
@@ -2299,10 +2289,9 @@ void Update_Graphs(
         segment.graph.nodes
             = (u8*)ALLOC(sizeof(*segment.graph.nodes) * nodes_allocation_count);
 
-        auto rows   = gr_size.y;
-        auto stride = gsize.x;
-        auto starting_node
-            = temp_graph.nodes + (ptrdiff_t)(offset.y * gsize.x + offset.x);
+        auto rows          = gr_size.y;
+        auto stride        = gsize.x;
+        auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
         Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
 
         SANITIZE;
@@ -2337,7 +2326,7 @@ void Build_Graph_Segments(
     bool  found = false;
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
-            auto& tile = *(element_tiles + (ptrdiff_t)(y * gsize.x + x));
+            auto& tile = *(element_tiles + y * gsize.x + x);
 
             if (tile.type == Element_Tile_Type::Flag
                 || tile.type == Element_Tile_Type::Building)
@@ -2590,10 +2579,8 @@ std::tuple<int, int> Update_Tiles(
                     if (!Pos_Is_In_Bounds(g2p_local, g2.size))
                         continue;
 
-                    u8 node1 = *(g1.nodes + (ptrdiff_t)(y * g1.size.x + x));
-                    u8 node2
-                        = *(g2.nodes + (ptrdiff_t)(g2p_local.y * g2.size.x + g2p_local.x)
-                        );
+                    u8   node1 = *(g1.nodes + y * g1.size.x + x);
+                    u8   node2 = *(g2.nodes + g2p_local.y * g2.size.x + g2p_local.x);
                     bool no_intersections = (node1 & node2) == 0;
                     Assert(no_intersections);
                 }
@@ -2647,7 +2634,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
     auto  gsize    = game_map.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
-    auto& tile = *(game_map.element_tiles + (ptrdiff_t)(pos.y * gsize.x + pos.x));
+    auto& tile = *(game_map.element_tiles + pos.y * gsize.x + pos.x);
 
     switch (item.type) {
     case Item_To_Build_Type::Flag: {

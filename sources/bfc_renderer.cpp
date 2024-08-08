@@ -949,17 +949,17 @@ void Deinit_Renderer(Game_State& state, MCTX) {
 }
 
 void Draw_Sprite(
-    f32              x0,
-    f32              y0,
-    f32              x1,
-    f32              y1,
+    f32              tex_x0,
+    f32              tex_y0,
+    f32              tex_x1,
+    f32              tex_y1,
     v2f              pos,
     v2f              size,
     float            rotation,
     const glm::mat3& projection
 ) {
-    Assert(x0 < x1);
-    Assert(y0 < y1);
+    Assert(tex_x0 < tex_x1);
+    Assert(tex_y0 < tex_y1);
 
     auto model = glm::mat3(1);
     model      = glm::translate(model, pos);
@@ -976,7 +976,8 @@ void Draw_Sprite(
         // vertex.y = vertex.y / vertex.z;
     }
 
-    f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
+    f32 texture_vertices[]
+        = {tex_x0, tex_y0, tex_x0, tex_y1, tex_x1, tex_y0, tex_x1, tex_y1};
     for (int i : {0, 1, 2, 2, 1, 3}) {
         // TODO: How bad is that there are 2 vertices duplicated?
         glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
@@ -1323,7 +1324,7 @@ glm::mat3 Get_UI_Projection_Matrix(v2f screen_size) {
     return mat;
 }
 
-void Render_UI(Game_State& state, f32 dt, MCTX) {
+void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
     auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 

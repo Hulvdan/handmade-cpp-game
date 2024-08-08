@@ -88,7 +88,7 @@ void Cycled_Perlin_2D(
                 auto blend23 = Lerp(a2, a3, xb);
                 auto value   = octave_c * Lerp(blend01, blend23, yb);
 
-                *(accumulator + (ptrdiff_t)(sx * y + x)) += value;
+                *(accumulator + sx * y + x) += value;
                 xit++;
             }
 
