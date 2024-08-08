@@ -71,9 +71,9 @@ void Deallocate_(Arena& arena, size_t size) {
 #endif
 }
 
-// ============================== //
-//             Other              //
-// ============================== //
+//----------------------------------------------------------------------------------
+// Other.
+//----------------------------------------------------------------------------------
 [[nodiscard]] BF_FORCE_INLINE u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
     const auto addr         = rcast<size_t>(ptr);
     const auto aligned_addr = (addr + (alignment - 1)) & -alignment;

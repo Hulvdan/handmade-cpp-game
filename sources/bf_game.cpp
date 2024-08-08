@@ -71,14 +71,13 @@ bool UI_Clicked(Game_State& state) {
     const auto placeholders     = ui_state.placeholders;
     const auto panel_size       = v2f(
         psize.x + 2 * padding.x,
-        2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
+        2 * padding.y + placeholders_gap * (f32)(placeholders - 1)
+            + (f32)placeholders * psize.y
     );
 
     const v2f  outer_anchor         = ui_state.buildables_panel_container_anchor;
     const v2i  outer_container_size = v2i(swidth, sheight);
-    const auto outer_pos            = v2f(
-        outer_container_size.x * outer_anchor.x, outer_container_size.y * outer_anchor.y
-    );
+    const auto outer_pos            = v2f(outer_container_size) * outer_anchor;
 
     auto VIEW = glm::mat3(1);
     VIEW      = glm::translate(VIEW, v2f((int)outer_pos.x, (int)outer_pos.y));

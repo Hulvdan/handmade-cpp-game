@@ -24,10 +24,12 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
 // NOTE: Сюда не смотреть.
 // В момент написания я забыл про то, что существуют парсеры / лексеры)
 Load_Smart_Tile_Result
-Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize) {
+Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize_) {
+    u32 filesize = Assert_Truncate_To_u32(filesize_);
+
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE
     auto c = filedata;
-    auto f = filesize;
+    u32  f = filesize;
     while (f--)
         Assert(*c != '\0');
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE END
@@ -203,4 +205,28 @@ Texture_ID Test_Smart_Tile(Tilemap& tilemap, v2i16 size, v2i16 pos, Smart_Tile& 
     }
 
     return tile.fallback_texture;
+}
+
+//
+// NOTE:
+// Подсчёт самого длинного пути без циклов,
+// который может быть выдан при расчёте кратчайшего пути.
+//
+// В геометрическом смысле его длина
+// равна количеству клеток с буквой R - 20.
+//
+//     R.RRR.RRR
+//     R.R.R.R.R
+//     R.R.R.R.R
+//     RRR.RRR.R
+//
+u32 Longest_Meaningful_Path(v2i16 size) {
+    i32 a = MIN(size.x, size.y);
+    i32 b = MAX(size.x, size.y);
+
+    i32 v1 = a / 2 + Ceiled_Division(a, 2) * b;
+    i32 v2 = b / 2 + Ceiled_Division(b, 2) * a;
+
+    i32 result = MAX(v1, v2);
+    return result;
 }

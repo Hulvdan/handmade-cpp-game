@@ -60,8 +60,6 @@
 template <typename T>
 void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
 
-// ==============================
-
 enum class Allocator_Mode {
     Allocate = 0,
     Resize,
@@ -267,10 +265,8 @@ private:
 //     // ... use p[0] through p[n - 1]...
 // }
 
-// ===== Freelist =====
-
-// Keeps list of previous allocations of a given size
-
+// Freelist keeps list of previous allocations of a given size
+//
 // - Add tolerance: min...max
 // - Allocate in batches
 // - Add upper bound: no more than top elems
@@ -282,7 +278,6 @@ private:
 //     8,   // Allocate 8 at a time
 //     1024 // No more than 1024 remembered
 // > alloc8r;
-
 template <class A, size_t min, size_t max, i32 min_allocations = 8, i32 top = 1024>
 struct Freelist {
     static_assert(top > 0);
@@ -363,8 +358,6 @@ private:
     } _root;
     i32 _remembered = 0;
 };
-
-// ===== Adding Affixes =====
 
 struct Size_Affix {
     size_t n;
@@ -528,17 +521,6 @@ private:
 //     //     (caller file/line/function/time)
 // };
 
-// ===== Bitmapped Block =====
-
-constexpr bool Is_Power_Of_2(const size_t number) {
-    size_t n = 1;
-
-    while (n < number)
-        n *= 2;
-
-    return number == n;
-}
-
 // NOTE: Small аллокатор, похожий на тот, что схематично приведён в книге
 // "Game Engine Gems 2. Ch. 26. A Highly Optimized Portable Memory Manager".
 // `dlmalloc` подробно не изучал, когда эту штуку писал.
@@ -577,7 +559,7 @@ class Bitmapped_Allocator {
             memset(_occupied, 0, block_size);
         }
 
-        size_t required_blocks = Ceil_Division(n, block_size);
+        size_t required_blocks = Ceiled_Division(n, block_size);
 
         size_t location = 0;
         while (location <= Total_Blocks_Count() - required_blocks) {
@@ -630,7 +612,7 @@ class Bitmapped_Allocator {
         UNMARK_BIT(_allocation_bits, block);
 
         // Unmarking occupied bits
-        FOR_RANGE (size_t, i, Ceil_Division(b.length, block_size)) {
+        FOR_RANGE (size_t, i, Ceiled_Division(b.length, block_size)) {
             Assert(QUERY_BIT(_occupied, block + i));
             UNMARK_BIT(_occupied, block + i);
 
@@ -823,11 +805,7 @@ private:
 //         Fallback_Allocator<Bitmapped_Allocator<Malloc_Allocator, 32>, Null_Allocator>>,
 //     Malloc_Allocator>;
 
-// ========================
-
 // using Game_Map_Allocator = Malloc_Allocator;
-
-// ========================
 
 // template <class A>
 // using FList = Freelist<A, 0, size_t_max>;
@@ -977,9 +955,9 @@ Allocator_function(Only_Once_Free_All_Root_Allocator) {
     return nullptr;
 }
 
-// ========================
-
-// ===== Complete API =====
+//----------------------------------------------------------------------------------
+// Complete API.
+//----------------------------------------------------------------------------------
 // namespace {
 //
 // static constexpr unsigned alignment;

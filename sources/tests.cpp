@@ -25,9 +25,9 @@
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-// =============================================================
-// Memory Setup
-// =============================================================
+//----------------------------------------------------------------------------------
+// Memory Setup.
+//----------------------------------------------------------------------------------
 global_var Context _ctx(0, nullptr, nullptr, nullptr, nullptr, nullptr);
 
 #define INITIALIZE_CTX                                                          \
@@ -75,9 +75,12 @@ void Free_Allocations() {
     heap_allocations.clear();
 }
 
-// =============================================================
-// Tests
-// =============================================================
+//----------------------------------------------------------------------------------
+// Tests.
+//----------------------------------------------------------------------------------
+
+// bf_hash.cpp
+//----------------------------------------------------------------------------------
 TEST_CASE ("Hash32, EmptyIsCorrect") {
     CHECK(Hash32((u8*)"", 0) == EMPTY_HASH32);
 }
@@ -86,6 +89,44 @@ TEST_CASE ("Hash32, TestValue") {
     CHECK(Hash32((u8*)"test", 4) == 0xafd071e5);
 }
 
+// bf_math.cpp
+//----------------------------------------------------------------------------------
+TEST_CASE ("Is_Power_Of_2") {
+    u32 power = 0;
+
+    Assert(Is_Power_Of_2(2, &power));
+    Assert(power == 1);
+    Assert(Is_Power_Of_2(4, &power));
+    Assert(power == 2);
+
+    Assert_False(Is_Power_Of_2(-1, &power));
+    Assert_False(Is_Power_Of_2(0, &power));
+    Assert_False(Is_Power_Of_2(1, &power));
+    Assert_False(Is_Power_Of_2(3, &power));
+}
+
+TEST_CASE ("Move_Towards") {
+    CHECK(Move_Towards(0, 1, 0.4f) == 0.4f);
+    CHECK(Move_Towards(0, -1, 0.4f) == -0.4f);
+    CHECK(Move_Towards(1, 1, 0.4f) == 1);
+    CHECK(Move_Towards(-1, -1, 0.4f) == -1);
+}
+
+TEST_CASE ("Ceil_To_Power_Of_2") {
+    CHECK(Ceil_To_Power_Of_2(1) == 1);
+    CHECK(Ceil_To_Power_Of_2(2) == 2);
+    CHECK(Ceil_To_Power_Of_2(3) == 4);
+    CHECK(Ceil_To_Power_Of_2(4) == 4);
+    CHECK(Ceil_To_Power_Of_2(31) == 32);
+    CHECK(Ceil_To_Power_Of_2(32) == 32);
+    CHECK(Ceil_To_Power_Of_2(65535) == 65536);
+    CHECK(Ceil_To_Power_Of_2(65536) == 65536);
+    CHECK(Ceil_To_Power_Of_2(2147483647) == 2147483648);
+    CHECK(Ceil_To_Power_Of_2(2147483648) == 2147483648);
+}
+
+// bfc_tilemap.cpp
+//----------------------------------------------------------------------------------
 TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
     constexpr u64 size         = 512;
     u8            output[size] = {};
@@ -132,16 +173,8 @@ TEST_CASE ("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
     CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
-TEST_CASE ("ProtoTest, Proto") {
-    CHECK(0xFF == 255);
-    CHECK(0x00FF == 255);
-    CHECK(0xFF00 == 65280);
-
-    CHECK(0b11111111 == 255);
-    CHECK(0b0000000011111111 == 255);
-    CHECK(0b1111111100000000 == 65280);
-}
-
+// bf_rand.cpp
+//----------------------------------------------------------------------------------
 TEST_CASE ("frand, interval") {
     for (int i = 0; i < 10000; i++) {
         auto value = frand();
@@ -149,46 +182,6 @@ TEST_CASE ("frand, interval") {
         CHECK(value < 1);
     }
 }
-
-TEST_CASE ("Move_Towards") {
-    CHECK(Move_Towards(0, 1, 0.4f) == 0.4f);
-    CHECK(Move_Towards(0, -1, 0.4f) == -0.4f);
-    CHECK(Move_Towards(1, 1, 0.4f) == 1);
-    CHECK(Move_Towards(-1, -1, 0.4f) == -1);
-}
-
-TEST_CASE ("Ceil_To_Power_Of_2") {
-    CHECK(Ceil_To_Power_Of_2(1) == 1);
-    CHECK(Ceil_To_Power_Of_2(2) == 2);
-    CHECK(Ceil_To_Power_Of_2(3) == 4);
-    CHECK(Ceil_To_Power_Of_2(4) == 4);
-    CHECK(Ceil_To_Power_Of_2(31) == 32);
-    CHECK(Ceil_To_Power_Of_2(32) == 32);
-    CHECK(Ceil_To_Power_Of_2(65535) == 65536);
-    CHECK(Ceil_To_Power_Of_2(65536) == 65536);
-    CHECK(Ceil_To_Power_Of_2(2147483647) == 2147483648);
-    CHECK(Ceil_To_Power_Of_2(2147483648) == 2147483648);
-}
-
-struct Test_Node {
-    size_t next;
-    u32    id;
-    bool   active;
-
-    Test_Node()
-        : id(0)
-        , next(0)
-        , active(false) {}
-    Test_Node(u32 a_id)
-        : id(a_id)
-        , next(0)
-        , active(false) {}
-};
-
-#define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
-    STATEMENT({ (allocator_).Allocate((size_), (alignment_)); })
-
-#define Allocator_Free_Macro(allocator_, key_) STATEMENT({ (allocator_).Free((key_)); })
 
 TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);
@@ -1305,4 +1298,14 @@ TEST_CASE ("Longest_Meaningful_Path") {
     CHECK(Longest_Meaningful_Path({4, 3}) == 9);
     CHECK(Longest_Meaningful_Path({5, 3}) == 11);
     CHECK(Longest_Meaningful_Path({5, 5}) == 17);
+}
+
+TEST_CASE ("ProtoTest, Proto") {
+    CHECK(0xFF == 255);
+    CHECK(0x00FF == 255);
+    CHECK(0xFF00 == 65280);
+
+    CHECK(0b11111111 == 255);
+    CHECK(0b0000000011111111 == 255);
+    CHECK(0b1111111100000000 == 65280);
 }

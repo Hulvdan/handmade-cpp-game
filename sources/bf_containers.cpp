@@ -57,7 +57,7 @@ struct Fixed_Size_Queue {
         T result = *base;
         count -= 1;
         if (count > 0)
-            memmove(base, base + 1, sizeof(T) * count);
+            memmove((void*)base, (void*)(base + 1), sizeof(T) * count);
 
         return result;
     }
