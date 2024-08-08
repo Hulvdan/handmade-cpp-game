@@ -65,6 +65,7 @@ char* Allocate_Formatted_String(Arena& arena, const char* format, ...) {
     const auto MAX_N = 512;
     char       buf[MAX_N];
 
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     va_list args;
     va_start(args, format);
     auto n = vsnprintf(buf, MAX_N, format, args);

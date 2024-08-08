@@ -31,7 +31,7 @@ const Human_Constructor_ID Human_Constructor_ID_Missing = Entity_ID_Missing;
 using Building_ID                     = Entity_ID;
 const Building_ID Building_ID_Missing = Entity_ID_Missing;
 
-using Texture_ID                        = i16;
+using Texture_ID                        = u32;
 constexpr Texture_ID Texture_ID_Missing = std::numeric_limits<Texture_ID>::max();
 // constexpr Texture_ID Texture_ID_Missing = 0;
 
@@ -746,10 +746,10 @@ struct Game_UI_State {
     Texture_ID buildables_panel_texture       = {};
     Texture_ID buildables_placeholder_texture = {};
 
-    u16            buildables_count = {};
+    u32            buildables_count = {};
     Item_To_Build* buildables       = {};
 
-    i8       selected_buildable_index          = {};
+    i32      selected_buildable_index          = {};
     BF_Color selected_buildable_color          = {};
     BF_Color not_selected_buildable_color      = {};
     v2f      buildables_panel_sprite_anchor    = {};
@@ -758,8 +758,8 @@ struct Game_UI_State {
     f32      scale                             = {};
 
     v2i padding          = {};
-    i8  placeholders     = {};
-    i16 placeholders_gap = {};
+    u32 placeholders     = {};
+    u32 placeholders_gap = {};
 };
 
 struct Atlas {

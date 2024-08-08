@@ -78,8 +78,8 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
         GL_TEXTURE_2D,
         0,
         GL_RGBA8,
-        texture.size.x,
-        texture.size.y,
+        Assert_Truncate_To_i32(texture.size.x),
+        Assert_Truncate_To_i32(texture.size.y),
         0,
         GL_BGRA_EXT,
         GL_UNSIGNED_BYTE,
@@ -172,10 +172,11 @@ Atlas Load_Atlas(
 }
 
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize) {
-    Element_Tile& tile             = element_tiles[pos.y * gsize.x + pos.x];
-    bool          tile_is_flag     = tile.type == Element_Tile_Type::Flag;
-    bool          tile_is_road     = tile.type == Element_Tile_Type::Road;
-    bool          tile_is_building = tile.type == Element_Tile_Type::Building;
+    Element_Tile& tile = element_tiles[pos.y * gsize.x + pos.x];
+
+    bool tile_is_flag     = tile.type == Element_Tile_Type::Flag;
+    bool tile_is_building = tile.type == Element_Tile_Type::Building;
+    // bool tile_is_road     = tile.type == Element_Tile_Type::Road;
 
     int road_texture_number = 0;
     FOR_RANGE (int, i, 4) {
@@ -212,13 +213,13 @@ void Debug_Print_Shader_Info_Log(
 ) {
     TEMP_USAGE(trash_arena);
 
-    GLint succeeded;
+    GLint succeeded = 0;
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
 
-    GLint log_length;
+    GLint log_length = 0;
     glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
 
-    GLchar  zero     = GLchar(0);
+    GLchar  zero     = 0;
     GLchar* info_log = &zero;
 
     if (log_length) {
@@ -280,7 +281,7 @@ void Create_Shader_Program(
     glAttachShader(new_program_id, fragment_shader);
     glLinkProgram(new_program_id);
     // print linking errors if any
-    GLint log_length;
+    GLint log_length = 0;
     glGetProgramiv(new_program_id, GL_INFO_LOG_LENGTH, &log_length);
 
     GLint program_success = 0;
@@ -309,8 +310,8 @@ void Init_Renderer(
     bool        hot_reloaded,
     Game_State& state,
     Arena&      arena,
-    Arena&      non_persistent_arena,
-    Arena&      trash_arena,
+    Arena& /* non_persistent_arena */,
+    Arena& /* trash_arena */,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -361,7 +362,12 @@ void Add_Building_Sprite(
     }
 }
 
-void Set_Flag_Tile(Game_Renderer_State& rstate, Game_Map& game_map, v2i pos, MCTX) {
+void Set_Flag_Tile(
+    Game_Renderer_State& rstate,
+    Game_Map& /* game_map */,
+    v2i pos,
+    MCTX_
+) {
     auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
 
     auto t = pos.y * placeables_tilemap.size.x + pos.x;
@@ -612,7 +618,9 @@ void main() {
                 rstate.tilemap_shader_program, "a_atlas_texture_size"
             );
             glUniform2i(
-                location, rstate.atlas.texture.size.x, rstate.atlas.texture.size.y
+                location,
+                Assert_Truncate_To_i32(rstate.atlas.texture.size.x),
+                Assert_Truncate_To_i32(rstate.atlas.texture.size.y)
             );
         }
 
@@ -764,7 +772,7 @@ void main() {
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
-                Texture_ID id;
+                Texture_ID id = 0;
 
                 if (tilemap.tiles[y * gsize.x + x])
                     id = Test_Smart_Tile(
