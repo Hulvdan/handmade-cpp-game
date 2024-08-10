@@ -22,9 +22,9 @@
 #include "bf_gamelib_generated.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
-#include "bf_opengl.cpp"
 #include "bf_math.cpp"
 #include "bf_memory_arena.cpp"
+#include "bf_opengl.cpp"
 #include "bf_rand.cpp"
 #include "bf_file.cpp"
 #include "bf_log.cpp"

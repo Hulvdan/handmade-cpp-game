@@ -74,7 +74,7 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     glTexImage2D(
         GL_TEXTURE_2D,
@@ -87,7 +87,7 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
         GL_UNSIGNED_BYTE,
         texture.base
     );
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 }
 
 void DEBUG_Load_Texture(
@@ -208,25 +208,6 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
     auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_)); \
     Assert((variable_name_).success);
 
-struct Get_Shader_Info_Log_Result {
-    bool  success;
-    char* log_text;
-};
-
-const char* Get_Shader_Info_Log(GLuint shader_id, Arena& trash_arena) {
-    GLint log_length = 0;
-    glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
-
-    GLchar* info_log = nullptr;
-
-    if (log_length) {
-        info_log = Allocate_Array(trash_arena, GLchar, log_length);
-        glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
-    }
-
-    return info_log;
-}
-
 void Init_Renderer(
     bool        first_time_initializing,
     bool        hot_reloaded,
@@ -302,14 +283,14 @@ void Set_Flag_Tile(
 }
 
 void Print_Shader_Compilation_Logs(BFGL_Create_Shader_Result result) {
-    const auto template = (create_result ? "ERROR: %s" : "INFO: %s");
+    const auto t = ((result.success) ? "ERROR: %s" : "INFO: %s");
 
-    if (create_result.vertex_log)
-        DEBUG_Print(Text_Format(template, create_result.vertex_log));
-    if (create_result.fragment_log)
-        DEBUG_Print(Text_Format(template, create_result.fragment_log));
-    if (create_result.program_log)
-        DEBUG_Print(Text_Format(template, create_result.program_log));
+    if (result.logs.vertex_log)
+        DEBUG_Print(Text_Format(t, result.logs.vertex_log));
+    if (result.logs.fragment_log)
+        DEBUG_Print(Text_Format(t, result.logs.fragment_log));
+    if (result.logs.program_log)
+        DEBUG_Print(Text_Format(t, result.logs.program_log));
 }
 
 void Post_Init_Renderer(
@@ -340,9 +321,9 @@ void Post_Init_Renderer(
 
     std::construct_at(&rstate.sprites);
 
-    // Перезагрузка шейдеров.
+    // Шейдеры.
     {
-        auto create_result = Create_Shader(
+        auto create_result = BFGL_Create_Shader_Program(
             R"VertexShader(
 #version 330 core
 
@@ -389,8 +370,7 @@ void main() {
     }
 
     {
-        auto create_result = Create_Shader(
-            rstate.tilemap_shader_program,
+        auto create_result = BFGL_Create_Shader_Program(
             R"VertexShader(
 #version 330 core
 
@@ -531,8 +511,8 @@ if (atlas_texture.x < 0 || atlas_texture.y < 0)
         Print_Shader_Compilation_Logs(create_result);
 
         if (create_result.success) {
-            BFGL_Delete_Shader_Program(rstate.sprites_shader_program);
-            rstate.sprites_shader_program = create_result.program;
+            BFGL_Delete_Shader_Program(rstate.tilemap_shader_program);
+            rstate.tilemap_shader_program = create_result.program;
         }
     }
 
@@ -969,25 +949,24 @@ void Draw_UI_Sprite(
         v2f pos[6];
         v2f tex_coords[6];
         v3f color;
-    } buffer_data = {
-        {
-            {gl_x0, gl_y0},
-            {gl_x1, gl_y0},
-            {gl_x0, gl_y1},
-            {gl_x0, gl_y1},
-            {gl_x1, gl_y0},
-            {gl_x1, gl_y1},
-        },
-        {
-            {tex_coord_x0, tex_coord_y0},
-            {tex_coord_x1, tex_coord_y0},
-            {tex_coord_x0, tex_coord_y1},
-            {tex_coord_x0, tex_coord_y1},
-            {tex_coord_x1, tex_coord_y0},
-            {tex_coord_x1, tex_coord_y1},
-        },
-        color,
-    };
+    } buffer_data
+        = {{
+               {gl_x0, gl_y0},
+               {gl_x1, gl_y0},
+               {gl_x0, gl_y1},
+               {gl_x0, gl_y1},
+               {gl_x1, gl_y0},
+               {gl_x1, gl_y1},
+           },
+           {
+               {tex_coord_x0, tex_coord_y0},
+               {tex_coord_x1, tex_coord_y0},
+               {tex_coord_x0, tex_coord_y1},
+               {tex_coord_x0, tex_coord_y1},
+               {tex_coord_x1, tex_coord_y0},
+               {tex_coord_x1, tex_coord_y1},
+           },
+           color.rgb};
 
     auto vao = BFGL_Load_Vertex_Array();
     defer {
@@ -1008,7 +987,9 @@ void Draw_UI_Sprite(
     BFGL_Set_Vertex_Attribute(
         0, 2, BF_FLOAT, 0, sizeof(v2f), Offset_Of_Member(buffer_data_t, pos)
     );
-    BFGL_Set_Vertex_Attribute(1, 3, BF_FLOAT, 0, 0, Offset_Of_Member(buffer_data_t, color)
+    BFGL_Set_Vertex_Attribute(
+        1, 3, BF_FLOAT, 0, 0, Offset_Of_Member(buffer_data_t, color)
+    );
     BFGL_Set_Vertex_Attribute(
         2, 2, BF_FLOAT, 0, sizeof(v2f), Offset_Of_Member(buffer_data_t, tex_coords)
     );
@@ -1268,7 +1249,7 @@ OpenGL_Framebuffer Create_Framebuffer(v2i size) {
     // Check.
     auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     Assert(check == GL_FRAMEBUFFER_COMPLETE);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     OpenGL_Framebuffer res{};
     res.id    = framebuffer_id;
@@ -1585,7 +1566,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     // Рисование заднего синего фона.
     {
@@ -1594,13 +1575,13 @@ void Render(Game_State& state, f32 dt, MCTX) {
         GLuint texture_name = 3;
 
         glBindTexture(GL_TEXTURE_2D, texture_name);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexImage2D(
             GL_TEXTURE_2D,
@@ -1613,10 +1594,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
             GL_UNSIGNED_BYTE,
             bitmap.memory
         );
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glBlendFunc(GL_ONE, GL_ZERO);
         glBindTexture(GL_TEXTURE_2D, texture_name);
@@ -1748,7 +1729,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             );
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-            Check_OpenGL_Errors();
+            BFGL_Check_Errors();
 
             // Рисование квада tilemap.
             auto p0 = W2GL * v3f(0, 0, 1);
@@ -1803,7 +1784,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             glBindVertexArray(0);
             glDeleteVertexArrays(1, &vao);
             glDeleteBuffers(1, &vbo);
-            Check_OpenGL_Errors();
+            BFGL_Check_Errors();
 
             SANITIZE;
         }
@@ -1824,13 +1805,13 @@ void Render(Game_State& state, f32 dt, MCTX) {
         );
     }
 
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     // Рисование спрайтов.
     Memory_Buffer vertex_data{ctx};
@@ -1939,7 +1920,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glBindVertexArray(0);
         glDeleteVertexArrays(1, &vao);
         glDeleteBuffers(1, &vbo);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
     }
 
     SANITIZE;

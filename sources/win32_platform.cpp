@@ -22,6 +22,7 @@
 #include "bf_game.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_memory_arena.cpp"
 #include "bf_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 

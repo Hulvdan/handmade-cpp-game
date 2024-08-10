@@ -724,9 +724,14 @@ struct UI_Sprite_Params {
 };
 
 struct BF_Color {
-    f32 r = {};
-    f32 g = {};
-    f32 b = {};
+    union {
+        struct {
+            f32 r;
+            f32 g;
+            f32 b;
+        };
+        v3f rgb;
+    };
 };
 
 static constexpr BF_Color BF_Color_White   = {1, 1, 1};

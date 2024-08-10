@@ -44,7 +44,7 @@ void BFGL_Set_Vertex_Attribute(
         type,
         normalized,
         stride_bytes,
-        Int_To_Ptr(starting_offset_bytes)
+        Ptr_From_Int(starting_offset_bytes)
     );
 }
 
@@ -63,6 +63,25 @@ void BFGL_Disable_Vertex_Array() {
 //----------------------------------------------------------------------------------
 // Shaders.
 //----------------------------------------------------------------------------------
+struct Get_Shader_Info_Log_Result {
+    bool  success;
+    char* log_text;
+};
+
+const char* Get_Shader_Info_Log(GLuint shader_id, Arena& trash_arena) {
+    GLint log_length = 0;
+    glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
+
+    GLchar* info_log = nullptr;
+
+    if (log_length) {
+        info_log = Allocate_Array(trash_arena, GLchar, log_length);
+        glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
+    }
+
+    return info_log;
+}
+
 struct BFGL_Create_Shader_Result {
     bool success = {};
     uint program = {};
@@ -132,10 +151,12 @@ BFGL_Create_Shader_Result BFGL_Create_Shader_Program(
     result.success = program_success;
     if (program_success)
         result.program = program;
+
+    return result;
 }
 
 void BFGL_Delete_Shader_Program(uint program) {
-    if (program)
+    if (program)  // TODO: мб это не нужно
         glDeleteProgram(program);
 }
 
