@@ -1742,8 +1742,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 v2f pos[6];
                 v2f tex_coords[6];
             } buffer_data = {
-                {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)},
-                {v2f(0, 0), v2f(1, 0), v2f(0, 1), v2f(0, 1), v2f(1, 0), v2f(1, 1)},
+                {{p0}, {p1}, {p2}, {p2}, {p1}, {p3}},
+                {{0, 0}, {1, 0}, {0, 1}, {0, 1}, {1, 0}, {1, 1}},
             };
 
             auto vao = BFGL_Load_Vertex_Array();
