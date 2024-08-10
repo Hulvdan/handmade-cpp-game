@@ -8,15 +8,15 @@
 
 1. Прикрутил hot-reload кода игровой логики - компилирую exe, который подгружает dll.
 2. Стараюсь держать код простым по заветам [John Carmack](http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html), Jonathan Blow, [Casey Muratori](https://caseymuratori.com/blog_0015), [Timothy Cain](https://www.youtube.com/watch?v=wTjm-e0eZ8E).
-3. Из библиотек:
-    - 0 фреймворков
+3. 0 фреймворков.
+4. Из библиотек:
     - ImGui
     - glew
     - glm
     - doctest
     - tracy
     - Прикручивал, а потом выкинул spdlog и fmt, т.к. они замедляли время компиляции.
-4. Использую [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) и [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
+5. Использую линтер - [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) и [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
 
 ## Разработка
 
