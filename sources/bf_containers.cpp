@@ -34,7 +34,6 @@ struct Fixed_Size_Slice {
     }
 };
 
-// PERF: Переписать на ring buffer!
 template <typename T>
 struct Fixed_Size_Queue {
     size_t memory_size = 0;
@@ -48,7 +47,7 @@ struct Fixed_Size_Queue {
         return result;
     }
 
-    // PERF: Много memmove происходит
+    // PERF: Переписать на ring buffer! Много memmove происходит.
     T Dequeue() {
         // TODO: Test!
         Assert(base != nullptr);
@@ -97,7 +96,7 @@ struct Queue {
             Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
             auto new_base = (T*)ALLOC(sizeof(T) * new_max_count);
-            memcpy(new_base, base, sizeof(T) * max_count);
+            memcpy((void*)new_base, (void*)base, sizeof(T) * max_count);
             FREE(base, sizeof(T) * max_count);
 
             base      = new_base;
@@ -124,7 +123,7 @@ struct Queue {
             Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
             auto new_base = (T*)ALLOC(sizeof(T) * new_max_count);
-            memcpy(new_base, base, sizeof(T) * count);
+            memcpy((void*)new_base, (void*)base, sizeof(T) * count);
             FREE(base, sizeof(T) * max_count);
 
             base      = new_base;
@@ -283,7 +282,7 @@ struct Vector {
             max_count          = elements_count;
             auto old_base      = base;
             base               = rcast<T*>(ALLOC(sizeof(T) * elements_count));
-            memcpy(base, old_base, sizeof(T) * elements_count);
+            memcpy((void*)base, (void*)old_base, sizeof(T) * elements_count);
             FREE(old_base, sizeof(T) * old_max_count);
         }
     }
@@ -425,7 +424,7 @@ struct Sparse_Array_Of_Ids {
         auto old_ids_size = sizeof(T) * max_count;
         auto old_ids_ptr  = ids;
 
-        memcpy(ids, old_ids_ptr, old_ids_size);
+        memcpy((void*)ids, (void*)old_ids_ptr, old_ids_size);
         FREE(old_ids_ptr, old_ids_size);
 
         max_count = new_max_count;
