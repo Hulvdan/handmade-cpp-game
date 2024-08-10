@@ -78,6 +78,15 @@ void DEBUG_Print(const char* text, ...) {
 //----------------------------------------------------------------------------------
 // Other shiet.
 //----------------------------------------------------------------------------------
+#define local_persist static
+#define global_var static
+
+#define Ptr_From_Int(value) ((void*)((u8*)(nullptr) + (value)))
+#define Int_From_Ptr(value) ((u64)((u8*)(value)))
+
+#define Member(T, m) (((T*)nullptr)->m)
+#define Offset_Of_Member(T, m) Int_From_Ptr(&Member(T, m))
+
 using v2f   = glm::vec2;
 using v2i   = glm::ivec2;
 using v2u   = glm::uvec2;
@@ -115,9 +124,6 @@ constexpr v3i v3i_one  = v3i(1, 1, 1);
 
 constexpr v3f v3f_zero = v3f(0, 0, 0);
 constexpr v3f v3f_one  = v3f(1, 1, 1);
-
-#define local_persist static
-#define global_var static
 
 using uint = unsigned int;
 using u8   = uint8_t;

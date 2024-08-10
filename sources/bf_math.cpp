@@ -42,6 +42,7 @@ X(u8, i16);
         return result;                       \
     }
 
+X(i64, u64);
 X(i32, u64);
 X(i32, i64);
 X(i32, u32);

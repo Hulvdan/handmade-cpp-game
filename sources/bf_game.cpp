@@ -62,17 +62,16 @@ bool UI_Clicked(Game_State& state) {
     const auto& placeholder_texture
         = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
 
-    const auto psize = v2f(placeholder_texture.size);
+    const v2f psize = v2f(placeholder_texture.size);
 
     const v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-    const v2f  padding          = ui_state.padding;
-    const f32  placeholders_gap = ui_state.placeholders_gap;
-    const auto placeholders     = ui_state.placeholders;
-    const auto panel_size       = v2f(
+    const v2f padding          = v2f(ui_state.padding);
+    const f32 placeholders_gap = (f32)ui_state.placeholders_gap;
+    const f32 placeholders     = (f32)ui_state.placeholders;
+    const v2f panel_size       = v2f(
         psize.x + 2 * padding.x,
-        2 * padding.y + placeholders_gap * (f32)(placeholders - 1)
-            + (f32)placeholders * psize.y
+        2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
     );
 
     const v2f  outer_anchor         = ui_state.buildables_panel_container_anchor;
@@ -83,7 +82,7 @@ bool UI_Clicked(Game_State& state) {
     VIEW      = glm::translate(VIEW, v2f((int)outer_pos.x, (int)outer_pos.y));
     VIEW      = glm::scale(VIEW, v2f(ui_state.scale));
 
-    i8 clicked_buildable_index = -1;
+    i32 clicked_buildable_index = -1;
 
     {
         auto MODEL = glm::mat3(1);
@@ -96,9 +95,9 @@ bool UI_Clicked(Game_State& state) {
 
         // Aligning items in a column
         // justify-content: center
-        FOR_RANGE (i8, i, placeholders) {
+        FOR_RANGE (i32, i, placeholders) {
             v3f drawing_point = origin;
-            drawing_point.y -= (f32)(placeholders - 1) * (psize.y + placeholders_gap) / 2;
+            drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
             drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
             v3f p   = VIEW * drawing_point;

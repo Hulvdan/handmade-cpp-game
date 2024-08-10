@@ -368,7 +368,7 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SwapBuffers(device_context);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     events_count = 0;
     events.clear();
@@ -858,10 +858,10 @@ static int WinMain(
 
         glEnable(GL_BLEND);
         glClearColor(1, 0, 1, 1);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glShadeModel(GL_SMOOTH);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         ReleaseDC(window_handle, hdc);
         Win32GLResize();

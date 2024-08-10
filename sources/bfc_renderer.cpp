@@ -1,4 +1,3 @@
-
 #ifndef BF_CLIENT
 #    error "This code should run on a client! BF_CLIENT must be defined!"
 #endif  // BF_CLIENT
@@ -20,6 +19,9 @@ struct Debug_BMP_Header {
 };
 #pragma pack(pop)
 
+//----------------------------------------------------------------------------------
+// Rendering.
+//----------------------------------------------------------------------------------
 const i32 global_road_starting_tile_id = 4;
 const i32 global_flag_starting_tile_id = global_road_starting_tile_id + 16;
 
@@ -206,103 +208,23 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
     auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_)); \
     Assert((variable_name_).success);
 
-void Debug_Print_Shader_Info_Log(
-    GLuint      shader_id,
-    Arena&      trash_arena,
-    const char* aboba
-) {
-    TEMP_USAGE(trash_arena);
+struct Get_Shader_Info_Log_Result {
+    bool  success;
+    char* log_text;
+};
 
-    GLint succeeded = 0;
-    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
-
+const char* Get_Shader_Info_Log(GLuint shader_id, Arena& trash_arena) {
     GLint log_length = 0;
     glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
 
-    GLchar  zero     = 0;
-    GLchar* info_log = &zero;
+    GLchar* info_log = nullptr;
 
     if (log_length) {
         info_log = Allocate_Array(trash_arena, GLchar, log_length);
         glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
     }
 
-    if (succeeded)
-        DEBUG_Print("INFO:\t%s succeeded: %s\n", aboba, info_log);
-    else
-        DEBUG_Error("ERROR:\t%s failed: %s\n", aboba, info_log);
-}
-
-// Создаёт программу и запихивает её в program, если успешно скомпилилось.
-// Если неуспешно - значение program остаётся прежним.
-void Create_Shader_Program(
-    GLuint&     program,
-    const char* vertex_code,
-    const char* fragment_code,
-    Arena&      trash_arena
-) {
-    TEMP_USAGE(trash_arena);
-
-    auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    defer {
-        glDeleteShader(vertex_shader);
-    };
-
-    glShaderSource(vertex_shader, 1, scast<const GLchar* const*>(&vertex_code), nullptr);
-    glCompileShader(vertex_shader);
-
-    GLint vertex_success = 0;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
-    Debug_Print_Shader_Info_Log(vertex_shader, trash_arena, "Vertex shader compilation");
-
-    // Similiar for Fragment Shader
-    auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    defer {
-        glDeleteShader(fragment_shader);
-    };
-
-    glShaderSource(
-        fragment_shader, 1, scast<const GLchar* const*>(&fragment_code), nullptr
-    );
-    glCompileShader(fragment_shader);
-
-    GLint fragment_success = 0;
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &fragment_success);
-    Debug_Print_Shader_Info_Log(
-        fragment_shader, trash_arena, "Fragment shader compilation"
-    );
-
-    if (!fragment_success || !vertex_success)
-        return;
-
-    // shader Program
-    auto new_program_id = glCreateProgram();
-    glAttachShader(new_program_id, vertex_shader);
-    glAttachShader(new_program_id, fragment_shader);
-    glLinkProgram(new_program_id);
-    // print linking errors if any
-    GLint log_length = 0;
-    glGetProgramiv(new_program_id, GL_INFO_LOG_LENGTH, &log_length);
-
-    GLint program_success = 0;
-    glGetProgramiv(new_program_id, GL_LINK_STATUS, &program_success);
-
-    auto    zero     = GLchar(0);
-    GLchar* info_log = &zero;
-    if (log_length) {
-        info_log = Allocate_Array(trash_arena, GLchar, log_length);
-        glGetProgramInfoLog(new_program_id, log_length, nullptr, info_log);
-    }
-
-    if (program_success)
-        DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
-    else
-        DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
-
-    if (program)
-        glDeleteProgram(program);
-
-    program = new_program_id;
+    return info_log;
 }
 
 void Init_Renderer(
@@ -379,6 +301,17 @@ void Set_Flag_Tile(
     texture_id = rstate.flag_textures[0];
 }
 
+void Print_Shader_Compilation_Logs(BFGL_Create_Shader_Result result) {
+    const auto template = (create_result ? "ERROR: %s" : "INFO: %s");
+
+    if (create_result.vertex_log)
+        DEBUG_Print(Text_Format(template, create_result.vertex_log));
+    if (create_result.fragment_log)
+        DEBUG_Print(Text_Format(template, create_result.fragment_log));
+    if (create_result.program_log)
+        DEBUG_Print(Text_Format(template, create_result.program_log));
+}
+
 void Post_Init_Renderer(
     bool        first_time_initializing,
     bool        hot_reloaded,
@@ -408,9 +341,9 @@ void Post_Init_Renderer(
     std::construct_at(&rstate.sprites);
 
     // Перезагрузка шейдеров.
-    Create_Shader_Program(
-        rstate.sprites_shader_program,
-        R"VertexShader(
+    {
+        auto create_result = Create_Shader(
+            R"VertexShader(
 #version 330 core
 
 layout (location = 0) in vec2 a_pos;
@@ -426,7 +359,7 @@ void main() {
     tex_coord = a_tex_coord;
 }
 )VertexShader",
-        R"FragmentShader(
+            R"FragmentShader(
 #version 330 core
 
 uniform vec2 a_tile_size_relative_to_atlas;
@@ -444,12 +377,21 @@ void main() {
         * vec4(color, 1);
 }
 )FragmentShader",
-        trash_arena
-    );
+            trash_arena
+        );
 
-    Create_Shader_Program(
-        rstate.tilemap_shader_program,
-        R"VertexShader(
+        Print_Shader_Compilation_Logs(create_result);
+
+        if (create_result.success) {
+            BFGL_Delete_Shader_Program(rstate.sprites_shader_program);
+            rstate.sprites_shader_program = create_result.program;
+        }
+    }
+
+    {
+        auto create_result = Create_Shader(
+            rstate.tilemap_shader_program,
+            R"VertexShader(
 #version 330 core
 
 uniform vec3 a_color;
@@ -466,7 +408,7 @@ void main() {
     tex_coord = a_tex_coord;
 }
 )VertexShader",
-        R"FragmentShader(
+            R"FragmentShader(
 #version 430 core
 
 uniform vec2 a_tile_size_relative_to_atlas;
@@ -537,54 +479,62 @@ void main() {
         float(tile_number) / float(tiles_count),
         0,
         0,
-        1
+    1
     );
     return;
 #endif
 
     vec2 atlas_texture = vec2(
-        data[2 * tile_number],
-        data[2 * tile_number + 1]
-    );
-    if (atlas_texture.x < 0 || atlas_texture.y < 0)
-        discard;
+            data[2 * tile_number],
+            data[2 * tile_number + 1]
+            );
+if (atlas_texture.x < 0 || atlas_texture.y < 0)
+    discard;
 
 #if 0
     frag_color = vec4(
-        atlas_texture_x,
-        atlas_texture_y,
-        0,
-        1
-    );
+            atlas_texture_x,
+            atlas_texture_y,
+            0,
+            1
+            );
     return;
 #endif
 
 #if 0
     frag_color = vec4(
-        atlas_offset,
-        0,
-        1
-    );
+            atlas_offset,
+            0,
+            1
+            );
     return;
 #endif
 
     frag_color = texture(
-        ourTexture,
-        vec2(
-            clamp(
-                atlas_texture.x + a_tile_size_relative_to_atlas.x * offset.x,
-                0, 1),
-            1 - clamp(
-                atlas_texture.y + a_tile_size_relative_to_atlas.y * offset.y,
-                0, 1)
-        )
-    );
+            ourTexture,
+            vec2(
+                clamp(
+                    atlas_texture.x + a_tile_size_relative_to_atlas.x * offset.x,
+                    0, 1),
+                1 - clamp(
+                    atlas_texture.y + a_tile_size_relative_to_atlas.y * offset.y,
+                    0, 1)
+                )
+            );
 
     frag_color.rgb *= color.rgb;
-}
+    }
 )FragmentShader",
-        trash_arena
-    );
+            trash_arena
+        );
+
+        Print_Shader_Compilation_Logs(create_result);
+
+        if (create_result.success) {
+            BFGL_Delete_Shader_Program(rstate.sprites_shader_program);
+            rstate.sprites_shader_program = create_result.program;
+        }
+    }
 
     if (!rstate.shaders_compilation_failed) {
         glUseProgram(rstate.sprites_shader_program);
@@ -1010,48 +960,65 @@ void Draw_UI_Sprite(
 ) {
     std::swap(tex_coord_y0, tex_coord_y1);
 
-    f32 xx0 = gl_pos.x + gl_size.x * (0 - anchor.x);
-    f32 xx1 = gl_pos.x + gl_size.x * (1 - anchor.x);
-    f32 yy0 = gl_pos.y + gl_size.y * (0 - anchor.y);
-    f32 yy1 = gl_pos.y + gl_size.y * (1 - anchor.y);
+    f32 gl_x0 = gl_pos.x + gl_size.x * (0 - anchor.x);
+    f32 gl_x1 = gl_pos.x + gl_size.x * (1 - anchor.x);
+    f32 gl_y0 = gl_pos.y + gl_size.y * (0 - anchor.y);
+    f32 gl_y1 = gl_pos.y + gl_size.y * (1 - anchor.y);
 
-    f32 verticesss[] = {
-        xx0, yy0, 0, color.r, color.g, color.b, tex_coord_x0, tex_coord_y0,  //
-        xx1, yy0, 0, color.r, color.g, color.b, tex_coord_x1, tex_coord_y0,  //
-        xx0, yy1, 0, color.r, color.g, color.b, tex_coord_x0, tex_coord_y1,  //
-        xx0, yy1, 0, color.r, color.g, color.b, tex_coord_x0, tex_coord_y1,  //
-        xx1, yy0, 0, color.r, color.g, color.b, tex_coord_x1, tex_coord_y0,  //
-        xx1, yy1, 0, color.r, color.g, color.b, tex_coord_x1, tex_coord_y1,  //
+    struct buffer_data_t {
+        v2f pos[6];
+        v2f tex_coords[6];
+        v3f color;
+    } buffer_data = {
+        {
+            {gl_x0, gl_y0},
+            {gl_x1, gl_y0},
+            {gl_x0, gl_y1},
+            {gl_x0, gl_y1},
+            {gl_x1, gl_y0},
+            {gl_x1, gl_y1},
+        },
+        {
+            {tex_coord_x0, tex_coord_y0},
+            {tex_coord_x1, tex_coord_y0},
+            {tex_coord_x0, tex_coord_y1},
+            {tex_coord_x0, tex_coord_y1},
+            {tex_coord_x1, tex_coord_y0},
+            {tex_coord_x1, tex_coord_y1},
+        },
+        color,
     };
 
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
+    auto vao = BFGL_Load_Vertex_Array();
+    defer {
+        BFGL_Unload_Vertex_Array(vao);
+    };
 
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_STATIC_DRAW);
+    BFGL_Enable_Vertex_Array(vao);
+    defer {
+        BFGL_Disable_Vertex_Array();
+    };
+
+    auto vbo = BFGL_Load_Vertex_Buffer(
+        &buffer_data, sizeof(buffer_data), false
+    );  // dynamic=false
 
     // 3. then set our vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(0));
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32))
+    const auto& d = buffer_data;
+    BFGL_Set_Vertex_Attribute(
+        0, 2, BF_FLOAT, 0, sizeof(v2f), Offset_Of_Member(buffer_data_t, pos)
     );
-    glVertexAttribPointer(
-        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32))
+    BFGL_Set_Vertex_Attribute(1, 3, BF_FLOAT, 0, 0, Offset_Of_Member(buffer_data_t, color)
+    BFGL_Set_Vertex_Attribute(
+        2, 2, BF_FLOAT, 0, sizeof(v2f), Offset_Of_Member(buffer_data_t, tex_coords)
     );
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
+    BFGL_Enable_Vertex_Attribute(0);
+    BFGL_Enable_Vertex_Attribute(1);
+    BFGL_Enable_Vertex_Attribute(2);
 
     // ..:: Drawing code (in render loop) :: ..
     glUseProgram(rstate.sprites_shader_program);
-    glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    glBindVertexArray(0);
-    glDeleteVertexArrays(1, &vao);
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
@@ -1063,13 +1030,12 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
     auto gsize     = state.game_map.size;
     auto cell_size = rstate.cell_size;
 
-    auto projection     = glm::mat3(1);
-    projection          = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection          = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
-    projection          = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
-    projection          = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
-    projection          = glm::scale(projection, v2f(cell_size, cell_size));
-    auto projection_inv = glm::inverse(projection);
+    auto projection = glm::mat3(1);
+    projection      = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
+    projection      = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+    projection      = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
+    projection      = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
+    projection      = glm::scale(projection, v2f(cell_size, cell_size));
 
     return projection * v3f(pos.x, pos.y, 1);
 }
@@ -1231,7 +1197,7 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     return res;
 }
 
-v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i16 x, i16 y) {
+v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i32 x, i32 y) {
     auto id = tilemap.textures[y * tilemap.size.x + x];
     Assert(id != Texture_ID_Missing);
     return Get_Texture(atlas, id)->pos_inside_atlas;
@@ -1262,7 +1228,7 @@ glm::mat3 Get_W2RelScreen_Matrix(
     auto mat = glm::mat3(1);
 
     mat = glm::translate(mat, v2f(0, 1));
-    mat = glm::scale(mat, v2f(1.0f / screen_size.x, -1.0f / screen_size.y));
+    mat = glm::scale(mat, v2f(1.0f / (f32)screen_size.x, -1.0f / (f32)screen_size.y));
     // Смещение карты игроком.
     mat = glm::translate(mat, pan_pos + pan_offset);
     // Масштабирование карты игроком.
@@ -1280,7 +1246,7 @@ glm::mat3 Get_W2RelScreen_Matrix(
 OpenGL_Framebuffer Create_Framebuffer(v2i size) {
     // NOTE: Build the texture that will serve
     // as the color attachment for the framebuffer.
-    GLuint color_texture;
+    GLuint color_texture = 0;
     glGenTextures(1, &color_texture);
     glBindTexture(GL_TEXTURE_2D, color_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -1288,11 +1254,11 @@ OpenGL_Framebuffer Create_Framebuffer(v2i size) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL
+        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr
     );
 
     // Build the framebuffer.
-    GLuint framebuffer_id;
+    GLuint framebuffer_id = 0;
     glGenFramebuffers(1, &framebuffer_id);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_id);
     glFramebufferTexture2D(
@@ -1354,24 +1320,25 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
         const auto& placeholder_texture
             = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
 
-        const auto& psize = placeholder_texture.size;
+        const v2f psize = v2f(placeholder_texture.size);
 
         const auto in_scale      = ui_state.buildables_panel_in_scale;
         const v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-        const v2f  padding          = ui_state.padding;
-        const f32  placeholders_gap = ui_state.placeholders_gap;
-        const auto placeholders     = ui_state.placeholders;
-        const auto panel_size       = v2f(
+        const v2f padding          = v2f(ui_state.padding);
+        const f32 placeholders_gap = (f32)ui_state.placeholders_gap;
+        const f32 placeholders     = (f32)ui_state.placeholders;
+        const v2f panel_size       = v2f(
             psize.x + 2 * padding.x,
-            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
+            2 * padding.y + placeholders_gap * (f32)(placeholders - 1)
+                + placeholders * psize.y
         );
 
         const auto outer_anchor         = ui_state.buildables_panel_container_anchor;
         const auto outer_container_size = v2i(swidth, sheight);
         const auto outer_pos            = v2f(
-            outer_container_size.x * outer_anchor.x,
-            outer_container_size.y * outer_anchor.y
+            (f32)outer_container_size.x * outer_anchor.x,
+            (f32)outer_container_size.y * outer_anchor.y
         );
 
         auto VIEW = glm::mat3(1);
@@ -1411,7 +1378,7 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
 
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
-                drawing_point.y += i * (placeholders_gap + psize.y);
+                drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
                 auto p     = PROJECTION * VIEW * drawing_point;
                 auto s     = PROJECTION * VIEW * v3f(psize, 0);
@@ -1442,7 +1409,7 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
 
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
-                drawing_point.y += i * (placeholders_gap + psize.y);
+                drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
                 auto p = PROJECTION * VIEW * drawing_point;
                 auto s = PROJECTION * VIEW * v3f(buildable_size, 0);
@@ -1608,15 +1575,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
-        auto PROJECTION = glm::mat3(1);
-        PROJECTION      = glm::translate(PROJECTION, v2f(0, 1));
-        PROJECTION      = glm::scale(PROJECTION, v2f(1 / swidth, -1 / sheight));
-        PROJECTION      = glm::translate(PROJECTION, rstate.pan_pos + rstate.pan_offset);
-        PROJECTION      = glm::scale(PROJECTION, v2f(rstate.zoom, rstate.zoom));
-        PROJECTION      = glm::translate(PROJECTION, v2f(swidth, sheight) / 2.0f);
-        PROJECTION      = glm::translate(PROJECTION, -(v2f)gsize * (f32)cell_size / 2.0f);
-
-        auto d = PROJECTION * v3f(cursor_d.x, cursor_d.y, 0);
         rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
 
         auto d3 = World_To_Screen(state, v2f(0, 0));
@@ -1779,12 +1737,12 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 }
             }
 
-            GLuint ssbo;
+            GLuint ssbo = 0;
             glGenBuffers(1, &ssbo);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
             glBufferData(
                 GL_SHADER_STORAGE_BUFFER,
-                required_memory,
+                Assert_Truncate_To_i64(required_memory),
                 rstate.rendering_indices_buffer,
                 GL_DYNAMIC_DRAW
             );
@@ -1955,7 +1913,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(
-            GL_ARRAY_BUFFER, vertex_data.count, vertex_data.base, GL_STATIC_DRAW
+            GL_ARRAY_BUFFER,
+            Assert_Truncate_To_i64(vertex_data.count),
+            vertex_data.base,
+            GL_STATIC_DRAW
         );
 
         // 3. then set our vertex attributes pointers
