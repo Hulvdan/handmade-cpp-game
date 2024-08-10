@@ -947,7 +947,7 @@ void Draw_UI_Sprite(
     f32 gl_y0 = gl_pos.y + gl_size.y * (0 - anchor.y);
     f32 gl_y1 = gl_pos.y + gl_size.y * (1 - anchor.y);
 
-    struct buffer_data_t {
+    struct Buffer_Data {
         v2f pos[6];
         v2f tex_coords[6];
         v3f color[6];
@@ -982,15 +982,12 @@ void Draw_UI_Sprite(
 
     BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), false);  // dynamic=false
 
-    BFGL_Set_Vertex_Attribute(
-        0, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_t, pos)
-    );
-    BFGL_Set_Vertex_Attribute(
-        1, 3, BF_FLOAT, false, sizeof(v3f), Offset_Of_Member(buffer_data_t, color)
-    );
-    BFGL_Set_Vertex_Attribute(
-        2, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_t, tex_coords)
-    );
+    const auto pos_off        = Offset_Of_Member(Buffer_Data, pos);
+    const auto color_off      = Offset_Of_Member(Buffer_Data, color);
+    const auto tex_coords_off = Offset_Of_Member(Buffer_Data, tex_coords);
+    BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(v2f), pos_off);
+    BFGL_Set_Vertex_Attribute(1, 3, BF_FLOAT, false, sizeof(v3f), color_off);
+    BFGL_Set_Vertex_Attribute(2, 2, BF_FLOAT, false, sizeof(v2f), tex_coords_off);
     BFGL_Enable_Vertex_Attribute(0);
     BFGL_Enable_Vertex_Attribute(1);
     BFGL_Enable_Vertex_Attribute(2);
@@ -1741,30 +1738,24 @@ void Render(Game_State& state, f32 dt, MCTX) {
             Assert(p0.z == 1);
             Assert(p3.z == 1);
 
-            struct buffer_data_tt {
-                v2f pos[6] = {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)};
-                v2f tex_coords[6]
-                    = {v2f(0, 0), v2f(1, 0), v2f(0, 1), v2f(0, 1), v2f(1, 0), v2f(1, 1)};
-            } buffer_data;
+            static const struct Buffer_Data {
+                v2f pos[6];
+                v2f tex_coords[6];
+            } buffer_data = {
+                {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)},
+                {v2f(0, 0), v2f(1, 0), v2f(0, 1), v2f(0, 1), v2f(1, 0), v2f(1, 1)},
+            };
 
             auto vao = BFGL_Load_Vertex_Array();
             BFGL_Enable_Vertex_Array(vao);
 
-            BFGL_Load_Vertex_Buffer(
-                &buffer_data, sizeof(buffer_data), false
-            );  // dynamic=false
+            const auto dynamic = false;
+            BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), dynamic);
 
-            BFGL_Set_Vertex_Attribute(
-                0, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_tt, pos)
-            );
-            BFGL_Set_Vertex_Attribute(
-                1,
-                2,
-                BF_FLOAT,
-                false,
-                sizeof(v2f),
-                Offset_Of_Member(buffer_data_tt, tex_coords)
-            );
+            const auto pos_off        = Offset_Of_Member(Buffer_Data, pos);
+            const auto tex_coords_off = Offset_Of_Member(Buffer_Data, tex_coords);
+            BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(v2f), pos_off);
+            BFGL_Set_Vertex_Attribute(1, 2, BF_FLOAT, false, sizeof(v2f), tex_coords_off);
             BFGL_Enable_Vertex_Attribute(0);
             BFGL_Enable_Vertex_Attribute(1);
 
