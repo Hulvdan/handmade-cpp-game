@@ -951,28 +951,28 @@ void Draw_UI_Sprite(
         v3f color[6];
     } buffer_data
         = {{
-               {gl_x0, gl_y0},  // 0
-               {gl_x1, gl_y0},  // 1
-               {gl_x0, gl_y1},  // 2
-               {gl_x0, gl_y1},  // 3
-               {gl_x1, gl_y0},  // 4
-               {gl_x1, gl_y1},  // 5
+               {gl_x0, gl_y0},
+               {gl_x1, gl_y0},
+               {gl_x0, gl_y1},
+               {gl_x0, gl_y1},
+               {gl_x1, gl_y0},
+               {gl_x1, gl_y1},
            },
            {
-               {tex_coord_x0, tex_coord_y0},  // 0
-               {tex_coord_x1, tex_coord_y0},  // 1
-               {tex_coord_x0, tex_coord_y1},  // 2
-               {tex_coord_x0, tex_coord_y1},  // 3
-               {tex_coord_x1, tex_coord_y0},  // 4
-               {tex_coord_x1, tex_coord_y1},  // 5
+               {tex_coord_x0, tex_coord_y0},
+               {tex_coord_x1, tex_coord_y0},
+               {tex_coord_x0, tex_coord_y1},
+               {tex_coord_x0, tex_coord_y1},
+               {tex_coord_x1, tex_coord_y0},
+               {tex_coord_x1, tex_coord_y1},
            },
            {
-               {color.rgb},  // 0
-               {color.rgb},  // 1
-               {color.rgb},  // 2
-               {color.rgb},  // 3
-               {color.rgb},  // 4
-               {color.rgb},  // 5
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
            }};
 
     auto vao = BFGL_Load_Vertex_Array();
@@ -980,8 +980,6 @@ void Draw_UI_Sprite(
 
     BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), false);  // dynamic=false
 
-    // 3. then set our vertex attributes pointers
-    const auto& d = buffer_data;
     BFGL_Set_Vertex_Attribute(
         0, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_t, pos)
     );
