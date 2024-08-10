@@ -1968,6 +1968,8 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
             auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
             auto& tile_id = roads_tilemap.tiles[t];
             tile_id       = global_road_starting_tile_id + tex;
+            auto& texture_id = roads_tilemap.textures[t];
+            texture_id       = rstate.road_textures[tex];
 
             if (offset == v2i16_zero && element_tile.type == Element_Tile_Type::Building)
             {
