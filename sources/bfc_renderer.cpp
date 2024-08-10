@@ -255,8 +255,10 @@ void Add_Building_Sprite(
     // building_sprite.anchor   = {0.5f, 0.5f};
     building_sprite.anchor   = {1, 1};
     building_sprite.rotation = 0;
-    building_sprite.texture  = scriptable.texture;
-    building_sprite.z        = 0;
+    Assert(scriptable.texture != 0);
+    Assert(scriptable.texture != Texture_ID_Missing);
+    building_sprite.texture = scriptable.texture;
+    building_sprite.z       = 0;
 
     {
         auto [pid, pvalue] = rstate.sprites.Add(ctx);
@@ -1178,8 +1180,10 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
 
 v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i32 x, i32 y) {
     auto id = tilemap.textures[y * tilemap.size.x + x];
+    Assert(id != 0);
     Assert(id != Texture_ID_Missing);
-    return Get_Texture(atlas, id)->pos_inside_atlas;
+    auto result = Get_Texture(atlas, id)->pos_inside_atlas;
+    return result;
 }
 
 void Map_Sprites_With_Textures(
@@ -1737,51 +1741,38 @@ void Render(Game_State& state, f32 dt, MCTX) {
             Assert(p0.z == 1);
             Assert(p3.z == 1);
 
-            v2f vertices_with_tex_coords[] = {
-                v2f(p0),
-                v2f(0, 0),
-                v2f(p1),
-                v2f(1, 0),
-                v2f(p2),
-                v2f(0, 1),
-                v2f(p2),
-                v2f(0, 1),
-                v2f(p1),
-                v2f(1, 0),
-                v2f(p3),
-                v2f(1, 1),
-            };
+            struct buffer_data_tt {
+                v2f pos[6] = {v2f(p0), v2f(p1), v2f(p2), v2f(p2), v2f(p1), v2f(p3)};
+                v2f tex_coords[6]
+                    = {v2f(0, 0), v2f(1, 0), v2f(0, 1), v2f(0, 1), v2f(1, 0), v2f(1, 1)};
+            } buffer_data;
 
-            GLuint vao = 0;
-            glGenVertexArrays(1, &vao);
-            GLuint vbo = 0;
-            glGenBuffers(1, &vbo);
+            auto vao = BFGL_Load_Vertex_Array();
+            BFGL_Enable_Vertex_Array(vao);
 
-            glBindVertexArray(vao);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(
-                GL_ARRAY_BUFFER,
-                sizeof(vertices_with_tex_coords),
-                vertices_with_tex_coords,
-                GL_STATIC_DRAW
+            BFGL_Load_Vertex_Buffer(
+                &buffer_data, sizeof(buffer_data), false
+            );  // dynamic=false
+
+            BFGL_Set_Vertex_Attribute(
+                0, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_tt, pos)
             );
-
-            // 3. then set our vertex attributes pointers
-            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
-            glVertexAttribPointer(
-                1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)(2 * sizeof(f32))
+            BFGL_Set_Vertex_Attribute(
+                1,
+                2,
+                BF_FLOAT,
+                false,
+                sizeof(v2f),
+                Offset_Of_Member(buffer_data_tt, tex_coords)
             );
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
+            BFGL_Enable_Vertex_Attribute(0);
+            BFGL_Enable_Vertex_Attribute(1);
 
-            // ..:: Drawing code (in render loop) :: ..
-            // glUseProgram(rstate.sprites_shader_program);
-            glBindVertexArray(vao);
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
-            glBindVertexArray(0);
-            glDeleteVertexArrays(1, &vao);
-            glDeleteBuffers(1, &vbo);
+            BFGL_Disable_Vertex_Array();
+            BFGL_Unload_Vertex_Array(vao);
+
             BFGL_Check_Errors();
 
             SANITIZE;
