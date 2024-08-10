@@ -22,7 +22,7 @@
 
 Документация для разработки находится в [DEVELOPMENT.md](./DEVELOPMENT.md)
 
-## Соглашения / Conventions
+## Соглашения, conventions, интересные (для меня) мысли
 
 ### ZII - Zero Is Initialization
 
