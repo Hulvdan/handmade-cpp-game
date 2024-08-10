@@ -14,7 +14,7 @@ struct Perlin_Params {
 
 void Cycled_Perlin_2D(
     u16*          output,
-    size_t        free_output_space,
+    size_t        free_output_size,
     Arena&        trash_arena,
     Perlin_Params params,
     u16           sx_,
@@ -23,18 +23,19 @@ void Cycled_Perlin_2D(
     auto sx = (u32)sx_;
     auto sy = (u32)sy_;
 
-    Assert(free_output_space <= (size_t)sx * sy);
+    Assert(free_output_size >= (size_t)sx * sy);
 
     u32 sx_power = 0;
     u32 sy_power = 0;
 
     Assert(sx > 0);
-    Assert(sx <= u16_max);
     Assert(sy > 0);
-    Assert(sy <= u16_max);
     Assert(sx == sy);
     Assert(Is_Power_Of_2(sx, &sx_power));
     Assert(Is_Power_Of_2(sy, &sy_power));
+
+    Assert(params.octaves > 0);
+    Assert(params.scaling_bias > 0);
 
     TEMP_USAGE(trash_arena);
 

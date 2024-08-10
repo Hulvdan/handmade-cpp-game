@@ -326,6 +326,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     auto& editor_data = state.editor_data;
 
     // --- IMGUI ---
+    if (first_time_initializing)
+        editor_data = Default_Editor_Data();
+
     if (!first_time_initializing) {
         auto& rstate = Assert_Deref(state.renderer_state);
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);

@@ -948,58 +948,58 @@ void Draw_UI_Sprite(
     struct buffer_data_t {
         v2f pos[6];
         v2f tex_coords[6];
-        v3f color;
+        v3f color[6];
     } buffer_data
         = {{
-               {gl_x0, gl_y0},
-               {gl_x1, gl_y0},
-               {gl_x0, gl_y1},
-               {gl_x0, gl_y1},
-               {gl_x1, gl_y0},
-               {gl_x1, gl_y1},
+               {gl_x0, gl_y0},  // 0
+               {gl_x1, gl_y0},  // 1
+               {gl_x0, gl_y1},  // 2
+               {gl_x0, gl_y1},  // 3
+               {gl_x1, gl_y0},  // 4
+               {gl_x1, gl_y1},  // 5
            },
            {
-               {tex_coord_x0, tex_coord_y0},
-               {tex_coord_x1, tex_coord_y0},
-               {tex_coord_x0, tex_coord_y1},
-               {tex_coord_x0, tex_coord_y1},
-               {tex_coord_x1, tex_coord_y0},
-               {tex_coord_x1, tex_coord_y1},
+               {tex_coord_x0, tex_coord_y0},  // 0
+               {tex_coord_x1, tex_coord_y0},  // 1
+               {tex_coord_x0, tex_coord_y1},  // 2
+               {tex_coord_x0, tex_coord_y1},  // 3
+               {tex_coord_x1, tex_coord_y0},  // 4
+               {tex_coord_x1, tex_coord_y1},  // 5
            },
-           color.rgb};
+           {
+               {color.rgb},  // 0
+               {color.rgb},  // 1
+               {color.rgb},  // 2
+               {color.rgb},  // 3
+               {color.rgb},  // 4
+               {color.rgb},  // 5
+           }};
 
     auto vao = BFGL_Load_Vertex_Array();
-    defer {
-        BFGL_Unload_Vertex_Array(vao);
-    };
-
     BFGL_Enable_Vertex_Array(vao);
-    defer {
-        BFGL_Disable_Vertex_Array();
-    };
 
-    auto vbo = BFGL_Load_Vertex_Buffer(
-        &buffer_data, sizeof(buffer_data), false
-    );  // dynamic=false
+    BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), false);  // dynamic=false
 
     // 3. then set our vertex attributes pointers
     const auto& d = buffer_data;
     BFGL_Set_Vertex_Attribute(
-        0, 2, BF_FLOAT, 0, sizeof(v2f), Offset_Of_Member(buffer_data_t, pos)
+        0, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_t, pos)
     );
     BFGL_Set_Vertex_Attribute(
-        1, 3, BF_FLOAT, 0, 0, Offset_Of_Member(buffer_data_t, color)
+        1, 3, BF_FLOAT, false, sizeof(v3f), Offset_Of_Member(buffer_data_t, color)
     );
     BFGL_Set_Vertex_Attribute(
-        2, 2, BF_FLOAT, 0, sizeof(v2f), Offset_Of_Member(buffer_data_t, tex_coords)
+        2, 2, BF_FLOAT, false, sizeof(v2f), Offset_Of_Member(buffer_data_t, tex_coords)
     );
     BFGL_Enable_Vertex_Attribute(0);
     BFGL_Enable_Vertex_Attribute(1);
     BFGL_Enable_Vertex_Attribute(2);
 
-    // ..:: Drawing code (in render loop) :: ..
     glUseProgram(rstate.sprites_shader_program);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    BFGL_Disable_Vertex_Array();
+    BFGL_Unload_Vertex_Array(vao);
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {

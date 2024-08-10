@@ -36,7 +36,6 @@ X(u8, i16);
 
 #define X(ret, in)                           \
     ret Assert_Truncate_To_##ret(in value) { \
-        Assert(value >= (in)ret##_min);      \
         Assert(value <= (in)ret##_max);      \
         auto result = (ret)value;            \
         return result;                       \

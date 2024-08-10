@@ -38,7 +38,7 @@ struct BF_Bitmap {
 // -- GAME STUFF
 global_var bool hot_reloaded = false;
 
-global_var Library_Integration_Data library_integration_data;
+global_var Library_Integration_Data library_integration_data = {};
 
 global_var HMODULE game_lib = nullptr;
 global_var size_t  initial_game_memory_size;
@@ -879,8 +879,7 @@ static int WinMain(
 
     ImGui::StyleColorsDark();
 
-    Library_Integration_Data integration_data{};
-    integration_data.imgui_context = ImGui::GetCurrentContext();
+    library_integration_data.imgui_context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);

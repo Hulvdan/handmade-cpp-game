@@ -1411,7 +1411,7 @@ void Regenerate_Terrain_Tiles(
     auto gsize = game_map.size;
 
     auto noise_pitch = (size_t)Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
-    auto output_size = noise_pitch * noise_pitch;
+    auto output_size = noise_pitch * noise_pitch * 2;
     TEMP_USAGE(trash_arena);
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);

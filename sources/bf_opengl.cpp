@@ -140,7 +140,7 @@ BFGL_Create_Shader_Result BFGL_Create_Shader_Program(
 
     // Program's logs.
     if (log_length) {
-        GLchar* info_log = Allocate_Array(trash_arena, GLchar, log_length);
+        auto info_log = Allocate_Array(trash_arena, GLchar, log_length);
         glGetProgramInfoLog(program, log_length, nullptr, info_log);
         result.logs.program_log = info_log;
     }
