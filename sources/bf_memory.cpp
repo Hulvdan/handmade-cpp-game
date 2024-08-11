@@ -1,4 +1,3 @@
-
 #define COALESCE(value, fallback) (((value) != nullptr) ? (value) : (fallback))
 
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
@@ -56,9 +55,6 @@
         auto ctx = (new_ctx);       \
         (code);                     \
     })
-
-template <typename T>
-void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
 
 enum class Allocator_Mode {
     Allocate = 0,
@@ -988,3 +984,9 @@ Allocator_function(Only_Once_Free_All_Root_Allocator) {
 // - Understanding history
 //     - Otherwise: "... doomed to repeat it"
 // - Composability is key
+
+void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
+    FOR_RANGE (int, i, rows) {
+        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
+    }
+}

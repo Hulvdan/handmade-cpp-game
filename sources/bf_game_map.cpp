@@ -1620,20 +1620,6 @@ bool Should_Segment_Be_Deleted(
         }                                                           \
     })
 
-// v2i16* Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
-//     return (v2i16*)allocator.Allocate(sizeof(v2i16) * vertices_count, 1);
-// }
-//
-// u8* Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
-//     return allocator.Allocate(nodes_count, 1);
-// }
-
-void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
-    FOR_RANGE (int, i, rows) {
-        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
-    }
-}
-
 bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     const auto gx = graph.size.x;
 
@@ -1655,6 +1641,7 @@ bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     return true;
 }
 
+// Проверка на то, что граф является неорграфом.
 void Assert_Is_Undirected(Graph& graph) {
     Assert(graph.size.x > 0);
     Assert(graph.size.y > 0);
@@ -1665,9 +1652,6 @@ void Assert_Is_Undirected(Graph& graph) {
         }
     }
 }
-
-#define Anon_Variable_(name, counter) name##counter
-#define Anon_Variable(name, counter) Anon_Variable_(name, counter)
 
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     TEMP_USAGE(trash_arena);
