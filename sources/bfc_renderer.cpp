@@ -461,7 +461,7 @@ void main() {
         float(tile_number) / float(tiles_count),
         0,
         0,
-    1
+        1
     );
     return;
 #endif
@@ -475,20 +475,20 @@ void main() {
 
 #if 0
     frag_color = vec4(
-            atlas_texture_x,
-            atlas_texture_y,
-            0,
-            1
-            );
+        atlas_texture_x,
+        atlas_texture_y,
+        0,
+        1
+    );
     return;
 #endif
 
 #if 0
     frag_color = vec4(
-            atlas_offset,
-            0,
-            1
-            );
+        atlas_offset,
+        0,
+        1
+    );
     return;
 #endif
 
