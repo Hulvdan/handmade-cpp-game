@@ -134,6 +134,8 @@ log.addHandler(console_handler)
 # -----------------------------------------------------------------------------------
 # Library Functions.
 # -----------------------------------------------------------------------------------
+
+
 def better_json_dump(data, path):
     with open(path, "wb") as out_file:
         json.dump(data, out_file, indent="\t", ensure_ascii=False)  # noqa
