@@ -374,7 +374,7 @@ void main() {
     {
         auto tilemap_shader_result = BFGL_Create_Shader_Program(
             R"VertexShader(
-#version 330 core
+#version 430 core
 
 uniform vec3 a_color;
 
@@ -1720,9 +1720,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
             // Рисование квада tilemap.
             auto p0 = W2GL * v3f(0, 0, 1);
-            auto p1 = W2GL * v3f(tilemap.size.x, 0, 1);
-            auto p2 = W2GL * v3f(0, tilemap.size.y, 1);
             auto p3 = W2GL * v3f(tilemap.size.x, tilemap.size.y, 1);
+            auto p1 = v2f(p3.x, p0.y);
+            auto p2 = v2f(p0.x, p3.y);
             Assert(p0.z == 1);
             Assert(p3.z == 1);
 
