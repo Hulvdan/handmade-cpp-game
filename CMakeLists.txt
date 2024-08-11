@@ -179,11 +179,11 @@ IF (WIN32)
 ENDIF()
 
 # === Disabling incremental linking warning on win32 ===
-if(MSVC)
+IF(MSVC)
     set_target_properties(bf_game PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
     set_target_properties(win32 PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
     set_target_properties(tests PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
-endif()
+ENDIF()
 
 # === Enabling Linting On Win32 ===
 IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
@@ -192,7 +192,7 @@ IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends")
-ENDIf()
+ENDIF()
 
 # === Other Win32 Bullshiet ===
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT win32)
