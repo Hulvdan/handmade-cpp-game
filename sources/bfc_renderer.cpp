@@ -325,7 +325,7 @@ void Post_Init_Renderer(
 
     // Шейдеры.
     {
-        auto create_result = BFGL_Create_Shader_Program(
+        auto sprite_shader_result = BFGL_Create_Shader_Program(
             R"VertexShader(
 #version 330 core
 
@@ -363,16 +363,16 @@ void main() {
             trash_arena
         );
 
-        Print_Shader_Compilation_Logs(create_result);
+        Print_Shader_Compilation_Logs(sprite_shader_result);
 
-        if (create_result.success) {
+        if (sprite_shader_result.success) {
             BFGL_Delete_Shader_Program(rstate.sprites_shader_program);
-            rstate.sprites_shader_program = create_result.program;
+            rstate.sprites_shader_program = sprite_shader_result.program;
         }
     }
 
     {
-        auto create_result = BFGL_Create_Shader_Program(
+        auto tilemap_shader_result = BFGL_Create_Shader_Program(
             R"VertexShader(
 #version 330 core
 
@@ -467,11 +467,11 @@ void main() {
 #endif
 
     vec2 atlas_texture = vec2(
-            data[2 * tile_number],
-            data[2 * tile_number + 1]
-            );
-if (atlas_texture.x < 0 || atlas_texture.y < 0)
-    discard;
+        data[2 * tile_number],
+        data[2 * tile_number + 1]
+    );
+    if (atlas_texture.x < 0 || atlas_texture.y < 0)
+        discard;
 
 #if 0
     frag_color = vec4(
@@ -493,28 +493,28 @@ if (atlas_texture.x < 0 || atlas_texture.y < 0)
 #endif
 
     frag_color = texture(
-            ourTexture,
-            vec2(
-                clamp(
-                    atlas_texture.x + a_tile_size_relative_to_atlas.x * offset.x,
-                    0, 1),
-                1 - clamp(
-                    atlas_texture.y + a_tile_size_relative_to_atlas.y * offset.y,
-                    0, 1)
-                )
-            );
+        ourTexture,
+        vec2(
+            clamp(
+                atlas_texture.x + a_tile_size_relative_to_atlas.x * offset.x,
+                0, 1),
+            1 - clamp(
+                atlas_texture.y + a_tile_size_relative_to_atlas.y * offset.y,
+                0, 1)
+        )
+    );
 
     frag_color.rgb *= color.rgb;
-    }
+}
 )FragmentShader",
             trash_arena
         );
 
-        Print_Shader_Compilation_Logs(create_result);
+        Print_Shader_Compilation_Logs(tilemap_shader_result);
 
-        if (create_result.success) {
+        if (tilemap_shader_result.success) {
             BFGL_Delete_Shader_Program(rstate.tilemap_shader_program);
-            rstate.tilemap_shader_program = create_result.program;
+            rstate.tilemap_shader_program = tilemap_shader_result.program;
         }
     }
 
@@ -1685,10 +1685,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
             {
                 TEMP_USAGE(trash_arena);
-                auto checkbox_title
-                    = Allocate_Formatted_String(trash_arena, "render tilemap %d", i);
-
-                ImGui::Checkbox(checkbox_title, &tilemap.debug_rendering_enabled);
+                ImGui::Checkbox(  //
+                    Text_Format("render tilemap %d", i),
+                    &tilemap.debug_rendering_enabled
+                );
             }
 
             if (!tilemap.debug_rendering_enabled)
@@ -1794,9 +1794,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
     BFGL_Check_Errors();
 
     // Рисование спрайтов.
-    Memory_Buffer vertex_data{ctx};
+    Memory_Buffer vertex_data{};
     defer {
-        vertex_data.Deinit(ctx);
+        vertex_data.Free(ctx);
     };
 
     auto    sprites_count = 0;
@@ -1966,8 +1966,8 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
         case Element_Tile_Type::Flag:
         case Element_Tile_Type::Road: {
             auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id = roads_tilemap.tiles[t];
-            tile_id       = global_road_starting_tile_id + tex;
+            auto& tile_id    = roads_tilemap.tiles[t];
+            tile_id          = global_road_starting_tile_id + tex;
             auto& texture_id = roads_tilemap.textures[t];
             texture_id       = rstate.road_textures[tex];
 

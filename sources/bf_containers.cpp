@@ -350,7 +350,7 @@ struct Memory_Buffer {
         count = 0;
     }
 
-    void Deinit(MCTX) {
+    void Free(MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         if (base != nullptr)
