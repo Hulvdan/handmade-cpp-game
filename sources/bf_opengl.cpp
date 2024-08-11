@@ -11,6 +11,14 @@ uint BFGL_Load_Vertex_Array() {
     return vao_id;
 }
 
+void BFGL_Enable_Vertex_Array(uint vao_id) {
+    glBindVertexArray(vao_id);
+}
+
+void BFGL_Disable_Vertex_Array() {
+    glBindVertexArray(0);
+}
+
 void BFGL_Unload_Vertex_Array(uint vao_id) {
     glDeleteVertexArrays(1, &vao_id);
 }
@@ -47,14 +55,6 @@ void BFGL_Set_Vertex_Attribute(
 
 void BFGL_Enable_Vertex_Attribute(uint attribute_index) {
     glEnableVertexAttribArray(attribute_index);
-}
-
-void BFGL_Enable_Vertex_Array(uint vao_id) {
-    glBindVertexArray(vao_id);
-}
-
-void BFGL_Disable_Vertex_Array() {
-    glBindVertexArray(0);
 }
 
 //----------------------------------------------------------------------------------
