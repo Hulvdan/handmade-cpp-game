@@ -10,7 +10,7 @@
 - Python 3.11.3 (лучше всего через `pyenv`) + `poetry`
 - Установленный LLVM (`clang-tidy`, `clang-format` - для линтинга и форматтинга)
 - cli утилита `sed` (для линтинга)
-- cli утилита `sedfree-tex-packer-cli` (для создания атласа) (`npm install -g free-tex-packer-cli`)
+- cli утилита `free-tex-packer-cli` (для создания атласа) (`npm install -g free-tex-packer-cli`)
 
 Завод проекта:
 
@@ -20,24 +20,29 @@ call "c:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build
 set CC="cl"
 set CXX="cl"
 
+pyenv install 3.11.3
+pyenv local 3.11.3
+pip install poetry
+poetry install
+
 REM Создать / перегенерить .sln
-poetry run python cmd\cli.py cmake_vs_files
+.venv\Scripts\python.exe cmd\cli.py cmake_vs_files
 
 REM Кодогенерация
-poetry run python cmd\cli.py generate
+.venv\Scripts\python.exe cmd\cli.py generate
 
 REM Билд проекта
-poetry run python cmd\cli.py build
+.venv\Scripts\python.exe cmd\cli.py build
 
 REM Прогнать тесты
-poetry run python cmd\cli.py test
+.venv\Scripts\python.exe cmd\cli.py test
 
 REM Запуск
-poetry run python cmd\cli.py run
+.venv\Scripts\python.exe cmd\cli.py run
 
 REM Форматирование
-poetry run python cmd\cli.py format
+.venv\Scripts\python.exe cmd\cli.py format
 
 REM Запуск линта
-poetry run python cmd\cli.py lint
+.venv\Scripts\python.exe cmd\cli.py lint
 ```
