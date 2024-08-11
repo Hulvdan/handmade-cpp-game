@@ -15,15 +15,11 @@ void BFGL_Unload_Vertex_Array(uint vao_id) {
     glDeleteVertexArrays(1, &vao_id);
 }
 
-uint BFGL_Load_Vertex_Buffer(const void* buffer, int size, bool dynamic) {
+uint BFGL_Load_Vertex_Buffer(const void* data, int size, bool dynamic) {
     uint id = 0;
-
     glGenBuffers(1, &id);
     glBindBuffer(GL_ARRAY_BUFFER, id);
-    glBufferData(
-        GL_ARRAY_BUFFER, size, buffer, dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW
-    );
-
+    glBufferData(GL_ARRAY_BUFFER, size, data, dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
     return id;
 }
 

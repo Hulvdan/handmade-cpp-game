@@ -1720,13 +1720,13 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
             // Рисование квада tilemap.
             auto p0 = W2GL * v3f(0, 0, 1);
-            auto p3 = W2GL * v3f(tilemap.size.x, tilemap.size.y, 1);
+            auto p3 = W2GL * v3f(tilemap.size, 1);
             auto p1 = v2f(p3.x, p0.y);
             auto p2 = v2f(p0.x, p3.y);
             Assert(p0.z == 1);
             Assert(p3.z == 1);
 
-            static const struct Buffer_Data {
+            const struct Buffer_Data {
                 v2f pos[6];
                 v2f tex_coords[6];
             } buffer_data = {
@@ -1737,9 +1737,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             auto vao = BFGL_Load_Vertex_Array();
             BFGL_Enable_Vertex_Array(vao);
 
-            auto vbo = BFGL_Load_Vertex_Buffer(
-                &buffer_data, sizeof(buffer_data), false  // dynamic=false
-            );
+            auto vbo = BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), false);
 
             const auto pos_off        = Offset_Of_Member(Buffer_Data, pos);
             const auto tex_coords_off = Offset_Of_Member(Buffer_Data, tex_coords);
