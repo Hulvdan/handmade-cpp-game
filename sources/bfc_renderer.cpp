@@ -350,7 +350,7 @@ uniform vec2 a_tile_size_relative_to_atlas;
 out vec4 frag_color;
 
 in vec3 color;
-varying in vec2 tex_coord;
+in vec2 tex_coord;
 
 uniform sampler2D ourTexture;
 
@@ -417,18 +417,6 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    vec2 relative_frag_screen_pos = vec2(gl_FragCoord) / gl_FragCoord.w / a_resolution;
-    relative_frag_screen_pos.y = 1 - relative_frag_screen_pos.y;
-
-#if 0
-    frag_color = vec4(
-        relative_frag_screen_pos,
-        0,
-        1
-    );
-    return;
-#endif
-
     vec2 pos = tex_coord * a_gsize;
 
     ivec2 tile  = ivec2(pos);
@@ -1749,8 +1737,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
             auto vao = BFGL_Load_Vertex_Array();
             BFGL_Enable_Vertex_Array(vao);
 
-            const auto dynamic = false;
-            BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), dynamic);
+            auto vbo = BFGL_Load_Vertex_Buffer(
+                &buffer_data, sizeof(buffer_data), false  // dynamic=false
+            );
 
             const auto pos_off        = Offset_Of_Member(Buffer_Data, pos);
             const auto tex_coords_off = Offset_Of_Member(Buffer_Data, tex_coords);
@@ -1760,6 +1749,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
             BFGL_Enable_Vertex_Attribute(1);
 
             glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            BFGL_Unload_Vertex_Buffer(vbo);
 
             BFGL_Disable_Vertex_Array();
             BFGL_Unload_Vertex_Array(vao);

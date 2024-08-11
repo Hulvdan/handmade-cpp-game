@@ -5,7 +5,6 @@
 // Vertex arrays and buffers.
 //----------------------------------------------------------------------------------
 
-// TODO: Usage
 uint BFGL_Load_Vertex_Array() {
     uint vao_id = 0;
     glGenVertexArrays(1, &vao_id);
@@ -16,7 +15,6 @@ void BFGL_Unload_Vertex_Array(uint vao_id) {
     glDeleteVertexArrays(1, &vao_id);
 }
 
-// TODO: Usage
 uint BFGL_Load_Vertex_Buffer(const void* buffer, int size, bool dynamic) {
     uint id = 0;
 
@@ -29,7 +27,10 @@ uint BFGL_Load_Vertex_Buffer(const void* buffer, int size, bool dynamic) {
     return id;
 }
 
-// TODO: Usage
+void BFGL_Unload_Vertex_Buffer(uint vbo_id) {
+    glDeleteBuffers(1, &vbo_id);
+}
+
 void BFGL_Set_Vertex_Attribute(
     uint attribute_index,
     int  instances_of_type_per_vertex,
