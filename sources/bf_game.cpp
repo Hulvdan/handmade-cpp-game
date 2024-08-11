@@ -288,6 +288,10 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
     ZoneScoped;
 
+    const float MAX_DT = 1.0f / (f32)10;
+    if (dt > MAX_DT)
+        dt = MAX_DT;
+
     Arena root_arena{};
     root_arena.debug_name = "root_arena";
     root_arena.base       = (u8*)memory_ptr;

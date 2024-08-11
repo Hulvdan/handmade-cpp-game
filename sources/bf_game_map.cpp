@@ -375,7 +375,6 @@ void Root_Set_Human_State(
 
 void Advance_Moving_To(Human_Moving_Component& moving) {
     if (moving.path.count == 0) {
-        moving.elapsed  = 0;
         moving.progress = 0;
         moving.to.reset();
     }
@@ -1077,24 +1076,18 @@ void Update_Human_Moving_Component(
     CTX_LOGGER;
     CTX_ALLOCATOR;
 
-    auto& game_map_data = Assert_Deref(game_map.data);
+    auto& moving = human.moving;
+    Assert(moving.to.has_value());
 
-    auto&      moving   = human.moving;
-    const auto duration = game_map_data.human_moving_one_tile_duration;
+    const auto duration = Assert_Deref(game_map.data).human_moving_one_tile_duration;
+
     moving.elapsed += dt;
 
-    constexpr int GUARD_MAX_MOVING_TILES_PER_FRAME = 4;
-
-    auto iteration = 0;
-    while (iteration < 10 * GUARD_MAX_MOVING_TILES_PER_FRAME  //
-           && moving.to.has_value()                           //
-           && moving.elapsed > duration)
-    {
+    if (moving.elapsed > duration) {
         LOG_TRACING_SCOPE;
 
-        iteration++;
-
         moving.elapsed -= duration;
+        Assert(moving.elapsed < duration);
 
         moving.pos  = moving.to.value();
         moving.from = moving.pos;
@@ -1104,11 +1097,8 @@ void Update_Human_Moving_Component(
         // TODO: on_Human_Moved_To_The_Next_Tile.On_Next(new (){ human = human });
     }
 
-    Assert(iteration < 10 * GUARD_MAX_MOVING_TILES_PER_FRAME);
-    if (iteration >= GUARD_MAX_MOVING_TILES_PER_FRAME) {
-        LOG_TRACING_SCOPE;
-        LOG_WARN("WTF? iteration >= GUARD_MAX_MOVING_TILES_PER_FRAME");
-    }
+    if (!moving.to.has_value())
+        moving.elapsed = 0;
 
     moving.progress = MIN(1.0f, moving.elapsed / duration);
     SANITIZE;
