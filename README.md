@@ -30,11 +30,11 @@
 
 Бан move, copy конструкторов и операторов.
 
-Casey Muratori в [25:00 - 30:20 Handmade Hero Day 341 - Dynamically Growing Arenas](https://www.youtube.com/watch?v=lzdKgeovBN0&t=1500s) высказывает мнение о том, что первичная инициализация памяти "нулями" (Zero Is Initialization, в противопоставление RAII - Resource Acquisition Is Initialization) сокращает количество багов.
-
 По совету Jonathan Blow в [Constructors, Destructors](https://www.youtube.com/watch?v=8C6zuDDGU2w):
 - Ничто не аллоцирует память во время отработки конструкторов.
 - В конструкторах ничего не зависит от порядка назначения.
+
+Casey Muratori в [25:00 - 30:20 Handmade Hero Day 341 - Dynamically Growing Arenas](https://www.youtube.com/watch?v=lzdKgeovBN0&t=1500s) высказывает мнение о том, что первичная инициализация памяти "нулями" (Zero Is Initialization, в противопоставление RAII - Resource Acquisition Is Initialization) сокращает количество багов. Держу в голове мысль об этом.
 
 ### Контейнеры не принимают значения
 
