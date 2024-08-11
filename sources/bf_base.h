@@ -7,6 +7,8 @@
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
 
+#define UNUSED(x) (void)(x)
+
 #define STATEMENT(statement) \
     do {                     \
         statement;           \

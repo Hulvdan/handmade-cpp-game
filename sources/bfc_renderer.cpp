@@ -1823,29 +1823,34 @@ void Render(Game_State& state, f32 dt, MCTX) {
             f32 ay0 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
 
             v2f verticess[] = {
-                v2f(x0, y0),
-                v2f(x1, y0),
-                v2f(x0, y1),
-                v2f(x0, y1),
-                v2f(x1, y0),
-                v2f(x1, y1),
+                {x0, y0},
+                {x1, y0},
+                {x0, y1},
+                {x0, y1},
+                {x1, y0},
+                {x1, y1},
             };
 
             v2f texture_positions[] = {
-                v2f(ax0, ay0),
-                v2f(ax1, ay0),
-                v2f(ax0, ay1),
-                v2f(ax0, ay1),
-                v2f(ax1, ay0),
-                v2f(ax1, ay1),
+                {ax0, ay0},
+                {ax1, ay0},
+                {ax0, ay1},
+                {ax0, ay1},
+                {ax1, ay0},
+                {ax1, ay1},
             };
 
             FOR_RANGE (int, i, 6) {
-                v2f vertex        = verticess[i];
-                v2f texture_coord = texture_positions[i];
-                vertex_data.Add_Unsafe((void*)&vertex, sizeof(vertex));
-                vertex_data.Add_Unsafe((void*)&v3f_one, sizeof(v3f_one));  // TODO: color
-                vertex_data.Add_Unsafe((void*)&texture_coord, sizeof(texture_coord));
+                const struct {
+                    v2f pos;
+                    v3f color;
+                    v2f tex_coord;
+                } vertex_datum = {
+                    verticess[i],
+                    v3f_one,
+                    texture_positions[i],
+                };
+                vertex_data.Add_Unsafe((void*)&vertex_datum, sizeof(vertex_datum));
             }
 
             sprites_count++;
@@ -1859,8 +1864,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
         const auto vao = BFGL_Load_Vertex_Array();
         BFGL_Enable_Vertex_Array(vao);
 
-        const auto vbo
-            = BFGL_Load_Vertex_Buffer(vertex_data.base, vertex_data.count, false);
+        const auto vbo = BFGL_Load_Vertex_Buffer(
+            vertex_data.base, Assert_Truncate_To_i32(vertex_data.count), false
+        );
         BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(f32) * 7, 0);
         BFGL_Set_Vertex_Attribute(
             1, 3, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 2
@@ -1891,6 +1897,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
 // NOTE: Game_State& state, v2i16 pos, Item_To_Build item
 On_Item_Built_function(Renderer_OnItemBuilt) {
+    UNUSED(item);
+
     Assert(state.renderer_state != nullptr);
 
     CTX_ALLOCATOR;
