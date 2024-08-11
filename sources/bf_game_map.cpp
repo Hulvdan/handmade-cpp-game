@@ -1268,46 +1268,17 @@ void Init_Game_Map(
     Arena&      arena,
     MCTX
 ) {
-    human_states[(int)Human_States::MovingInTheWorld] = {
-        HumanState_MovingInTheWorld_OnEnter,
-        HumanState_MovingInTheWorld_OnExit,
-        HumanState_MovingInTheWorld_Update,
-        HumanState_MovingInTheWorld_OnHumanCurrentSegmentChanged,
-        HumanState_MovingInTheWorld_OnHumanMovedToTheNextTile,
-        HumanState_MovingInTheWorld_UpdateStates,
+#define X(state_name)                                           \
+    human_states[(int)Human_States::state_name] = {             \
+        HumanState_##state_name##_OnEnter,                      \
+        HumanState_##state_name##_OnExit,                       \
+        HumanState_##state_name##_Update,                       \
+        HumanState_##state_name##_OnHumanCurrentSegmentChanged, \
+        HumanState_##state_name##_OnHumanMovedToTheNextTile,    \
+        HumanState_##state_name##_UpdateStates,                 \
     };
-    human_states[(int)Human_States::MovingInsideSegment] = {
-        HumanState_MovingInsideSegment_OnEnter,
-        HumanState_MovingInsideSegment_OnExit,
-        HumanState_MovingInsideSegment_Update,
-        HumanState_MovingInsideSegment_OnHumanCurrentSegmentChanged,
-        HumanState_MovingInsideSegment_OnHumanMovedToTheNextTile,
-        HumanState_MovingInsideSegment_UpdateStates,
-    };
-    human_states[(int)Human_States::MovingResources] = {
-        HumanState_MovingResources_OnEnter,
-        HumanState_MovingResources_OnExit,
-        HumanState_MovingResources_Update,
-        HumanState_MovingResources_OnHumanCurrentSegmentChanged,
-        HumanState_MovingResources_OnHumanMovedToTheNextTile,
-        HumanState_MovingResources_UpdateStates,
-    };
-    human_states[(int)Human_States::Construction] = {
-        HumanState_Construction_OnEnter,
-        HumanState_Construction_OnExit,
-        HumanState_Construction_Update,
-        HumanState_Construction_OnHumanCurrentSegmentChanged,
-        HumanState_Construction_OnHumanMovedToTheNextTile,
-        HumanState_Construction_UpdateStates,
-    };
-    human_states[(int)Human_States::Employee] = {
-        HumanState_Employee_OnEnter,
-        HumanState_Employee_OnExit,
-        HumanState_Employee_Update,
-        HumanState_Employee_OnHumanCurrentSegmentChanged,
-        HumanState_Employee_OnHumanMovedToTheNextTile,
-        HumanState_Employee_UpdateStates,
-    };
+    Human_States_Table;
+#undef X
 
     auto& game_map = state.game_map;
 
@@ -1322,16 +1293,6 @@ void Init_Game_Map(
 
         game_map.human_data = human_data;
     }
-
-    std::construct_at(&game_map.segments);
-    std::construct_at(&game_map.buildings);
-    std::construct_at(&game_map.not_constructed_buildings);
-    std::construct_at(&game_map.city_halls);
-    std::construct_at(&game_map.humans);
-    std::construct_at(&game_map.humans_going_to_the_city_hall);
-    std::construct_at(&game_map.humans_to_add);
-    std::construct_at(&game_map.humans_to_remove);
-    std::construct_at(&game_map.resources);
 
     Init_Queue(game_map.segments_wo_humans, ctx);
     Init_Vector(game_map.resources_booking_queue, ctx);

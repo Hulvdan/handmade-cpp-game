@@ -438,14 +438,19 @@ enum class Human_Removal_Reason {
         MCTX                                    \
     ))
 
+#define Human_States_Table \
+    X(MovingInTheWorld)    \
+    X(MovingInsideSegment) \
+    X(MovingResources)     \
+    X(Construction)        \
+    X(Employee)
+
 enum class Human_States {
-    None             = -1,
-    MovingInTheWorld = 0,
-    MovingInsideSegment,
-    MovingResources,
-    Construction,
-    Employee,
-    COUNT
+    None = -1,
+#define X(state_name) state_name,
+    Human_States_Table
+#undef X
+        COUNT
 };
 
 struct Human_State {
