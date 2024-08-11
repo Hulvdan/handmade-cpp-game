@@ -1855,40 +1855,30 @@ void Render(Game_State& state, f32 dt, MCTX) {
     {
         glUseProgram(rstate.sprites_shader_program);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
-        GLuint vao = 0;
-        glGenVertexArrays(1, &vao);
-        GLuint vbo = 0;
-        glGenBuffers(1, &vbo);
 
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(
-            GL_ARRAY_BUFFER,
-            Assert_Truncate_To_i64(vertex_data.count),
-            vertex_data.base,
-            GL_STATIC_DRAW
-        );
+        const auto vao = BFGL_Load_Vertex_Array();
+        BFGL_Enable_Vertex_Array(vao);
 
-        // 3. then set our vertex attributes pointers
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(0));
-        glVertexAttribPointer(
-            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(2 * sizeof(f32))
+        const auto vbo
+            = BFGL_Load_Vertex_Buffer(vertex_data.base, vertex_data.count, false);
+        BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(f32) * 7, 0);
+        BFGL_Set_Vertex_Attribute(
+            1, 3, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 2
         );
-        glVertexAttribPointer(
-            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(5 * sizeof(f32))
+        BFGL_Set_Vertex_Attribute(
+            2, 2, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 5
         );
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
+        BFGL_Enable_Vertex_Attribute(0);
+        BFGL_Enable_Vertex_Attribute(1);
+        BFGL_Enable_Vertex_Attribute(2);
 
-        // ..:: Drawing code (in render loop) :: ..
-        // glUseProgram(rstate.sprites_shader_program);
-        glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 6 * sprites_count);
 
-        glBindVertexArray(0);
-        glDeleteVertexArrays(1, &vao);
-        glDeleteBuffers(1, &vbo);
+        BFGL_Unload_Vertex_Buffer(vbo);
+
+        BFGL_Disable_Vertex_Array();
+        BFGL_Unload_Vertex_Array(vao);
+
         BFGL_Check_Errors();
     }
 
