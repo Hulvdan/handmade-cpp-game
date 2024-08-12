@@ -2052,9 +2052,8 @@ void Update_Graphs(
         *queue.Enqueue() = p;
 
         auto [_, p_pos] = p;
-        if (full_graph_build) {
+        if (full_graph_build)
             GRID_PTR_VALUE(vis, p_pos) = true;
-        }
 
         auto vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
         auto segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
