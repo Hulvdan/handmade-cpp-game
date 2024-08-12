@@ -1644,7 +1644,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
                         human.moving.progress
                     );
 
-                sprite_ptr->pos = pos;
+                sprite_ptr->pos = pos + v2f_one / 2.0f;
             }
         }
     }
@@ -2003,9 +2003,9 @@ On_Human_Created_function(Renderer_OnHumanCreated) {
     auto& rstate = *state.renderer_state;
 
     C_Sprite human_sprite{};
-    human_sprite.pos      = human.moving.pos;
-    human_sprite.scale    = {1, 1};
-    human_sprite.anchor   = {0.5f, 0.5f};
+    human_sprite.pos      = v2f(human.moving.pos) + v2f_one / 2.0f;
+    human_sprite.scale    = v2f(1, 1) / 2.0f;
+    human_sprite.anchor   = {0.5f, 0.5f + 2.0f / 7.0f};
     human_sprite.rotation = 0;
     human_sprite.texture  = rstate.human_texture;
     human_sprite.z        = 0;
