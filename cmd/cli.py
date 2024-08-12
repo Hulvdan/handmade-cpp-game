@@ -62,14 +62,17 @@ def hook_exit():
 app = typer.Typer(callback=hook_exit, result_callback=timed_exit)
 
 
-# ======================================== #
-#                Constants                 #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# Constants.
+# -----------------------------------------------------------------------------------
+
+
 LOG_FILE_POSITION = False
 
 PROJECT_DIR = Path(__file__).parent.parent
 CMD_DIR = Path("cmd")
 SOURCES_DIR = Path("sources")
+FLATBUFFERS_GENERATED_DIR = SOURCES_DIR / ".." / "codegen" / "flatbuffers"
 CMAKE_DEBUG_BUILD_DIR = Path(".cmake") / "vs17" / "Debug"
 
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
@@ -77,14 +80,15 @@ CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
 FLATC_PATH = CMD_DIR / "flatc.exe"
 MSBUILD_PATH = r"c:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe"
 
-
 REPLACING_SPACES_PATTERN = re.compile("\s+")
 SHADERS_ERROR_PATTERN = re.compile(r"\d+\((\d+)\) : error (.*)")
 
 
-# ======================================== #
-#                 Logging                  #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# Logging.
+# -----------------------------------------------------------------------------------
+
+
 class CustomLoggingFormatter(logging.Formatter):
     _grey = "\x1b[30;20m"
     _green = "\x1b[32;20m"
@@ -127,9 +131,11 @@ console_handler.setFormatter(CustomLoggingFormatter())
 log.addHandler(console_handler)
 
 
-# ======================================== #
-#            Library Functions             #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# Library Functions.
+# -----------------------------------------------------------------------------------
+
+
 def better_json_dump(data, path):
     with open(path, "wb") as out_file:
         json.dump(data, out_file, indent="\t", ensure_ascii=False)  # noqa
@@ -171,9 +177,11 @@ def assert_contains(value: T, container) -> T:
     return value
 
 
-# ======================================== #
-#  Всякая хрень для индивидуальных задач   #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# Всякая хрень для индивидуальных задач.
+# -----------------------------------------------------------------------------------
+
+
 def listfiles_with_hashes_in_dir(path: str | Path) -> dict[str, int]:
     files = glob.glob(str(Path(path) / "**" / "*"), recursive=True, include_hidden=True)
 
@@ -438,9 +446,11 @@ def find_and_test_shaders(
     return failed
 
 
-# ======================================== #
-#          Индивидуальные задачи           #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# Индивидуальные задачи.
+# -----------------------------------------------------------------------------------
+
+
 def do_build() -> None:
     run_command(
         rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3'
@@ -462,7 +472,7 @@ def do_build_tests() -> None:
 def do_generate() -> None:
     remove_intermediate_generation_files()
 
-    hashes_for_msbuild = listfiles_with_hashes_in_dir(SOURCES_DIR / "generated")
+    hashes_for_msbuild = listfiles_with_hashes_in_dir(FLATBUFFERS_GENERATED_DIR)
     glob_pattern = SOURCES_DIR / "**" / "*.fbs"
 
     # Генерируем cpp файлы из FlatBuffer (.fbs) файлов.
@@ -474,7 +484,7 @@ def do_generate() -> None:
 
         for file, file_hash in listfiles_with_hashes_in_dir(td).items():
             if file_hash != hashes_for_msbuild.get(file):
-                shutil.copyfile(Path(td) / file, SOURCES_DIR / "generated" / file)
+                shutil.copyfile(Path(td) / file, FLATBUFFERS_GENERATED_DIR / file)
 
     # Собираем атлас.
     texture_name_hashes: set[int] = set()
@@ -592,9 +602,11 @@ def do_run_vs_ahk() -> None:
     run_command(r".nvim-personal\launch_vs.ahk")
 
 
-# ======================================== #
-#               CLI Commands               #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# CLI Commands.
+# -----------------------------------------------------------------------------------
+
+
 def timing(f):
     @wraps(f)
     def wrap(*args, **kw):
@@ -676,9 +688,11 @@ def action_test_shaders() -> None:
     do_test_shaders()
 
 
-# ======================================== #
-#                   Main                   #
-# ======================================== #
+# -----------------------------------------------------------------------------------
+# Main.
+# -----------------------------------------------------------------------------------
+
+
 @contextmanager
 def timing_manager():
     started_at = time()

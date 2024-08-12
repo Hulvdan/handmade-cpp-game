@@ -2,8 +2,9 @@ vim.api.nvim_create_autocmd({ "BufEnter" }, {
     pattern = "*",
     once = false,
     callback = function()
-        vim.fn.execute("set signcolumn=no")
-        if vim.bo.filetype == "md" then
+        -- Включаем wrap для markdown файлов.
+        if vim.bo.filetype == "markdown" then
+            vim.fn.execute("set wrap")
             return
         end
 

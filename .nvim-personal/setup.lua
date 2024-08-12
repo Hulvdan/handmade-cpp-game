@@ -11,6 +11,8 @@ function cli_command(cmd)
     return [[.venv\Scripts\python.exe cmd\cli.py ]] .. cmd
 end
 
+vim.g.telescope_search_and_replace_directory = "sources"
+
 -- Обработка ошибок MSBuild.
 -- https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=704#3982
 -- Microsoft MSBuild

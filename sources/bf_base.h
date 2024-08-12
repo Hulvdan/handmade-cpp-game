@@ -1,19 +1,30 @@
 #pragma once
+
+#include <stdint.h>
+
 #include "tracy/Tracy.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
 #include "glm/mat3x3.hpp"
 #include "glm/vec2.hpp"
 
+#define UNUSED(x) (void)(x)
+
+#define STATEMENT(statement) \
+    do {                     \
+        statement;           \
+    } while (false)
+
 #ifdef BF_INTERNAL
-#    define BREAKPOINT __debugbreak()
+#    define BREAKPOINT STATEMENT({ __debugbreak(); })
 #else  // BF_INTERNAL
-#    define BREAKPOINT
+#    define BREAKPOINT STATEMENT({})
 #endif  // BF_INTERNAL
 
 #ifdef BF_INTERNAL
 static constexpr auto DEBUG_MAX_LEN = 512;
 
 void DEBUG_Error(const char* text, ...) {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
@@ -24,6 +35,7 @@ void DEBUG_Error(const char* text, ...) {
 }
 
 void DEBUG_Print(const char* text, ...) {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
@@ -38,9 +50,9 @@ void DEBUG_Print(const char* text, ...) {
 #    define DEBUG_Print(text_, ...)
 #endif  // BF_INTERNAL
 
-// =============================================================
-// INLINE
-// =============================================================
+//----------------------------------------------------------------------------------
+// Inline.
+//----------------------------------------------------------------------------------
 // NOTE: Copied from `vendor/tracy/zstd/common/xxhash.h`
 #if BF_NO_INLINE_HINTS /* disable inlining hints */
 #    if defined(__GNUC__) || defined(__clang__)
@@ -65,11 +77,21 @@ void DEBUG_Print(const char* text, ...) {
 #    define BF_NO_INLINE static
 #endif
 
-// =============================================================
-// OTHER SHIT
-// =============================================================
+//----------------------------------------------------------------------------------
+// Other shiet.
+//----------------------------------------------------------------------------------
+#define local_persist static
+#define global_var static
+
+#define Ptr_From_Int(value) ((void*)((u8*)(nullptr) + (value)))
+#define Int_From_Ptr(value) ((u64)((u8*)(value)))
+
+#define Member(T, m) (((T*)nullptr)->m)
+#define Offset_Of_Member(T, m) Int_From_Ptr(&Member(T, m))
+
 using v2f   = glm::vec2;
 using v2i   = glm::ivec2;
+using v2u   = glm::uvec2;
 using v2i16 = glm::vec<2, int16_t, glm::defaultp>;
 using v3f   = glm::vec3;
 using v3i   = glm::ivec3;
@@ -105,35 +127,45 @@ constexpr v3i v3i_one  = v3i(1, 1, 1);
 constexpr v3f v3f_zero = v3f(0, 0, 0);
 constexpr v3f v3f_one  = v3f(1, 1, 1);
 
-#define local_persist static
-#define global_var static
+using uint = unsigned int;
+using u8   = uint8_t;
+using i8   = int8_t;
+using u16  = uint16_t;
+using i16  = int16_t;
+using u32  = uint32_t;
+using i32  = int32_t;
+using b32  = uint32_t;
+using u64  = uint64_t;
+using i64  = int64_t;
+using f32  = float;
+using f64  = double;
 
-#include "bf_types.h"
+constexpr u8     u8_max     = std::numeric_limits<u8>::max();
+constexpr u16    u16_max    = std::numeric_limits<u16>::max();
+constexpr u32    u32_max    = std::numeric_limits<u32>::max();
+constexpr u64    u64_max    = std::numeric_limits<u64>::max();
+constexpr size_t size_t_max = std::numeric_limits<size_t>::max();
 
-#define STATEMENT1(statement) \
-    do {                      \
-        statement;            \
-    } while (false)
+constexpr i8  i8_max  = std::numeric_limits<i8>::max();
+constexpr i16 i16_max = std::numeric_limits<i16>::max();
+constexpr i32 i32_max = std::numeric_limits<i32>::max();
+constexpr i64 i64_max = std::numeric_limits<i64>::max();
+
+constexpr i8  i8_min  = std::numeric_limits<i8>::min();
+constexpr i16 i16_min = std::numeric_limits<i16>::min();
+constexpr i32 i32_min = std::numeric_limits<i32>::min();
+constexpr i64 i64_min = std::numeric_limits<i64>::min();
+
+constexpr f32 f32_inf = std::numeric_limits<f32>::infinity();
 
 #ifdef TESTS
-
 #    define Assert(expr) REQUIRE(expr)
 #    define Assert_False(expr) REQUIRE_FALSE(expr)
-
-#else  // TESTS
-
-#    define Assert(expr)         \
-        STATEMENT1({             \
-            if (!(bool)(expr))   \
-                *(char*)(0) = 0; \
-        })
-#    define Assert_False(expr)   \
-        STATEMENT1({             \
-            if ((bool)(expr))    \
-                *(char*)(0) = 0; \
-        })
-
-#endif  // TESTS
+#else
+#    include <cassert>
+#    define Assert(expr) STATEMENT({ assert((bool)(expr)); })
+#    define Assert_False(expr) STATEMENT({ assert(!(bool)(expr)); })
+#endif
 
 template <typename T>
 BF_FORCE_INLINE T& Assert_Deref(T* value) {
@@ -148,7 +180,7 @@ BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
     return value;
 }
 #else
-#    define Assert_Not_Null(value) value
+#    define Assert_Not_Null(value) (value)
 #endif
 
 #define INVALID_PATH Assert(false)
@@ -167,34 +199,40 @@ static constexpr f32 BF_2PI = 6.28318530718f;
 #define Pos_Is_In_Bounds(pos, bounds) \
     (!((pos).x < 0 || (pos).x >= (bounds).x || (pos).y < 0 || (pos).y >= (bounds).y))
 
-#define FOR_RANGE(type, variable_name, max_value_exclusive) \
-    for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
+#define FOR_RANGE(type, variable_name, max_value_exclusive)               \
+    /* NOLINTBEGIN(bugprone-macro-parentheses) */                         \
+    for (type variable_name = 0; (variable_name) < (max_value_exclusive); \
+         variable_name++)                                                 \
+    /* NOLINTEND(bugprone-macro-parentheses) */
 
-// =============================================================
-// Defer
-// =============================================================
+//----------------------------------------------------------------------------------
+// Defer.
+//----------------------------------------------------------------------------------
 template <typename F>
-struct _Defer {
-    _Defer(F f)
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct Defer_ {
+    Defer_(F f)
         : f(f) {}
-    ~_Defer() {
+    ~Defer_() {
         f();
     }
     F f;
 };
 
 template <typename F>
-BF_FORCE_INLINE _Defer<F> _makeDefer(F f) {
-    return _Defer<F>(f);
+Defer_<F> makeDefer_(F f) {
+    return Defer_<F>(f);
 };
 
-#define __defer(counter) defer_##counter
-#define _defer(counter) __defer(counter)
+#define defer_with_counter_(counter) defer_##counter
+#define defer_(counter) defer_with_counter_(counter)
 
-struct _defer_dummy {};
+struct defer_dummy_ {};
+
 template <typename F>
-BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
-    return _makeDefer<F>(std::forward<F>(f));
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+Defer_<F> operator+(defer_dummy_, F&& f) {
+    return makeDefer_<F>(std::forward<F>(f));
 }
 
 // Usage:
@@ -207,25 +245,20 @@ BF_FORCE_INLINE _Defer<F> operator+(_defer_dummy, F&& f) {
 //     Normal
 //     Deferred
 //
-#define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
+#define defer auto defer_(__COUNTER__) = defer_dummy_() + [&]()
 
-// =============================================================
-// Other
-// =============================================================
-struct Non_Copyable {
-    Non_Copyable()                               = default;
-    Non_Copyable(const Non_Copyable&)            = delete;
-    Non_Copyable& operator=(const Non_Copyable&) = delete;
-};
-
+//----------------------------------------------------------------------------------
+// Other.
+//----------------------------------------------------------------------------------
 template <typename T>
 BF_FORCE_INLINE void Initialize_As_Zeros(T& value) {
     memset(&value, 0, sizeof(T));
 }
 
-// =============================================================
-// Iterators
-// =============================================================
+//----------------------------------------------------------------------------------
+// Iterators.
+//----------------------------------------------------------------------------------
 //
 // NOTE: Proudly taken from
 // https://vector-of-bool.github.io/2020/06/13/cpp20-iter-facade.html
@@ -237,18 +270,33 @@ struct Arrow_Proxy {
     }
 };
 
+// Usage:
+//
+//     struct A : public Equatable<A> {
+//         int field1;
+//         int field2;
+//
+//         NOTE: Требуется реализовать этот метод
+//         bool Equal_To(const A& v1, const A& v2) {
+//             auto result = (
+//                 v1.field1 == v2.field1
+//                 && v1.field2 == v2.field2
+//             );
+//             return result;
+//         }
+//     }
 template <typename Derived>
 struct Equatable {
-protected:
+private:
     using Self_Type = Derived;
 
 public:
-    friend bool operator==(const Self_Type& left, const Self_Type& right) {
-        return left.Equal_To(right);
+    friend bool operator==(const Self_Type& v1, const Self_Type& v2) {
+        return v1.Equal_To(v2);
     }
     // SHIT: Fuken `clang-tidy` requires this function to be specified
-    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
-        return !left.Equal_To(right);
+    friend bool operator!=(const Self_Type& v1, const Self_Type& v2) {
+        return !v1.Equal_To(v2);
     }
 };
 
@@ -261,7 +309,7 @@ private:
     Self_Type& _self() {
         return scast<Self_Type&>(*this);
     }
-    const Self_Type& _self() const {
+    [[nodiscard]] const Self_Type& _self() const {
         return scast<const Self_Type&>(*this);
     }
 
@@ -278,12 +326,12 @@ public:
             return Arrow_Proxy<Derived>(std::move(ref));
     }
 
-    friend bool operator==(const Self_Type& left, const Self_Type& right) {
-        return left.Equal_To(right);
+    friend bool operator==(const Self_Type& v1, const Self_Type& v2) {
+        return v1.Equal_To(v2);
     }
     // SHIT: Fuken `clang-tidy` requires this function to be specified
-    friend bool operator!=(const Self_Type& left, const Self_Type& right) {
-        return !left.Equal_To(right);
+    friend bool operator!=(const Self_Type& v1, const Self_Type& v2) {
+        return !v1.Equal_To(v2);
     }
 
     Self_Type& operator++() {

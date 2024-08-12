@@ -22,10 +22,9 @@
 #include "bf_game.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_memory_arena.cpp"
 #include "bf_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
-
-global_var OS_Data os_data;
 
 // -- RENDERING STUFF
 struct BF_Bitmap {
@@ -39,10 +38,11 @@ struct BF_Bitmap {
 // -- GAME STUFF
 global_var bool hot_reloaded = false;
 
-global_var Editor_Data editor_data;
-global_var HMODULE     game_lib = nullptr;
-global_var size_t      initial_game_memory_size;
-global_var void*       initial_game_memory = nullptr;
+global_var Library_Integration_Data library_integration_data = {};
+
+global_var HMODULE game_lib = nullptr;
+global_var size_t  initial_game_memory_size;
+global_var void*   initial_game_memory = nullptr;
 
 global_var size_t events_count    = 0;
 global_var std::vector<u8> events = {};
@@ -75,7 +75,7 @@ struct Peek_Filetime_Result {
 };
 
 Peek_Filetime_Result Peek_Filetime(const char* filename) {
-    Peek_Filetime_Result res = {};
+    Peek_Filetime_Result res{};
 
     WIN32_FIND_DATAA find_data;
     auto             handle = FindFirstFileA(filename, &find_data);
@@ -90,9 +90,9 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
 }
 #endif  // BF_INTERNAL
 
-using Game_Update_And_Render_Type = Game_Update_And_Render__Function((*));
-Game_Update_And_Render__Function(Game_Update_And_Render_Stub) {}
-Game_Update_And_Render_Type Game_Update_And_Render_ = Game_Update_And_Render_Stub;
+using Game_Update_And_Render_t = Game_Update_And_Render_function((*));
+Game_Update_And_Render_function(Game_Update_And_Render_stub) {}
+Game_Update_And_Render_t Game_Update_And_Render_ = Game_Update_And_Render_stub;
 
 void Load_Or_Update_Game_Dll() {
     auto path = R"(bf_game.dll)";
@@ -139,7 +139,7 @@ void Load_Or_Update_Game_Dll() {
     path = temp_path;
 #endif  // BF_INTERNAL
 
-    Game_Update_And_Render_ = Game_Update_And_Render_Stub;
+    Game_Update_And_Render_ = Game_Update_And_Render_stub;
 
     HMODULE lib = LoadLibraryA(path);
     if (!lib) {
@@ -148,7 +148,7 @@ void Load_Or_Update_Game_Dll() {
     }
 
     auto loaded_Game_Update_And_Render
-        = (Game_Update_And_Render_Type)GetProcAddress(lib, "Game_Update_And_Render");
+        = (Game_Update_And_Render_t)GetProcAddress(lib, "Game_Update_And_Render");
 
     bool functions_loaded = loaded_Game_Update_And_Render;
     if (!functions_loaded) {
@@ -158,10 +158,9 @@ void Load_Or_Update_Game_Dll() {
     }
 
 #if BF_INTERNAL
-    editor_data.game_context_set = false;
-    editor_data.changed          = true;
-    last_game_dll_write_time     = filetime.filetime;
-    editor_data.dll_reloads_count++;
+    library_integration_data.game_context_set = false;
+    last_game_dll_write_time                  = filetime.filetime;
+    library_integration_data.dll_reloads_count++;
 #endif  // BF_INTERNAL
 
     game_lib                = lib;
@@ -174,10 +173,10 @@ using XInputGetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_STATE* pState);
 using XInputSetStateType = DWORD (*)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration);
 
 // NOTE: These get executed if xinput1_4.dll / xinput1_3.dll could not get loaded
-DWORD XInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE* pState) {
+DWORD XInputGetStateStub(DWORD /* dwUserIndex */, XINPUT_STATE* /* pState */) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
-DWORD XInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration) {
+DWORD XInputSetStateStub(DWORD /* dwUserIndex */, XINPUT_VIBRATION* /* pVibration */) {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
 
@@ -204,9 +203,9 @@ using XAudio2CreateType = HRESULT (*)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR);
 
 HRESULT
 XAudio2CreateStub(
-    IXAudio2**        ppXAudio2,
-    UINT32            Flags,
-    XAUDIO2_PROCESSOR XAudio2Processor
+    IXAudio2** /* ppXAudio2 */,
+    UINT32 /* Flags */,
+    XAUDIO2_PROCESSOR /* XAudio2Processor */
 ) {
     // TODO: Diagnostic
     return XAUDIO2_E_INVALID_CALL;
@@ -345,7 +344,7 @@ void Win32UpdateBitmap(HDC device_context) {
     );
 }
 
-void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
+void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
     if (should_recreate_bitmap_after_client_area_resize)
         Win32UpdateBitmap(device_context);
 
@@ -360,8 +359,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
         screen_bitmap.bitmap,
         (void*)events.data(),
         events_count,
-        editor_data,
-        os_data,
+        library_integration_data,
         hot_reloaded
     );
 
@@ -371,7 +369,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SwapBuffers(device_context);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     events_count = 0;
     events.clear();
@@ -393,13 +391,13 @@ extern IMGUI_IMPL_API LRESULT
 ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #define BF_MOUSE_POS                            \
-    do {                                        \
+    STATEMENT({                                 \
         POINT p;                                \
         GetCursorPos(&p);                       \
         ScreenToClient(window_handle, &p);      \
         event.position.x = p.x;                 \
         event.position.y = client_height - p.y; \
-    } while (0)
+    })
 
 LRESULT
 WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
@@ -407,8 +405,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         return 1;
 
     auto mouse_captured = false;
-    if (editor_data.context != nullptr)
-        mouse_captured = editor_data.context->IO.WantCaptureMouse;
+    if (library_integration_data.imgui_context != nullptr)
+        mouse_captured = library_integration_data.imgui_context->IO.WantCaptureMouse;
 
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
@@ -429,8 +427,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_LBUTTONDOWN: {
         if (!mouse_captured) {
-            Mouse_Pressed event = {};
-            event.type          = Mouse_Button_Type::Left;
+            Mouse_Pressed event{};
+            event.type = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -438,8 +436,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_LBUTTONUP: {
         if (!mouse_captured) {
-            Mouse_Released event = {};
-            event.type           = Mouse_Button_Type::Left;
+            Mouse_Released event{};
+            event.type = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -447,8 +445,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_RBUTTONDOWN: {
         if (!mouse_captured) {
-            Mouse_Pressed event = {};
-            event.type          = Mouse_Button_Type::Right;
+            Mouse_Pressed event{};
+            event.type = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -456,8 +454,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_RBUTTONUP: {
         if (!mouse_captured) {
-            Mouse_Released event = {};
-            event.type           = Mouse_Button_Type::Right;
+            Mouse_Released event{};
+            event.type = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -465,8 +463,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MBUTTONDOWN: {
         if (!mouse_captured) {
-            Mouse_Pressed event = {};
-            event.type          = Mouse_Button_Type::Middle;
+            Mouse_Pressed event{};
+            event.type = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -474,8 +472,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MBUTTONUP: {
         if (!mouse_captured) {
-            Mouse_Released event = {};
-            event.type           = Mouse_Button_Type::Middle;
+            Mouse_Released event{};
+            event.type = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -483,7 +481,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MOUSEWHEEL: {
         if (!mouse_captured) {
-            Mouse_Scrolled event  = {};
+            Mouse_Scrolled event{};
             i16            scroll = (short)HIWORD(wParam);
             event.value           = scroll;
             push_event(event);
@@ -492,7 +490,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
 
     case WM_MOUSEMOVE: {
         if (!mouse_captured) {
-            Mouse_Moved event = {};
+            Mouse_Moved event{};
             BF_MOUSE_POS;
             push_event(event);
         }
@@ -613,35 +611,15 @@ u64 Win32Frequency() {
     return res.QuadPart;
 }
 
-Allocate_Pages__Function(Win32_Allocate_Pages) {
-    Assert(count % os_data.min_pages_per_allocation == 0);
-
-    return (u8*)VirtualAlloc(
-        nullptr,
-        os_data.page_size * count,
-        MEM_RESERVE | MEM_COMMIT,
-        PAGE_EXECUTE_READWRITE
-    );
-}
-
-// Deallocate_Pages__Function(Win32_Deallocate_Pages) {
-//     return (u8*)VirtualAlloc(0, os_data.page_size * count, MEM_RESET,
-//     PAGE_EXECUTE_READWRITE);
-// }
-
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
-    HINSTANCE previous_window_instance_handle,
-    LPSTR     command_line,
-    int       show_command
+    HINSTANCE /* previous_window_instance_handle */,
+    LPSTR /* command_line */,
+    int show_command
 ) {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
-    os_data.page_size = system_info.dwPageSize;
-    os_data.min_pages_per_allocation
-        = system_info.dwAllocationGranularity / os_data.page_size;
-    os_data.Allocate_Pages = Win32_Allocate_Pages;
 
     Load_Or_Update_Game_Dll();
     Load_XInput_Dll();
@@ -649,7 +627,7 @@ static int WinMain(
 
     events.reserve(Kilobytes(64LL));
 
-    initial_game_memory_size = MAX(os_data.page_size, Megabytes(64LL));
+    initial_game_memory_size = Megabytes(64LL);
     initial_game_memory      = VirtualAlloc(
         nullptr,
         initial_game_memory_size,
@@ -675,7 +653,7 @@ static int WinMain(
 
     const f32 starting_frequency = 523.25f / 2;
 
-    BFVoiceCallback voice_callback           = {};
+    BFVoiceCallback voice_callback{};
     voice_callback.frequency                 = starting_frequency;
     voice_callback.samples_count_per_channel = -1;
     voice_callback.channels                  = channels;
@@ -690,7 +668,7 @@ static int WinMain(
     if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
         if (SUCCEEDED(XAudio2Create_(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
             if (SUCCEEDED(xaudio->CreateMasteringVoice(&master_voice))) {
-                WAVEFORMATEX voice_struct    = {};
+                WAVEFORMATEX voice_struct{};
                 voice_struct.wFormatTag      = WAVE_FORMAT_PCM;
                 voice_struct.nChannels       = channels;
                 voice_struct.nSamplesPerSec  = SAMPLES_HZ;
@@ -780,7 +758,7 @@ static int WinMain(
     }
     // --- XAudio stuff end ---
 
-    WNDCLASSA windowClass = {};
+    WNDCLASSA windowClass{};
     // NOTE: Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -834,9 +812,9 @@ static int WinMain(
         auto hdc = GetDC(window_handle);
 
         // --- Setting up pixel format start ---
-        PIXELFORMATDESCRIPTOR pfd = {};
-        pfd.nSize                 = sizeof(PIXELFORMATDESCRIPTOR);
-        pfd.nVersion              = 1;
+        PIXELFORMATDESCRIPTOR pfd{};
+        pfd.nSize       = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion    = 1;
         pfd.dwFlags     = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
         pfd.dwLayerMask = PFD_MAIN_PLANE;
         pfd.iPixelType  = PFD_TYPE_RGBA;
@@ -881,10 +859,10 @@ static int WinMain(
 
         glEnable(GL_BLEND);
         glClearColor(1, 0, 1, 1);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glShadeModel(GL_SMOOTH);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         ReleaseDC(window_handle, hdc);
         Win32GLResize();
@@ -901,8 +879,7 @@ static int WinMain(
 
     ImGui::StyleColorsDark();
 
-    editor_data         = Default_Editor_Data();
-    editor_data.context = ImGui::GetCurrentContext();
+    library_integration_data.imgui_context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);
@@ -926,7 +903,7 @@ static int WinMain(
     while (running) {
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
 
-        MSG message = {};
+        MSG message{};
         while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;
@@ -943,7 +920,7 @@ static int WinMain(
         // CONTROLLER STUFF
         // TODO: Improve on latency?
         for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
-            XINPUT_STATE state = {};
+            XINPUT_STATE state{};
 
             DWORD dwResult = XInputGetState_(i, &state);
 
@@ -953,9 +930,9 @@ static int WinMain(
                 f32       stick_x_normalized = (f32)state.Gamepad.sThumbLX / scale;
                 f32       stick_y_normalized = (f32)state.Gamepad.sThumbLY / scale;
 
-                Controller_Axis_Changed event = {};
-                event.axis                    = 0;
-                event.value                   = stick_x_normalized;
+                Controller_Axis_Changed event{};
+                event.axis  = 0;
+                event.value = stick_x_normalized;
                 push_event(event);
 
                 event.axis  = 1;

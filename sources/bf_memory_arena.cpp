@@ -1,21 +1,10 @@
-#pragma once
 
-struct Arena : public Non_Copyable {
-    size_t      used;
-    size_t      size;
-    u8*         base;
-    const char* name;
-};
+struct Arena {
+    size_t used;
+    size_t size;
+    u8*    base;
 
-struct Page : public Non_Copyable {
-    u8* base;
-};
-
-struct Pages : public Non_Copyable {
-    size_t total_count_cap;
-    size_t allocated_count;
-    Page*  base;
-    bool*  in_use;
+    const char* debug_name;
 };
 
 #define Allocate_For(arena, type) rcast<type*>(Allocate_(arena, sizeof(type)))
@@ -26,13 +15,14 @@ struct Pages : public Non_Copyable {
 #define Allocate_Zeros_Array(arena, type, count) \
     rcast<type*>(Allocate_Zeros_(arena, sizeof(type) * (count)))
 
-#define Allocate_Array_And_Initialize(arena, type, count)                  \
-    [&]() {                                                                \
-        auto ptr = rcast<type*>(Allocate_(arena, sizeof(type) * (count))); \
-        FOR_RANGE (int, i, (count)) {                                      \
-            std::construct_at(ptr + i);                                    \
-        }                                                                  \
-        return ptr;                                                        \
+#define Allocate_Array_And_Initialize(arena, type, count)                    \
+    [&]() {                                                                  \
+        /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                     \
+        auto ptr = rcast<type*>(Allocate_((arena), sizeof(type) * (count))); \
+        FOR_RANGE (int, i, (count)) {                                        \
+            std::construct_at(ptr + i);                                      \
+        }                                                                    \
+        return ptr;                                                          \
     }()
 
 #define Deallocate_Array(arena, type, count) Deallocate_(arena, sizeof(type) * (count))
@@ -81,9 +71,9 @@ void Deallocate_(Arena& arena, size_t size) {
 #endif
 }
 
-// ============================== //
-//             Other              //
-// ============================== //
+//----------------------------------------------------------------------------------
+// Other.
+//----------------------------------------------------------------------------------
 [[nodiscard]] BF_FORCE_INLINE u8* Align_Forward(u8* ptr, size_t alignment) noexcept {
     const auto addr         = rcast<size_t>(ptr);
     const auto aligned_addr = (addr + (alignment - 1)) & -alignment;

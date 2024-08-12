@@ -1,14 +1,11 @@
-#pragma once
-
-#include "bf_base.h"
-#define GRID_PTR_VALUE(arr_ptr, pos) (*(arr_ptr + gsize.x * pos.y + pos.x))
+#define GRID_PTR_VALUE(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
 
 #define Array_Push(array, array_count, array_max_count, value) \
-    do {                                                       \
-        *(array + (array_count)) = value;                      \
+    STATEMENT({                                                \
+        *((array) + (array_count)) = value;                    \
         (array_count)++;                                       \
         Assert((array_count) <= (array_max_count));            \
-    } while (0)
+    })
 
 template <typename T>
 BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
@@ -19,15 +16,15 @@ BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
 }
 
 #define Array_Reverse(array, count)          \
-    do {                                     \
+    STATEMENT({                              \
         Assert((count) >= 0);                \
         FOR_RANGE (i32, l, (count) / 2) {    \
-            auto r         = count - l - 1;  \
+            auto r         = (count)-l - 1;  \
             auto t         = *((array) + l); \
             *((array) + l) = *((array) + r); \
             *((array) + r) = t;              \
         }                                    \
-    } while (0)
+    })
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
     FOR_RANGE (i32, i1, s1.vertices_count) {
@@ -109,7 +106,7 @@ Path_Find_Result Find_Path(
     Fixed_Size_Queue<v2i16> queue{};
     queue.memory_size = sizeof(v2i16) * tiles_count;
     queue.base        = (v2i16*)Allocate_Array(trash_arena, u8, queue.memory_size);
-    queue.Enqueue_Unsafe(source);
+    *queue.Enqueue()  = source;
 
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
     GRID_PTR_VALUE(visited_mtx, source) = true;
@@ -152,7 +149,7 @@ Path_Find_Result Find_Path(
                 return result;
             }
 
-            queue.Enqueue_Unsafe(new_pos);
+            *queue.Enqueue() = new_pos;
         }
     }
 
@@ -171,46 +168,9 @@ Terrain_Resource& Get_Terrain_Resource(Game_Map& game_map, v2i16 pos) {
 }
 
 template <typename T>
-void Init_Bucket_Array(
-    Bucket_Array<T>& container,
-    u32              buckets_count,
-    u32              items_per_bucket,
-    MCTX
-) {
-    container.allocator      = ctx->allocator;
-    container.allocator_data = ctx->allocator_data;
-
-    container.items_per_bucket = items_per_bucket;
-    container.buckets_count    = buckets_count;
-
-    container.buckets              = nullptr;
-    container.unfull_buckets       = nullptr;
-    container.count                = 0;
-    container.used_buckets_count   = 0;
-    container.unfull_buckets_count = 0;
-}
-
-template <typename T>
 void Set_Container_Allocator_Context(T& container, MCTX) {
     container.allocator_      = ctx->allocator;
     container.allocator_data_ = ctx->allocator_data;
-}
-
-template <typename T>
-void Deinit_Bucket_Array(Bucket_Array<T>& container, MCTX) {
-    CONTAINER_ALLOCATOR;
-
-    for (auto bucket_ptr = container.buckets;
-         bucket_ptr != container.buckets + container.used_buckets_count;
-         bucket_ptr++)
-    {
-        auto& bucket = *bucket_ptr;
-        FREE((u8*)bucket.occupied, container.items_per_bucket / 8);
-        FREE((T*)bucket.data, sizeof(T) * container.items_per_bucket);
-    }
-
-    FREE(container.buckets, sizeof(Bucket<T>) * container.buckets_count);
-    FREE(container.unfull_buckets, sizeof(Bucket<T>) * container.buckets_count);
 }
 
 template <typename T>
@@ -336,7 +296,11 @@ void Place_Building(
     b.pos        = pos;
     b.scriptable = scriptable_building;
 
-    game_map.buildings.Add(bid, b, ctx);
+    {
+        auto [id, value] = game_map.buildings.Add(ctx);
+        *id              = bid;
+        *value           = b;
+    }
 
     C_Sprite sprite{};
     sprite.anchor = {0.5f, 0};
@@ -347,7 +311,11 @@ void Place_Building(
 
         City_Hall c{};
         c.time_since_human_was_created = f32_inf;
-        game_map.city_halls.Add(bid, c, ctx);
+        {
+            auto [id, value] = game_map.city_halls.Add(ctx);
+            *id              = bid;
+            *value           = c;
+        }
 
         sprite.texture = scriptable_building->texture;
     }
@@ -355,16 +323,19 @@ void Place_Building(
         for (auto pair_ptr : Iter(&scriptable_building->construction_resources)) {
             auto& [resource, count] = *pair_ptr;
 
-            game_map.resources_booking_queue.Add(
-                Map_Resource_To_Book(resource, count, bid), ctx
-            );
+            *game_map.resources_booking_queue.Vector_Occupy_Slot(ctx)
+                = Map_Resource_To_Book(resource, count, bid);
         }
 
         Not_Constructed_Building c{};
         c.constructor         = Human_Constructor_ID_Missing;
         c.construction_points = 0;
-        // Init_Vector(c.resources_to_book, ctx);
-        game_map.not_constructed_buildings.Add(bid, c, ctx);
+
+        {
+            auto [id, value] = game_map.not_constructed_buildings.Add(ctx);
+            *id              = bid;
+            *value           = c;
+        }
 
         sprite.texture = state.renderer_state->building_in_progress_texture;
     }
@@ -389,7 +360,7 @@ void Place_Building(
 // }
 
 // TODO: rename to Human_Controller_Dependencies
-struct Human_Data : public Non_Copyable {
+struct Human_Data {
     Game_State* state;
     Game_Map*   game_map;
     Arena*      trash_arena;
@@ -397,14 +368,13 @@ struct Human_Data : public Non_Copyable {
 
 void Root_Set_Human_State(
     Human&            human,
-    Human_Main_State  new_state,
+    Human_States      new_state,
     const Human_Data& data,
     MCTX
 );
 
-void Advance_Moving_To(Human_Moving_Component& moving, MCTX) {
+void Advance_Moving_To(Human_Moving_Component& moving) {
     if (moving.path.count == 0) {
-        moving.elapsed  = 0;
         moving.progress = 0;
         moving.to.reset();
     }
@@ -428,11 +398,16 @@ void Human_Moving_Component_Add_Path(
             path++;
             path_count--;
         }
-        moving.path.Bulk_Enqueue(path, path_count, ctx);
+
+        memcpy(  //
+            moving.path.Bulk_Enqueue(path_count, ctx),
+            path,
+            sizeof(*path) * path_count
+        );
     }
 
     if (!moving.to.has_value())
-        Advance_Moving_To(moving, ctx);
+        Advance_Moving_To(moving);
 }
 
 Building* Query_Building(Game_Map& game_map, Building_ID id) {
@@ -463,246 +438,143 @@ Graph_Segment* Query_Graph_Segment(Game_Map& game_map, Graph_Segment_ID id) {
     return game_map.segments.Find(id);
 }
 
-struct Human_Moving_In_The_World_Controller {
-    static void On_Enter(Human& human, const Human_Data& data, MCTX) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
+//----------------------------------------------------------------------------------
+// MovingInTheWorld State Functions.
+//----------------------------------------------------------------------------------
+HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
 
-        if (human.segment_id != Graph_Segment_ID_Missing) {
-            // TODO: After implementing resources.
-            // LOG_DEBUG(
-            //     "human.segment.resources_to_transport.size() = {}",
-            //     human.segment.resources_to_transport.size()
-            // );
+    if (human.segment_id != Graph_Segment_ID_Missing) {
+        // TODO: After implementing resources.
+        // LOG_DEBUG(
+        //     "human.segment.resources_to_transport.size() = {}",
+        //     human.segment.resources_to_transport.size()
+        // );
+    }
+
+    human.moving.path.Reset();
+
+    state.UpdateStates(
+        state, human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
+    );
+}
+
+HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    human.state_moving_in_the_world = Moving_In_The_World_State::None;
+    human.moving.to.reset();
+    human.moving.path.Reset();
+
+    if (human.type == Human_Type::Employee) {
+        Assert(human.building_id != Building_ID_Missing);
+        auto& building = *Get_Building(*data.game_map, human.building_id);
+        // TODO: building.employee_is_inside = true;
+        // C# TODO: Somehow remove this human.
+    }
+}
+
+HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
+    state.UpdateStates(
+        state,
+        human,
+        data,
+        human.segment_id,
+        human.building_id,
+        Get_Building(*data.game_map, human.building_id),
+        ctx
+    );
+}
+
+HumanState_OnHumanCurrentSegmentChanged_function(
+    HumanState_MovingInTheWorld_OnHumanCurrentSegmentChanged
+) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    Assert(human.type == Human_Type::Transporter);
+    state.UpdateStates(
+        state, human, data, old_segment_id, Building_ID_Missing, nullptr, ctx
+    );
+}
+
+HumanState_OnHumanMovedToTheNextTile_function(
+    HumanState_MovingInTheWorld_OnHumanMovedToTheNextTile
+) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+    LOG_DEBUG("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
+
+    if (human.type == Human_Type::Constructor                                        //
+        && human.building_id != Building_ID_Missing                                  //
+        && human.moving.pos == Get_Building(*data.game_map, human.building_id)->pos  //
+    )
+    {
+        // TODO:
+        // Root_Set_Human_State(human, Human_States::Building, data, ctx);
+    }
+
+    if (human.type == Human_Type::Employee) {
+        Assert(human.building_id != Building_ID_Missing);
+        auto& building = *Get_Building(*data.game_map, human.building_id);
+
+        if (human.moving.pos == building.pos) {
+            Assert_False(human.moving.to.has_value());
+
+            // TODO: data.game_map->Employee_Reached_Building_Callback(human);
+            // building.employee_is_inside = true;
         }
-
-        human.moving.path.Reset();
-
-        Update_States(
-            human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
-        );
     }
+}
 
-    static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
+HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
 
-        human.state_moving_in_the_world = Moving_In_The_World_State::None;
-        human.moving.to.reset();
-        human.moving.path.Reset();
+    auto& game_map = *data.game_map;
 
-        if (human.type == Human_Type::Employee) {
-            Assert(human.building_id != Building_ID_Missing);
-            auto& building = *Get_Building(*data.game_map, human.building_id);
-            // TODO: building.employee_is_inside = true;
-            // C# TODO: Somehow remove this human.
-        }
-    }
-
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-        Update_States(
-            human,
-            data,
-            human.segment_id,
-            human.building_id,
-            Get_Building(*data.game_map, human.building_id),
-            ctx
-        );
-    }
-
-    static void On_Human_Current_Segment_Changed(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        MCTX
-    ) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
-
+    if (human.segment_id != Graph_Segment_ID_Missing) {
         Assert(human.type == Human_Type::Transporter);
-        Update_States(human, data, old_segment_id, Building_ID_Missing, nullptr, ctx);
-    }
-
-    static void
-    On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
-        LOG_DEBUG("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
-
-        if (human.type == Human_Type::Constructor        //
-            && human.building_id != Building_ID_Missing  //
-            && human.moving.pos
-                   == Get_Building(*data.game_map, human.building_id)->pos  //
-        )
-        {
-            Root_Set_Human_State(human, Human_Main_State::Building, data, ctx);
-        }
-
-        if (human.type == Human_Type::Employee) {
-            Assert(human.building_id != Building_ID_Missing);
-            auto& building = *Get_Building(*data.game_map, human.building_id);
-
-            if (human.moving.pos == building.pos) {
-                Assert_False(human.moving.to.has_value());
-
-                // TODO: data.game_map->Employee_Reached_Building_Callback(human);
-                // building.employee_is_inside = true;
-            }
-        }
-    }
-
-    static void Update_States(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        Building_ID       old_building_id,
-        Building*         old_building,
-        MCTX
-    ) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
-
-        auto& game_map = *data.game_map;
-
-        if (human.segment_id != Graph_Segment_ID_Missing) {
-            Assert(human.type == Human_Type::Transporter);
-
-            auto& segment = *Query_Graph_Segment(game_map, human.segment_id);
-
-            // NOTE: Следующая клетка, на которую перейдёт (или уже находится) чувак,
-            // - это клетка его сегмента. Нам уже не нужно помнить его путь.
-            if (human.moving.to.has_value()
-                && Graph_Contains(segment.graph, human.moving.to.value())
-                && Graph_Node(segment.graph, human.moving.to.value()) != 0)
-            {
-                human.moving.path.Reset();
-                return;
-            }
-
-            // NOTE: Чувак перешёл на клетку сегмента. Переходим на Moving_Inside_Segment.
-            if (!(human.moving.to.has_value())
-                && Graph_Contains(segment.graph, human.moving.pos)
-                && Graph_Node(segment.graph, human.moving.pos) != 0)
-            {
-                LOG_DEBUG(
-                    "Root_Set_Human_State(human, "
-                    "Human_Main_State::Moving_Inside_Segment, data, ctx)"
-                );
-                Root_Set_Human_State(
-                    human, Human_Main_State::Moving_Inside_Segment, data, ctx
-                );
-                return;
-            }
-
-            auto moving_to_destination = Moving_In_The_World_State::Moving_To_Destination;
-            if (old_segment_id != human.segment_id
-                || human.state_moving_in_the_world != moving_to_destination)
-            {
-                LOG_DEBUG(
-                    "Setting human.state_moving_in_the_world = "
-                    "Moving_In_The_World_State::Moving_To_Destination"
-                );
-                human.state_moving_in_the_world
-                    = Moving_In_The_World_State::Moving_To_Destination;
-
-                Assert(data.trash_arena != nullptr);
-
-                auto [success, path, path_count] = Find_Path(
-                    *data.trash_arena,
-                    game_map.size,
-                    game_map.terrain_tiles,
-                    game_map.element_tiles,
-                    human.moving.to.value_or(human.moving.pos),
-                    Assert_Deref(segment.graph.data).center,
-                    true
-                );
-
-                Assert(success);
-                Assert(path_count > 0);
-
-                Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
-            }
-        }
-        else if (human.building_id != Building_ID_Missing) {
-            auto& building = *Get_Building(*data.game_map, human.building_id);
-
-            auto is_constructor_or_employee = human.type == Human_Type::Constructor
-                                              || human.type == Human_Type::Employee;
-            Assert(is_constructor_or_employee);
-
-            if (human.type == Human_Type::Constructor) {
-                // TODO: Assert_False(building.is_constructed);
-            }
-            else if (human.type == Human_Type::Employee) {
-                // TODO: Assert(building.is_constructed);
-            }
-
-            if (old_building_id != human.building_id) {
-                Assert(data.trash_arena != nullptr);
-
-                TEMP_USAGE(*data.trash_arena);
-                auto [success, path, path_count] = Find_Path(
-                    *data.trash_arena,
-                    game_map.size,
-                    game_map.terrain_tiles,
-                    game_map.element_tiles,
-                    human.moving.to.value_or(human.moving.pos),
-                    building.pos,
-                    true
-                );
-
-                Assert(success);
-                Assert(path_count > 0);
-
-                Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
-            }
-        }
-        else if (human.state_moving_in_the_world != Moving_In_The_World_State::Moving_To_The_City_Hall)
-        {
-            LOG_DEBUG(
-                "human.state_moving_in_the_world = "
-                "Moving_In_The_World_State::Moving_To_The_City_Hall"
-            );
-            human.state_moving_in_the_world
-                = Moving_In_The_World_State::Moving_To_The_City_Hall;
-
-            Building& city_hall = Assert_Deref(Query_Building(game_map, human.player_id));
-
-            TEMP_USAGE(*data.trash_arena);
-            auto [success, path, path_count] = Find_Path(
-                *data.trash_arena,
-                game_map.size,
-                game_map.terrain_tiles,
-                game_map.element_tiles,
-                human.moving.to.value_or(human.moving.pos),
-                city_hall.pos,
-                true
-            );
-
-            Assert(success);
-            Assert(path_count > 0);
-
-            Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
-        }
-    }
-};
-
-struct Human_Moving_Inside_Segment {
-    static void On_Enter(Human& human, const Human_Data& data, MCTX) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
-
-        Assert(human.segment_id != Graph_Segment_ID_Missing);
-        Assert(!human.moving.to.has_value());
-        Assert(human.moving.path.count == 0);
-
-        auto& game_map = *data.game_map;
 
         auto& segment = *Query_Graph_Segment(game_map, human.segment_id);
 
-        if (segment.resources_to_transport.count == 0) {
-            TEMP_USAGE(*data.trash_arena);
-            LOG_DEBUG("Calculating path to the center of the segment");
+        // NOTE: Следующая клетка, на которую перейдёт (или уже находится) чувак,
+        // - это клетка его сегмента. Нам уже не нужно помнить его путь.
+        if (human.moving.to.has_value()
+            && Graph_Contains(segment.graph, human.moving.to.value())
+            && Graph_Node(segment.graph, human.moving.to.value()) != 0)
+        {
+            human.moving.path.Reset();
+            return;
+        }
+
+        // NOTE: Чувак перешёл на клетку сегмента. Переходим на Moving_Inside_Segment.
+        if (!(human.moving.to.has_value())
+            && Graph_Contains(segment.graph, human.moving.pos)
+            && Graph_Node(segment.graph, human.moving.pos) != 0)
+        {
+            LOG_DEBUG(
+                "Root_Set_Human_State(human, "
+                "Human_States::Moving_Inside_Segment, data, ctx)"
+            );
+            Root_Set_Human_State(human, Human_States::MovingInsideSegment, data, ctx);
+            return;
+        }
+
+        auto moving_to_destination = Moving_In_The_World_State::Moving_To_Destination;
+        if (old_segment_id != human.segment_id
+            || human.state_moving_in_the_world != moving_to_destination)
+        {
+            LOG_DEBUG(
+                "Setting human.state_moving_in_the_world = "
+                "Moving_In_The_World_State::Moving_To_Destination"
+            );
+            human.state_moving_in_the_world
+                = Moving_In_The_World_State::Moving_To_Destination;
+
+            Assert(data.trash_arena != nullptr);
 
             auto [success, path, path_count] = Find_Path(
                 *data.trash_arena,
@@ -715,342 +587,321 @@ struct Human_Moving_Inside_Segment {
             );
 
             Assert(success);
+            Assert(path_count > 0);
 
             Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
         }
     }
+    else if (human.building_id != Building_ID_Missing) {
+        auto& building = *Get_Building(*data.game_map, human.building_id);
 
-    static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
+        auto is_constructor_or_employee
+            = human.type == Human_Type::Constructor || human.type == Human_Type::Employee;
+        Assert(is_constructor_or_employee);
 
-        human.moving.path.Reset();
+        // TODO:
+        // if (human.type == Human_Type::Constructor) {
+        //     // TODO: Assert_False(building.is_constructed);
+        // }
+        // else if (human.type == Human_Type::Employee) {
+        //     // TODO: Assert(building.is_constructed);
+        // }
+
+        if (old_building_id != human.building_id) {
+            Assert(data.trash_arena != nullptr);
+
+            TEMP_USAGE(*data.trash_arena);
+            auto [success, path, path_count] = Find_Path(
+                *data.trash_arena,
+                game_map.size,
+                game_map.terrain_tiles,
+                game_map.element_tiles,
+                human.moving.to.value_or(human.moving.pos),
+                building.pos,
+                true
+            );
+
+            Assert(success);
+            Assert(path_count > 0);
+
+            Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+        }
     }
-
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-        Update_States(
-            human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
+    else if (human.state_moving_in_the_world != Moving_In_The_World_State::Moving_To_The_City_Hall)
+    {
+        LOG_DEBUG(
+            "human.state_moving_in_the_world = "
+            "Moving_In_The_World_State::Moving_To_The_City_Hall"
         );
-    }
+        human.state_moving_in_the_world
+            = Moving_In_The_World_State::Moving_To_The_City_Hall;
 
-    static void On_Human_Current_Segment_Changed(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        MCTX
-    ) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
+        Building& city_hall = Assert_Deref(Query_Building(game_map, human.player_id));
 
-        // Tracing.Log("_controller.SetState(human, HumanState.MovingInTheWorld)");
-        Root_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
-    }
+        TEMP_USAGE(*data.trash_arena);
+        auto [success, path, path_count] = Find_Path(
+            *data.trash_arena,
+            game_map.size,
+            game_map.terrain_tiles,
+            game_map.element_tiles,
+            human.moving.to.value_or(human.moving.pos),
+            city_hall.pos,
+            true
+        );
 
-    static void
-    On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
+        Assert(success);
+        Assert(path_count > 0);
 
-        // NOTE: Intentionally left blank.
-    }
-
-    static void Update_States(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        Building_ID       old_building_id,
-        Building*         old_building,
-        MCTX
-    ) {
-        CTX_LOGGER;
-        LOG_TRACING_SCOPE;
-
-        if (human.segment_id == Graph_Segment_ID_Missing) {
-            human.moving.path.Reset();
-            Root_Set_Human_State(human, Human_Main_State::Moving_In_The_World, data, ctx);
-            return;
-        }
-
-        auto& segment = *Query_Graph_Segment(*data.game_map, human.segment_id);
-
-        if (segment.resources_to_transport.count > 0) {
-            if (!human.moving.to.has_value()) {
-                // TODO:
-                // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
-                Root_Set_Human_State(human, Human_Main_State::Moving_Resource, data, ctx);
-                return;
-            }
-
-            human.moving.path.Reset();
-        }
-    }
-};
-
-struct Human_Moving_Resources {
-    static void On_Enter(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-        // TODO:
-    }
-
-    static void On_Human_Current_Segment_Changed(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        MCTX
-    ) {
-        // TODO:
-    }
-
-    static void
-    On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void Update_States(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        Building_ID       old_building_id,
-        Building*         old_building,
-        MCTX
-    ) {
-        // TODO:
-    }
-};
-
-struct Human_Construction_Controller {
-    static void On_Enter(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-        // TODO:
-    }
-
-    static void On_Human_Current_Segment_Changed(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        MCTX
-    ) {
-        // TODO:
-    }
-
-    static void
-    On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void Update_States(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        Building_ID       old_building_id,
-        Building*         old_building,
-        MCTX
-    ) {
-        // TODO:
-    }
-};
-
-struct Human_Employee_Controller {
-    static void On_Enter(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void On_Exit(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-        // TODO:
-    }
-
-    static void On_Human_Current_Segment_Changed(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        MCTX
-    ) {
-        // TODO:
-    }
-
-    static void
-    On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
-        // TODO:
-    }
-
-    static void Update_States(
-        Human&            human,
-        const Human_Data& data,
-        Graph_Segment_ID  old_segment_id,
-        Building_ID       old_building_id,
-        Building*         old_building,
-        MCTX
-    ) {
-        // TODO:
-    }
-};
-
-void Human_Root_Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-    switch (human.state) {
-    case Human_Main_State::Moving_In_The_World:
-        Human_Moving_In_The_World_Controller::Update(human, data, dt, ctx);
-        break;
-
-    case Human_Main_State::Moving_Inside_Segment:
-        Human_Moving_Inside_Segment::Update(human, data, dt, ctx);
-        break;
-
-    case Human_Main_State::Moving_Resource:
-        Human_Moving_Resources::Update(human, data, dt, ctx);
-        break;
-
-    case Human_Main_State::Building:
-        Human_Construction_Controller::Update(human, data, dt, ctx);
-        break;
-
-    case Human_Main_State::Employee:
-        Human_Employee_Controller::Update(human, data, dt, ctx);
-        break;
-
-    default:
-        INVALID_PATH;
+        Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
     }
 }
 
-void Root_On_Human_Current_Segment_Changed(
-    Human_ID          id,
+//----------------------------------------------------------------------------------
+// MovingInsideSegment State Functions.
+//----------------------------------------------------------------------------------
+HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    Assert(human.segment_id != Graph_Segment_ID_Missing);
+    Assert(!human.moving.to.has_value());
+    Assert(human.moving.path.count == 0);
+
+    auto& game_map = *data.game_map;
+
+    auto& segment = *Query_Graph_Segment(game_map, human.segment_id);
+
+    if (segment.resources_to_transport.count == 0) {
+        TEMP_USAGE(*data.trash_arena);
+        LOG_DEBUG("Calculating path to the center of the segment");
+
+        auto [success, path, path_count] = Find_Path(
+            *data.trash_arena,
+            game_map.size,
+            game_map.terrain_tiles,
+            game_map.element_tiles,
+            human.moving.to.value_or(human.moving.pos),
+            Assert_Deref(segment.graph.data).center,
+            true
+        );
+
+        Assert(success);
+
+        Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+    }
+}
+
+HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    human.moving.path.Reset();
+}
+
+HumanState_Update_function(HumanState_MovingInsideSegment_Update) {
+    state.UpdateStates(
+        state, human, data, Graph_Segment_ID_Missing, Building_ID_Missing, nullptr, ctx
+    );
+}
+
+HumanState_OnHumanCurrentSegmentChanged_function(
+    HumanState_MovingInsideSegment_OnHumanCurrentSegmentChanged
+) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    // Tracing.Log("_controller.SetState(human, HumanState.MovingInTheWorld)");
+    Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
+}
+
+HumanState_OnHumanMovedToTheNextTile_function(
+    HumanState_MovingInsideSegment_OnHumanMovedToTheNextTile
+) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    // NOTE: Intentionally left blank.
+}
+
+HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
+    CTX_LOGGER;
+    LOG_TRACING_SCOPE;
+
+    if (human.segment_id == Graph_Segment_ID_Missing) {
+        human.moving.path.Reset();
+        Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
+        return;
+    }
+
+    auto& segment = *Query_Graph_Segment(*data.game_map, human.segment_id);
+
+    if (segment.resources_to_transport.count > 0) {
+        if (!human.moving.to.has_value()) {
+            // TODO:
+            // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
+            Root_Set_Human_State(human, Human_States::MovingResources, data, ctx);
+            return;
+        }
+
+        human.moving.path.Reset();
+    }
+}
+
+//----------------------------------------------------------------------------------
+// MovingResources State Functions.
+//----------------------------------------------------------------------------------
+HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
+    // TODO:
+}
+
+HumanState_OnExit_function(HumanState_MovingResources_OnExit) {
+    // TODO:
+}
+
+HumanState_Update_function(HumanState_MovingResources_Update) {
+    // TODO:
+}
+
+HumanState_OnHumanCurrentSegmentChanged_function(
+    HumanState_MovingResources_OnHumanCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+HumanState_OnHumanMovedToTheNextTile_function(
+    HumanState_MovingResources_OnHumanMovedToTheNextTile
+) {
+    // TODO:
+}
+
+HumanState_UpdateStates_function(HumanState_MovingResources_UpdateStates) {
+    // TODO:
+}
+
+//----------------------------------------------------------------------------------
+// Construction State Functions.
+//----------------------------------------------------------------------------------
+HumanState_OnEnter_function(HumanState_Construction_OnEnter) {
+    // TODO:
+}
+
+HumanState_OnExit_function(HumanState_Construction_OnExit) {
+    // TODO:
+}
+
+HumanState_Update_function(HumanState_Construction_Update) {
+    // TODO:
+}
+
+HumanState_OnHumanCurrentSegmentChanged_function(
+    HumanState_Construction_OnHumanCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+HumanState_OnHumanMovedToTheNextTile_function(
+    HumanState_Construction_OnHumanMovedToTheNextTile
+) {
+    // TODO:
+}
+
+HumanState_UpdateStates_function(HumanState_Construction_UpdateStates) {
+    // TODO:
+}
+
+//----------------------------------------------------------------------------------
+// Employee State Functions.
+//----------------------------------------------------------------------------------
+HumanState_OnEnter_function(HumanState_Employee_OnEnter) {
+    // TODO:
+}
+
+HumanState_OnExit_function(HumanState_Employee_OnExit) {
+    // TODO:
+}
+
+HumanState_Update_function(HumanState_Employee_Update) {
+    // TODO:
+}
+
+HumanState_OnHumanCurrentSegmentChanged_function(
+    HumanState_Employee_OnHumanCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+HumanState_OnHumanMovedToTheNextTile_function(
+    HumanState_Employee_OnHumanMovedToTheNextTile
+) {
+    // TODO:
+}
+
+HumanState_UpdateStates_function(HumanState_Employee_UpdateStates) {
+    // TODO:
+}
+
+//----------------------------------------------------------------------------------
+// Root State Functions.
+//----------------------------------------------------------------------------------
+void Human_Root_Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
+    auto index = (int)human.state;
+    Assert(index >= 0);
+    Assert(index < (int)Human_States::COUNT);
+
+    auto state = human_states[index];
+    state.Update(state, human, data, dt, ctx);
+}
+
+void Root_OnHumanCurrentSegmentChanged(
+    Human_ID /* id */,
     Human&            human,
     const Human_Data& data,
     Graph_Segment_ID  old_segment_id,
     MCTX
 ) {
-    switch (human.state) {
-    case Human_Main_State::Moving_In_The_World:
-        Human_Moving_In_The_World_Controller::On_Human_Current_Segment_Changed(
-            human, data, old_segment_id, ctx
-        );
-        break;
+    auto index = (int)human.state;
+    Assert(index >= 0);
+    Assert(index < (int)Human_States::COUNT);
 
-    case Human_Main_State::Moving_Inside_Segment:
-        Human_Moving_Inside_Segment::On_Human_Current_Segment_Changed(
-            human, data, old_segment_id, ctx
-        );
-        break;
-
-    case Human_Main_State::Moving_Resource:
-        Human_Moving_Resources::On_Human_Current_Segment_Changed(
-            human, data, old_segment_id, ctx
-        );
-        break;
-
-    case Human_Main_State::Building:
-    default:
-        INVALID_PATH;
-    }
+    auto state = human_states[index];
+    state.OnHumanCurrentSegmentChanged(state, human, data, old_segment_id, ctx);
 }
 
-void Root_On_Human_Moved_To_The_Next_Tile(Human& human, const Human_Data& data, MCTX) {
-    switch (human.state) {
-    case Human_Main_State::Moving_In_The_World:
-        Human_Moving_In_The_World_Controller::On_Human_Moved_To_The_Next_Tile(
-            human, data, ctx
-        );
-        break;
+void Root_OnHumanMovedToTheNextTile(Human& human, const Human_Data& data, MCTX) {
+    auto index = (int)human.state;
+    Assert(index >= 0);
+    Assert(index < (int)Human_States::COUNT);
 
-    case Human_Main_State::Moving_Inside_Segment:
-        Human_Moving_Inside_Segment::On_Human_Moved_To_The_Next_Tile(human, data, ctx);
-        break;
-
-    case Human_Main_State::Moving_Resource:
-        Human_Moving_Resources::On_Human_Moved_To_The_Next_Tile(human, data, ctx);
-        break;
-
-    case Human_Main_State::Employee:
-        Human_Employee_Controller::On_Human_Moved_To_The_Next_Tile(human, data, ctx);
-        break;
-
-    case Human_Main_State::Building:
-    default:
-        INVALID_PATH;
-    }
+    auto state = human_states[index];
+    state.OnHumanMovedToTheNextTile(state, human, data, ctx);
 }
 
 void Root_Set_Human_State(
     Human&            human,
-    Human_Main_State  new_state,
+    Human_States      new_state_value,
     const Human_Data& data,
     MCTX
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
-    auto old_state = human.state;
-    human.state    = new_state;
+    auto old_state_value = human.state;
+    human.state          = new_state_value;
 
-    if (old_state != Human_Main_State::None) {
-        switch (old_state) {
-        case Human_Main_State::Moving_In_The_World:
-            Human_Moving_In_The_World_Controller::On_Exit(human, data, ctx);
-            break;
+    auto new_state_index = (int)human.state;
+    Assert(new_state_index >= 0);
+    Assert(new_state_index < (int)Human_States::COUNT);
 
-        case Human_Main_State::Moving_Inside_Segment:
-            Human_Moving_Inside_Segment::On_Exit(human, data, ctx);
-            break;
+    auto old_state_index = (int)old_state_value;
+    Assert(old_state_index >= (int)Human_States::None);
+    Assert(old_state_index < (int)Human_States::COUNT);
 
-        case Human_Main_State::Moving_Resource:
-            Human_Moving_Resources::On_Exit(human, data, ctx);
-            break;
-
-        case Human_Main_State::Building:
-            Human_Construction_Controller::On_Exit(human, data, ctx);
-            break;
-
-        case Human_Main_State::Employee:
-            break;
-
-        default:
-            INVALID_PATH;
-        }
+    if (old_state_value != Human_States::None) {
+        auto old_state = human_states[old_state_index];
+        old_state.OnExit(old_state, human, data, ctx);
     }
 
-    human.state_moving_in_the_world = Moving_In_The_World_State::Moving_To_Destination;
-
-    switch (new_state) {
-    case Human_Main_State::Moving_In_The_World:
-        Human_Moving_In_The_World_Controller::On_Enter(human, data, ctx);
-        break;
-
-    case Human_Main_State::Moving_Inside_Segment:
-        Human_Moving_Inside_Segment::On_Enter(human, data, ctx);
-        break;
-
-    case Human_Main_State::Moving_Resource:
-        Human_Moving_Resources::On_Enter(human, data, ctx);
-        break;
-
-    case Human_Main_State::Building:
-        Human_Construction_Controller::On_Enter(human, data, ctx);
-        break;
-
-    case Human_Main_State::Employee:
-        // TODO: Human_Employee_Controller::Switch_To_The_Next_Behaviour(human);
-        break;
-
-    default:
-        INVALID_PATH;
-    }
+    auto new_state = human_states[new_state_index];
+    new_state.OnEnter(new_state, human, data, ctx);
 }
 
 // NOTE: Создание чувачка-грузчика.
@@ -1080,14 +931,16 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     human.moving.path.base          = nullptr;
     human.segment_id                = segment_id;
     human.type                      = Human_Type::Transporter;
-    human.state                     = Human_Main_State::None;
+    human.state                     = Human_States::None;
     human.state_moving_in_the_world = Moving_In_The_World_State::None;
     human.building_id               = Building_ID_Missing;
 
-    auto human_id  = Next_Human_ID(game_map.last_entity_id);
-    auto human_ptr = game_map.humans_to_add.Add(human_id, std::move(human), ctx);
+    auto [human_id, human_ptr] = game_map.humans_to_add.Add(ctx);
 
-    Root_Set_Human_State(*human_ptr, Human_Main_State::Moving_In_The_World, data, ctx);
+    *human_id  = Next_Human_ID(game_map.last_entity_id);
+    *human_ptr = human;
+
+    Root_Set_Human_State(*human_ptr, Human_States::MovingInTheWorld, data, ctx);
 
     // TODO:
     // onHumanCreated.OnNext(new() { human = human });
@@ -1101,7 +954,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     auto& segment             = *Query_Graph_Segment(game_map, segment_id);
     segment.assigned_human_id = Human_ID_Missing;
 
-    return {human_id, human_ptr};
+    return {*human_id, human_ptr};
 }
 
 // void Update_Building__Constructed(
@@ -1156,7 +1009,7 @@ void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX)
 
     Map_Buildings_With_City_Halls(
         game_map,
-        [&](Building_ID id, Building* building, City_Hall* city_hall) {
+        [&](Building_ID /* id */, Building* building, City_Hall* city_hall) {
             auto delay = building->scriptable->human_spawning_delay;
 
             auto& since_created = city_hall->time_since_human_was_created;
@@ -1223,38 +1076,29 @@ void Update_Human_Moving_Component(
     CTX_LOGGER;
     CTX_ALLOCATOR;
 
-    auto& game_map_data = Assert_Deref(game_map.data);
+    auto& moving = human.moving;
+    Assert(moving.to.has_value());
 
-    auto&      moving   = human.moving;
-    const auto duration = game_map_data.human_moving_one_tile_duration;
+    const auto duration = Assert_Deref(game_map.data).human_moving_one_tile_duration;
+
     moving.elapsed += dt;
 
-    constexpr int _GUARD_MAX_MOVING_TILES_PER_FRAME = 4;
-
-    auto iteration = 0;
-    while (iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME  //
-           && moving.to.has_value()                            //
-           && moving.elapsed > duration)
-    {
+    if (moving.elapsed > duration) {
         LOG_TRACING_SCOPE;
 
-        iteration++;
-
         moving.elapsed -= duration;
+        Assert(moving.elapsed < duration);
 
         moving.pos  = moving.to.value();
         moving.from = moving.pos;
-        Advance_Moving_To(moving, ctx);
+        Advance_Moving_To(moving);
 
-        Root_On_Human_Moved_To_The_Next_Tile(human, data, ctx);
+        Root_OnHumanMovedToTheNextTile(human, data, ctx);
         // TODO: on_Human_Moved_To_The_Next_Tile.On_Next(new (){ human = human });
     }
 
-    Assert(iteration < 10 * _GUARD_MAX_MOVING_TILES_PER_FRAME);
-    if (iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME) {
-        LOG_TRACING_SCOPE;
-        LOG_WARN("WTF? iteration >= _GUARD_MAX_MOVING_TILES_PER_FRAME");
-    }
+    if (!moving.to.has_value())
+        moving.elapsed = 0;
 
     moving.progress = MIN(1.0f, moving.elapsed / duration);
     SANITIZE;
@@ -1290,14 +1134,10 @@ void Update_Human(
         // };
         // Vector_Add(humans_to_remove, std::move(rem));
 
-        humans_to_remove.Add(
-            id, Human_Removal_Reason::Transporter_Returned_To_City_Hall, ctx
-        );
-        // Vector_Add(
-        //     humans_to_remove,
-        //     {Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr,
-        //     locator}
-        // );
+        auto [r_id, r_value] = humans_to_remove.Add(ctx);
+
+        *r_id    = id;
+        *r_value = Human_Removal_Reason::Transporter_Returned_To_City_Hall;
     }
 
     SANITIZE;
@@ -1319,8 +1159,12 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     auto prev_count = game_map.humans_to_add.count;
     for (auto [id, human_to_move] : Iter(&game_map.humans_to_add)) {
         LOG_DEBUG("Update_Humans: moving human from humans_to_add to humans");
-        auto  human_ptr = game_map.humans.Add(id, std::move(*human_to_move), ctx);
-        auto& human     = *human_ptr;
+        auto [r_id, human_ptr] = game_map.humans.Add(ctx);
+
+        *r_id      = id;
+        *human_ptr = *human_to_move;
+
+        auto& human = *human_ptr;
 
         if (human.segment_id != Graph_Segment_ID_Missing) {
             auto& segment             = *Query_Graph_Segment(game_map, human.segment_id);
@@ -1344,7 +1188,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
             humans++;
             auto& human = *human_ptr;
 
-            if (human.state == Human_Main_State::Moving_In_The_World) {
+            if (human.state == Human_States::MovingInTheWorld) {
                 if (human.state_moving_in_the_world
                     == Moving_In_The_World_State::Moving_To_The_City_Hall)
                 {
@@ -1356,7 +1200,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
                     humans_moving_to_destination++;
                 }
             }
-            else if (human.state == Human_Main_State::Moving_Inside_Segment) {
+            else if (human.state == Human_States::MovingInsideSegment) {
                 humans_moving_inside_segment++;
             }
         }
@@ -1400,22 +1244,35 @@ void Add_Map_Resource(
     resource.targeted_human = Human_ID_Missing;
     resource.carrying_human = Human_ID_Missing;
 
-    auto id           = Next_Map_Resource_ID(game_map.last_entity_id);
-    auto resource_ptr = game_map.resources.Add(id, std::move(resource), ctx);
+    {
+        auto [rid, rvalue] = game_map.resources.Add(ctx);
+        *rid               = Next_Map_Resource_ID(game_map.last_entity_id);
+        *rvalue            = resource;
+    }
 }
 
 void Init_Game_Map(
-    bool        first_time_initializing,
-    bool        hot_reloaded,
+    bool /* first_time_initializing */,
+    bool /* hot_reloaded */,
     Game_State& state,
     Arena&      arena,
     MCTX
 ) {
+#define X(state_name)                                           \
+    human_states[(int)Human_States::state_name] = {             \
+        HumanState_##state_name##_OnEnter,                      \
+        HumanState_##state_name##_OnExit,                       \
+        HumanState_##state_name##_Update,                       \
+        HumanState_##state_name##_OnHumanCurrentSegmentChanged, \
+        HumanState_##state_name##_OnHumanMovedToTheNextTile,    \
+        HumanState_##state_name##_UpdateStates,                 \
+    };
+    Human_States_Table;
+#undef X
+
     auto& game_map = state.game_map;
 
     game_map.last_entity_id = 0;
-
-    const auto tiles_count = game_map.size.x * game_map.size.y;
 
     game_map.data = std::construct_at(Allocate_For(arena, Game_Map_Data), 0.3f);
     {
@@ -1427,25 +1284,15 @@ void Init_Game_Map(
         game_map.human_data = human_data;
     }
 
-    std::construct_at(&game_map.segments, 32, ctx);
-    std::construct_at(&game_map.buildings, 32, ctx);
-    std::construct_at(&game_map.not_constructed_buildings, 32, ctx);
-    std::construct_at(&game_map.city_halls, 32, ctx);
-    std::construct_at(&game_map.humans, 32, ctx);
-    std::construct_at(&game_map.humans_going_to_the_city_hall, 32, ctx);
-    std::construct_at(&game_map.humans_to_add, 32, ctx);
-    std::construct_at(&game_map.humans_to_remove, 8, ctx);
-    std::construct_at(&game_map.resources, 8, ctx);
-
     Init_Queue(game_map.segments_wo_humans, ctx);
     Init_Vector(game_map.resources_booking_queue, ctx);
 }
 
 void Post_Init_Game_Map(
-    bool        first_time_initializing,
-    bool        hot_reloaded,
+    bool /* first_time_initializing */,
+    bool /* hot_reloaded */,
     Game_State& state,
-    Arena&      arena,
+    Arena& /* arena */,
     MCTX
 ) {
     bool built = true;
@@ -1504,22 +1351,22 @@ void Deinit_Game_Map(Game_State& state, MCTX) {
 }
 
 void Regenerate_Terrain_Tiles(
-    Game_State&  state,
-    Game_Map&    game_map,
-    Arena&       arena,
-    Arena&       trash_arena,
-    uint         seed,
+    Game_State& /* state */,
+    Game_Map& game_map,
+    Arena& /* arena */,
+    Arena& trash_arena,
+    uint /* seed */,
     Editor_Data& data,
-    MCTX
+    MCTX_
 ) {
     auto gsize = game_map.size;
 
-    auto noise_pitch = Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
-    auto output_size = noise_pitch * noise_pitch;
+    auto noise_pitch = (size_t)Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
+    auto output_size = noise_pitch * noise_pitch * 2;
     TEMP_USAGE(trash_arena);
 
     auto terrain_perlin = Allocate_Array(trash_arena, u16, output_size);
-    Fill_Perlin_2D(
+    Cycled_Perlin_2D(
         terrain_perlin,
         sizeof(u16) * output_size,
         trash_arena,
@@ -1529,7 +1376,7 @@ void Regenerate_Terrain_Tiles(
     );
 
     auto forest_perlin = Allocate_Array(trash_arena, u16, output_size);
-    Fill_Perlin_2D(
+    Cycled_Perlin_2D(
         forest_perlin,
         sizeof(u16) * output_size,
         trash_arena,
@@ -1542,8 +1389,8 @@ void Regenerate_Terrain_Tiles(
         FOR_RANGE (int, x, gsize.x) {
             auto& tile   = Get_Terrain_Tile(game_map, {x, y});
             tile.terrain = Terrain::Grass;
-            auto noise   = *(terrain_perlin + noise_pitch * y + x) / (f32)u16_max;
-            tile.height  = int((data.terrain_max_height + 1) * noise);
+            auto noise   = (f32)(*(terrain_perlin + noise_pitch * y + x)) / (f32)u16_max;
+            tile.height  = int((f32)(data.terrain_max_height + 1) * noise);
 
             Assert(tile.height >= 0);
             Assert(tile.height <= data.terrain_max_height);
@@ -1594,7 +1441,7 @@ void Regenerate_Terrain_Tiles(
             auto& tile     = Get_Terrain_Tile(game_map, {x, y});
             auto& resource = Get_Terrain_Resource(game_map, {x, y});
 
-            auto noise    = *(forest_perlin + noise_pitch * y + x) / (f32)u16_max;
+            auto noise    = (f32)(*(forest_perlin + noise_pitch * y + x)) / (f32)u16_max;
             bool generate = (!tile.is_cliff) && (noise > data.forest_threshold);
 
             // TODO: прикрутить terrain-ресурс леса
@@ -1615,13 +1462,13 @@ void Regenerate_Terrain_Tiles(
 }
 
 void Regenerate_Element_Tiles(
-    Game_State&  state,
-    Game_Map&    game_map,
-    Arena&       arena,
-    Arena&       trash_arena,
-    uint         seed,
-    Editor_Data& data,
-    MCTX
+    Game_State& /* state */,
+    Game_Map& game_map,
+    Arena& /* arena */,
+    Arena& /* trash_arena */,
+    uint /* seed */,
+    Editor_Data& /* data */,
+    MCTX_
 ) {
     auto gsize = game_map.size;
 
@@ -1709,9 +1556,7 @@ bool Should_Segment_Be_Deleted(
                     continue;
 
                 auto& graph     = segment.graph;
-                auto  graph_pos = pos;
-                graph_pos.x -= graph.offset.x;
-                graph_pos.y -= graph.offset.y;
+                auto  graph_pos = pos - graph.offset;
 
                 if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                     continue;
@@ -1735,9 +1580,7 @@ bool Should_Segment_Be_Deleted(
                 break;
 
             auto& graph     = segment.graph;
-            auto  graph_pos = pos;
-            graph_pos.x -= graph.offset.x;
-            graph_pos.y -= graph.offset.y;
+            auto  graph_pos = pos - graph.offset;
 
             if (!Pos_Is_In_Bounds(graph_pos, graph.size))
                 break;
@@ -1758,7 +1601,7 @@ bool Should_Segment_Be_Deleted(
 }
 
 #define Add_Without_Duplication(max_count_, count_, array_, value_) \
-    do {                                                            \
+    STATEMENT({                                                     \
         Assert((max_count_) >= (count_));                           \
                                                                     \
         auto found = false;                                         \
@@ -1775,26 +1618,12 @@ bool Should_Segment_Be_Deleted(
             *((array_) + (count_)) = (value_);                      \
             (count_)++;                                             \
         }                                                           \
-    } while (0)
-
-// v2i16* Allocate_Segment_Vertices(Allocator& allocator, int vertices_count) {
-//     return (v2i16*)allocator.Allocate(sizeof(v2i16) * vertices_count, 1);
-// }
-//
-// u8* Allocate_Graph_Nodes(Allocator& allocator, int nodes_count) {
-//     return allocator.Allocate(nodes_count, 1);
-// }
-
-void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
-    FOR_RANGE (int, i, rows) {
-        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
-    }
-}
+    })
 
 bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
-    auto gx   = graph.size.x;
-    auto gy   = graph.size.y;
-    u8   node = *(graph.nodes + y * gx + x);
+    const auto gx = graph.size.x;
+
+    u8 node = *(graph.nodes + y * gx + x);
 
     FOR_DIRECTION (dir) {
         if (!Graph_Node_Has(node, dir))
@@ -1812,6 +1641,7 @@ bool Adjacent_Tiles_Are_Connected(Graph& graph, i16 x, i16 y) {
     return true;
 }
 
+// Проверка на то, что граф является неорграфом.
 void Assert_Is_Undirected(Graph& graph) {
     Assert(graph.size.x > 0);
     Assert(graph.size.y > 0);
@@ -1822,9 +1652,6 @@ void Assert_Is_Undirected(Graph& graph) {
         }
     }
 }
-
-#define _Anon_Variable(name, counter) name##counter
-#define Anon_Variable(name, counter) _Anon_Variable(name, counter)
 
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     TEMP_USAGE(trash_arena);
@@ -1877,7 +1704,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // >     dist[u][v] ← w(u, v)  // The weight of the edge (u, v)
     // >     prev[u][v] ← u
     {
-        int node_index = 0;
+        i16 node_index = 0;
         FOR_RANGE (int, y, height) {
             FOR_RANGE (int, x, width) {
                 u8 node = nodes[y * width + x];
@@ -1906,9 +1733,10 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // >     dist[v][v] ← 0
     // >     prev[v][v] ← v
     {
-        FOR_RANGE (int, node_index, n) {
+        Assert(n < (u16)i16_max);
+        FOR_RANGE (u16, node_index, n) {
             dist[node_index * n + node_index] = 0;
-            prev[node_index * n + node_index] = node_index;
+            prev[node_index * n + node_index] = (i16)node_index;
         }
     }
 
@@ -1920,9 +1748,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     //                 dist[i][j] ← dist[i][k] + dist[k][j]
     //                 prev[i][j] ← prev[k][j]
     //
-    FOR_RANGE (int, k, n) {
-        FOR_RANGE (int, j, n) {
-            FOR_RANGE (int, i, n) {
+    FOR_RANGE (u16, k, n) {
+        FOR_RANGE (u16, j, n) {
+            FOR_RANGE (u16, i, n) {
                 auto ij = dist[n * i + j];
                 auto ik = dist[n * i + k];
                 auto kj = dist[n * k + j];
@@ -1931,7 +1759,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
                     && (kj != i16_max)  //
                     && (ij > ik + kj))
                 {
-                    dist[i * n + j] = ik + kj;
+                    dist[i * n + j] = (i16)(ik + kj);
                     prev[i * n + j] = prev[k * n + j];
                 }
             }
@@ -1944,20 +1772,20 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 
     // NOTE: Вычисление центра графа.
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
-    FOR_RANGE (i16, i, n) {
-        FOR_RANGE (i16, j, n) {
+    FOR_RANGE (u16, i, n) {
+        FOR_RANGE (u16, j, n) {
             node_eccentricities[i] = MAX(node_eccentricities[i], dist[n * i + j]);
         }
     }
 
     i16 rad  = i16_max;
     i16 diam = 0;
-    FOR_RANGE (i16, i, n) {
+    FOR_RANGE (u16, i, n) {
         rad  = MIN(rad, node_eccentricities[i]);
         diam = MAX(diam, node_eccentricities[i]);
     }
 
-    FOR_RANGE (i16, i, n) {
+    FOR_RANGE (u16, i, n) {
         Assert(node_index_2_pos.contains(i));
         if (node_eccentricities[i] == rad) {
             data.center = node_index_2_pos[i] + graph.offset;
@@ -1977,33 +1805,20 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
 ) {
     CTX_ALLOCATOR;
 
-    auto id = Next_Graph_Segment_ID(last_entity_id);
-
-    auto segment1_ptr = segments.Occupy(id, ctx);
-    memset(segment1_ptr, 0, sizeof(Graph_Segment));
-
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
+    Graph_Segment segment = added_segment;
     {
-        auto& segment                        = *segment1_ptr;
-        segment.vertices_count               = added_segment.vertices_count;
-        segment.vertices                     = added_segment.vertices;
-        segment.graph.nodes_count            = added_segment.graph.nodes_count;
-        segment.graph.nodes_allocation_count = added_segment.graph.nodes_allocation_count;
-        segment.graph.nodes                  = added_segment.graph.nodes;
-        segment.graph.size                   = added_segment.graph.size;
-        segment.graph.offset                 = added_segment.graph.offset;
-
         Calculate_Graph_Data(segment.graph, trash_arena, ctx);
-
         segment.assigned_human_id = Human_ID_Missing;
-
         Init_Vector(segment.linked_segments, ctx);
-
-        segment.resources_to_transport.max_count = 0;
-        segment.resources_to_transport.count     = 0;
-        segment.resources_to_transport.base      = nullptr;
     }
+
+    auto [pid, segment1_ptr] = segments.Add(ctx);
+    *pid                     = Next_Graph_Segment_ID(last_entity_id);
+    *segment1_ptr            = segment;
+
+    auto& id = *pid;
 
     for (auto [segment2_id, segment2_ptr] : Iter(&segments)) {
         if (segment2_id == id)
@@ -2014,10 +1829,10 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
         auto& segment2 = *segment2_ptr;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
             if (segment2.linked_segments.Index_Of(id) == -1)
-                segment2.linked_segments.Add(id, ctx);
+                *segment2.linked_segments.Vector_Occupy_Slot(ctx) = id;
 
             if (segment1.linked_segments.Index_Of(segment2_id) == -1)
-                segment1.linked_segments.Add(segment2_id, ctx);
+                *segment1.linked_segments.Vector_Occupy_Slot(ctx) = segment2_id;
         }
     }
 
@@ -2032,8 +1847,8 @@ using Segment_To_Delete        = std::tuple<Graph_Segment_ID, Graph_Segment*>;
 using Graph_Segments_To_Delete = Fixed_Size_Slice<Segment_To_Delete>;
 
 BF_FORCE_INLINE void Update_Segments(
-    Arena&                    trash_arena,
-    Game_State&               state,
+    Arena& trash_arena,
+    Game_State& /* state */,
     Game_Map&                 game_map,
     Graph_Segments_To_Add&    segments_to_add,
     Graph_Segments_To_Delete& segments_to_delete,
@@ -2177,7 +1992,7 @@ BF_FORCE_INLINE void Update_Segments(
         human.segment_id          = segment_id;
         segment.assigned_human_id = hid;
 
-        Root_On_Human_Current_Segment_Changed(
+        Root_OnHumanCurrentSegmentChanged(
             hid, human, *game_map.human_data, old_segment_id, ctx
         );
     }
@@ -2188,7 +2003,7 @@ BF_FORCE_INLINE void Update_Segments(
         auto [id, segment_ptr] = added_calculated_segments[i];
 
         if (humans_wo_segment_count == 0) {
-            game_map.segments_wo_humans.Enqueue(id, ctx);
+            *game_map.segments_wo_humans.Enqueue(ctx) = id;
             continue;
         }
 
@@ -2199,13 +2014,13 @@ BF_FORCE_INLINE void Update_Segments(
         human_ptr->segment_id          = id;
         segment_ptr->assigned_human_id = hid;
 
-        Root_On_Human_Current_Segment_Changed(
+        Root_OnHumanCurrentSegmentChanged(
             hid, *human_ptr, *game_map.human_data, old_segment_id, ctx
         );
     }
 }
 
-typedef std::tuple<Direction, v2i16> Dir_v2i16;
+using Dir_v2i16 = std::tuple<Direction, v2i16>;
 
 #define QUEUES_SCALE 4
 
@@ -2233,16 +2048,15 @@ void Update_Graphs(
     while (big_queue.count) {
         TEMP_USAGE(trash_arena);
 
-        auto p = big_queue.Dequeue();
-        queue.Enqueue_Unsafe(p);
+        auto p           = big_queue.Dequeue();
+        *queue.Enqueue() = p;
 
         auto [_, p_pos] = p;
-        if (full_graph_build) {
+        if (full_graph_build)
             GRID_PTR_VALUE(vis, p_pos) = true;
-        }
 
-        v2i16* vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
-        v2i16* segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
+        auto vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
+        auto segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
 
         int vertices_count      = 0;
         int segment_tiles_count = 1;
@@ -2302,7 +2116,7 @@ void Update_Graphs(
                         );
                         FOR_DIRECTION (new_dir_index) {
                             if (!Graph_Node_Has(new_visited_value, new_dir_index))
-                                big_queue.Enqueue_Unsafe({new_dir_index, new_pos});
+                                *big_queue.Enqueue() = {new_dir_index, new_pos};
                         }
                     }
                     continue;
@@ -2317,7 +2131,7 @@ void Update_Graphs(
                 if (full_graph_build && new_is_vertex) {
                     FOR_DIRECTION (new_dir_index) {
                         if (!Graph_Node_Has(new_visited_value, new_dir_index))
-                            big_queue.Enqueue_Unsafe({new_dir_index, new_pos});
+                            *big_queue.Enqueue() = {new_dir_index, new_pos};
                     }
                 }
 
@@ -2331,7 +2145,7 @@ void Update_Graphs(
                     );
                 }
                 else {
-                    queue.Enqueue_Unsafe({(Direction)0, new_pos});
+                    *queue.Enqueue() = {(Direction)0, new_pos};
                 }
             }
 
@@ -2353,7 +2167,7 @@ void Update_Graphs(
 
                     if (is_vertex && !v1 && !v2) {
                         FOR_DIRECTION (dir_index) {
-                            big_queue.Enqueue_Unsafe({dir_index, pos});
+                            *big_queue.Enqueue() = {dir_index, pos};
                         }
                     }
                 }
@@ -2378,8 +2192,8 @@ void Update_Graphs(
         // NOTE: Вычисление size и offset графа.
         auto& gr_size = segment.graph.size;
         auto& offset  = segment.graph.offset;
-        offset.x      = gsize.x - 1;
-        offset.y      = gsize.y - 1;
+
+        offset = gsize - v2i16_one;
 
         FOR_RANGE (int, y, gsize.y) {
             FOR_RANGE (int, x, gsize.x) {
@@ -2392,10 +2206,8 @@ void Update_Graphs(
                 }
             }
         }
-        gr_size.x -= offset.x;
-        gr_size.y -= offset.y;
-        gr_size.x += 1;
-        gr_size.y += 1;
+        gr_size -= offset;
+        gr_size += v2i16_one;
 
         Assert(gr_size.x > 0);
         Assert(gr_size.y > 0);
@@ -2473,7 +2285,7 @@ void Build_Graph_Segments(
     big_queue.base = (Dir_v2i16*)Allocate_Array(trash_arena, u8, big_queue.memory_size);
 
     FOR_DIRECTION (dir) {
-        big_queue.Enqueue_Unsafe({dir, pos});
+        *big_queue.Enqueue() = {dir, pos};
     }
 
     Fixed_Size_Queue<Dir_v2i16> queue{};
@@ -2540,7 +2352,7 @@ std::tuple<int, int> Update_Tiles(
 
     for (auto [id, segment_ptr] : Iter(segments)) {
         if (Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, *segment_ptr))
-            segments_to_delete.Add_Unsafe(Segment_To_Delete(id, segment_ptr));
+            *segments_to_delete.Add_Unsafe() = Segment_To_Delete(id, segment_ptr);
     };
 
     // NOTE: Создание новых сегментов.
@@ -2569,7 +2381,7 @@ std::tuple<int, int> Update_Tiles(
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
-                big_queue.Enqueue_Unsafe({dir, pos});
+                *big_queue.Enqueue() = {dir, pos};
             }
         } break;
 
@@ -2581,7 +2393,7 @@ std::tuple<int, int> Update_Tiles(
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road)
-                    big_queue.Enqueue_Unsafe({dir, pos});
+                    *big_queue.Enqueue() = {dir, pos};
             }
         } break;
 
@@ -2593,7 +2405,7 @@ std::tuple<int, int> Update_Tiles(
 
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type != Element_Tile_Type::None)
-                    big_queue.Enqueue_Unsafe({dir, pos});
+                    *big_queue.Enqueue() = {dir, pos};
             }
         } break;
 
@@ -2608,7 +2420,7 @@ std::tuple<int, int> Update_Tiles(
                     continue;
 
                 FOR_DIRECTION (dir) {
-                    big_queue.Enqueue_Unsafe({dir, new_pos});
+                    *big_queue.Enqueue() = {dir, new_pos};
                 }
             }
         } break;
@@ -2630,7 +2442,7 @@ std::tuple<int, int> Update_Tiles(
                     continue;
 
                 FOR_DIRECTION (dir) {
-                    big_queue.Enqueue_Unsafe({dir, new_pos});
+                    *big_queue.Enqueue() = {dir, new_pos};
                 }
             }
         } break;
@@ -2644,7 +2456,7 @@ std::tuple<int, int> Update_Tiles(
                 auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road) {
                     FOR_DIRECTION (new_dir) {
-                        big_queue.Enqueue_Unsafe({new_dir, new_pos});
+                        *big_queue.Enqueue() = {new_dir, new_pos};
                     }
                 }
             }
@@ -2722,7 +2534,7 @@ std::tuple<int, int> Update_Tiles(
     (variable_name_).type  = &type__;
 
 #define INVOKE_UPDATE_TILES                                   \
-    do {                                                      \
+    STATEMENT({                                               \
         Update_Tiles(                                         \
             state.game_map.size,                              \
             state.game_map.element_tiles,                     \
@@ -2745,7 +2557,7 @@ std::tuple<int, int> Update_Tiles(
             },                                                \
             ctx                                               \
         );                                                    \
-    } while (0)
+    })
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
     auto& arena                = state.arena;

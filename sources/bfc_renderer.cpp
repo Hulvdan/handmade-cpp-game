@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef BF_CLIENT
 #    error "This code should run on a client! BF_CLIENT must be defined!"
 #endif  // BF_CLIENT
@@ -21,6 +19,9 @@ struct Debug_BMP_Header {
 };
 #pragma pack(pop)
 
+//----------------------------------------------------------------------------------
+// Rendering.
+//----------------------------------------------------------------------------------
 const i32 global_road_starting_tile_id = 4;
 const i32 global_flag_starting_tile_id = global_road_starting_tile_id + 16;
 
@@ -32,7 +33,7 @@ struct Load_BMP_RGBA_Result {
 };
 
 Load_BMP_RGBA_Result Load_BMP_RGBA(Arena& arena, const u8* data) {
-    Load_BMP_RGBA_Result res = {};
+    Load_BMP_RGBA_Result res{};
 
     auto& header = *(Debug_BMP_Header*)data;
 
@@ -73,20 +74,20 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
         GL_RGBA8,
-        texture.size.x,
-        texture.size.y,
+        Assert_Truncate_To_i32(texture.size.x),
+        Assert_Truncate_To_i32(texture.size.y),
         0,
         GL_BGRA_EXT,
         GL_UNSIGNED_BYTE,
         texture.base
     );
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 }
 
 void DEBUG_Load_Texture(
@@ -98,7 +99,7 @@ void DEBUG_Load_Texture(
     char filepath[512];
     sprintf(filepath, "assets/art/%s.bmp", texture_name);
 
-    Load_BMP_RGBA_Result bmp_result = {};
+    Load_BMP_RGBA_Result bmp_result{};
     {
         TEMP_USAGE(trash_arena);
         auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
@@ -151,7 +152,7 @@ Atlas Load_Atlas(
     FOR_RANGE (int, i, textures_count) {
         auto& texture = *atlas_spec->textures()->Get(i);
 
-        C_Texture t{
+        C_Texture t = {
             scast<Texture_ID>(texture.id()),
             {
                 f32(texture.atlas_x()) / f32(atlas.size.x),
@@ -160,7 +161,7 @@ Atlas Load_Atlas(
             {texture.size_x(), texture.size_y()},
         };
 
-        atlas.textures.Add(std::move(t), ctx);
+        *atlas.textures.Vector_Occupy_Slot(ctx) = t;
     }
 
     auto& atlas_texture = atlas.texture;
@@ -173,10 +174,11 @@ Atlas Load_Atlas(
 }
 
 int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize) {
-    Element_Tile& tile             = element_tiles[pos.y * gsize.x + pos.x];
-    bool          tile_is_flag     = tile.type == Element_Tile_Type::Flag;
-    bool          tile_is_road     = tile.type == Element_Tile_Type::Road;
-    bool          tile_is_building = tile.type == Element_Tile_Type::Building;
+    Element_Tile& tile = element_tiles[pos.y * gsize.x + pos.x];
+
+    bool tile_is_flag     = tile.type == Element_Tile_Type::Flag;
+    bool tile_is_building = tile.type == Element_Tile_Type::Building;
+    // bool tile_is_road     = tile.type == Element_Tile_Type::Road;
 
     int road_texture_number = 0;
     FOR_RANGE (int, i, 4) {
@@ -206,112 +208,13 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
     auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_)); \
     Assert((variable_name_).success);
 
-void Debug_Print_Shader_Info_Log(
-    GLuint      shader_id,
-    Arena&      trash_arena,
-    const char* aboba
-) {
-    TEMP_USAGE(trash_arena);
-
-    GLint succeeded;
-    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &succeeded);
-
-    GLint log_length;
-    glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_length);
-
-    GLchar  zero     = GLchar(0);
-    GLchar* info_log = &zero;
-
-    if (log_length) {
-        info_log = Allocate_Array(trash_arena, GLchar, log_length);
-        glGetShaderInfoLog(shader_id, log_length, nullptr, info_log);
-    }
-
-    if (succeeded)
-        DEBUG_Print("INFO:\t%s succeeded: %s\n", aboba, info_log);
-    else
-        DEBUG_Error("ERROR:\t%s failed: %s\n", aboba, info_log);
-}
-
-// Создаёт программу и запихивает её в program, если успешно скомпилилось.
-// Если неуспешно - значение program остаётся прежним.
-void Create_Shader_Program(
-    GLuint&     program,
-    const char* vertex_code,
-    const char* fragment_code,
-    Arena&      trash_arena
-) {
-    TEMP_USAGE(trash_arena);
-
-    auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    defer {
-        glDeleteShader(vertex_shader);
-    };
-
-    glShaderSource(vertex_shader, 1, scast<const GLchar* const*>(&vertex_code), nullptr);
-    glCompileShader(vertex_shader);
-
-    GLint vertex_success = 0;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
-    Debug_Print_Shader_Info_Log(vertex_shader, trash_arena, "Vertex shader compilation");
-
-    // Similiar for Fragment Shader
-    auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    defer {
-        glDeleteShader(fragment_shader);
-    };
-
-    glShaderSource(
-        fragment_shader, 1, scast<const GLchar* const*>(&fragment_code), nullptr
-    );
-    glCompileShader(fragment_shader);
-
-    GLint fragment_success = 0;
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &fragment_success);
-    Debug_Print_Shader_Info_Log(
-        fragment_shader, trash_arena, "Fragment shader compilation"
-    );
-
-    if (!fragment_success || !vertex_success)
-        return;
-
-    // shader Program
-    auto new_program_id = glCreateProgram();
-    glAttachShader(new_program_id, vertex_shader);
-    glAttachShader(new_program_id, fragment_shader);
-    glLinkProgram(new_program_id);
-    // print linking errors if any
-    GLint log_length;
-    glGetProgramiv(new_program_id, GL_INFO_LOG_LENGTH, &log_length);
-
-    GLint program_success = 0;
-    glGetProgramiv(new_program_id, GL_LINK_STATUS, &program_success);
-
-    auto    zero     = GLchar(0);
-    GLchar* info_log = &zero;
-    if (log_length) {
-        info_log = Allocate_Array(trash_arena, GLchar, log_length);
-        glGetProgramInfoLog(new_program_id, log_length, nullptr, info_log);
-    }
-
-    if (program_success)
-        DEBUG_Print("INFO:\tProgram compilation succeeded: %s\n", info_log);
-    else
-        DEBUG_Error("ERROR:\tProgram compilation failed: %s\n", info_log);
-
-    if (program)
-        glDeleteProgram(program);
-
-    program = new_program_id;
-}
-
 void Init_Renderer(
     bool        first_time_initializing,
     bool        hot_reloaded,
     Game_State& state,
     Arena&      arena,
-    Arena&      non_persistent_arena,
-    Arena&      trash_arena,
+    Arena& /* non_persistent_arena */,
+    Arena& /* trash_arena */,
     MCTX
 ) {
     CTX_ALLOCATOR;
@@ -352,13 +255,24 @@ void Add_Building_Sprite(
     // building_sprite.anchor   = {0.5f, 0.5f};
     building_sprite.anchor   = {1, 1};
     building_sprite.rotation = 0;
-    building_sprite.texture  = scriptable.texture;
-    building_sprite.z        = 0;
+    Assert(scriptable.texture != 0);
+    Assert(scriptable.texture != Texture_ID_Missing);
+    building_sprite.texture = scriptable.texture;
+    building_sprite.z       = 0;
 
-    rstate.sprites.Add(building_id, building_sprite, ctx);
+    {
+        auto [pid, pvalue] = rstate.sprites.Add(ctx);
+        *pid               = building_id;
+        *pvalue            = building_sprite;
+    }
 }
 
-void Set_Flag_Tile(Game_Renderer_State& rstate, Game_Map& game_map, v2i pos, MCTX) {
+void Set_Flag_Tile(
+    Game_Renderer_State& rstate,
+    Game_Map& /* game_map */,
+    v2i pos,
+    MCTX_
+) {
     auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
 
     auto t = pos.y * placeables_tilemap.size.x + pos.x;
@@ -368,6 +282,17 @@ void Set_Flag_Tile(Game_Renderer_State& rstate, Game_Map& game_map, v2i pos, MCT
 
     tile_id    = rstate.flag_tile_id;
     texture_id = rstate.flag_textures[0];
+}
+
+void Print_Shader_Compilation_Logs(BFGL_Create_Shader_Result result) {
+    const auto t = ((result.success) ? "ERROR: %s" : "INFO: %s");
+
+    if (result.logs.vertex_log)
+        DEBUG_Print(Text_Format(t, result.logs.vertex_log));
+    if (result.logs.fragment_log)
+        DEBUG_Print(Text_Format(t, result.logs.fragment_log));
+    if (result.logs.program_log)
+        DEBUG_Print(Text_Format(t, result.logs.program_log));
 }
 
 void Post_Init_Renderer(
@@ -396,12 +321,12 @@ void Post_Init_Renderer(
         &rstate.atlas, Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx)
     );
 
-    std::construct_at(&rstate.sprites, 32, ctx);
+    std::construct_at(&rstate.sprites);
 
-    // Перезагрузка шейдеров.
-    Create_Shader_Program(
-        rstate.sprites_shader_program,
-        R"VertexShader(
+    // Шейдеры.
+    {
+        auto sprite_shader_result = BFGL_Create_Shader_Program(
+            R"VertexShader(
 #version 330 core
 
 layout (location = 0) in vec2 a_pos;
@@ -417,7 +342,7 @@ void main() {
     tex_coord = a_tex_coord;
 }
 )VertexShader",
-        R"FragmentShader(
+            R"FragmentShader(
 #version 330 core
 
 uniform vec2 a_tile_size_relative_to_atlas;
@@ -425,7 +350,7 @@ uniform vec2 a_tile_size_relative_to_atlas;
 out vec4 frag_color;
 
 in vec3 color;
-varying in vec2 tex_coord;
+in vec2 tex_coord;
 
 uniform sampler2D ourTexture;
 
@@ -435,13 +360,21 @@ void main() {
         * vec4(color, 1);
 }
 )FragmentShader",
-        trash_arena
-    );
+            trash_arena
+        );
 
-    Create_Shader_Program(
-        rstate.tilemap_shader_program,
-        R"VertexShader(
-#version 330 core
+        Print_Shader_Compilation_Logs(sprite_shader_result);
+
+        if (sprite_shader_result.success) {
+            BFGL_Delete_Shader_Program(rstate.sprites_shader_program);
+            rstate.sprites_shader_program = sprite_shader_result.program;
+        }
+    }
+
+    {
+        auto tilemap_shader_result = BFGL_Create_Shader_Program(
+            R"VertexShader(
+#version 430 core
 
 uniform vec3 a_color;
 
@@ -457,7 +390,7 @@ void main() {
     tex_coord = a_tex_coord;
 }
 )VertexShader",
-        R"FragmentShader(
+            R"FragmentShader(
 #version 430 core
 
 uniform vec2 a_tile_size_relative_to_atlas;
@@ -484,18 +417,6 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    vec2 relative_frag_screen_pos = vec2(gl_FragCoord) / gl_FragCoord.w / a_resolution;
-    relative_frag_screen_pos.y = 1 - relative_frag_screen_pos.y;
-
-#if 0
-    frag_color = vec4(
-        relative_frag_screen_pos,
-        0,
-        1
-    );
-    return;
-#endif
-
     vec2 pos = tex_coord * a_gsize;
 
     ivec2 tile  = ivec2(pos);
@@ -574,8 +495,16 @@ void main() {
     frag_color.rgb *= color.rgb;
 }
 )FragmentShader",
-        trash_arena
-    );
+            trash_arena
+        );
+
+        Print_Shader_Compilation_Logs(tilemap_shader_result);
+
+        if (tilemap_shader_result.success) {
+            BFGL_Delete_Shader_Program(rstate.tilemap_shader_program);
+            rstate.tilemap_shader_program = tilemap_shader_result.program;
+        }
+    }
 
     if (!rstate.shaders_compilation_failed) {
         glUseProgram(rstate.sprites_shader_program);
@@ -609,7 +538,9 @@ void main() {
                 rstate.tilemap_shader_program, "a_atlas_texture_size"
             );
             glUniform2i(
-                location, rstate.atlas.texture.size.x, rstate.atlas.texture.size.y
+                location,
+                Assert_Truncate_To_i32(rstate.atlas.texture.size.x),
+                Assert_Truncate_To_i32(rstate.atlas.texture.size.y)
             );
         }
 
@@ -742,6 +673,7 @@ void main() {
         tilemap.tiles = Allocate_Zeros_Array(non_persistent_arena, Tile_ID, tiles_count);
         tilemap.textures
             = Allocate_Zeros_Array(non_persistent_arena, Texture_ID, tiles_count);
+        tilemap.debug_rendering_enabled = true;
     }
 
     // Проставление текстур тайлов в tilemap-е terrain-а.
@@ -760,7 +692,7 @@ void main() {
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
-                Texture_ID id;
+                Texture_ID id = 0;
 
                 if (tilemap.tiles[y * gsize.x + x])
                     id = Test_Smart_Tile(
@@ -937,17 +869,17 @@ void Deinit_Renderer(Game_State& state, MCTX) {
 }
 
 void Draw_Sprite(
-    f32              x0,
-    f32              y0,
-    f32              x1,
-    f32              y1,
+    f32              tex_x0,
+    f32              tex_y0,
+    f32              tex_x1,
+    f32              tex_y1,
     v2f              pos,
     v2f              size,
     float            rotation,
     const glm::mat3& projection
 ) {
-    Assert(x0 < x1);
-    Assert(y0 < y1);
+    Assert(tex_x0 < tex_x1);
+    Assert(tex_y0 < tex_y1);
 
     auto model = glm::mat3(1);
     model      = glm::translate(model, pos);
@@ -964,8 +896,9 @@ void Draw_Sprite(
         // vertex.y = vertex.y / vertex.z;
     }
 
-    f32 texture_vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
-    for (ptrd i : {0, 1, 2, 2, 1, 3}) {
+    f32 texture_vertices[]
+        = {tex_x0, tex_y0, tex_x0, tex_y1, tex_x1, tex_y0, tex_x1, tex_y1};
+    for (int i : {0, 1, 2, 2, 1, 3}) {
         // TODO: How bad is that there are 2 vertices duplicated?
         glTexCoord2f(texture_vertices[2 * i], texture_vertices[2 * i + 1]);
         glVertex2f(vertices[i].x, vertices[i].y);
@@ -997,48 +930,61 @@ void Draw_UI_Sprite(
 ) {
     std::swap(tex_coord_y0, tex_coord_y1);
 
-    f32 xx0 = gl_pos.x + gl_size.x * (0 - anchor.x);
-    f32 xx1 = gl_pos.x + gl_size.x * (1 - anchor.x);
-    f32 yy0 = gl_pos.y + gl_size.y * (0 - anchor.y);
-    f32 yy1 = gl_pos.y + gl_size.y * (1 - anchor.y);
+    f32 gl_x0 = gl_pos.x + gl_size.x * (0 - anchor.x);
+    f32 gl_x1 = gl_pos.x + gl_size.x * (1 - anchor.x);
+    f32 gl_y0 = gl_pos.y + gl_size.y * (0 - anchor.y);
+    f32 gl_y1 = gl_pos.y + gl_size.y * (1 - anchor.y);
 
-    f32 verticesss[] = {
-        xx0, yy0, 0, color.r, color.g, color.b, tex_coord_x0, tex_coord_y0,  //
-        xx1, yy0, 0, color.r, color.g, color.b, tex_coord_x1, tex_coord_y0,  //
-        xx0, yy1, 0, color.r, color.g, color.b, tex_coord_x0, tex_coord_y1,  //
-        xx0, yy1, 0, color.r, color.g, color.b, tex_coord_x0, tex_coord_y1,  //
-        xx1, yy0, 0, color.r, color.g, color.b, tex_coord_x1, tex_coord_y0,  //
-        xx1, yy1, 0, color.r, color.g, color.b, tex_coord_x1, tex_coord_y1,  //
-    };
+    struct Buffer_Data {
+        v2f pos[6];
+        v2f tex_coords[6];
+        v3f color[6];
+    } buffer_data
+        = {{
+               {gl_x0, gl_y0},
+               {gl_x1, gl_y0},
+               {gl_x0, gl_y1},
+               {gl_x0, gl_y1},
+               {gl_x1, gl_y0},
+               {gl_x1, gl_y1},
+           },
+           {
+               {tex_coord_x0, tex_coord_y0},
+               {tex_coord_x1, tex_coord_y0},
+               {tex_coord_x0, tex_coord_y1},
+               {tex_coord_x0, tex_coord_y1},
+               {tex_coord_x1, tex_coord_y0},
+               {tex_coord_x1, tex_coord_y1},
+           },
+           {
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+               {color.rgb},
+           }};
 
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
+    auto vao = BFGL_Load_Vertex_Array();
+    BFGL_Enable_Vertex_Array(vao);
 
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesss), verticesss, GL_STATIC_DRAW);
+    BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), false);  // dynamic=false
 
-    // 3. then set our vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(0));
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32))
-    );
-    glVertexAttribPointer(
-        2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32))
-    );
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
+    const auto pos_off        = Offset_Of_Member(Buffer_Data, pos);
+    const auto color_off      = Offset_Of_Member(Buffer_Data, color);
+    const auto tex_coords_off = Offset_Of_Member(Buffer_Data, tex_coords);
+    BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(v2f), pos_off);
+    BFGL_Set_Vertex_Attribute(1, 3, BF_FLOAT, false, sizeof(v3f), color_off);
+    BFGL_Set_Vertex_Attribute(2, 2, BF_FLOAT, false, sizeof(v2f), tex_coords_off);
+    BFGL_Enable_Vertex_Attribute(0);
+    BFGL_Enable_Vertex_Attribute(1);
+    BFGL_Enable_Vertex_Attribute(2);
 
-    // ..:: Drawing code (in render loop) :: ..
     glUseProgram(rstate.sprites_shader_program);
-    glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    glBindVertexArray(0);
-    glDeleteVertexArrays(1, &vao);
+    BFGL_Disable_Vertex_Array();
+    BFGL_Unload_Vertex_Array(vao);
 };
 
 v2f World_To_Screen(Game_State& state, v2f pos) {
@@ -1050,13 +996,12 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
     auto gsize     = state.game_map.size;
     auto cell_size = rstate.cell_size;
 
-    auto projection     = glm::mat3(1);
-    projection          = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection          = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
-    projection          = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
-    projection          = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
-    projection          = glm::scale(projection, v2f(cell_size, cell_size));
-    auto projection_inv = glm::inverse(projection);
+    auto projection = glm::mat3(1);
+    projection      = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
+    projection      = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+    projection      = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
+    projection      = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
+    projection      = glm::scale(projection, v2f(cell_size, cell_size));
 
     return projection * v3f(pos.x, pos.y, 1);
 }
@@ -1192,8 +1137,8 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     auto& rstate   = Assert_Deref(state.renderer_state);
     auto& ui_state = Assert_Deref(rstate.ui_state);
 
-    Get_Buildable_Textures_Result res = {};
-    auto allocation_size              = sizeof(GLuint) * ui_state.buildables_count;
+    Get_Buildable_Textures_Result res{};
+    auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
 
     res.deallocation_size = allocation_size;
     res.textures = Allocate_Array(trash_arena, Texture_ID, ui_state.buildables_count);
@@ -1218,10 +1163,12 @@ Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
     return res;
 }
 
-v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i16 x, i16 y) {
+v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i32 x, i32 y) {
     auto id = tilemap.textures[y * tilemap.size.x + x];
+    Assert(id != 0);
     Assert(id != Texture_ID_Missing);
-    return Get_Texture(atlas, id)->pos_inside_atlas;
+    auto result = Get_Texture(atlas, id)->pos_inside_atlas;
+    return result;
 }
 
 void Map_Sprites_With_Textures(
@@ -1249,7 +1196,7 @@ glm::mat3 Get_W2RelScreen_Matrix(
     auto mat = glm::mat3(1);
 
     mat = glm::translate(mat, v2f(0, 1));
-    mat = glm::scale(mat, v2f(1.0f / screen_size.x, -1.0f / screen_size.y));
+    mat = glm::scale(mat, v2f(1.0f / (f32)screen_size.x, -1.0f / (f32)screen_size.y));
     // Смещение карты игроком.
     mat = glm::translate(mat, pan_pos + pan_offset);
     // Масштабирование карты игроком.
@@ -1267,7 +1214,7 @@ glm::mat3 Get_W2RelScreen_Matrix(
 OpenGL_Framebuffer Create_Framebuffer(v2i size) {
     // NOTE: Build the texture that will serve
     // as the color attachment for the framebuffer.
-    GLuint color_texture;
+    GLuint color_texture = 0;
     glGenTextures(1, &color_texture);
     glBindTexture(GL_TEXTURE_2D, color_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -1275,11 +1222,11 @@ OpenGL_Framebuffer Create_Framebuffer(v2i size) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL
+        GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr
     );
 
     // Build the framebuffer.
-    GLuint framebuffer_id;
+    GLuint framebuffer_id = 0;
     glGenFramebuffers(1, &framebuffer_id);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_id);
     glFramebufferTexture2D(
@@ -1289,7 +1236,7 @@ OpenGL_Framebuffer Create_Framebuffer(v2i size) {
     // Check.
     auto check = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     Assert(check == GL_FRAMEBUFFER_COMPLETE);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     OpenGL_Framebuffer res{};
     res.id    = framebuffer_id;
@@ -1311,7 +1258,7 @@ glm::mat3 Get_UI_Projection_Matrix(v2f screen_size) {
     return mat;
 }
 
-void Render_UI(Game_State& state, f32 dt, MCTX) {
+void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
     auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
@@ -1341,24 +1288,25 @@ void Render_UI(Game_State& state, f32 dt, MCTX) {
         const auto& placeholder_texture
             = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
 
-        const auto& psize = placeholder_texture.size;
+        const v2f psize = v2f(placeholder_texture.size);
 
         const auto in_scale      = ui_state.buildables_panel_in_scale;
         const v2f  sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-        const v2f  padding          = ui_state.padding;
-        const f32  placeholders_gap = ui_state.placeholders_gap;
-        const auto placeholders     = ui_state.placeholders;
-        const auto panel_size       = v2f(
+        const v2f padding          = v2f(ui_state.padding);
+        const f32 placeholders_gap = (f32)ui_state.placeholders_gap;
+        const f32 placeholders     = (f32)ui_state.placeholders;
+        const v2f panel_size       = v2f(
             psize.x + 2 * padding.x,
-            2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
+            2 * padding.y + placeholders_gap * (f32)(placeholders - 1)
+                + placeholders * psize.y
         );
 
         const auto outer_anchor         = ui_state.buildables_panel_container_anchor;
         const auto outer_container_size = v2i(swidth, sheight);
         const auto outer_pos            = v2f(
-            outer_container_size.x * outer_anchor.x,
-            outer_container_size.y * outer_anchor.y
+            (f32)outer_container_size.x * outer_anchor.x,
+            (f32)outer_container_size.y * outer_anchor.y
         );
 
         auto VIEW = glm::mat3(1);
@@ -1398,7 +1346,7 @@ void Render_UI(Game_State& state, f32 dt, MCTX) {
 
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
-                drawing_point.y += i * (placeholders_gap + psize.y);
+                drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
                 auto p     = PROJECTION * VIEW * drawing_point;
                 auto s     = PROJECTION * VIEW * v3f(psize, 0);
@@ -1429,7 +1377,7 @@ void Render_UI(Game_State& state, f32 dt, MCTX) {
 
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
-                drawing_point.y += i * (placeholders_gap + psize.y);
+                drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
                 auto p = PROJECTION * VIEW * drawing_point;
                 auto s = PROJECTION * VIEW * v3f(buildable_size, 0);
@@ -1595,15 +1543,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
-        auto PROJECTION = glm::mat3(1);
-        PROJECTION      = glm::translate(PROJECTION, v2f(0, 1));
-        PROJECTION      = glm::scale(PROJECTION, v2f(1 / swidth, -1 / sheight));
-        PROJECTION      = glm::translate(PROJECTION, rstate.pan_pos + rstate.pan_offset);
-        PROJECTION      = glm::scale(PROJECTION, v2f(rstate.zoom, rstate.zoom));
-        PROJECTION      = glm::translate(PROJECTION, v2f(swidth, sheight) / 2.0f);
-        PROJECTION      = glm::translate(PROJECTION, -(v2f)gsize * (f32)cell_size / 2.0f);
-
-        auto d = PROJECTION * v3f(cursor_d.x, cursor_d.y, 0);
         rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
 
         auto d3 = World_To_Screen(state, v2f(0, 0));
@@ -1614,7 +1553,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     // Рисование заднего синего фона.
     {
@@ -1623,13 +1562,13 @@ void Render(Game_State& state, f32 dt, MCTX) {
         GLuint texture_name = 3;
 
         glBindTexture(GL_TEXTURE_2D, texture_name);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexImage2D(
             GL_TEXTURE_2D,
@@ -1642,10 +1581,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
             GL_UNSIGNED_BYTE,
             bitmap.memory
         );
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glBlendFunc(GL_ONE, GL_ZERO);
         glBindTexture(GL_TEXTURE_2D, texture_name);
@@ -1734,10 +1673,10 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
             {
                 TEMP_USAGE(trash_arena);
-                auto checkbox_title
-                    = Allocate_Formatted_String(trash_arena, "render tilemap %d", i);
-
-                ImGui::Checkbox(checkbox_title, &tilemap.debug_rendering_enabled);
+                ImGui::Checkbox(  //
+                    Text_Format("render tilemap %d", i),
+                    &tilemap.debug_rendering_enabled
+                );
             }
 
             if (!tilemap.debug_rendering_enabled)
@@ -1766,73 +1705,55 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 }
             }
 
-            GLuint ssbo;
+            GLuint ssbo = 0;
             glGenBuffers(1, &ssbo);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
             glBufferData(
                 GL_SHADER_STORAGE_BUFFER,
-                required_memory,
+                Assert_Truncate_To_i64(required_memory),
                 rstate.rendering_indices_buffer,
                 GL_DYNAMIC_DRAW
             );
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-            Check_OpenGL_Errors();
+            BFGL_Check_Errors();
 
             // Рисование квада tilemap.
             auto p0 = W2GL * v3f(0, 0, 1);
-            auto p1 = W2GL * v3f(tilemap.size.x, 0, 1);
-            auto p2 = W2GL * v3f(0, tilemap.size.y, 1);
-            auto p3 = W2GL * v3f(tilemap.size.x, tilemap.size.y, 1);
+            auto p3 = W2GL * v3f(tilemap.size, 1);
+            auto p1 = v2f(p3.x, p0.y);
+            auto p2 = v2f(p0.x, p3.y);
             Assert(p0.z == 1);
             Assert(p3.z == 1);
 
-            v2f vertices_with_tex_coords[] = {
-                v2f(p0),
-                v2f(0, 0),
-                v2f(p1),
-                v2f(1, 0),
-                v2f(p2),
-                v2f(0, 1),
-                v2f(p2),
-                v2f(0, 1),
-                v2f(p1),
-                v2f(1, 0),
-                v2f(p3),
-                v2f(1, 1),
+            const struct Buffer_Data {
+                v2f pos[6];
+                v2f tex_coords[6];
+            } buffer_data = {
+                {{p0}, {p1}, {p2}, {p2}, {p1}, {p3}},
+                {{0, 0}, {1, 0}, {0, 1}, {0, 1}, {1, 0}, {1, 1}},
             };
 
-            GLuint vao;
-            glGenVertexArrays(1, &vao);
-            GLuint vbo;
-            glGenBuffers(1, &vbo);
+            auto vao = BFGL_Load_Vertex_Array();
+            BFGL_Enable_Vertex_Array(vao);
 
-            glBindVertexArray(vao);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(
-                GL_ARRAY_BUFFER,
-                sizeof(vertices_with_tex_coords),
-                vertices_with_tex_coords,
-                GL_STATIC_DRAW
-            );
+            auto vbo = BFGL_Load_Vertex_Buffer(&buffer_data, sizeof(buffer_data), false);
 
-            // 3. then set our vertex attributes pointers
-            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)0);
-            glVertexAttribPointer(
-                1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)(2 * sizeof(f32))
-            );
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
+            const auto pos_off        = Offset_Of_Member(Buffer_Data, pos);
+            const auto tex_coords_off = Offset_Of_Member(Buffer_Data, tex_coords);
+            BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(v2f), pos_off);
+            BFGL_Set_Vertex_Attribute(1, 2, BF_FLOAT, false, sizeof(v2f), tex_coords_off);
+            BFGL_Enable_Vertex_Attribute(0);
+            BFGL_Enable_Vertex_Attribute(1);
 
-            // ..:: Drawing code (in render loop) :: ..
-            // glUseProgram(rstate.sprites_shader_program);
-            glBindVertexArray(vao);
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
-            glBindVertexArray(0);
-            glDeleteVertexArrays(1, &vao);
-            glDeleteBuffers(1, &vbo);
-            Check_OpenGL_Errors();
+            BFGL_Unload_Vertex_Buffer(vbo);
+
+            BFGL_Disable_Vertex_Array();
+            BFGL_Unload_Vertex_Array(vao);
+
+            BFGL_Check_Errors();
 
             SANITIZE;
         }
@@ -1853,18 +1774,18 @@ void Render(Game_State& state, f32 dt, MCTX) {
         );
     }
 
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     // Рисование спрайтов.
-    Memory_Buffer vertex_data{ctx};
+    Memory_Buffer vertex_data{};
     defer {
-        vertex_data.Deinit(ctx);
+        vertex_data.Free(ctx);
     };
 
     auto    sprites_count = 0;
@@ -1873,11 +1794,11 @@ void Render(Game_State& state, f32 dt, MCTX) {
     Map_Sprites_With_Textures(
         rstate,
         [&](C_Texture& tex,
-            Entity_ID  sprite_id,
-            C_Sprite&  s  //
+            Entity_ID /* sprite_id */,
+            C_Sprite& s  //
         ) {
             auto texture_id   = tex.id;
-            auto required_mem = 7 * 6 * sizeof(GLfloat);
+            auto required_mem = sizeof(GLfloat) * 7 * 6;
             vertex_data.Reserve(vertex_data.max_count + required_mem, ctx);
 
             // TODO: rotation
@@ -1902,29 +1823,34 @@ void Render(Game_State& state, f32 dt, MCTX) {
             f32 ay0 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
 
             v2f verticess[] = {
-                v2f(x0, y0),
-                v2f(x1, y0),
-                v2f(x0, y1),
-                v2f(x0, y1),
-                v2f(x1, y0),
-                v2f(x1, y1),
+                {x0, y0},
+                {x1, y0},
+                {x0, y1},
+                {x0, y1},
+                {x1, y0},
+                {x1, y1},
             };
 
             v2f texture_positions[] = {
-                v2f(ax0, ay0),
-                v2f(ax1, ay0),
-                v2f(ax0, ay1),
-                v2f(ax0, ay1),
-                v2f(ax1, ay0),
-                v2f(ax1, ay1),
+                {ax0, ay0},
+                {ax1, ay0},
+                {ax0, ay1},
+                {ax0, ay1},
+                {ax1, ay0},
+                {ax1, ay1},
             };
 
             FOR_RANGE (int, i, 6) {
-                v2f vertex        = verticess[i];
-                v2f texture_coord = texture_positions[i];
-                vertex_data.Add_Unsafe((void*)&vertex, sizeof(vertex));
-                vertex_data.Add_Unsafe((void*)&v3f_one, sizeof(v3f_one));  // TODO: color
-                vertex_data.Add_Unsafe((void*)&texture_coord, sizeof(texture_coord));
+                const struct {
+                    v2f pos;
+                    v3f color;
+                    v2f tex_coord;
+                } vertex_datum = {
+                    verticess[i],
+                    v3f_one,
+                    texture_positions[i],
+                };
+                vertex_data.Add_Unsafe((void*)&vertex_datum, sizeof(vertex_datum));
             }
 
             sprites_count++;
@@ -1934,38 +1860,32 @@ void Render(Game_State& state, f32 dt, MCTX) {
     {
         glUseProgram(rstate.sprites_shader_program);
         glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
-        GLuint vao;
-        glGenVertexArrays(1, &vao);
-        GLuint vbo;
-        glGenBuffers(1, &vbo);
 
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(
-            GL_ARRAY_BUFFER, vertex_data.count, vertex_data.base, GL_STATIC_DRAW
-        );
+        const auto vao = BFGL_Load_Vertex_Array();
+        BFGL_Enable_Vertex_Array(vao);
 
-        // 3. then set our vertex attributes pointers
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(0));
-        glVertexAttribPointer(
-            1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(2 * sizeof(f32))
+        const auto vbo = BFGL_Load_Vertex_Buffer(
+            vertex_data.base, Assert_Truncate_To_i32(vertex_data.count), false
         );
-        glVertexAttribPointer(
-            2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(5 * sizeof(f32))
+        BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(f32) * 7, 0);
+        BFGL_Set_Vertex_Attribute(
+            1, 3, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 2
         );
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
+        BFGL_Set_Vertex_Attribute(
+            2, 2, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 5
+        );
+        BFGL_Enable_Vertex_Attribute(0);
+        BFGL_Enable_Vertex_Attribute(1);
+        BFGL_Enable_Vertex_Attribute(2);
 
-        // ..:: Drawing code (in render loop) :: ..
-        // glUseProgram(rstate.sprites_shader_program);
-        glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 6 * sprites_count);
 
-        glBindVertexArray(0);
-        glDeleteVertexArrays(1, &vao);
-        glDeleteBuffers(1, &vbo);
-        Check_OpenGL_Errors();
+        BFGL_Unload_Vertex_Buffer(vbo);
+
+        BFGL_Disable_Vertex_Array();
+        BFGL_Unload_Vertex_Array(vao);
+
+        BFGL_Check_Errors();
     }
 
     SANITIZE;
@@ -1976,7 +1896,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
 }
 
 // NOTE: Game_State& state, v2i16 pos, Item_To_Build item
-On_Item_Built__Function(Renderer__On_Item_Built) {
+On_Item_Built_function(Renderer_OnItemBuilt) {
+    UNUSED(item);
+
     Assert(state.renderer_state != nullptr);
 
     CTX_ALLOCATOR;
@@ -2031,8 +1953,10 @@ On_Item_Built__Function(Renderer__On_Item_Built) {
         case Element_Tile_Type::Flag:
         case Element_Tile_Type::Road: {
             auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id = roads_tilemap.tiles[t];
-            tile_id       = global_road_starting_tile_id + tex;
+            auto& tile_id    = roads_tilemap.tiles[t];
+            tile_id          = global_road_starting_tile_id + tex;
+            auto& texture_id = roads_tilemap.textures[t];
+            texture_id       = rstate.road_textures[tex];
 
             if (offset == v2i16_zero && element_tile.type == Element_Tile_Type::Building)
             {

@@ -1,10 +1,12 @@
-#pragma once
-
-// =============================================================
-// Forward Declarations
-// =============================================================
+//----------------------------------------------------------------------------------
+// Forward Declarations.
+//----------------------------------------------------------------------------------
+//
 // SHIT: Oh, god, I hate this shit
 struct Game_State;
+struct Human;
+struct Human_Data;
+struct Building;
 
 #ifdef BF_CLIENT
 struct Game_Renderer_State;
@@ -29,7 +31,7 @@ const Human_Constructor_ID Human_Constructor_ID_Missing = Entity_ID_Missing;
 using Building_ID                     = Entity_ID;
 const Building_ID Building_ID_Missing = Entity_ID_Missing;
 
-using Texture_ID                        = i16;
+using Texture_ID                        = u32;
 constexpr Texture_ID Texture_ID_Missing = std::numeric_limits<Texture_ID>::max();
 // constexpr Texture_ID Texture_ID_Missing = 0;
 
@@ -43,9 +45,9 @@ struct std::hash<v2i16> {
     }
 };
 
-// =============================================================
-// Game Logic
-// =============================================================
+//----------------------------------------------------------------------------------
+// Game Logic.
+//----------------------------------------------------------------------------------
 enum class Direction {
     Right = 0,
     Up    = 1,
@@ -53,9 +55,11 @@ enum class Direction {
     Down  = 3,
 };
 
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define FOR_DIRECTION(var_name)                             \
     for (auto var_name = (Direction)0; (int)(var_name) < 4; \
          var_name      = (Direction)((int)(var_name) + 1))
+// NOLINTEND(bugprone-macro-parentheses)
 
 v2i16 As_Offset(Direction dir) {
     Assert((u8)dir >= 0);
@@ -69,27 +73,25 @@ Direction Opposite(Direction dir) {
     return (Direction)(((u8)(dir) + 2) % 4);
 }
 
-using Graph_Nodes_Count = u16;
-
 struct Calculated_Graph_Data {
-    i16* dist;
-    i16* prev;
+    i16* dist = {};
+    i16* prev = {};
 
-    std::unordered_map<u16, v2i16> node_index_2_pos;
-    std::unordered_map<v2i16, u16> pos_2_node_index;
+    std::unordered_map<u16, v2i16> node_index_2_pos = {};
+    std::unordered_map<v2i16, u16> pos_2_node_index = {};
 
-    v2i16 center;
+    v2i16 center = {};
 };
 
-struct Graph : public Non_Copyable {
-    Graph_Nodes_Count nodes_count;
-    size_t            nodes_allocation_count;
-    u8*               nodes;  // 0b0000DLUR
+struct Graph {
+    u16    nodes_count            = {};
+    size_t nodes_allocation_count = {};
+    u8*    nodes                  = {};  // 0b0000DLUR
 
-    v2i16 size;
-    v2i16 offset;
+    v2i16 size   = {};
+    v2i16 offset = {};
 
-    Calculated_Graph_Data* data;
+    Calculated_Graph_Data* data = {};
 };
 
 BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
@@ -132,36 +134,24 @@ enum class Map_Resource_Booking_Type {
 struct Map_Resource_Booking {
     static const Entity_ID component_mask = Component_Mask(4);
 
-    Map_Resource_Booking_Type type;
-    Building_ID               building_id;
+    Map_Resource_Booking_Type type        = {};
+    Building_ID               building_id = {};
 };
 
 struct Map_Resource {
     static const Entity_ID component_mask = Component_Mask(3);
 
-    Scriptable_Resource* scriptable;
+    Scriptable_Resource* scriptable = {};
 
-    v2i16 pos;
+    v2i16 pos = {};
 
-    Map_Resource_Booking_ID booking;
+    Map_Resource_Booking_ID booking = {};
 
-    Vector<Graph_Segment_ID> transportation_segments;
-    Vector<v2i16>            transportation_vertices;
+    Vector<Graph_Segment_ID> transportation_segments = {};
+    Vector<v2i16>            transportation_vertices = {};
 
-    Human_ID targeted_human;  // optional
-    Human_ID carrying_human;  // optional
-
-    Map_Resource() {}
-
-    Map_Resource(Map_Resource&& other)
-        : scriptable(other.scriptable)
-        , pos(other.pos)
-        , booking(other.booking)
-        , transportation_segments(std::move(other.transportation_segments))
-        , transportation_vertices(std::move(other.transportation_vertices))
-        , targeted_human(other.targeted_human)
-        , carrying_human(other.carrying_human)  //
-    {}
+    Human_ID targeted_human = {};  // optional
+    Human_ID carrying_human = {};  // optional
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -206,15 +196,15 @@ using Graph_Segment_ID = u32;
 struct Graph_Segment {
     static const Entity_ID component_mask = Component_Mask(1);
 
-    Graph_Nodes_Count vertices_count;
-    v2i16* vertices;  // NOTE: Вершинные клетки графа (флаги, здания)
+    u16 vertices_count = {};
+    v2i16* vertices = {};  // NOTE: Вершинные клетки графа (флаги, здания)
 
-    Graph graph;
+    Graph graph = {};
 
-    Human_ID                 assigned_human_id;  // optional
-    Vector<Graph_Segment_ID> linked_segments;
+    Human_ID                 assigned_human_id = {};  // optional
+    Vector<Graph_Segment_ID> linked_segments   = {};
 
-    Queue<Map_Resource> resources_to_transport;
+    Queue<Map_Resource> resources_to_transport = {};
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -272,21 +262,21 @@ enum class Building_Type {
     Produce,
 };
 
-struct Scriptable_Building : public Non_Copyable {
-    const char*   code;
-    Building_Type type;
+struct Scriptable_Building {
+    const char*   code = {};
+    Building_Type type = {};
 
-    Scriptable_Resource* harvestable_resource;
+    Scriptable_Resource* harvestable_resource = {};
 
-    f32 human_spawning_delay;
-    f32 required_construction_points;
+    f32 human_spawning_delay         = {};
+    f32 required_construction_points = {};
 
-    bool can_be_built;
+    bool can_be_built = {};
 
-    Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources;
+    Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources = {};
 
 #ifdef BF_CLIENT
-    Texture_ID texture;
+    Texture_ID texture = {};
 #endif  // BF_CLIENT
 };
 
@@ -297,13 +287,13 @@ enum class Human_Type {
 };
 
 struct Human_Moving_Component {
-    v2i16 pos;
-    f32   elapsed;
-    f32   progress;
-    v2f   from;
+    v2i16 pos      = {};
+    f32   elapsed  = {};
+    f32   progress = {};
+    v2f   from     = {};
 
-    std::optional<v2i16> to;
-    Queue<v2i16>         path;
+    std::optional<v2i16> to   = {};
+    Queue<v2i16>         path = {};
 };
 
 enum class Moving_In_The_World_State {
@@ -315,45 +305,19 @@ enum class Moving_In_The_World_State {
 struct Main_Controller;
 
 struct Moving_In_The_World {
-    Moving_In_The_World_State state;
-    Main_Controller*          controller;
+    Moving_In_The_World_State state      = {};
+    Main_Controller*          controller = {};
 };
 
-enum class Human_Main_State {
-    None = 0,
-
-    // Common
-    Moving_In_The_World,
-
-    // Transporter
-    Moving_Inside_Segment,
-    Moving_Resource,
-
-    // Builder
-    Building,
-
-    // Employee
-    Employee,
+struct Map_Resource_To_Book {
+    Scriptable_Resource* scriptable  = {};
+    u8                   count       = {};
+    Building_ID          building_id = {};
 };
 
-struct Map_Resource_To_Book : public Non_Copyable {
-    Scriptable_Resource* scriptable;
-    u8                   count;
-    Building_ID          building_id;
-
-    Map_Resource_To_Book(
-        Scriptable_Resource* a_scriptable,
-        u8                   a_count,
-        Building_ID          a_building_id
-    )
-        : scriptable(a_scriptable)  //
-        , count(a_count)
-        , building_id(a_building_id) {}
-};
-
-struct Resource_To_Book : public Non_Copyable {
-    Scriptable_Resource* scriptable;
-    u8                   count;
+struct Resource_To_Book {
+    Scriptable_Resource* scriptable = {};
+    u8                   count      = {};
 };
 
 enum class Terrain {
@@ -361,13 +325,13 @@ enum class Terrain {
     Grass,
 };
 
-struct Terrain_Tile : public Non_Copyable {
-    Terrain terrain;
+struct Terrain_Tile {
+    Terrain terrain = {};
 
-    int  height;  // NOTE: starts at 0
-    bool is_cliff;
+    int  height   = {};  // NOTE: starts at 0
+    bool is_cliff = {};
 
-    i16 resource_amount;
+    i16 resource_amount = {};
 };
 
 // NOTE: Upon editing ensure that `Validate_Element_Tile` remains correct
@@ -378,10 +342,10 @@ enum class Element_Tile_Type {
     Flag     = 3,
 };
 
-struct Element_Tile : public Non_Copyable {
-    Element_Tile_Type type;
-    Building_ID       building_id;
-    Player_ID         player_id;
+struct Element_Tile {
+    Element_Tile_Type type        = {};
+    Building_ID       building_id = {};
+    Player_ID         player_id   = {};
 };
 
 void Validate_Element_Tile(Element_Tile& tile) {
@@ -394,20 +358,20 @@ void Validate_Element_Tile(Element_Tile& tile) {
         Assert(tile.building_id == Building_ID_Missing);
 }
 
-struct Scriptable_Resource : public Non_Copyable {
-    const char* code;
+struct Scriptable_Resource {
+    const char* code = {};
 
 #ifdef BF_CLIENT
-    Texture_ID texture;
-    Texture_ID small_texture;
+    Texture_ID texture       = {};
+    Texture_ID small_texture = {};
 #endif  // BF_CLIENT
 };
 
 // NOTE: `scriptable` is `null` when `amount` = 0
 struct Terrain_Resource {
-    Scriptable_Resource* scriptable;
+    Scriptable_Resource* scriptable = {};
 
-    u8 amount;
+    u8 amount = {};
 };
 
 enum class Item_To_Build_Type {
@@ -417,157 +381,248 @@ enum class Item_To_Build_Type {
     Building,
 };
 
-struct Item_To_Build : public Non_Copyable {
-    Item_To_Build_Type   type;
-    Scriptable_Building* scriptable_building;
-
-    Item_To_Build(Item_To_Build_Type a_type, Scriptable_Building* a_scriptable_building)
-        : type(a_type)
-        , scriptable_building(a_scriptable_building) {}
+struct Item_To_Build {
+    Item_To_Build_Type   type                = {};
+    Scriptable_Building* scriptable_building = {};
 };
 
-static const Item_To_Build Item_To_Build_Road(Item_To_Build_Type::Road, nullptr);
-static const Item_To_Build Item_To_Build_Flag(Item_To_Build_Type::Flag, nullptr);
+#define Item_To_Build_Road Item_To_Build(Item_To_Build_Type::Road, nullptr)
+#define Item_To_Build_Flag Item_To_Build(Item_To_Build_Type::Flag, nullptr)
 
 enum class Human_Removal_Reason {
     Transporter_Returned_To_City_Hall,
     Employee_Reached_Building,
 };
 
+#define NOLINT_UNUSED_PARAMETERS(code)        \
+    /* NOLINTBEGIN(misc-unused-parameters) */ \
+    code /* NOLINTEND(misc-unused-parameters) */
+
+#define HumanState_OnEnter_function(name_)                                         \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
+
+#define HumanState_OnExit_function(name_)                                          \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
+
+#define HumanState_Update_function(name_)                                      \
+    NOLINT_UNUSED_PARAMETERS(void name_(                                       \
+        Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
+    ))
+
+#define HumanState_OnHumanCurrentSegmentChanged_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(                        \
+        Human_State&      state,                                \
+        Human&            human,                                \
+        const Human_Data& data,                                 \
+        Graph_Segment_ID  old_segment_id,                       \
+        MCTX                                                    \
+    ))
+
+#define HumanState_OnHumanMovedToTheNextTile_function(name_)                       \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
+
+#define HumanState_UpdateStates_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(        \
+        Human_State&      state,                \
+        Human&            human,                \
+        const Human_Data& data,                 \
+        Graph_Segment_ID  old_segment_id,       \
+        Building_ID       old_building_id,      \
+        Building*         old_building,         \
+        MCTX                                    \
+    ))
+
+#define Human_States_Table \
+    X(MovingInTheWorld)    \
+    X(MovingInsideSegment) \
+    X(MovingResources)     \
+    X(Construction)        \
+    X(Employee)
+
+enum class Human_States {
+    None = -1,
+#define X(state_name) state_name,
+    Human_States_Table
+#undef X
+        COUNT
+};
+
+struct Human_State {
+    HumanState_OnEnter_function((*OnEnter)) = {};
+    HumanState_OnExit_function((*OnExit))   = {};
+    HumanState_Update_function((*Update))   = {};
+    HumanState_OnHumanCurrentSegmentChanged_function((*OnHumanCurrentSegmentChanged))
+        = {};
+    HumanState_OnHumanMovedToTheNextTile_function((*OnHumanMovedToTheNextTile)) = {};
+    HumanState_UpdateStates_function((*UpdateStates))                           = {};
+};
+
+global_var Human_State human_states[(int)Human_States::COUNT] = {};
+
 struct Human {
     static const Entity_ID component_mask = Component_Mask(1);
 
-    Human_Moving_Component moving;
+    Human_Moving_Component moving = {};
 
-    Player_ID  player_id;
-    Human_Type type;
+    Player_ID  player_id = {};
+    Human_Type type      = {};
 
-    Human_Main_State          state;
-    Moving_In_The_World_State state_moving_in_the_world;
+    Human_States              state                     = {};
+    Moving_In_The_World_State state_moving_in_the_world = {};
 
-    Graph_Segment_ID segment_id;
-    Building_ID      building_id;
+    Graph_Segment_ID segment_id  = {};
+    Building_ID      building_id = {};
 };
 
 struct Building {
     static const Entity_ID component_mask = Component_Mask(2);
 
-    v2i16                pos;
-    Scriptable_Building* scriptable;
-    Player_ID            player_id;
+    v2i16                pos        = {};
+    Scriptable_Building* scriptable = {};
+    Player_ID            player_id  = {};
 };
 
 struct Not_Constructed_Building {
-    Human_Constructor_ID constructor;  // optional
-    f32                  construction_points;
+    Human_Constructor_ID constructor         = {};  // optional
+    f32                  construction_points = {};
     // Vector<Resource_To_Book> resources_to_book;
 };
 
 struct City_Hall {
-    f32 time_since_human_was_created;
+    f32 time_since_human_was_created = {};
 };
 
 struct Game_Map_Data {
-    f32 human_moving_one_tile_duration;
-
-    Game_Map_Data(f32 a_human_moving_one_tile_duration)
-        : human_moving_one_tile_duration(a_human_moving_one_tile_duration) {}
+    f32 human_moving_one_tile_duration = {};
 };
 
-struct Human_Data;
+struct Game_Map {
+    Entity_ID last_entity_id = {};
 
-struct Game_Map : public Non_Copyable {
-    Entity_ID last_entity_id;
+    v2i16             size              = {};
+    Terrain_Tile*     terrain_tiles     = {};
+    Terrain_Resource* terrain_resources = {};
+    Element_Tile*     element_tiles     = {};
 
-    v2i16             size;
-    Terrain_Tile*     terrain_tiles;
-    Terrain_Resource* terrain_resources;
-    Element_Tile*     element_tiles;
+    Game_Map_Data* data       = {};
+    Human_Data*    human_data = {};
 
-    Game_Map_Data* data;
-    Human_Data*    human_data;
+    Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments                  = {};
+    Sparse_Array<Building_ID, Building>                 buildings                 = {};
+    Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings = {};
+    Sparse_Array<Building_ID, City_Hall>                city_halls                = {};
+    Sparse_Array<Human_ID, Human>                       humans                    = {};
+    Sparse_Array_Of_Ids<Human_ID> humans_going_to_the_city_hall                   = {};
+    // Sparse_Array<Human_ID, Human_Transporter>           transporters = {};
+    // Sparse_Array<Human_ID, Human_Constructor>           constructors = {};
+    Sparse_Array<Human_ID, Human>                humans_to_add    = {};
+    Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove = {};
+    Sparse_Array<Map_Resource_ID, Map_Resource>  resources        = {};
 
-    Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments;
-    Sparse_Array<Building_ID, Building>                 buildings;
-    Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings;
-    Sparse_Array<Building_ID, City_Hall>                city_halls;
-    Sparse_Array<Human_ID, Human>                       humans;
-    Sparse_Array_Of_Ids<Human_ID>                       humans_going_to_the_city_hall;
-    // Sparse_Array<Human_ID, Human_Transporter>           transporters;
-    // Sparse_Array<Human_ID, Human_Constructor>           constructors;
-    Sparse_Array<Human_ID, Human>                humans_to_add;
-    Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove;
-    Sparse_Array<Map_Resource_ID, Map_Resource>  resources;
-
-    Queue<Graph_Segment_ID>      segments_wo_humans;
-    Vector<Map_Resource_To_Book> resources_booking_queue;
+    Queue<Graph_Segment_ID>      segments_wo_humans      = {};
+    Vector<Map_Resource_To_Book> resources_booking_queue = {};
 };
 
 template <typename T>
-struct Observer : public Non_Copyable {
-    size_t count;
-    T*     functions;
+struct Observer {
+    size_t count     = {};
+    T*     functions = {};
 };
 
 // Usage:
 //     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
-#define INVOKE_OBSERVER(observer, code)                    \
-    do {                                                   \
-        FOR_RANGE (size_t, i, observer.count) {            \
-            auto&    function = *(observer.functions + i); \
-            function code;                                 \
-        }                                                  \
-    } while (0)
+#define INVOKE_OBSERVER(observer, code)                      \
+    STATEMENT({                                                   \
+        FOR_RANGE (size_t, i, (observer).count) {            \
+            auto&    function = *((observer).functions + i); \
+            function code;                                   \
+    }                                                        \
+    })
 
 // Usage:
-//     On_Item_Built__Function((*callbacks[])) = {
-//         Renderer__On_Item_Built,
+//     OnItemBuilt_function((*callbacks[])) = {
+//         Renderer_OnItemBuilt,
 //     };
-//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks, arena);
+//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks,
+//     arena);
 #define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
-    do {                                                                               \
-        (observer).count = sizeof(callbacks) / sizeof(callbacks[0]);                   \
+    STATEMENT({                                                                        \
+        (observer).count = sizeof(callbacks) / sizeof((callbacks)[0]);                 \
         (observer).functions                                                           \
             = (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
         memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
-    } while (0)
+    })
 
-#define On_Item_Built__Function(name_) \
+#define On_Item_Built_function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
-struct Game_State : public Non_Copyable {
-    bool hot_reloaded;
-    u16  dll_reloads_count;
+struct Editor_Data {
+    bool changed = {};
 
-    f32 offset_x;
-    f32 offset_y;
+    Perlin_Params terrain_perlin     = {};
+    int           terrain_max_height = {};
 
-    v2f      player_pos;
-    Game_Map game_map;
-
-    size_t               scriptable_resources_count;
-    Scriptable_Resource* scriptable_resources;
-    size_t               scriptable_buildings_count;
-    Scriptable_Building* scriptable_buildings;
-
-    Arena arena;
-    Arena non_persistent_arena;  // Gets flushed on DLL reloads
-    Arena trash_arena;           // Use for transient calculations
-
-    Pages pages;
-
-#ifdef BF_CLIENT
-    Game_Renderer_State* renderer_state;
-#endif  // BF_CLIENT
-
-    Observer<On_Item_Built__Function((*))> On_Item_Built;
-
-    const BFGame::Game_Library* gamelib;
+    Perlin_Params forest_perlin     = {};
+    f32           forest_threshold  = {};
+    int           forest_max_amount = {};
 };
 
-struct Game_Memory : public Non_Copyable {
-    bool       is_initialized;
-    Game_State state;
+Editor_Data Default_Editor_Data() {
+    Editor_Data result = {};
+
+    result.terrain_perlin.octaves      = 9;
+    result.terrain_perlin.scaling_bias = 2.0f;
+    result.terrain_perlin.seed         = 0;
+    result.terrain_max_height          = 6;
+
+    result.forest_perlin.octaves      = 7;
+    result.forest_perlin.scaling_bias = 0.38f;
+    result.forest_perlin.seed         = 0;
+    result.forest_threshold           = 0.54f;
+    result.forest_max_amount          = 5;
+
+    return result;
+}
+
+struct Game_State {
+    bool hot_reloaded      = {};
+    u16  dll_reloads_count = {};
+
+    f32 offset_x = {};
+    f32 offset_y = {};
+
+    v2f      player_pos = {};
+    Game_Map game_map   = {};
+
+    Editor_Data editor_data = {};
+
+    size_t               scriptable_resources_count = {};
+    Scriptable_Resource* scriptable_resources       = {};
+    size_t               scriptable_buildings_count = {};
+    Scriptable_Building* scriptable_buildings       = {};
+
+    Arena arena                = {};
+    Arena non_persistent_arena = {};  // Gets flushed on DLL reloads
+    Arena trash_arena          = {};  // Use for transient calculations
+
+#ifdef BF_CLIENT
+    Game_Renderer_State* renderer_state = {};
+#endif  // BF_CLIENT
+
+    Observer<On_Item_Built_function((*))> On_Item_Built = {};
+
+    const BFGame::Game_Library* gamelib = {};
+};
+
+struct Game_Memory {
+    bool       is_initialized = {};
+    Game_State state          = {};
 };
 
 enum class Tile_Updated_Type {
@@ -584,15 +639,16 @@ Building* Get_Building(Game_Map& game_map, Building_ID id) {
 }
 
 #ifdef BF_CLIENT
-// =============================================================
-// CLIENT. Game Rendering
-// =============================================================
+
+//----------------------------------------------------------------------------------
+// CLIENT. Game Rendering.
+//----------------------------------------------------------------------------------
 using BF_Texture_ID = u32;
 
 struct Loaded_Texture {
-    BF_Texture_ID id;
-    v2i           size;
-    u8*           base;
+    BF_Texture_ID id   = {};
+    v2u           size = {};
+    u8*           base = {};
 };
 
 using Tile_ID = u32;
@@ -604,43 +660,43 @@ enum class Tile_State_Check {
 };
 
 struct Tile_Rule {
-    Texture_ID       texture;
-    Tile_State_Check states[8];
+    Texture_ID       texture   = {};
+    Tile_State_Check states[8] = {};
 };
 
 struct Smart_Tile {
-    Tile_ID    id;
-    Texture_ID fallback_texture;
+    Tile_ID    id               = {};
+    Texture_ID fallback_texture = {};
 
-    int        rules_count;
-    Tile_Rule* rules;
+    u32        rules_count = {};
+    Tile_Rule* rules       = {};
 };
 
 struct Load_Smart_Tile_Result {
-    bool success;
+    bool success = {};
 };
 
 struct Tilemap {
-    Tile_ID*    tiles;
-    Texture_ID* textures;
-    v2i         size;
+    Tile_ID*    tiles    = {};
+    Texture_ID* textures = {};
+    v2i         size     = {};
 
-    bool debug_rendering_enabled = true;
+    bool debug_rendering_enabled = {};
 };
 
 struct C_Texture {
-    Texture_ID id;
-    v2f        pos_inside_atlas;  // значения x, y ограничены [0, 1)
-    v2i16      size;
+    Texture_ID id          = {};
+    v2f   pos_inside_atlas = {};  // значения x, y ограничены [0, 1)
+    v2i16 size             = {};
 };
 
 struct C_Sprite {
-    v2f        pos;
-    v2f        scale;
-    v2f        anchor;
-    f32        rotation;
-    Texture_ID texture;
-    i8         z;
+    v2f        pos      = {};
+    v2f        scale    = {};
+    v2f        anchor   = {};
+    f32        rotation = {};
+    Texture_ID texture  = {};
+    i8         z        = {};
     // left   = pos.x + texture.size.x * (anchor.x - 1)
     // right  = pos.x + texture.size.x *  anchor.x
     // bottom = pos.y + texture.size.y * (anchor.y - 1)
@@ -667,15 +723,20 @@ struct C_Sprite {
 // ORDER BY s.z ASC
 
 struct UI_Sprite_Params {
-    bool smart_stretchable;
-    v2i  stretch_paddings_h;
-    v2i  stretch_paddings_v;
+    bool smart_stretchable  = {};
+    v2i  stretch_paddings_h = {};
+    v2i  stretch_paddings_v = {};
 };
 
 struct BF_Color {
-    f32 r;
-    f32 g;
-    f32 b;
+    union {
+        struct {
+            f32 r;
+            f32 g;
+            f32 b;
+        };
+        v3f rgb;
+    };
 };
 
 static constexpr BF_Color BF_Color_White   = {1, 1, 1};
@@ -687,92 +748,92 @@ static constexpr BF_Color BF_Color_Yellow  = {1, 1, 0};
 static constexpr BF_Color BF_Color_Cyan    = {0, 1, 1};
 static constexpr BF_Color BF_Color_Magenta = {1, 0, 1};
 
-struct Game_UI_State : public Non_Copyable {
-    UI_Sprite_Params buildables_panel_params;
+struct Game_UI_State {
+    UI_Sprite_Params buildables_panel_params = {};
     // Loaded_Texture   buildables_panel_background;
     // Loaded_Texture   buildables_placeholder_background;
 
-    Texture_ID buildables_panel_texture;
-    Texture_ID buildables_placeholder_texture;
+    Texture_ID buildables_panel_texture       = {};
+    Texture_ID buildables_placeholder_texture = {};
 
-    u16            buildables_count;
-    Item_To_Build* buildables;
+    u32            buildables_count = {};
+    Item_To_Build* buildables       = {};
 
-    i8       selected_buildable_index;
-    BF_Color selected_buildable_color;
-    BF_Color not_selected_buildable_color;
-    v2f      buildables_panel_sprite_anchor;
-    v2f      buildables_panel_container_anchor;
-    f32      buildables_panel_in_scale;
-    f32      scale;
+    i32      selected_buildable_index          = {};
+    BF_Color selected_buildable_color          = {};
+    BF_Color not_selected_buildable_color      = {};
+    v2f      buildables_panel_sprite_anchor    = {};
+    v2f      buildables_panel_container_anchor = {};
+    f32      buildables_panel_in_scale         = {};
+    f32      scale                             = {};
 
-    v2i padding;
-    i8  placeholders;
-    i16 placeholders_gap;
+    v2i padding          = {};
+    u32 placeholders     = {};
+    u32 placeholders_gap = {};
 };
 
 struct Atlas {
-    v2f               size;
-    Loaded_Texture    texture;
-    Vector<C_Texture> textures;
+    v2f               size     = {};
+    Loaded_Texture    texture  = {};
+    Vector<C_Texture> textures = {};
 };
 
 struct OpenGL_Framebuffer {
-    GLuint id;
-    v2i    size;
-    GLuint color;  // color_texture_id
+    GLuint id    = {};
+    v2i    size  = {};
+    GLuint color = {};  // color_texture_id
 };
 
-struct Game_Renderer_State : public Non_Copyable {
-    Game_UI_State* ui_state;
-    Game_Bitmap*   bitmap;
+struct Game_Renderer_State {
+    Game_UI_State* ui_state = {};
+    Game_Bitmap*   bitmap   = {};
 
-    Sparse_Array<Entity_ID, C_Sprite> sprites;
+    Sparse_Array<Entity_ID, C_Sprite> sprites = {};
 
-    Smart_Tile grass_smart_tile;
-    Smart_Tile forest_smart_tile;
-    Tile_ID    forest_top_tile_id;
-    Tile_ID    flag_tile_id;
+    Smart_Tile grass_smart_tile   = {};
+    Smart_Tile forest_smart_tile  = {};
+    Tile_ID    forest_top_tile_id = {};
+    Tile_ID    flag_tile_id       = {};
 
-    Texture_ID human_texture;
-    Texture_ID building_in_progress_texture;
-    Texture_ID forest_textures[3];
-    Texture_ID grass_textures[17];
-    Texture_ID road_textures[16];
-    Texture_ID flag_textures[4];
+    Texture_ID human_texture                = {};
+    Texture_ID building_in_progress_texture = {};
+    Texture_ID forest_textures[3]           = {};
+    Texture_ID grass_textures[17]           = {};
+    Texture_ID road_textures[16]            = {};
+    Texture_ID flag_textures[4]             = {};
 
-    Atlas atlas;
+    Atlas atlas = {};
 
-    int sprites_shader_gl2w_location;
+    int sprites_shader_gl2w_location = {};
 
-    int tilemap_shader_gl2w_location;
-    int tilemap_shader_relscreen2w_location;
-    int tilemap_shader_resolution_location;
-    int tilemap_shader_color_location;
+    int tilemap_shader_gl2w_location        = {};
+    int tilemap_shader_relscreen2w_location = {};
+    int tilemap_shader_resolution_location  = {};
+    int tilemap_shader_color_location       = {};
 
-    int      tilemaps_count;
-    Tilemap* tilemaps;
+    int      tilemaps_count = {};
+    Tilemap* tilemaps       = {};
 
-    u8 terrain_tilemaps_count;
-    u8 resources_tilemap_index;
-    u8 element_tilemap_index;
+    u8 terrain_tilemaps_count  = {};
+    u8 resources_tilemap_index = {};
+    u8 element_tilemap_index   = {};
 
-    v2i mouse_pos;
+    v2i mouse_pos = {};
 
-    bool panning;
-    v2f  pan_pos;
-    v2f  pan_offset;
-    v2i  pan_start_pos;
-    f32  zoom_target;
-    f32  zoom;
+    bool panning       = {};
+    v2f  pan_pos       = {};
+    v2f  pan_offset    = {};
+    v2i  pan_start_pos = {};
+    f32  zoom_target   = {};
+    f32  zoom          = {};
 
-    f32 cell_size;
+    f32 cell_size = {};
 
-    bool   shaders_compilation_failed;
-    GLuint sprites_shader_program;
-    GLuint tilemap_shader_program;
+    bool   shaders_compilation_failed = {};
+    GLuint sprites_shader_program     = {};
+    GLuint tilemap_shader_program     = {};
 
-    size_t rendering_indices_buffer_size;
-    void*  rendering_indices_buffer;
+    size_t rendering_indices_buffer_size = {};
+    void*  rendering_indices_buffer      = {};
 };
 #endif  // BF_CLIENT

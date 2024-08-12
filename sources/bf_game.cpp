@@ -18,18 +18,14 @@
 
 #include <optional>
 
-#include "fmt/compile.h"
-
-global_var OS_Data* global_os_data = nullptr;
-#define OS_DATA (Assert_Deref(global_os_data))
-
-#include "generated/bf_atlas_generated.h"
-#include "generated/bf_gamelib_generated.h"
+#include "bf_atlas_generated.h"
+#include "bf_gamelib_generated.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
-#include "bf_opengl.cpp"
 #include "bf_math.cpp"
 #include "bf_memory_arena.cpp"
+#include "bf_opengl.cpp"
+#include "bf_rand.cpp"
 #include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
@@ -37,7 +33,6 @@ global_var OS_Data* global_os_data = nullptr;
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
-#include "bf_rand.cpp"
 #include "bf_game_map.cpp"
 
 #ifdef BF_CLIENT
@@ -67,29 +62,27 @@ bool UI_Clicked(Game_State& state) {
     const auto& placeholder_texture
         = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
 
-    const auto psize = v2f(placeholder_texture.size);
+    const v2f psize = v2f(placeholder_texture.size);
 
     const v2f sprite_anchor = ui_state.buildables_panel_sprite_anchor;
 
-    const v2f  padding          = ui_state.padding;
-    const f32  placeholders_gap = ui_state.placeholders_gap;
-    const auto placeholders     = ui_state.placeholders;
-    const auto panel_size       = v2f(
+    const v2f padding          = v2f(ui_state.padding);
+    const f32 placeholders_gap = (f32)ui_state.placeholders_gap;
+    const f32 placeholders     = (f32)ui_state.placeholders;
+    const v2f panel_size       = v2f(
         psize.x + 2 * padding.x,
         2 * padding.y + placeholders_gap * (placeholders - 1) + placeholders * psize.y
     );
 
     const v2f  outer_anchor         = ui_state.buildables_panel_container_anchor;
     const v2i  outer_container_size = v2i(swidth, sheight);
-    const auto outer_pos            = v2f(
-        outer_container_size.x * outer_anchor.x, outer_container_size.y * outer_anchor.y
-    );
+    const auto outer_pos            = v2f(outer_container_size) * outer_anchor;
 
     auto VIEW = glm::mat3(1);
     VIEW      = glm::translate(VIEW, v2f((int)outer_pos.x, (int)outer_pos.y));
     VIEW      = glm::scale(VIEW, v2f(ui_state.scale));
 
-    i8 clicked_buildable_index = -1;
+    i32 clicked_buildable_index = -1;
 
     {
         auto MODEL = glm::mat3(1);
@@ -102,9 +95,9 @@ bool UI_Clicked(Game_State& state) {
 
         // Aligning items in a column
         // justify-content: center
-        FOR_RANGE (i8, i, placeholders) {
+        FOR_RANGE (i32, i, placeholders) {
             v3f drawing_point = origin;
-            drawing_point.y -= (f32)(placeholders - 1) * (psize.y + placeholders_gap) / 2;
+            drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
             drawing_point.y += (f32)i * (placeholders_gap + psize.y);
 
             v3f p   = VIEW * drawing_point;
@@ -133,7 +126,7 @@ void Process_Events(
     Game_State& state,
     const u8*   events,
     size_t      input_events_count,
-    float       dt,
+    float /* dt */,
     MCTX
 ) {
     auto& rstate   = *state.renderer_state;
@@ -292,18 +285,22 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
     return BFGame::GetGame_Library(result.output);
 }
 
-extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render) {
+extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
     ZoneScoped;
-    global_os_data = &os_data;
 
-    Arena root_arena = {};
-    root_arena.name  = "root_arena";
-    root_arena.base  = (u8*)memory_ptr;
-    root_arena.size  = memory_size;
-    root_arena.used  = 0;
+    const float MAX_DT = 1.0f / (f32)10;
+    if (dt > MAX_DT)
+        dt = MAX_DT;
 
-    auto& memory       = *Allocate_For(root_arena, Game_Memory);
-    auto& state        = memory.state;
+    Arena root_arena{};
+    root_arena.debug_name = "root_arena";
+    root_arena.base       = (u8*)memory_ptr;
+    root_arena.size       = memory_size;
+    root_arena.used       = 0;
+
+    auto& memory = *Allocate_For(root_arena, Game_Memory);
+
+    Game_State& state  = memory.state;
     state.hot_reloaded = hot_reloaded;
 
     auto first_time_initializing = !memory.is_initialized;
@@ -325,12 +322,17 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
     );
     auto ctx = &_ctx;
 
-    if (!editor_data.game_context_set) {
-        ImGui::SetCurrentContext(editor_data.context);
-        editor_data.game_context_set = true;
+    if (!library_integration_data.game_context_set) {
+        ImGui::SetCurrentContext(library_integration_data.imgui_context);
+        library_integration_data.game_context_set = true;
     }
 
+    auto& editor_data = state.editor_data;
+
     // --- IMGUI ---
+    if (first_time_initializing)
+        editor_data = Default_Editor_Data();
+
     if (!first_time_initializing) {
         auto& rstate = Assert_Deref(state.renderer_state);
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
@@ -418,25 +420,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
-        state.arena.name          = "arena";
-        non_persistent_arena.name = Allocate_Formatted_String(
+        state.arena.debug_name          = "arena";
+        non_persistent_arena.debug_name = Allocate_Formatted_String(
             non_persistent_arena, "non_persistent_arena_%d", state.dll_reloads_count
         );
-        trash_arena.name = Allocate_Formatted_String(
+        trash_arena.debug_name = Allocate_Formatted_String(
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count
         );
-
-        if (first_time_initializing) {
-            auto pages_count_that_fit_2GB = Gigabytes((size_t)2) / OS_DATA.page_size;
-
-            state.pages.base
-                = Allocate_Zeros_Array(arena, Page, pages_count_that_fit_2GB);
-
-            state.pages.in_use
-                = Allocate_Zeros_Array(arena, bool, pages_count_that_fit_2GB);
-
-            state.pages.total_count_cap = pages_count_that_fit_2GB;
-        }
 
         Initialize_As_Zeros<Game_Map>(state.game_map);
         state.game_map.size = {32, 24};
@@ -503,9 +493,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
                     }
 
                     Assert(scriptable_resource != nullptr);
-                    building.construction_resources.Add(
-                        {scriptable_resource, count}, ctx
-                    );
+                    *building.construction_resources.Vector_Occupy_Slot(ctx)
+                        = {scriptable_resource, count};
                 }
             }
         }
@@ -555,8 +544,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
-        On_Item_Built__Function((*callbacks[])) = {
-            Renderer__On_Item_Built,
+        On_Item_Built_function((*callbacks[])) = {
+            Renderer_OnItemBuilt,
         };
         INITIALIZE_OBSERVER_WITH_CALLBACKS(
             state.On_Item_Built, callbacks, non_persistent_arena

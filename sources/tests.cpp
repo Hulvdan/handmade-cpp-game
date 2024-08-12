@@ -25,9 +25,9 @@
 #include "bf_game.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
-// =============================================================
-// Memory Setup
-// =============================================================
+//----------------------------------------------------------------------------------
+// Memory Setup.
+//----------------------------------------------------------------------------------
 global_var Context _ctx(0, nullptr, nullptr, nullptr, nullptr, nullptr);
 
 #define INITIALIZE_CTX                                                          \
@@ -60,17 +60,6 @@ void heap_free(void* ptr) {
     _aligned_free(ptr);
 }
 
-Allocate_Pages__Function(Win32_Allocate_Pages) {
-    Assert(count % OS_DATA.min_pages_per_allocation == 0);
-    auto size   = OS_DATA.page_size * count;
-    auto result = (u8*)VirtualAlloc(
-        nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
-    );
-
-    virtual_allocations.push_back(result);
-    return result;
-}
-
 void Free_Allocations() {
     for (auto ptr : virtual_allocations)
         VirtualFree((void*)ptr, 0, MEM_RELEASE);
@@ -86,9 +75,12 @@ void Free_Allocations() {
     heap_allocations.clear();
 }
 
-// =============================================================
-// Tests
-// =============================================================
+//----------------------------------------------------------------------------------
+// Tests.
+//----------------------------------------------------------------------------------
+
+// bf_hash.cpp
+//----------------------------------------------------------------------------------
 TEST_CASE ("Hash32, EmptyIsCorrect") {
     CHECK(Hash32((u8*)"", 0) == EMPTY_HASH32);
 }
@@ -97,68 +89,20 @@ TEST_CASE ("Hash32, TestValue") {
     CHECK(Hash32((u8*)"test", 4) == 0xafd071e5);
 }
 
-TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
-    constexpr u64 size         = 512;
-    u8            output[size] = {};
+// bf_math.cpp
+//----------------------------------------------------------------------------------
+TEST_CASE ("Is_Power_Of_2") {
+    u32 power = 0;
 
-    Arena arena = {};
-    arena.size  = size;
-    arena.base  = output;
+    Assert(Is_Power_Of_2(2, &power));
+    Assert(power == 1);
+    Assert(Is_Power_Of_2(4, &power));
+    Assert(power == 2);
 
-    auto rules_data
-        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
-    i32  rules_data_size = 0;
-    auto p               = rules_data;
-    while (*p++)
-        rules_data_size++;
-
-    Smart_Tile tile = {};
-    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
-
-    CHECK(result.success == true);
-    CHECK(tile.rules_count == 2);
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
-}
-
-TEST_CASE ("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
-    constexpr u64 size         = 512;
-    u8            output[size] = {};
-
-    Arena arena = {};
-    arena.size  = size;
-    arena.base  = output;
-
-    auto rules_data
-        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
-    i32  rules_data_size = 0;
-    auto p               = rules_data;
-    while (*p++)
-        rules_data_size++;
-
-    Smart_Tile tile = {};
-    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
-
-    CHECK(result.success == true);
-    CHECK(tile.rules_count == 2);
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
-}
-
-TEST_CASE ("ProtoTest, Proto") {
-    CHECK(0xFF == 255);
-    CHECK(0x00FF == 255);
-    CHECK(0xFF00 == 65280);
-
-    CHECK(0b11111111 == 255);
-    CHECK(0b0000000011111111 == 255);
-    CHECK(0b1111111100000000 == 65280);
-}
-
-TEST_CASE ("frand, interval") {
-    for (int i = 0; i < 10000; i++) {
-        auto value = frand();
-        CHECK(value >= 0);
-        CHECK(value < 1);
-    }
+    Assert_False(Is_Power_Of_2(-1, &power));
+    Assert_False(Is_Power_Of_2(0, &power));
+    Assert_False(Is_Power_Of_2(1, &power));
+    Assert_False(Is_Power_Of_2(3, &power));
 }
 
 TEST_CASE ("Move_Towards") {
@@ -181,30 +125,63 @@ TEST_CASE ("Ceil_To_Power_Of_2") {
     CHECK(Ceil_To_Power_Of_2(2147483648) == 2147483648);
 }
 
-struct Test_Node {
-    size_t next;
-    u32    id;
-    bool   active;
+// bfc_tilemap.cpp
+//----------------------------------------------------------------------------------
+TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
+    constexpr u64 size         = 512;
+    u8            output[size] = {};
 
-    Test_Node()
-        : id(0)
-        , next(0)
-        , active(false) {}
-    Test_Node(u32 a_id)
-        : id(a_id)
-        , next(0)
-        , active(false) {}
-};
+    Arena arena{};
+    arena.size = size;
+    arena.base = output;
 
-#define Allocator_Allocate_Macro(allocator_, size_, alignment_) \
-    do {                                                        \
-        (allocator_).Allocate((size_), (alignment_));           \
-    } while (0)
+    auto rules_data
+        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
+    i32  rules_data_size = 0;
+    auto p               = rules_data;
+    while (*p++)
+        rules_data_size++;
 
-#define Allocator_Free_Macro(allocator_, key_) \
-    do {                                       \
-        (allocator_).Free((key_));             \
-    } while (0)
+    Smart_Tile tile{};
+    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
+
+    CHECK(result.success == true);
+    CHECK(tile.rules_count == 2);
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+}
+
+TEST_CASE ("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
+    constexpr u64 size         = 512;
+    u8            output[size] = {};
+
+    Arena arena{};
+    arena.size = size;
+    arena.base = output;
+
+    auto rules_data
+        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
+    i32  rules_data_size = 0;
+    auto p               = rules_data;
+    while (*p++)
+        rules_data_size++;
+
+    Smart_Tile tile{};
+    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
+
+    CHECK(result.success == true);
+    CHECK(tile.rules_count == 2);
+    CHECK(Hash32((u8*)"test", 4) == 2949673445);
+}
+
+// bf_rand.cpp
+//----------------------------------------------------------------------------------
+TEST_CASE ("frand, interval") {
+    for (int i = 0; i < 10000; i++) {
+        auto value = frand();
+        CHECK(value >= 0);
+        CHECK(value < 1);
+    }
+}
 
 TEST_CASE ("Align_Forward") {
     CHECK(Align_Forward(nullptr, 8) == nullptr);
@@ -414,7 +391,7 @@ int Process_Segments(
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \
-    Updated_Tiles updated_tiles = {};                                              \
+    Updated_Tiles updated_tiles{};                                                 \
     {                                                                              \
         std::vector<std::tuple<v2i, Tile_Updated_Type>> data = {__VA_ARGS__};      \
         updated_tiles.pos = Allocate_Zeros_Array(trash_arena, v2i16, data.size()); \
@@ -480,25 +457,11 @@ TEST_CASE ("Update_Tiles") {
 
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
-    OS_Data os_data   = {};
-    os_data.page_size = system_info.dwPageSize;
-    os_data.min_pages_per_allocation
-        = system_info.dwAllocationGranularity / os_data.page_size;
-    os_data.Allocate_Pages = Win32_Allocate_Pages;
-    global_os_data         = &os_data;
 
-    Arena trash_arena = {};
-    auto  trash_size  = Megabytes((size_t)2);
-    trash_arena.size  = trash_size;
-    trash_arena.base  = new u8[trash_size];
-
-    Pages pages = {};
-    {
-        auto pages_count      = Megabytes((size_t)1) / OS_DATA.page_size;
-        pages.base            = Allocate_Zeros_Array(trash_arena, Page, pages_count);
-        pages.in_use          = Allocate_Zeros_Array(trash_arena, bool, pages_count);
-        pages.total_count_cap = pages_count;
-    }
+    Arena trash_arena{};
+    auto  trash_size = Megabytes((size_t)2);
+    trash_arena.size = trash_size;
+    trash_arena.base = new u8[trash_size];
 
     auto          last_entity_id      = (Entity_ID)0;
     Building*     building_sawmill    = nullptr;
@@ -1206,42 +1169,40 @@ TEST_CASE ("Update_Tiles") {
 
     delete[] trash_arena.base;
     Free_Allocations();
-    // if (segments != nullptr)
-    //     Deinitialize_Bucket_Array(*segments);
 }
 
 TEST_CASE ("Queue") {
     INITIALIZE_CTX;
 
-    Queue<int> queue = {};
+    Queue<int> queue{};
 
     SUBCASE("Enqueue") {
         REQUIRE(queue.count == 0);
-        queue.Enqueue(10, ctx);
+        *queue.Enqueue(ctx) = 10;
         REQUIRE(queue.count == 1);
         auto val = queue.Dequeue();
         CHECK(val == 10);
         REQUIRE(queue.count == 0);
 
         REQUIRE(queue.max_count == 8);
-        queue.Enqueue(1, ctx);
+        *queue.Enqueue(ctx) = 1;
         REQUIRE(queue.count == 1);
-        queue.Enqueue(2, ctx);
+        *queue.Enqueue(ctx) = 2;
         REQUIRE(queue.count == 2);
-        queue.Enqueue(3, ctx);
+        *queue.Enqueue(ctx) = 3;
         REQUIRE(queue.count == 3);
-        queue.Enqueue(4, ctx);
+        *queue.Enqueue(ctx) = 4;
         REQUIRE(queue.count == 4);
-        queue.Enqueue(5, ctx);
+        *queue.Enqueue(ctx) = 5;
         REQUIRE(queue.count == 5);
-        queue.Enqueue(6, ctx);
+        *queue.Enqueue(ctx) = 6;
         REQUIRE(queue.count == 6);
-        queue.Enqueue(7, ctx);
+        *queue.Enqueue(ctx) = 7;
         REQUIRE(queue.count == 7);
-        queue.Enqueue(8, ctx);
+        *queue.Enqueue(ctx) = 8;
         REQUIRE(queue.count == 8);
         REQUIRE(queue.max_count == 8);
-        queue.Enqueue(9, ctx);
+        *queue.Enqueue(ctx) = 9;
         REQUIRE(queue.max_count == 16);
         REQUIRE(queue.count == 9);
 
@@ -1271,7 +1232,11 @@ TEST_CASE ("Queue") {
         constexpr auto n          = sizeof(numbers_) / sizeof(numbers_[0]);
         int*           numbers    = numbers_;
         REQUIRE(n == 10);
-        queue.Bulk_Enqueue(numbers, 10, ctx);
+        memcpy(  //
+            queue.Bulk_Enqueue(10, ctx),
+            numbers,
+            sizeof(*numbers) * 10
+        );
         REQUIRE(queue.count == 10);
         REQUIRE(queue.max_count == 16);
 
@@ -1333,4 +1298,14 @@ TEST_CASE ("Longest_Meaningful_Path") {
     CHECK(Longest_Meaningful_Path({4, 3}) == 9);
     CHECK(Longest_Meaningful_Path({5, 3}) == 11);
     CHECK(Longest_Meaningful_Path({5, 5}) == 17);
+}
+
+TEST_CASE ("ProtoTest, Proto") {
+    CHECK(0xFF == 255);
+    CHECK(0x00FF == 255);
+    CHECK(0xFF00 == 65280);
+
+    CHECK(0b11111111 == 255);
+    CHECK(0b0000000011111111 == 255);
+    CHECK(0b1111111100000000 == 65280);
 }

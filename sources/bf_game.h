@@ -1,4 +1,3 @@
-#pragma once
 #include "bf_base.h"
 
 #define Kilobytes(value) ((value) * 1024)
@@ -38,16 +37,6 @@
 #    endif
 #endif  // GAME_LIBRARY_BUILD
 
-#define Allocate_Pages__Function(name_) u8* name_(u32 count)
-// #define Deallocate_Pages__Function(name_) void name_(u8* base)
-
-struct GAME_LIBRARY_EXPORT OS_Data {
-    size_t page_size;  // in bytes
-    size_t min_pages_per_allocation;
-    Allocate_Pages__Function((*Allocate_Pages));
-    // Deallocate_Pages__Function((*Deallocate_Pages));
-};
-
 struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 width;
     i32 height;
@@ -56,50 +45,13 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
     void* memory;
 };
 
-struct Perlin_Params {
-    int  octaves;
-    f32  scaling_bias;
-    uint seed;
-};
-
 struct ImGuiContext;
-struct GAME_LIBRARY_EXPORT Editor_Data {
-    bool          changed;
-    bool          game_context_set;
-    ImGuiContext* context;
 
-    Perlin_Params terrain_perlin;
-    int           terrain_max_height;
-
-    Perlin_Params forest_perlin;
-    f32           forest_threshold;
-    int           forest_max_amount;
-
-    int arena_numbers[2];
-
-    int dll_reloads_count;
+struct GAME_LIBRARY_EXPORT Library_Integration_Data {
+    bool          game_context_set  = {};
+    ImGuiContext* imgui_context     = {};
+    int           dll_reloads_count = {};
 };
-
-Editor_Data Default_Editor_Data() {
-    Editor_Data res = {};
-
-    res.changed          = false;
-    res.game_context_set = false;
-    res.context          = nullptr;
-
-    res.terrain_perlin.octaves      = 9;
-    res.terrain_perlin.scaling_bias = 2.0f;
-    res.terrain_perlin.seed         = 0;
-    res.terrain_max_height          = 6;
-
-    res.forest_perlin.octaves      = 7;
-    res.forest_perlin.scaling_bias = 0.38f;
-    res.forest_perlin.seed         = 0;
-    res.forest_threshold           = 0.54f;
-    res.forest_max_amount          = 5;
-
-    return res;
-}
 
 // --- EVENTS START ---
 enum class Event_Type {
@@ -201,18 +153,17 @@ struct Controller_Axis_Changed {
 // --- EVENTS END ---
 
 // --- EXPORTED FUNCTIONS ---
-#define Game_Update_And_Render__Function(name_) \
-    void name_(                                 \
-        f32          dt,                        \
-        void*        memory_ptr,                \
-        size_t       memory_size,               \
-        Game_Bitmap& bitmap,                    \
-        void*        input_events_bytes_ptr,    \
-        size_t       input_events_count,        \
-        Editor_Data& editor_data,               \
-        OS_Data&     os_data,                   \
-        bool         hot_reloaded               \
-    )
+#define Game_Update_And_Render_function(name_)              \
+    void name_(                                             \
+        f32                       dt,                       \
+        void*                     memory_ptr,               \
+        size_t                    memory_size,              \
+        Game_Bitmap&              bitmap,                   \
+        void*                     input_events_bytes_ptr,   \
+        size_t                    input_events_count,       \
+        Library_Integration_Data& library_integration_data, \
+        bool                      hot_reloaded              \
+    ) noexcept
 
-extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render__Function(Game_Update_And_Render);
+extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render);
 // --- EXPORTED FUNCTIONS END ---

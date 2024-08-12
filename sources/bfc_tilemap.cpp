@@ -1,4 +1,3 @@
-#pragma once
 
 #ifndef BF_CLIENT
 #    error "This code should run on a client! BF_CLIENT must be defined!"
@@ -25,10 +24,12 @@ Tile_State_Check Parse_Tile_State_Check(u8 data) {
 // NOTE: Сюда не смотреть.
 // В момент написания я забыл про то, что существуют парсеры / лексеры)
 Load_Smart_Tile_Result
-Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize) {
+Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 filesize_) {
+    u32 filesize = Assert_Truncate_To_u32(filesize_);
+
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE
     auto c = filedata;
-    auto f = filesize;
+    u32  f = filesize;
     while (f--)
         Assert(*c != '\0');
     // --- ASSERTING THAT THERE IS NO `0` BYTES IN THE LOADED FILE END
@@ -47,9 +48,9 @@ Load_Smart_Tile_Rules(Smart_Tile& tile, Arena& arena, const u8* filedata, u64 fi
     // |@@@|
     // | @ |
 
-    Load_Smart_Tile_Result res = {};
-    tile.rules_count           = 0;
-    tile.rules                 = nullptr;
+    Load_Smart_Tile_Result res{};
+    tile.rules_count = 0;
+    tile.rules       = nullptr;
 
     // 1. Parsing fallback_texture_name
     {

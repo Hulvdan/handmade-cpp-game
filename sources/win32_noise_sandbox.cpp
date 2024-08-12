@@ -86,7 +86,7 @@ void Win32Paint(f32 dt, HWND window_handle, HDC device_context) {
         Win32UpdateBitmap(device_context);
 
     SwapBuffers(device_context);
-    Check_OpenGL_Errors();
+    BFGL_Check_Errors();
 
     events_count = 0;
     events.clear();
@@ -215,13 +215,13 @@ void Update_GUI(Arena& arena, Loaded_Texture& tex) {
         );
 
         glBindTexture(GL_TEXTURE_2D, tex.id);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glTexImage2D(
             GL_TEXTURE_2D,
@@ -264,7 +264,7 @@ int main(int, char**) {
     const i32 SLEEP_MSEC_GRANULARITY = 1;
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
 
-    WNDCLASSA windowClass = {};
+    WNDCLASSA windowClass{};
     // NOTE: Casey says that OWNDC is what makes us able
     // not to ask the OS for a new DC each time we need to draw if I understood correctly.
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -321,9 +321,9 @@ int main(int, char**) {
         auto hdc = GetDC(window_handle);
 
         // --- Setting up pixel format start ---
-        PIXELFORMATDESCRIPTOR pfd = {};
-        pfd.nSize                 = sizeof(PIXELFORMATDESCRIPTOR);
-        pfd.nVersion              = 1;
+        PIXELFORMATDESCRIPTOR pfd{};
+        pfd.nSize       = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion    = 1;
         pfd.dwFlags     = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
         pfd.dwLayerMask = PFD_MAIN_PLANE;
         pfd.iPixelType  = PFD_TYPE_RGBA;
@@ -366,10 +366,10 @@ int main(int, char**) {
 
         glEnable(GL_BLEND);
         glClearColor(1, 0, 1, 1);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         glShadeModel(GL_SMOOTH);
-        Check_OpenGL_Errors();
+        BFGL_Check_Errors();
 
         ReleaseDC(window_handle, hdc);
         Win32GLResize();
@@ -410,7 +410,7 @@ int main(int, char**) {
     while (running) {
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
 
-        MSG message = {};
+        MSG message{};
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE) != 0) {
             if (message.message == WM_QUIT) {
                 running = false;

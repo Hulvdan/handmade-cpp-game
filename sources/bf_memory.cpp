@@ -1,5 +1,3 @@
-#pragma once
-
 #define COALESCE(value, fallback) (((value) != nullptr) ? (value) : (fallback))
 
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
@@ -46,21 +44,17 @@
 #endif
 
 #define MCTX Context* ctx
+#define MCTX_ Context* /* ctx */
 
 #define CTX_ALLOCATOR                      \
     auto& allocator      = ctx->allocator; \
     auto& allocator_data = ctx->allocator_data;
 
 #define PUSH_CONTEXT(new_ctx, code) \
-    do {                            \
+    STATEMENT({                     \
         auto ctx = (new_ctx);       \
         (code);                     \
-    } while (0)
-
-template <typename T>
-void Vector_Unordered_Remove_At(std::vector<T>& container, i32 i);
-
-// ==============================
+    })
 
 enum class Allocator_Mode {
     Allocate = 0,
@@ -70,54 +64,34 @@ enum class Allocator_Mode {
     Sanity,
 };
 
-#define Allocator__Function(name_)     \
-    void* name_(                       \
-        Allocator_Mode mode,           \
-        size_t         size,           \
-        size_t         alignment,      \
-        size_t         old_size,       \
-        void*          old_memory_ptr, \
-        void*          allocator_data, \
-        u64            options         \
+#define Allocator_function(name_)                   \
+    /* NOLINTNEXTLINE(bugprone-macro-parentheses)*/ \
+    void* name_(                                    \
+        Allocator_Mode mode,                        \
+        size_t         size,                        \
+        size_t         alignment,                   \
+        size_t         old_size,                    \
+        void*          old_memory_ptr,              \
+        void*          allocator_data,              \
+        u64            options                      \
     )
 
-using Allocator_Function_Type = Allocator__Function((*));
+using Allocator_function_t = Allocator_function((*));
 
 struct Context {
-    u32 thread_index;
+    u32 thread_index = {};
 
-    Allocator_Function_Type allocator;
-    void*                   allocator_data;
+    Allocator_function_t allocator      = {};
+    void*                allocator_data = {};
 
-    Logger_Function_Type         logger_routine;
-    Logger_Tracing_Function_Type logger_tracing_routine;
-    void*                        logger_data;
-
-    // Context() = default;
-
-    Context(
-        u32                          a_thread_index,
-        Allocator_Function_Type      a_allocator,
-        void*                        a_allocator_data,
-        Logger_Function_Type         a_logger_routine,
-        Logger_Tracing_Function_Type a_logger_tracing_routine,
-        void*                        a_logger_data
-    )
-        : thread_index(a_thread_index)
-        , allocator(a_allocator)
-        , allocator_data(a_allocator_data)
-        , logger_routine(a_logger_routine)
-        , logger_tracing_routine(a_logger_tracing_routine)
-        , logger_data(a_logger_data) {}
+    Logger_function_t         logger_routine         = {};
+    Logger_Tracing_function_t logger_tracing_routine = {};
+    void*                     logger_data            = {};
 };
 
 struct Blk {
-    void*  ptr;
-    size_t length;
-
-    Blk(void* a_ptr, size_t a_length)
-        : ptr(a_ptr)
-        , length(a_length) {}
+    void*  ptr    = {};
+    size_t length = {};
 
     friend bool operator==(const Blk& a, const Blk& b) {
         return a.ptr == b.ptr && a.length == b.length;
@@ -216,7 +190,9 @@ private:
 
 struct Malloc_Allocator {
     Blk Allocate(size_t n) {
-        return Blk(malloc(n), n);
+        // NOLINTNEXTLINE(clang-analyzer-unix.Malloc)
+        auto result = Blk(malloc(n), n);
+        return result;
     }
 
     void Deallocate(Blk b) {
@@ -236,9 +212,9 @@ struct Malloc_Allocator {
 
 struct Freeable_Malloc_Allocator {
     Blk Allocate(size_t n) {
-        auto res = Blk(malloc(n), n);
-        _allocations.push_back(res);
-        return res;
+        auto result = Blk(malloc(n), n);
+        _allocations.push_back(result);
+        return result;
     }
 
     void Deallocate(Blk b) {
@@ -285,10 +261,8 @@ private:
 //     // ... use p[0] through p[n - 1]...
 // }
 
-// ===== Freelist =====
-
-// Keeps list of previous allocations of a given size
-
+// Freelist keeps list of previous allocations of a given size
+//
 // - Add tolerance: min...max
 // - Allocate in batches
 // - Add upper bound: no more than top elems
@@ -300,7 +274,6 @@ private:
 //     8,   // Allocate 8 at a time
 //     1024 // No more than 1024 remembered
 // > alloc8r;
-
 template <class A, size_t min, size_t max, i32 min_allocations = 8, i32 top = 1024>
 struct Freelist {
     static_assert(top > 0);
@@ -382,8 +355,6 @@ private:
     i32 _remembered = 0;
 };
 
-// ===== Adding Affixes =====
-
 struct Size_Affix {
     size_t n;
 
@@ -434,8 +405,8 @@ struct Affix_Allocator {
             }
         }
 
-        auto res = Blk((void*)ptr, n);
-        return res;
+        auto result = Blk((void*)ptr, n);
+        return result;
     }
 
     bool Owns(Blk b) {
@@ -474,7 +445,7 @@ struct Affix_Allocator {
 
         {  // NOTE: Забываем об адресе
             bool found = false;
-            for (auto [aptr, alength] : _allocations) {
+            for (const auto& [aptr, alength] : _allocations) {
                 if (aptr == b.ptr) {
                     Assert(!found);
                     Assert(alength == b.length);
@@ -546,17 +517,6 @@ private:
 //     //     (caller file/line/function/time)
 // };
 
-// ===== Bitmapped Block =====
-
-constexpr bool Is_Power_Of_2(const size_t number) {
-    size_t n = 1;
-
-    while (n < number)
-        n *= 2;
-
-    return number == n;
-}
-
 // NOTE: Small аллокатор, похожий на тот, что схематично приведён в книге
 // "Game Engine Gems 2. Ch. 26. A Highly Optimized Portable Memory Manager".
 // `dlmalloc` подробно не изучал, когда эту штуку писал.
@@ -595,7 +555,7 @@ class Bitmapped_Allocator {
             memset(_occupied, 0, block_size);
         }
 
-        size_t required_blocks = Ceil_Division(n, block_size);
+        size_t required_blocks = Ceiled_Division(n, block_size);
 
         size_t location = 0;
         while (location <= Total_Blocks_Count() - required_blocks) {
@@ -648,7 +608,7 @@ class Bitmapped_Allocator {
         UNMARK_BIT(_allocation_bits, block);
 
         // Unmarking occupied bits
-        FOR_RANGE (size_t, i, Ceil_Division(b.length, block_size)) {
+        FOR_RANGE (size_t, i, Ceiled_Division(b.length, block_size)) {
             Assert(QUERY_BIT(_occupied, block + i));
             UNMARK_BIT(_occupied, block + i);
 
@@ -841,11 +801,7 @@ private:
 //         Fallback_Allocator<Bitmapped_Allocator<Malloc_Allocator, 32>, Null_Allocator>>,
 //     Malloc_Allocator>;
 
-// ========================
-
 // using Game_Map_Allocator = Malloc_Allocator;
-
-// ========================
 
 // template <class A>
 // using FList = Freelist<A, 0, size_t_max>;
@@ -862,9 +818,9 @@ private:
 //         Malloc_Allocator>>;
 
 struct Stoopid_Affix {
-    char data[2048];
+    char data[2048] = {};
 
-    Stoopid_Affix(size_t n) {
+    Stoopid_Affix(size_t /* n */) {
         FOR_RANGE (int, i, 2048 / 4) {
             data[i * 4 + 0] = (char)124;
             data[i * 4 + 1] = (char)125;
@@ -905,7 +861,8 @@ struct Stoopid_Affix {
 
 global_var Root_Allocator_Type* root_allocator = nullptr;
 
-Allocator__Function(Root_Allocator_Routine) {
+// NOLINTNEXTLINE(misc-unused-parameters)
+Allocator_function(Root_Allocator_Routine) {
     Assert(allocator_data == nullptr);
 
     switch (mode) {
@@ -918,7 +875,10 @@ Allocator__Function(Root_Allocator_Routine) {
     } break;
 
     case Allocator_Mode::Resize: {
-        NOT_IMPLEMENTED;
+        auto p = root_allocator->Allocate(size).ptr;
+        memcpy(p, old_memory_ptr, old_size);
+        root_allocator->Deallocate(Blk(old_memory_ptr, old_size));
+        return p;
     } break;
 
     case Allocator_Mode::Free: {
@@ -948,7 +908,8 @@ Allocator__Function(Root_Allocator_Routine) {
     return nullptr;
 }
 
-Allocator__Function(Only_Once_Free_All_Root_Allocator) {
+// NOLINTNEXTLINE(misc-unused-parameters)
+Allocator_function(Only_Once_Free_All_Root_Allocator) {
     switch (mode) {
     case Allocator_Mode::Allocate: {
         Assert(old_memory_ptr == nullptr);
@@ -990,9 +951,9 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
     return nullptr;
 }
 
-// ========================
-
-// ===== Complete API =====
+//----------------------------------------------------------------------------------
+// Complete API.
+//----------------------------------------------------------------------------------
 // namespace {
 //
 // static constexpr unsigned alignment;
@@ -1023,3 +984,9 @@ Allocator__Function(Only_Once_Free_All_Root_Allocator) {
 // - Understanding history
 //     - Otherwise: "... doomed to repeat it"
 // - Composability is key
+
+void Rect_Copy(u8* dest, u8* source, int stride, int rows, int bytes_per_line) {
+    FOR_RANGE (int, i, rows) {
+        memcpy(dest + i * bytes_per_line, source + i * stride, bytes_per_line);
+    }
+}

@@ -12,6 +12,7 @@ Checks: '
          modernize-*,
          -bugprone-easily-swappable-parameters,
          -bugprone-exception-escape,
+         -bugprone-implicit-widening-of-multiplication-result,
          -cppcoreguidelines-avoid-c-arrays,
          -cppcoreguidelines-avoid-do-while,
          -cppcoreguidelines-avoid-magic-numbers,
@@ -31,7 +32,7 @@ Checks: '
          -modernize-use-trailing-return-type
          '
 WarningsAsErrors: true
-HeaderFilterRegex: ''
+HeaderFilterRegex: 'sources/.*'
 AnalyzeTemporaryDtors: false
 FormatStyle:     google
 CheckOptions:
