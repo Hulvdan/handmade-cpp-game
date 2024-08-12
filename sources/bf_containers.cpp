@@ -373,7 +373,7 @@ struct Memory_Buffer {
         }
         else if (count + size > max_count) {
             auto ceiled_size = Ceil_To_Power_Of_2(size);
-            base             = (void*)REALLOC(ceiled_size, size, base);
+            base             = (void*)REALLOC(ceiled_size, max_count, base);
             max_count        = ceiled_size;
         }
     }

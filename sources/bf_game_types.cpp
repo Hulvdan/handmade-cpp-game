@@ -562,6 +562,9 @@ struct Observer {
 #define On_Item_Built_function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
+#define On_Human_Created_function(name_) \
+    void name_(Game_State& state, const Human_ID& id, Human& human, MCTX)
+
 struct Editor_Data {
     bool changed = {};
 
@@ -615,7 +618,8 @@ struct Game_State {
     Game_Renderer_State* renderer_state = {};
 #endif  // BF_CLIENT
 
-    Observer<On_Item_Built_function((*))> On_Item_Built = {};
+    Observer<On_Item_Built_function((*))>    On_Item_Built    = {};
+    Observer<On_Human_Created_function((*))> On_Human_Created = {};
 
     const BFGame::Game_Library* gamelib = {};
 };

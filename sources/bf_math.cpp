@@ -147,3 +147,10 @@ u32 Longest_Meaningful_Path(v2i16 size) {
     i32 result = MAX(v1, v2);
     return result;
 }
+
+v2f Lerp_v2f(v2f from, v2f to, f32 t) {
+    v2f result{};
+    result.x = from.x + (to.x - from.x) * t;
+    result.y = from.y + (to.y - from.y) * t;
+    return result;
+}

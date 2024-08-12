@@ -1625,6 +1625,30 @@ void Render(Game_State& state, f32 dt, MCTX) {
     W2GL      = glm::scale(W2GL, v2f(2, -2));
     W2GL *= W2RelScreen;
 
+    // Обновление позиций чувачков.
+    {
+        // TODO: Посмотреть что там по ECS
+        for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
+            auto& human = *human_ptr;
+
+            for (auto [sprite_id, sprite_ptr] : Iter(&rstate.sprites)) {
+                if (human_id != sprite_id)
+                    continue;
+
+                v2f pos = v2f(human.moving.pos);
+
+                if (human.moving.to.has_value())
+                    pos = Lerp_v2f(
+                        {human.moving.pos},
+                        {human.moving.to.value()},
+                        human.moving.progress
+                    );
+
+                sprite_ptr->pos = pos;
+            }
+        }
+    }
+
     // Рисование tilemap.
     if (!rstate.shaders_compilation_failed) {
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
@@ -1971,5 +1995,24 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
         default:
             INVALID_PATH;
         }
+    }
+}
+
+// Game_State& state, const Human_ID& id, Human& human, MCTX
+On_Human_Created_function(Renderer_OnHumanCreated) {
+    auto& rstate = *state.renderer_state;
+
+    C_Sprite human_sprite{};
+    human_sprite.pos      = human.moving.pos;
+    human_sprite.scale    = {1, 1};
+    human_sprite.anchor   = {0.5f, 0.5f};
+    human_sprite.rotation = 0;
+    human_sprite.texture  = rstate.human_texture;
+    human_sprite.z        = 0;
+
+    {
+        auto [pid, pvalue] = rstate.sprites.Add(ctx);
+        *pid               = id;
+        *pvalue            = human_sprite;
     }
 }

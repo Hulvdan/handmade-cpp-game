@@ -544,12 +544,23 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
-        On_Item_Built_function((*callbacks[])) = {
-            Renderer_OnItemBuilt,
-        };
-        INITIALIZE_OBSERVER_WITH_CALLBACKS(
-            state.On_Item_Built, callbacks, non_persistent_arena
-        );
+        {
+            On_Item_Built_function((*callbacks[])) = {
+                Renderer_OnItemBuilt,
+            };
+            INITIALIZE_OBSERVER_WITH_CALLBACKS(
+                state.On_Item_Built, callbacks, non_persistent_arena
+            );
+        }
+
+        {
+            On_Human_Created_function((*callbacks[])) = {
+                Renderer_OnHumanCreated,
+            };
+            INITIALIZE_OBSERVER_WITH_CALLBACKS(
+                state.On_Human_Created, callbacks, non_persistent_arena
+            );
+        }
 
         Post_Init_Game_Map(
             first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx

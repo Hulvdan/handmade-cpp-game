@@ -908,13 +908,15 @@ void Root_Set_Human_State(
 // Он добавляется в game_map.humans_to_add, после чего перекидывается в gama_map.humans.
 // Привязка к сегменту происходит в этот момент.
 std::tuple<Human_ID, Human*> Create_Human_Transporter(
-    Game_Map&         game_map,
+    Game_State&       state,
     v2i16             pos,
     Graph_Segment_ID  segment_id,
     Player_ID         player_id,
     const Human_Data& data,
     MCTX
 ) {
+    auto& game_map = state.game_map;
+
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
     LOG_DEBUG("Creating a new human...");
@@ -941,6 +943,8 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     *human_ptr = human;
 
     Root_Set_Human_State(*human_ptr, Human_States::MovingInTheWorld, data, ctx);
+
+    INVOKE_OBSERVER(state.On_Human_Created, (state, *human_id, *human_ptr, ctx));
 
     // TODO:
     // onHumanCreated.OnNext(new() { human = human });
@@ -1021,7 +1025,7 @@ void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX)
                 if (since_created >= delay) {
                     since_created -= delay;
                     Create_Human_Transporter(
-                        game_map,
+                        state,
                         building->pos,
                         game_map.segments_wo_humans.Dequeue(),
                         building->player_id,
