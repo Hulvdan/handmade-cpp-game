@@ -1219,7 +1219,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
-    auto segments    = &game_map.segments;
+    auto  segments    = &game_map.segments;
 
     ImGui::Text("last_segments_to_add_count %d", global_last_segments_to_add_count);
     ImGui::Text("last_segments_to_delete_count %d", global_last_segments_to_delete_count);
@@ -1823,6 +1823,8 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
 ) {
     CTX_ALLOCATOR;
 
+    DEBUG_Print_Graph(added_segment.graph, trash_arena);
+
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
     Graph_Segment segment = added_segment;
@@ -1831,6 +1833,7 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
         segment.assigned_human_id = Human_ID_Missing;
         Init_Vector(segment.linked_segments, ctx);
     }
+    DEBUG_Print_Graph(segment.graph, trash_arena);
 
     auto [pid, segment1_ptr] = segments.Add(ctx);
     *pid                     = Next_Graph_Segment_ID(last_entity_id);
@@ -2206,6 +2209,7 @@ void Update_Graphs(
         // NOTE: Adding a new segment.
         Assert(temp_graph.nodes_count > 0);
 
+        // TODO: Add_Unsafe()?
         auto& segment          = added_segments.items[added_segments.count];
         segment.vertices_count = vertices_count;
         added_segments.count += 1;
@@ -2249,8 +2253,9 @@ void Update_Graphs(
 
         segment.graph.nodes = (u8*)ALLOC(nodes_allocation_count);
 
-        auto rows          = gr_size.y;
-        auto stride        = gsize.x;
+        auto rows   = gr_size.y;
+        auto stride = gsize.x;
+        // auto stride        = gr_size.x;
         auto starting_node = temp_graph.nodes + offset.y * gsize.x + offset.x;
         Rect_Copy(segment.graph.nodes, starting_node, stride, rows, gr_size.x);
 

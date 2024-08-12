@@ -111,6 +111,70 @@ struct Graph {
     Calculated_Graph_Data* data = {};
 };
 
+wchar_t Graph_Node_To_String(u8 node) {
+    Assert(node < 16);
+    //
+    //         0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    // U+250x  ─  ━  │  ┃  ┄  ┅  ┆  ┇  ┈  ┉  ┊  ┋  ┌  ┍  ┎  ┏
+    // U+251x  ┐  ┑  ┒  ┓  └  ┕  ┖  ┗  ┘  ┙  ┚  ┛  ├  ┝  ┞  ┟
+    // U+252x  ┠  ┡  ┢  ┣  ┤  ┥  ┦  ┧  ┨  ┩  ┪  ┫  ┬  ┭  ┮  ┯
+    // U+253x  ┰  ┱  ┲  ┳  ┴  ┵  ┶  ┷  ┸  ┹  ┺  ┻  ┼  ┽  ┾  ┿
+    // U+254x  ╀  ╁  ╂  ╃  ╄  ╅  ╆  ╇  ╈  ╉  ╊  ╋  ╌  ╍  ╎  ╏
+    // U+255x  ═  ║  ╒  ╓  ╔  ╕  ╖  ╗  ╘  ╙  ╚  ╛  ╜  ╝  ╞  ╟
+    // U+256x  ╠  ╡  ╢  ╣  ╤  ╥  ╦  ╧  ╨  ╩  ╪  ╫  ╬  ╭  ╮  ╯
+    // U+257x  ╰  ╱  ╲  ╳  ╴  ╵  ╶  ╷  ╸  ╹  ╺  ╻  ╼  ╽  ╾  ╿
+    //
+    wchar_t borders[] = {
+        L' ',       // 0
+        L'\u257A',  // 1
+        L'\u2579',  // 2
+        L'\u2517',  // 3
+        L'\u2578',  // 4
+        L'\u2501',  // 5
+        L'\u251B',  // 6
+        L'\u253B',  // 7
+        L'\u257B',  // 8
+        L'\u250F',  // 9
+        L'\u2503',  // 10
+        L'\u2523',  // 11
+        L'\u2513',  // 12
+        L'\u2533',  // 13
+        L'\u252B',  // 14
+        L'\u254B',  // 15
+    };
+    auto result = borders[node];
+    return result;
+}
+
+const wchar_t* To_String(Graph& graph, Arena& arena) {
+    wchar_t* result = Allocate_Array(
+        arena, wchar_t, sizeof(wchar_t) * (graph.size.x + 1) * graph.size.y
+    );
+
+    FOR_RANGE (int, y_, graph.size.y) {
+        const auto y = graph.size.y - y_ - 1;
+
+        auto r = result + y_ * graph.size.x + y_;
+
+        FOR_RANGE (int, x, graph.size.x) {
+            u8 node = graph.nodes[y * graph.size.x + x];
+
+            *r = Graph_Node_To_String(node);
+            r++;
+
+            if (x == graph.size.x - 1)
+                *r = L'\n';
+        }
+    }
+    return result;
+}
+
+void DEBUG_Print_Graph(Graph& graph, Arena& arena) {
+    TEMP_USAGE(arena);
+    auto res = To_String(graph, arena);
+    ::OutputDebugStringW(res);
+}
+
 BF_FORCE_INLINE bool Graph_Contains(const Graph& graph, v2i16 pos) {
     auto off    = pos - graph.offset;
     bool result = Pos_Is_In_Bounds(off, graph.size);
