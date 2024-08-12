@@ -20,6 +20,9 @@
 #    define BREAKPOINT STATEMENT({})
 #endif  // BF_INTERNAL
 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
 #ifdef BF_INTERNAL
 static constexpr auto DEBUG_MAX_LEN = 512;
 
@@ -28,7 +31,10 @@ void DEBUG_Error(const char* text, ...) {
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
-    vsnprintf(buf, DEBUG_MAX_LEN, text, args);
+    auto n = vsnprintf(buf, DEBUG_MAX_LEN, text, args);
+
+    buf[MIN(n, DEBUG_MAX_LEN - 1)]     = '\n';
+    buf[MIN(n + 1, DEBUG_MAX_LEN - 1)] = '\0';
 
     ::OutputDebugStringA(buf);
     va_end(args);
@@ -39,7 +45,10 @@ void DEBUG_Print(const char* text, ...) {
     va_list args;
     va_start(args, text);
     char buf[DEBUG_MAX_LEN];
-    vsnprintf(buf, DEBUG_MAX_LEN, text, args);
+    auto n = vsnprintf(buf, DEBUG_MAX_LEN, text, args);
+
+    buf[MIN(n, DEBUG_MAX_LEN - 1)]     = '\n';
+    buf[MIN(n + 1, DEBUG_MAX_LEN - 1)] = '\0';
 
     ::OutputDebugStringA(buf);
     va_end(args);
@@ -192,8 +201,6 @@ BF_FORCE_INLINE T* Assert_Not_Null(T* value) {
 
 static constexpr f32 BF_PI  = 3.14159265359f;
 static constexpr f32 BF_2PI = 6.28318530718f;
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 // NOTE: bounds are EXCLUSIVE
 #define Pos_Is_In_Bounds(pos, bounds) \

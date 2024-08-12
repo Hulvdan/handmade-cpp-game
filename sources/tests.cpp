@@ -252,10 +252,8 @@ int Process_Segments(
     element_tiles    = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
 
     {
-        using segments_type
-            = std::remove_pointer<std::remove_reference<decltype(segments)>::type>::type;
-        segments = Allocate_For(trash_arena, segments_type);
-        std::construct_at(segments, 32, ctx);
+        using t  = Sparse_Array<Graph_Segment_ID, Graph_Segment>;
+        segments = Allocate_Zeros_For(trash_arena, t);
     }
 
     auto tiles         = Allocate_Zeros_Array(trash_arena, Element_Tile, tiles_count);
@@ -469,7 +467,7 @@ TEST_CASE ("Update_Tiles") {
     v2i           gsize               = -v2i_one;
     Element_Tile* element_tiles       = nullptr;
 
-    Sparse_Array<Graph_Segment_ID, Graph_Segment> segments_{32, ctx};
+    Sparse_Array<Graph_Segment_ID, Graph_Segment> segments_{};
 
     auto segments = &segments_;
 
@@ -880,6 +878,7 @@ TEST_CASE ("Update_Tiles") {
             ".r",  //
             "Cr"
         );
+        CHECK(segments_count == 1);
 
         auto pos                                = v2i(1, 1);
         GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;

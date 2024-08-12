@@ -397,9 +397,9 @@ struct Sparse_Array_Of_Ids {
     void Unstable_Remove(const T id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
-                if (i != count - 1) {
+                if (i != count - 1)
                     std::swap(ids[i], ids[count - 1]);
-                }
+
                 count--;
                 return;
             }
@@ -479,11 +479,7 @@ struct Sparse_Array {
             if (ids[i] == id) {
                 if (i != count - 1) {
                     std::swap(ids[i], ids[count - 1]);
-
-                    U b;
-                    memcpy(&b, base + i, sizeof(U));
-                    memcpy(base + i, base + count - 1, sizeof(U));
-                    memcpy(&base + count - 1, &b, sizeof(U));
+                    std::swap(base[i], base[count - 1]);
                 }
                 count--;
                 return;

@@ -636,7 +636,7 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
         human.state_moving_in_the_world
             = Moving_In_The_World_State::Moving_To_The_City_Hall;
 
-        Building& city_hall = Assert_Deref(Query_Building(game_map, human.player_id));
+        Building& city_hall = *Query_Building(game_map, human.building_id);
 
         TEMP_USAGE(*data.trash_arena);
         auto [success, path, path_count] = Find_Path(
@@ -2236,6 +2236,8 @@ void Update_Graphs(
     }
 }
 
+// Создание сетки графа.
+// Вызывается на старте игры (предполагается, что при её загрузке).
 void Build_Graph_Segments(
     Entity_ID&                                     last_entity_id,
     v2i16                                          gsize,
@@ -2324,6 +2326,8 @@ void Build_Graph_Segments(
     SANITIZE;
 }
 
+// Обновление сетки графа после строения чего-либо.
+// Сразу несколько тайлов могут быть построены или удалены.
 std::tuple<int, int> Update_Tiles(
     v2i16                                          gsize,
     Element_Tile*                                  element_tiles,
@@ -2346,7 +2350,6 @@ std::tuple<int, int> Update_Tiles(
 
     // NOTE: Ищем сегменты для удаления.
     auto segments_to_delete_allocate = updated_tiles.count * 4;
-    u32  segments_to_delete_count    = 0;
 
     Graph_Segments_To_Delete segments_to_delete{};
     segments_to_delete.max_count = segments_to_delete_allocate;
@@ -2510,8 +2513,8 @@ std::tuple<int, int> Update_Tiles(
             auto& g2        = segment2.graph;
             v2i16 g2_offset = {g2.offset.x, g2.offset.y};
 
-            for (auto y = 0; y < g1.size.y; y++) {
-                for (auto x = 0; x < g1.size.x; x++) {
+            FOR_RANGE (int, y, g1.size.y) {
+                FOR_RANGE (int, x, g1.size.x) {
                     v2i16 g1p_world = v2i16(x, y) + g1_offset;
                     v2i16 g2p_local = g1p_world - g2_offset;
                     if (!Pos_Is_In_Bounds(g2p_local, g2.size))
@@ -2527,7 +2530,7 @@ std::tuple<int, int> Update_Tiles(
     }
 #endif  // ASSERT_SLOW
 
-    return {segments_to_add.count, segments_to_delete_count};
+    return {segments_to_add.count, segments_to_delete.count};
 }
 
 #define Declare_Updated_Tiles(variable_name_, pos_, type_) \

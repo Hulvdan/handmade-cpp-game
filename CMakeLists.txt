@@ -128,6 +128,7 @@ target_include_directories(tests PRIVATE
     "${IMGUI_DIR}"
     "${IMGUI_DIR}/backends"
     "${FLATBUFFERS_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/codegen/flatbuffers"
 )
 target_compile_definitions(tests PRIVATE
     GAME_LIBRARY_BUILD
