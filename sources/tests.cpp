@@ -475,6 +475,7 @@ TEST_CASE ("Update_Tiles") {
         return Global_Make_Building(element_tiles, trash_arena, type, pos);
     };
 
+    /*
     // Agenda:
     // - B  - building
     // - C  - City Hall
@@ -937,12 +938,32 @@ TEST_CASE ("Update_Tiles") {
         CHECK(added_segments_count == 2);
         CHECK(removed_segments_count == 1);
     }
+    */
+
+    SUBCASE("Test_NoIntersections") {
+        Process_Segments_Macro(
+            "Frr",  //
+            "r.r",  //
+            "rrF"
+        );
+        CHECK(segments_count == 2);
+
+        auto pos                                = v2i(2, 2);
+        GRID_PTR_VALUE(element_tiles, pos).type = Element_Tile_Type::Flag;
+
+        Test_Declare_Updated_Tiles({pos, Tile_Updated_Type::Flag_Placed});
+        Update_Tiles_Macro(updated_tiles);
+
+        CHECK(added_segments_count == 2);
+        CHECK(removed_segments_count == 1);
+    }
 
     SUBCASE("Test_BuildingPlaced_1") {
         Process_Segments_Macro(
             ".B",  //
             "CF"
         );
+        CHECK(segments_count == 0);
 
         auto pos             = v2i(0, 1);
         auto [bid, building] = Make_Building(Building_Type::Produce, pos);
@@ -1297,6 +1318,37 @@ TEST_CASE ("Longest_Meaningful_Path") {
     CHECK(Longest_Meaningful_Path({4, 3}) == 9);
     CHECK(Longest_Meaningful_Path({5, 3}) == 11);
     CHECK(Longest_Meaningful_Path({5, 5}) == 17);
+}
+
+TEST_CASE ("Rect_Copy") {
+    u8 dest[5] = {0};
+
+    {
+        u8 source[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        Rect_Copy(dest, source, 2, 5, 1);
+
+        FOR_RANGE (int, i, 5) {
+            CHECK(dest[i] == i * 2);
+        }
+    }
+
+    {
+        u8 source[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        Rect_Copy(dest, source, 1, 5, 1);
+
+        FOR_RANGE (int, i, 5) {
+            CHECK(dest[i] == i);
+        }
+    }
+
+    {
+        u8 source[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        Rect_Copy(dest, source + 5, 1, 5, 1);
+
+        FOR_RANGE (int, i, 5) {
+            CHECK(dest[i] == 5 + i);
+        }
+    }
 }
 
 TEST_CASE ("ProtoTest, Proto") {

@@ -86,7 +86,24 @@ struct Calculated_Graph_Data {
 struct Graph {
     u16    nodes_count            = {};
     size_t nodes_allocation_count = {};
-    u8*    nodes                  = {};  // 0b0000DLUR
+
+    // 0  0   0000
+    // 1  1   0001 R
+    // 2  2   0010 U
+    // 3  3   0011 RU
+    // 4  4   0100 L
+    // 5  5   0101 RL
+    // 6  6   0110 LU
+    // 7  7   0111 RUL
+    // 8  8   1000 D
+    // 9  9   1001 RD
+    // a  10  1010 UD
+    // b  11  1011 RUD
+    // c  12  1100 LD
+    // d  13  1101 RLD
+    // e  14  1110 ULD
+    // f  15  1111 RULD
+    u8* nodes = {};  // 0b0000DLUR
 
     v2i16 size   = {};
     v2i16 offset = {};

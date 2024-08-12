@@ -1219,6 +1219,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
+    auto segments    = &game_map.segments;
 
     ImGui::Text("last_segments_to_add_count %d", global_last_segments_to_add_count);
     ImGui::Text("last_segments_to_delete_count %d", global_last_segments_to_delete_count);
@@ -1300,7 +1301,7 @@ void Post_Init_Game_Map(
     MCTX
 ) {
     bool built = true;
-    Place_Building(state, {2, 2}, state.scriptable_buildings + 0, built, ctx);
+    Place_Building(state, {4, 1}, state.scriptable_buildings + 0, built, ctx);
 
     // TODO: !!!
     Assert(state.scriptable_resources_count > 0);
@@ -1477,40 +1478,46 @@ void Regenerate_Element_Tiles(
     auto gsize = game_map.size;
 
     v2i16 road_tiles[] = {
-        {0, 1},
-        {0, 2},
-        {0, 3},
-        {1, 2},
-        {2, 1},
-        {2, 2},
-        {2, 3},
-        {3, 2},
-        {4, 1},
-        {4, 2},
-        {4, 3},
+        //
+        {0, 0},
         {1, 0},
         {2, 0},
-        {3, 0},
-        {1, 4},
-        {2, 4},
-        {3, 4},
-        //
-        {6, 1},
-        {7, 1},
-        {8, 1},
-        {6, 2},
-        {8, 2},
-        {6, 3},
-        {7, 3},
-        {8, 3},
-    };
 
-    v2i16 flag_tiles[] = {
+        {0, 1},
+        {2, 1},
+
+        {0, 2},
+        {1, 2},
         {2, 2},
-        {3, 3},
+        // {0, 1},
+        // {0, 2},
+        // {0, 3},
+        // {1, 2},
+        // {2, 1},
+        // {2, 2},
+        // {2, 3},
+        // {3, 2},
+        // {4, 1},
+        // {4, 2},
+        // {4, 3},
+        // {1, 0},
+        // {2, 0},
+        // {3, 0},
+        // {1, 4},
+        // {2, 4},
+        // {3, 4},
+        // //
+        // {6, 1},
+        // {7, 1},
+        // {8, 1},
+        // {6, 2},
+        // {8, 2},
+        // {6, 3},
+        // {7, 3},
+        // {8, 3},
     };
 
-    auto base_offset = v2i16(1, 1);
+    auto base_offset = v2i16(0, 0);
 
     for (auto offset : road_tiles) {
         auto          off  = offset + base_offset;
@@ -1518,11 +1525,18 @@ void Regenerate_Element_Tiles(
         tile.type          = Element_Tile_Type::Road;
     }
 
+#if 0
+    v2i16 flag_tiles[] = {
+        {0, 2},
+        {2, 0},
+    };
+
     for (auto offset : flag_tiles) {
         auto          off  = offset + base_offset;
         Element_Tile& tile = game_map.element_tiles[off.y * gsize.x + off.x];
         tile.type          = Element_Tile_Type::Flag;
     }
+#endif
 
     FOR_RANGE (int, y, gsize.y) {
         FOR_RANGE (int, x, gsize.x) {
@@ -1867,8 +1881,6 @@ BF_FORCE_INLINE void Update_Segments(
 
     TEMP_USAGE(trash_arena);
 
-    auto& segments = game_map.segments;
-
     global_last_segments_to_add_count    = segments_to_add.count;
     global_last_segments_to_delete_count = segments_to_delete.count;
 
@@ -1910,6 +1922,8 @@ BF_FORCE_INLINE void Update_Segments(
         }
     }
 
+    SANITIZE;
+
     // NOTE: Удаление сегментов (отвязка от чувачков,
     // от других сегментов и высвобождение памяти).
     FOR_RANGE (u32, i, segments_to_delete.count) {
@@ -1929,6 +1943,8 @@ BF_FORCE_INLINE void Update_Segments(
             );
         }
 
+        SANITIZE;
+
         // NOTE: Отвязываем сегмент от других сегментов.
         for (auto linked_segment_id_ptr : Iter(&segment.linked_segments)) {
             auto linked_segment_id = *linked_segment_id_ptr;
@@ -1941,6 +1957,8 @@ BF_FORCE_INLINE void Update_Segments(
                 linked_segment.linked_segments.Remove_At(found_index);
         }
 
+        SANITIZE;
+
         // TODO: _resource_transportation.OnSegmentDeleted(segment);
 
         // NOTE: Удаляем сегмент из очереди сегментов на добавление чувачков,
@@ -1951,11 +1969,15 @@ BF_FORCE_INLINE void Update_Segments(
         if (index != -1)
             queue.Remove_At(index);
 
+        SANITIZE;
+
         // NOTE: Уничтожаем сегмент.
-        segments.Unstable_Remove(id);
+        game_map.segments.Unstable_Remove(id);
 
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
-        FREE(segment.graph.nodes, sizeof(u8) * segment.graph.nodes_allocation_count);
+        FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
+
+        SANITIZE;
     }
 
     // NOTE: Вносим созданные сегменты. Если будут свободные чувачки - назначим им.
@@ -2224,8 +2246,8 @@ void Update_Graphs(
         // с небольшой оптимизацией по требуемой памяти.
         auto nodes_allocation_count          = gr_size.x * gr_size.y;
         segment.graph.nodes_allocation_count = nodes_allocation_count;
-        segment.graph.nodes
-            = (u8*)ALLOC(sizeof(*segment.graph.nodes) * nodes_allocation_count);
+
+        segment.graph.nodes = (u8*)ALLOC(nodes_allocation_count);
 
         auto rows          = gr_size.y;
         auto stride        = gsize.x;
