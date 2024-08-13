@@ -1823,8 +1823,6 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
 ) {
     CTX_ALLOCATOR;
 
-    DEBUG_Print_Graph(added_segment.graph, trash_arena);
-
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
     Graph_Segment segment = added_segment;
@@ -1833,7 +1831,6 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
         segment.assigned_human_id = Human_ID_Missing;
         Init_Vector(segment.linked_segments, ctx);
     }
-    DEBUG_Print_Graph(segment.graph, trash_arena);
 
     auto [pid, segment1_ptr] = segments.Add(ctx);
     *pid                     = Next_Graph_Segment_ID(last_entity_id);
