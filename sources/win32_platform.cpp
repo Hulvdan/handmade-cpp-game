@@ -610,6 +610,18 @@ u64 Win32Frequency() {
     return res.QuadPart;
 }
 
+void* Win32_Open_File(const char* filename) noexcept {
+    FILE* file_handle = nullptr;
+    auto  error       = fopen_s(&file_handle, filename, "w");
+    Assert_False(error);
+    Assert(file_handle != nullptr);
+    return file_handle;
+}
+
+void Win32_Write_To_File(void* file_handle, const char* text) noexcept {
+    fprintf((FILE*)file_handle, "%s\n", text);
+}
+
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
@@ -879,6 +891,8 @@ static int WinMain(
     ImGui::StyleColorsDark();
 
     library_integration_data.imgui_context = ImGui::GetCurrentContext();
+    library_integration_data.Open_File     = Win32_Open_File;
+    library_integration_data.Write_To_File = Win32_Write_To_File;
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);

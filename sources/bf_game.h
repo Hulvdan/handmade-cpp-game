@@ -48,10 +48,16 @@ struct GAME_LIBRARY_EXPORT Game_Bitmap {
 
 struct ImGuiContext;
 
+#define OS_Open_File_function(name_) void* name_(const char* filename) noexcept
+#define OS_Write_To_File_function(name_) void name_(void* file, const char* text) noexcept
+
 struct GAME_LIBRARY_EXPORT Library_Integration_Data {
     bool          game_context_set  = {};
     ImGuiContext* imgui_context     = {};
     int           dll_reloads_count = {};
+
+    OS_Open_File_function((*Open_File))         = {};
+    OS_Write_To_File_function((*Write_To_File)) = {};
 };
 
 // --- EVENTS START ---

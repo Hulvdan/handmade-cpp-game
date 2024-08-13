@@ -455,11 +455,22 @@ struct Terrain_Resource {
     u8 amount = {};
 };
 
+#define Item_To_Build_Table \
+    X(None, "None")         \
+    X(Road, "Road")         \
+    X(Flag, "Flag")         \
+    X(Building, "Building")
+
 enum class Item_To_Build_Type {
-    None,
-    Road,
-    Flag,
-    Building,
+#define X(name, name_string) name,
+    Item_To_Build_Table
+#undef X
+};
+
+static const char* Item_To_Build_Type_Names[] = {
+#define X(name, name_string) name_string,
+    Item_To_Build_Table
+#undef X
 };
 
 struct Item_To_Build {

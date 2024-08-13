@@ -516,7 +516,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTh
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
-    LOG_DEBUG("human.moving %d.%d", human.moving.pos.x, human.moving.pos.y);
+    LOG_DEBUG("human moved to %d.%d", human.moving.pos.x, human.moving.pos.y);
 
     if (human.type == Human_Type::Constructor                                        //
         && human.building_id != Building_ID_Missing                                  //
@@ -2605,6 +2605,7 @@ std::tuple<int, int> Update_Tiles(
     })
 
 bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
+    CTX_LOGGER;
     auto& arena                = state.arena;
     auto& non_persistent_arena = state.non_persistent_arena;
     auto& trash_arena          = state.trash_arena;
@@ -2622,11 +2623,23 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         if (tile.type == Element_Tile_Type::Flag) {
             tile.type = Element_Tile_Type::Road;
             Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Removed);
+            LOG_DEBUG(
+                "player builds `%s` at %d.%d",
+                Item_To_Build_Type_Names[(int)item.type],
+                pos.x,
+                pos.y
+            );
             INVOKE_UPDATE_TILES;
         }
         else if (tile.type == Element_Tile_Type::Road) {
             tile.type = Element_Tile_Type::Flag;
             Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Flag_Placed);
+            LOG_DEBUG(
+                "player builds `%s` at %d.%d",
+                Item_To_Build_Type_Names[(int)item.type],
+                pos.x,
+                pos.y
+            );
             INVOKE_UPDATE_TILES;
         }
         else
@@ -2645,6 +2658,13 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         tile.type = Element_Tile_Type::Road;
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Road_Placed);
+
+        LOG_DEBUG(
+            "player builds `%s` at %d.%d",
+            Item_To_Build_Type_Names[(int)item.type],
+            pos.x,
+            pos.y
+        );
         INVOKE_UPDATE_TILES;
     } break;
 
@@ -2658,6 +2678,13 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         Place_Building(state, pos, item.scriptable_building, built, ctx);
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Building_Placed);
+
+        LOG_DEBUG(
+            "player builds `%s` at %d.%d",
+            Item_To_Build_Type_Names[(int)item.type],
+            pos.x,
+            pos.y
+        );
         INVOKE_UPDATE_TILES;
     } break;
 

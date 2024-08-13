@@ -83,6 +83,8 @@ struct Tracing_Logger {
     char* trash_buffer2    = {};
 
     bool initialized = {};
+
+    void* file = {};
 };
 
 void Initialize_Tracing_Logger(Tracing_Logger& logger, Arena& arena) {
@@ -157,6 +159,49 @@ BF_FORCE_INLINE void common_log(
     log_function(data.trash_buffer);
 }
 
+void Log_To_File(void** file, const char* text) {
+    if (*file == nullptr)
+        *file = global_library_integration_data->Open_File("latest.log");
+
+    global_library_integration_data->Write_To_File(*file, text);
+}
+
+const char* Text_Format(const char* text, ...) {
+#if !defined(BF_TEXTFORMAT_MAX_SIZE)
+#    define BF_TEXTFORMAT_MAX_SIZE 1024
+#endif
+
+    static char buffer[BF_TEXTFORMAT_MAX_SIZE];
+
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    va_list args;
+    va_start(args, text);
+    vsnprintf(buffer, BF_TEXTFORMAT_MAX_SIZE, text, args);
+    va_end(args);
+
+    buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';
+
+    return buffer;
+}
+
+const char* Text_Format2(const char* text, ...) {
+#if !defined(BF_TEXTFORMAT_MAX_SIZE)
+#    define BF_TEXTFORMAT_MAX_SIZE 1024
+#endif
+
+    static char buffer[BF_TEXTFORMAT_MAX_SIZE];
+
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    va_list args;
+    va_start(args, text);
+    vsnprintf(buffer, BF_TEXTFORMAT_MAX_SIZE, text, args);
+    va_end(args);
+
+    buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';
+
+    return buffer;
+}
+
 Logger_function(Tracing_Logger_Routine) {
     auto& data = *(Tracing_Logger*)logger_data;
 
@@ -190,7 +235,7 @@ Logger_function(Tracing_Logger_Routine) {
         }
 
         DEBUG_Print(buffer_to_log);
-        // data.spdlog_logger.info(buffer_to_log);
+        Log_To_File(&data.file, buffer_to_log);
     }
 
     // NOTE: Запоминаем сообщение в качестве предыдущего
@@ -207,53 +252,34 @@ Logger_function(Tracing_Logger_Routine) {
     memcpy(data.previous_buffer, (u8*)message, n);
     data.previous_indentation = data.current_indentation;
 
-    // NOTE: Логируем через spdlog
     switch (log_type) {
     case Log_Type::DEBUG:
         common_log(data, message, [&data](const char* message) {
             DEBUG_Print("D: %s", message);
-            // data.spdlog_logger.debug(message);
+            Log_To_File(&data.file, Text_Format2("D:\t%s", message));
         });
         break;
     case Log_Type::INFO:
         common_log(data, message, [&data](const char* message) {
             DEBUG_Print("I: %s", message);
-            // data.spdlog_logger.info(message);
+            Log_To_File(&data.file, Text_Format2("I:\t%s", message));
         });
         break;
     case Log_Type::WARN:
         common_log(data, message, [&data](const char* message) {
             DEBUG_Print("W: %s", message);
-            // data.spdlog_logger.warn(message);
+            Log_To_File(&data.file, Text_Format2("W:\t%s", message));
         });
         break;
     case Log_Type::ERR:
         common_log(data, message, [&data](const char* message) {
             DEBUG_Print("E: %s", message);
-            // data.spdlog_logger.error(message);
+            Log_To_File(&data.file, Text_Format2("E:\t%s", message));
         });
         break;
     default:
         INVALID_PATH;
     }
-}
-
-const char* Text_Format(const char* text, ...) {
-#if !defined(BF_TEXTFORMAT_MAX_SIZE)
-#    define BF_TEXTFORMAT_MAX_SIZE 256
-#endif
-
-    static char buffer[BF_TEXTFORMAT_MAX_SIZE];
-
-    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
-    va_list args;
-    va_start(args, text);
-    vsnprintf(buffer, BF_TEXTFORMAT_MAX_SIZE, text, args);
-    va_end(args);
-
-    buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';
-
-    return buffer;
 }
 
 #define _LOG_COMMON(log_type_, ...)                    \

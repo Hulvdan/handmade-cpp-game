@@ -2024,6 +2024,9 @@ On_Human_Created_function(Renderer_OnHumanCreated) {
 // Human_Removal_Reason reason,
 // MCTX
 On_Human_Removed_function(Renderer_OnHumanRemoved) {
+    UNUSED(human);
+    UNUSED(reason);
+
     CTX_LOGGER;
     LOG_DEBUG("Renderer_OnHumanRemoved");
 

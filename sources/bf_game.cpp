@@ -16,6 +16,8 @@
 #include "bf_base.h"
 #include "bf_game.h"
 
+Library_Integration_Data* global_library_integration_data = nullptr;
+
 #include <optional>
 
 #include "bf_atlas_generated.h"
@@ -305,6 +307,7 @@ On_Human_Removed_function(On_Human_Removed) {
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
     ZoneScoped;
+    global_library_integration_data = &library_integration_data;
 
     const float MAX_DT = 1.0f / (f32)10;
     if (dt > MAX_DT)

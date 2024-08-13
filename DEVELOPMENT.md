@@ -45,4 +45,8 @@ REM Форматирование
 
 REM Запуск линта
 .venv\Scripts\python.exe cmd\cli.py lint
+
+
+REM Ссылка на latest.log
+ni C:\Users\user\dev\home\handmade-cpp-game\latest.log -i SymbolicLink -ta "c:\Users\user\dev\home\handmade-cpp-game\.cmake\vs17\Debug\latest.log"
 ```
