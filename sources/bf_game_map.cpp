@@ -597,7 +597,9 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
 
         auto is_constructor_or_employee
             = human.type == Human_Type::Constructor || human.type == Human_Type::Employee;
-        Assert(is_constructor_or_employee);
+
+        if (!is_constructor_or_employee)
+            Assert(building.scriptable->type == Building_Type::City_Hall);
 
         // TODO:
         // if (human.type == Human_Type::Constructor) {
@@ -636,7 +638,11 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
         human.state_moving_in_the_world
             = Moving_In_The_World_State::Moving_To_The_City_Hall;
 
-        Building& city_hall = *Query_Building(game_map, human.building_id);
+        Assert(game_map.city_halls.count > 0);
+        auto      city_hall_id = game_map.city_halls.ids[0];
+        Building& city_hall    = *Query_Building(game_map, city_hall_id);
+
+        human.building_id = city_hall_id;
 
         TEMP_USAGE(*data.trash_arena);
         auto [success, path, path_count] = Find_Path(
@@ -1219,8 +1225,6 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
     CTX_LOGGER;
-    LOG_DEBUG("Update_Game_Map");
-    LOG_DEBUG("Update_Game_Map %s", "aboba");
 
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
