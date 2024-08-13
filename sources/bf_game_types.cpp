@@ -146,7 +146,7 @@ wchar_t Graph_Node_To_String(u8 node) {
     return result;
 }
 
-const wchar_t* To_String(Graph& graph, Arena& arena) {
+const wchar_t* Graph_To_String(Graph& graph, Arena& arena) {
     auto result = Allocate_Zeros_Array(
         arena, wchar_t, sizeof(wchar_t) * (graph.size.x + 1) * graph.size.y + 1
     );
@@ -171,7 +171,7 @@ const wchar_t* To_String(Graph& graph, Arena& arena) {
 
 void DEBUG_Print_Graph(Graph& graph, Arena& arena) {
     TEMP_USAGE(arena);
-    auto res = To_String(graph, arena);
+    auto res = Graph_To_String(graph, arena);
     ::OutputDebugStringW(res);
 }
 
