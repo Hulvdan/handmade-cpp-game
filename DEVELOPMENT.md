@@ -7,7 +7,7 @@
 Что нужно иметь:
 
 - Visual Studio 2022
-- Python 3.11.3 (лучше всего через `pyenv`) + `poetry`
+- Python 3.11.3 через `pyenv` + `poetry`
 - Установленный LLVM (`clang-tidy`, `clang-format` - для линтинга и форматтинга)
 - cli утилита `sed` (для линтинга)
 - cli утилита `free-tex-packer-cli` (для создания атласа) (`npm install -g free-tex-packer-cli`)
