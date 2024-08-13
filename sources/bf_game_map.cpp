@@ -944,7 +944,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 
     Root_Set_Human_State(*human_ptr, Human_States::MovingInTheWorld, data, ctx);
 
-    INVOKE_OBSERVER(state.On_Human_Created, (state, *human_id, *human_ptr, ctx));
+    On_Human_Created(state, *human_id, *human_ptr, ctx);
 
     // TODO:
     // onHumanCreated.OnNext(new() { human = human });
@@ -2654,7 +2654,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         INVALID_PATH;
     }
 
-    INVOKE_OBSERVER(state.On_Item_Built, (state, pos, item, ctx));
+    On_Item_Built(state, pos, item, ctx);
 
     return true;
 }

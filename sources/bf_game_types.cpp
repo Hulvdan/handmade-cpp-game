@@ -152,7 +152,7 @@ const wchar_t* To_String(Graph& graph, Arena& arena) {
     );
 
     FOR_RANGE (int, y_, graph.size.y) {
-        //const auto y = y_;
+        // const auto y = y_;
         const auto y = graph.size.y - y_ - 1;
 
         auto r = result + y_ * graph.size.x + y_;
@@ -611,41 +611,14 @@ struct Game_Map {
     Vector<Map_Resource_To_Book> resources_booking_queue = {};
 };
 
-template <typename T>
-struct Observer {
-    size_t count     = {};
-    T*     functions = {};
-};
-
-// Usage:
-//     INVOKE_OBSERVER(state.On_Item_Built, (state, game_map, pos, item))
-#define INVOKE_OBSERVER(observer, code)                      \
-    STATEMENT({                                                   \
-        FOR_RANGE (size_t, i, (observer).count) {            \
-            auto&    function = *((observer).functions + i); \
-            function code;                                   \
-    }                                                        \
-    })
-
-// Usage:
-//     OnItemBuilt_function((*callbacks[])) = {
-//         Renderer_OnItemBuilt,
-//     };
-//     INITIALIZE_OBSERVER_WITH_CALLBACKS(state.On_Item_Built, callbacks,
-//     arena);
-#define INITIALIZE_OBSERVER_WITH_CALLBACKS(observer, callbacks, arena)                 \
-    STATEMENT({                                                                        \
-        (observer).count = sizeof(callbacks) / sizeof((callbacks)[0]);                 \
-        (observer).functions                                                           \
-            = (decltype((observer).functions))(Allocate_((arena), sizeof(callbacks))); \
-        memcpy((observer).functions, callbacks, sizeof(callbacks));                    \
-    })
-
 #define On_Item_Built_function(name_) \
     void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
 
 #define On_Human_Created_function(name_) \
     void name_(Game_State& state, const Human_ID& id, Human& human, MCTX)
+
+On_Item_Built_function(On_Item_Built);
+On_Human_Created_function(On_Human_Created);
 
 struct Editor_Data {
     bool changed = {};
@@ -699,9 +672,6 @@ struct Game_State {
 #ifdef BF_CLIENT
     Game_Renderer_State* renderer_state = {};
 #endif  // BF_CLIENT
-
-    Observer<On_Item_Built_function((*))>    On_Item_Built    = {};
-    Observer<On_Human_Created_function((*))> On_Human_Created = {};
 
     const BFGame::Game_Library* gamelib = {};
 };
