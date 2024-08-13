@@ -249,27 +249,20 @@ const char* Text_Format(const char* text, ...) {
     return buffer;
 }
 
-// FIXME:
-// #define _LOG_COMMON(log_type_, message_, ...)                        \
-//     STATEMENT({                                                      \
-//         if (logger_routine != nullptr) {                             \
-//             const auto str = Text_Format((message_), ##__VA_ARGS__); \
-//             logger_routine(logger_data, (log_type_), str);           \
-//         }                                                            \
-//     })
-
-#define _LOG_COMMON(log_type_, message_, ...)              \
-    STATEMENT({                                            \
-        if (0) {                                           \
-            const auto str = Text_Format((message_));      \
-            logger_routine(logger_data, (log_type_), str); \
-        }                                                  \
+#define _LOG_COMMON(log_type_, ...)                    \
+    STATEMENT({                                        \
+        const auto str = Text_Format(__VA_ARGS__);     \
+        logger_routine(logger_data, (log_type_), str); \
     })
 
-#define LOG_DEBUG(message_, ...) _LOG_COMMON(Log_Type::DEBUG, (message_), ##__VA_ARGS__)
-#define LOG_INFO(message_, ...) _LOG_COMMON(Log_Type::INFO, (message_), ##__VA_ARGS__)
-#define LOG_WARN(message_, ...) _LOG_COMMON(Log_Type::WARN, (message_), ##__VA_ARGS__)
-#define LOG_ERROR(message_, ...) _LOG_COMMON(Log_Type::ERR, (message_), ##__VA_ARGS__)
+// Usage:
+//
+//     LOG_DEBUG("string template %d", 1);
+//
+#define LOG_DEBUG(...) _LOG_COMMON(Log_Type::DEBUG, __VA_ARGS__)
+#define LOG_INFO(...) _LOG_COMMON(Log_Type::INFO, __VA_ARGS__)
+#define LOG_WARN(...) _LOG_COMMON(Log_Type::WARN, __VA_ARGS__)
+#define LOG_ERROR(...) _LOG_COMMON(Log_Type::ERR, __VA_ARGS__)
 
 bool operator==(const std::source_location& a, const std::source_location& b) {
     return (
@@ -303,14 +296,23 @@ consteval auto extract_substring(const char* src) {
 }
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
-#define LOG_TRACING_SCOPE                                        \
-    if (logger_tracing_routine != nullptr) {                     \
-        logger_tracing_routine(logger_data, true, "[]");         \
-    }                                                            \
-                                                                 \
-    defer {                                                      \
-        if (logger_tracing_routine != nullptr)                   \
-            logger_tracing_routine(logger_data, false, nullptr); \
+#define LOG_TRACING_SCOPE                                                                 \
+    if (logger_tracing_routine != nullptr) {                                              \
+        constexpr const auto  loc = std::source_location::current();                      \
+        constexpr const auto  n   = index_of_brace_in_function_name(loc.function_name()); \
+        constexpr const auto  function_name = extract_substring<n>(loc.function_name());  \
+        constexpr const char* file_n        = extract_file_name(loc.file_name());         \
+                                                                                          \
+        const char* scope_name = Text_Format(                                             \
+            "[%s:%d:%d:%s]", file_n, loc.line(), loc.column(), function_name.data()       \
+        );                                                                                \
+                                                                                          \
+        logger_tracing_routine(logger_data, true, scope_name);                            \
+    }                                                                                     \
+                                                                                          \
+    defer {                                                                               \
+        if (logger_tracing_routine != nullptr)                                            \
+            logger_tracing_routine(logger_data, false, nullptr);                          \
     };
 // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
 

@@ -1217,6 +1217,10 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 }
 
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
+    CTX_LOGGER;
+    LOG_DEBUG("Update_Game_Map");
+    LOG_DEBUG("Update_Game_Map %s", "aboba");
+
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
     auto  segments    = &game_map.segments;
