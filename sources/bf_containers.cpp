@@ -54,7 +54,7 @@ struct Fixed_Size_Queue {
         Assert(count > 0);
 
         T result = *base;
-        count -= 1;
+        count--;
         if (count > 0)
             memmove((void*)base, (void*)(base + 1), sizeof(T) * count);
 
@@ -141,7 +141,7 @@ struct Queue {
         Assert(count > 0);
 
         T result = *base;
-        count -= 1;
+        count--;
         if (count > 0)
             memmove(base, base + 1, sizeof(T) * count);
 
@@ -159,7 +159,7 @@ struct Queue {
             memmove(base + i, base + i + 1, sizeof(T) * delta_count);
         }
 
-        count -= 1;
+        count--;
     }
 
     void Reset() {
@@ -245,7 +245,7 @@ struct Vector {
         if (delta_count > 0)
             memmove(base + i, base + i + 1, sizeof(T) * delta_count);
 
-        count -= 1;
+        count--;
     }
 
     void Unordered_Remove_At(const i32 i) {
@@ -253,16 +253,16 @@ struct Vector {
         Assert(i < count);
 
         if (i != count - 1)
-            std::swap(base[i], base[count - 1]);
+            base[i] = base[count - 1];
 
-        Pop();
+        count--;
     }
 
     T Pop() {
         Assert(count > 0);
 
         T result = base[count - 1];
-        count -= 1;
+        count--;
 
         return result;
     }
@@ -390,7 +390,7 @@ struct Sparse_Array_Of_Ids {
             Enlarge(ctx);
 
         auto result = ids + count;
-        count += 1;
+        count++;
         return result;
     }
 
@@ -450,7 +450,7 @@ struct Sparse_Array {
             Enlarge(ctx);
 
         std::tuple<T*, U*> result = {ids + count, base + count};
-        count += 1;
+        count++;
         return result;
     }
 
@@ -478,8 +478,8 @@ struct Sparse_Array {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
                 if (i != count - 1) {
-                    std::swap(ids[i], ids[count - 1]);
-                    std::swap(base[i], base[count - 1]);
+                    ids[i]  = ids[count - 1];
+                    base[i] = base[count - 1];
                 }
                 count--;
                 return;
@@ -566,7 +566,8 @@ struct Sparse_Array_Iterator : public Iterator_Facade<Sparse_Array_Iterator<T, U
     [[nodiscard]] std::tuple<T, U*> Dereference() const {
         Assert(_current >= 0);
         Assert(_current < _container->count);
-        return std::tuple(_container->ids[_current], _container->base + _current);
+        auto result = std::tuple(_container->ids[_current], _container->base + _current);
+        return result;
     }
 
     void Increment() {

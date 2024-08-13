@@ -538,7 +538,7 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
     if (human.segment_id != Graph_Segment_ID_Missing) {
         Assert(human.type == Human_Type::Transporter);
 
-        auto& segment = *Query_Graph_Segment(game_map, human.segment_id);
+        auto& segment = Assert_Deref(Query_Graph_Segment(game_map, human.segment_id));
 
         // NOTE: Следующая клетка, на которую перейдёт (или уже находится) чувак,
         // - это клетка его сегмента. Нам уже не нужно помнить его путь.
@@ -733,7 +733,7 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
         return;
     }
 
-    auto& segment = *Query_Graph_Segment(*data.game_map, human.segment_id);
+    auto& segment = Assert_Deref(Query_Graph_Segment(*data.game_map, human.segment_id));
 
     if (segment.resources_to_transport.count > 0) {
         if (!human.moving.to.has_value()) {
@@ -1975,10 +1975,9 @@ BF_FORCE_INLINE void Update_Segments(
         SANITIZE;
 
         // NOTE: Уничтожаем сегмент.
-        game_map.segments.Unstable_Remove(id);
-
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
         FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
+        game_map.segments.Unstable_Remove(id);
 
         SANITIZE;
     }
@@ -2537,7 +2536,8 @@ std::tuple<int, int> Update_Tiles(
 
             auto& segment2 = *segment2_ptr;
 
-            auto& g2        = segment2.graph;
+            auto& g2 = segment2.graph;
+
             v2i16 g2_offset = {g2.offset.x, g2.offset.y};
 
             FOR_RANGE (int, y, g1.size.y) {
