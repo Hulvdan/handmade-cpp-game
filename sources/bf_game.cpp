@@ -297,6 +297,12 @@ On_Human_Created_function(On_Human_Created) {
 #endif
 }
 
+On_Human_Removed_function(On_Human_Removed) {
+#ifdef BF_CLIENT
+    Renderer_OnHumanRemoved(state, id, human, reason, ctx);
+#endif
+}
+
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
     ZoneScoped;
 

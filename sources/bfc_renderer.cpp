@@ -2017,3 +2017,17 @@ On_Human_Created_function(Renderer_OnHumanCreated) {
         *pvalue            = human_sprite;
     }
 }
+
+// Game_State&          state,
+// const Human_ID&      id,
+// Human&               human,
+// Human_Removal_Reason reason,
+// MCTX
+On_Human_Removed_function(Renderer_OnHumanRemoved) {
+    CTX_LOGGER;
+    LOG_DEBUG("Renderer_OnHumanRemoved");
+
+    auto& rstate = *state.renderer_state;
+
+    rstate.sprites.Unstable_Remove(id);
+}

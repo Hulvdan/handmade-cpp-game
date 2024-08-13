@@ -297,9 +297,9 @@ void Place_Building(
     b.scriptable = scriptable_building;
 
     {
-        auto [id, value] = game_map.buildings.Add(ctx);
-        *id              = bid;
-        *value           = b;
+        auto [pid, pvalue] = game_map.buildings.Add(ctx);
+        *pid               = bid;
+        *pvalue            = b;
     }
 
     C_Sprite sprite{};
@@ -312,9 +312,9 @@ void Place_Building(
         City_Hall c{};
         c.time_since_human_was_created = f32_inf;
         {
-            auto [id, value] = game_map.city_halls.Add(ctx);
-            *id              = bid;
-            *value           = c;
+            auto [pid, pvalue] = game_map.city_halls.Add(ctx);
+            *pid               = bid;
+            *pvalue            = c;
         }
 
         sprite.texture = scriptable_building->texture;
@@ -332,9 +332,9 @@ void Place_Building(
         c.construction_points = 0;
 
         {
-            auto [id, value] = game_map.not_constructed_buildings.Add(ctx);
-            *id              = bid;
-            *value           = c;
+            auto [pid, pvalue] = game_map.not_constructed_buildings.Add(ctx);
+            *pid               = bid;
+            *pvalue            = c;
         }
 
         sprite.texture = state.renderer_state->building_in_progress_texture;
@@ -1056,7 +1056,9 @@ void Map_Humans_To_Remove(
         func(id, *Query_Human(game_map, id), *reason);
 }
 
-void Remove_Humans(Game_Map& game_map) {
+void Remove_Humans(Game_State& state, MCTX) {
+    auto& game_map = state.game_map;
+
     Map_Humans_To_Remove(
         game_map,
         [&](Human_ID id, Human& human, Human_Removal_Reason reason) {
@@ -1070,6 +1072,7 @@ void Remove_Humans(Game_Map& game_map) {
             }
 
             game_map.humans.Unstable_Remove(id);
+            On_Human_Removed(state, id, human, reason, ctx);
         }
     );
 
@@ -1140,14 +1143,9 @@ void Update_Human(
     if (human.state_moving_in_the_world == state && !human.moving.to.has_value()
         && human.moving.pos == Query_Building(game_map, human.building_id)->pos)
     {
-        // TODO: auto rem = Game_Map::Human_To_Remove{
-        //     Human_Removal_Reason::Transporter_Returned_To_City_Hall, human_ptr, locator
-        // };
-        // Vector_Add(humans_to_remove, std::move(rem));
+        auto [pid, r_value] = humans_to_remove.Add(ctx);
 
-        auto [r_id, r_value] = humans_to_remove.Add(ctx);
-
-        *r_id    = id;
+        *pid     = id;
         *r_value = Human_Removal_Reason::Transporter_Returned_To_City_Hall;
     }
 
@@ -1162,7 +1160,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     for (auto [id, reason_ptr] : Iter(&game_map.humans_to_remove))
         Assert(*reason_ptr != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
 
-    Remove_Humans(game_map);
+    Remove_Humans(state, ctx);
 
     for (auto [id, human_ptr] : Iter(&game_map.humans))
         Update_Human(game_map, id, human_ptr, dt, data, ctx);
@@ -1170,25 +1168,25 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     auto prev_count = game_map.humans_to_add.count;
     for (auto [id, human_to_move] : Iter(&game_map.humans_to_add)) {
         LOG_DEBUG("Update_Humans: moving human from humans_to_add to humans");
-        auto [r_id, human_ptr] = game_map.humans.Add(ctx);
+        auto [pid, phuman] = game_map.humans.Add(ctx);
 
-        *r_id      = id;
-        *human_ptr = *human_to_move;
+        *pid    = id;
+        *phuman = *human_to_move;
 
-        auto& human = *human_ptr;
+        auto& human = *phuman;
 
         if (human.segment_id != Graph_Segment_ID_Missing) {
             auto& segment             = *Query_Graph_Segment(game_map, human.segment_id);
             segment.assigned_human_id = id;
         }
 
-        Update_Human(game_map, id, human_ptr, dt, data, ctx);
+        Update_Human(game_map, id, phuman, dt, data, ctx);
     }
 
     Assert(prev_count == game_map.humans_to_add.count);
     game_map.humans_to_add.Reset();
 
-    Remove_Humans(game_map);
+    Remove_Humans(state, ctx);
 
     {  // NOTE: Debug shiet.
         int humans                         = 0;
@@ -1258,9 +1256,9 @@ void Add_Map_Resource(
     resource.carrying_human = Human_ID_Missing;
 
     {
-        auto [rid, rvalue] = game_map.resources.Add(ctx);
-        *rid               = Next_Map_Resource_ID(game_map.last_entity_id);
-        *rvalue            = resource;
+        auto [pid, presource] = game_map.resources.Add(ctx);
+        *pid                  = Next_Map_Resource_ID(game_map.last_entity_id);
+        *presource            = resource;
     }
 }
 

@@ -616,8 +616,18 @@ struct Game_Map {
 #define On_Human_Created_function(name_) \
     void name_(Game_State& state, const Human_ID& id, Human& human, MCTX)
 
+#define On_Human_Removed_function(name_) \
+    void name_(                          \
+        Game_State&          state,      \
+        const Human_ID&      id,         \
+        Human&               human,      \
+        Human_Removal_Reason reason,     \
+        MCTX                             \
+    )
+
 On_Item_Built_function(On_Item_Built);
 On_Human_Created_function(On_Human_Created);
+On_Human_Removed_function(On_Human_Removed);
 
 struct Editor_Data {
     bool changed = {};
