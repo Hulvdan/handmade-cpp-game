@@ -434,8 +434,20 @@ Human* Query_Human(Game_Map& game_map, Human_ID id) {
     return nullptr;
 }
 
+Human* Strict_Query_Human(Game_Map& game_map, Human_ID id) {
+    auto result = Query_Human(game_map, id);
+    Assert(result != nullptr);
+    return result;
+}
+
 Graph_Segment* Query_Graph_Segment(Game_Map& game_map, Graph_Segment_ID id) {
     return game_map.segments.Find(id);
+}
+
+Graph_Segment* Strict_Query_Graph_Segment(Game_Map& game_map, Graph_Segment_ID id) {
+    auto result = Query_Graph_Segment(game_map, id);
+    Assert(result != nullptr);
+    return result;
 }
 
 //----------------------------------------------------------------------------------
@@ -488,8 +500,8 @@ HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
     );
 }
 
-HumanState_OnHumanCurrentSegmentChanged_function(
-    HumanState_MovingInTheWorld_OnHumanCurrentSegmentChanged
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_MovingInTheWorld_OnCurrentSegmentChanged
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
@@ -500,8 +512,7 @@ HumanState_OnHumanCurrentSegmentChanged_function(
     );
 }
 
-HumanState_OnHumanMovedToTheNextTile_function(
-    HumanState_MovingInTheWorld_OnHumanMovedToTheNextTile
+HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
@@ -710,8 +721,8 @@ HumanState_Update_function(HumanState_MovingInsideSegment_Update) {
     );
 }
 
-HumanState_OnHumanCurrentSegmentChanged_function(
-    HumanState_MovingInsideSegment_OnHumanCurrentSegmentChanged
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_MovingInsideSegment_OnCurrentSegmentChanged
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
@@ -720,8 +731,8 @@ HumanState_OnHumanCurrentSegmentChanged_function(
     Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
 }
 
-HumanState_OnHumanMovedToTheNextTile_function(
-    HumanState_MovingInsideSegment_OnHumanMovedToTheNextTile
+HumanState_OnMovedToTheNextTile_function(
+    HumanState_MovingInsideSegment_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
@@ -768,14 +779,13 @@ HumanState_Update_function(HumanState_MovingResources_Update) {
     // TODO:
 }
 
-HumanState_OnHumanCurrentSegmentChanged_function(
-    HumanState_MovingResources_OnHumanCurrentSegmentChanged
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_MovingResources_OnCurrentSegmentChanged
 ) {
     // TODO:
 }
 
-HumanState_OnHumanMovedToTheNextTile_function(
-    HumanState_MovingResources_OnHumanMovedToTheNextTile
+HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToTheNextTile
 ) {
     // TODO:
 }
@@ -799,15 +809,13 @@ HumanState_Update_function(HumanState_Construction_Update) {
     // TODO:
 }
 
-HumanState_OnHumanCurrentSegmentChanged_function(
-    HumanState_Construction_OnHumanCurrentSegmentChanged
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_Construction_OnCurrentSegmentChanged
 ) {
     // TODO:
 }
 
-HumanState_OnHumanMovedToTheNextTile_function(
-    HumanState_Construction_OnHumanMovedToTheNextTile
-) {
+HumanState_OnMovedToTheNextTile_function(HumanState_Construction_OnMovedToTheNextTile) {
     // TODO:
 }
 
@@ -830,15 +838,11 @@ HumanState_Update_function(HumanState_Employee_Update) {
     // TODO:
 }
 
-HumanState_OnHumanCurrentSegmentChanged_function(
-    HumanState_Employee_OnHumanCurrentSegmentChanged
-) {
+HumanState_OnCurrentSegmentChanged_function(HumanState_Employee_OnCurrentSegmentChanged) {
     // TODO:
 }
 
-HumanState_OnHumanMovedToTheNextTile_function(
-    HumanState_Employee_OnHumanMovedToTheNextTile
-) {
+HumanState_OnMovedToTheNextTile_function(HumanState_Employee_OnMovedToTheNextTile) {
     // TODO:
 }
 
@@ -850,15 +854,15 @@ HumanState_UpdateStates_function(HumanState_Employee_UpdateStates) {
 // Root State Functions.
 //----------------------------------------------------------------------------------
 void Human_Root_Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
-    auto index = (int)human.state;
-    Assert(index >= 0);
-    Assert(index < (int)Human_States::COUNT);
+    auto index = human.state;
+    Assert((int)index >= 0);
+    Assert((int)index < (int)Human_States::COUNT);
 
-    auto state = human_states[index];
+    auto state = human_states[(int)index];
     state.Update(state, human, data, dt, ctx);
 }
 
-void Root_OnHumanCurrentSegmentChanged(
+void Root_OnCurrentSegmentChanged(
     Human_ID /* id */,
     Human&            human,
     const Human_Data& data,
@@ -870,16 +874,16 @@ void Root_OnHumanCurrentSegmentChanged(
     Assert(index < (int)Human_States::COUNT);
 
     auto state = human_states[index];
-    state.OnHumanCurrentSegmentChanged(state, human, data, old_segment_id, ctx);
+    state.OnCurrentSegmentChanged(state, human, data, old_segment_id, ctx);
 }
 
-void Root_OnHumanMovedToTheNextTile(Human& human, const Human_Data& data, MCTX) {
+void Root_OnMovedToTheNextTile(Human& human, const Human_Data& data, MCTX) {
     auto index = (int)human.state;
     Assert(index >= 0);
     Assert(index < (int)Human_States::COUNT);
 
     auto state = human_states[index];
-    state.OnHumanMovedToTheNextTile(state, human, data, ctx);
+    state.OnMovedToTheNextTile(state, human, data, ctx);
 }
 
 void Root_Set_Human_State(
@@ -1107,7 +1111,7 @@ void Update_Human_Moving_Component(
         moving.from = moving.pos;
         Advance_Moving_To(moving);
 
-        Root_OnHumanMovedToTheNextTile(human, data, ctx);
+        Root_OnMovedToTheNextTile(human, data, ctx);
         // TODO: on_Human_Moved_To_The_Next_Tile.On_Next(new (){ human = human });
     }
 
@@ -1269,14 +1273,14 @@ void Init_Game_Map(
     Arena&      arena,
     MCTX
 ) {
-#define X(state_name)                                           \
-    human_states[(int)Human_States::state_name] = {             \
-        HumanState_##state_name##_OnEnter,                      \
-        HumanState_##state_name##_OnExit,                       \
-        HumanState_##state_name##_Update,                       \
-        HumanState_##state_name##_OnHumanCurrentSegmentChanged, \
-        HumanState_##state_name##_OnHumanMovedToTheNextTile,    \
-        HumanState_##state_name##_UpdateStates,                 \
+#define X(state_name)                                      \
+    human_states[(int)Human_States::state_name] = {        \
+        HumanState_##state_name##_OnEnter,                 \
+        HumanState_##state_name##_OnExit,                  \
+        HumanState_##state_name##_Update,                  \
+        HumanState_##state_name##_OnCurrentSegmentChanged, \
+        HumanState_##state_name##_OnMovedToTheNextTile,    \
+        HumanState_##state_name##_UpdateStates,            \
     };
     Human_States_Table;
 #undef X
@@ -1936,16 +1940,21 @@ BF_FORCE_INLINE void Update_Segments(
         auto [id, segment_ptr] = segments_to_delete.items[i];
         auto& segment          = *segment_ptr;
 
+        LOG_DEBUG("Update_Segments: deleting segment %d", id);
+        LOG_DEBUG("segment.assigned_human_id %d", segment.assigned_human_id);
+
         // NOTE: Настекиваем чувачков без сегментов (сегменты которых удалили только что).
         if (segment.assigned_human_id != Human_ID_Missing) {
-            auto human_ptr            = Query_Human(game_map, segment.assigned_human_id);
+            auto human_id  = segment.assigned_human_id;
+            auto human_ptr = Strict_Query_Human(game_map, human_id);
+            LOG_DEBUG("unlinked segment from human");
             human_ptr->segment_id     = Graph_Segment_ID_Missing;
             segment.assigned_human_id = Human_ID_Missing;
             Array_Push(
                 humans_wo_segment,
                 humans_wo_segment_count,
                 humans_wo_segment_max_count,
-                tttt(id, segment_ptr, {segment.assigned_human_id, human_ptr})
+                tttt(id, segment_ptr, {human_id, human_ptr})
             );
         }
 
@@ -1986,17 +1995,16 @@ BF_FORCE_INLINE void Update_Segments(
     }
 
     // NOTE: Вносим созданные сегменты. Если будут свободные чувачки - назначим им.
-    using Added_Calculated_Segment_Type = std::tuple<Graph_Segment_ID, Graph_Segment*>;
-    Added_Calculated_Segment_Type* added_calculated_segments = nullptr;
+    using Added_Segment_Type           = std::tuple<Graph_Segment_ID, Graph_Segment*>;
+    Added_Segment_Type* added_segments = nullptr;
 
     if (segments_to_add.count > 0) {
-        added_calculated_segments = Allocate_Array(
-            trash_arena, Added_Calculated_Segment_Type, segments_to_add.count
-        );
+        added_segments
+            = Allocate_Array(trash_arena, Added_Segment_Type, segments_to_add.count);
     }
 
     FOR_RANGE (u32, i, segments_to_add.count) {
-        added_calculated_segments[i] = Add_And_Link_Segment(
+        added_segments[i] = Add_And_Link_Segment(
             game_map.last_entity_id,
             game_map.segments,
             segments_to_add.items[i],
@@ -2023,7 +2031,7 @@ BF_FORCE_INLINE void Update_Segments(
         human.segment_id          = segment_id;
         segment.assigned_human_id = hid;
 
-        Root_OnHumanCurrentSegmentChanged(
+        Root_OnCurrentSegmentChanged(
             hid, human, *game_map.human_data, old_segment_id, ctx
         );
     }
@@ -2031,7 +2039,7 @@ BF_FORCE_INLINE void Update_Segments(
     // NOTE: По возможности назначаем чувачков на новые сегменты.
     // Если нет чувачков - сохраняем сегменты как те, которым нужны чувачки.
     FOR_RANGE (int, i, segments_to_add.count) {
-        auto [id, segment_ptr] = added_calculated_segments[i];
+        auto [id, segment_ptr] = added_segments[i];
 
         if (humans_wo_segment_count == 0) {
             *game_map.segments_wo_humans.Enqueue(ctx) = id;
@@ -2045,7 +2053,7 @@ BF_FORCE_INLINE void Update_Segments(
         human_ptr->segment_id          = id;
         segment_ptr->assigned_human_id = hid;
 
-        Root_OnHumanCurrentSegmentChanged(
+        Root_OnCurrentSegmentChanged(
             hid, *human_ptr, *game_map.human_data, old_segment_id, ctx
         );
     }

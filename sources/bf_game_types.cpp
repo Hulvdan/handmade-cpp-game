@@ -494,16 +494,16 @@ enum class Human_Removal_Reason {
         Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
     ))
 
-#define HumanState_OnHumanCurrentSegmentChanged_function(name_) \
-    NOLINT_UNUSED_PARAMETERS(void name_(                        \
-        Human_State&      state,                                \
-        Human&            human,                                \
-        const Human_Data& data,                                 \
-        Graph_Segment_ID  old_segment_id,                       \
-        MCTX                                                    \
+#define HumanState_OnCurrentSegmentChanged_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(                   \
+        Human_State&      state,                           \
+        Human&            human,                           \
+        const Human_Data& data,                            \
+        Graph_Segment_ID  old_segment_id,                  \
+        MCTX                                               \
     ))
 
-#define HumanState_OnHumanMovedToTheNextTile_function(name_)                       \
+#define HumanState_OnMovedToTheNextTile_function(name_)                            \
     NOLINT_UNUSED_PARAMETERS(                                                      \
         void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
     )
@@ -535,13 +535,12 @@ enum class Human_States {
 };
 
 struct Human_State {
-    HumanState_OnEnter_function((*OnEnter)) = {};
-    HumanState_OnExit_function((*OnExit))   = {};
-    HumanState_Update_function((*Update))   = {};
-    HumanState_OnHumanCurrentSegmentChanged_function((*OnHumanCurrentSegmentChanged))
-        = {};
-    HumanState_OnHumanMovedToTheNextTile_function((*OnHumanMovedToTheNextTile)) = {};
-    HumanState_UpdateStates_function((*UpdateStates))                           = {};
+    HumanState_OnEnter_function((*OnEnter))                                 = {};
+    HumanState_OnExit_function((*OnExit))                                   = {};
+    HumanState_Update_function((*Update))                                   = {};
+    HumanState_OnCurrentSegmentChanged_function((*OnCurrentSegmentChanged)) = {};
+    HumanState_OnMovedToTheNextTile_function((*OnMovedToTheNextTile))       = {};
+    HumanState_UpdateStates_function((*UpdateStates))                       = {};
 };
 
 global_var Human_State human_states[(int)Human_States::COUNT] = {};
