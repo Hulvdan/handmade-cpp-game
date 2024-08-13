@@ -147,12 +147,11 @@ wchar_t Graph_Node_To_String(u8 node) {
 }
 
 const wchar_t* To_String(Graph& graph, Arena& arena) {
-    wchar_t* result = Allocate_Zeros_Array(
+    auto result = Allocate_Zeros_Array(
         arena, wchar_t, sizeof(wchar_t) * (graph.size.x + 1) * graph.size.y + 1
     );
 
     FOR_RANGE (int, y_, graph.size.y) {
-        // const auto y = y_;
         const auto y = graph.size.y - y_ - 1;
 
         auto r = result + y_ * graph.size.x + y_;

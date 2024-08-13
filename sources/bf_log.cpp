@@ -1,3 +1,11 @@
+// Usage:
+//
+//     void function(Human& human, MCTX) {
+//         CTX_LOGGER;
+//         LOG_TRACING_SCOPE;
+//         LOG_DEBUG("human.moving %d.%d", human.moving.pos.x, human.moving.pos.y);
+//     }
+
 // TODO: ВЫЧИСТИТЬ ЭТОТ СРАЧ
 // Набор функций для отбрасывания абсолютного пути файла. Оставляем только название.
 consteval const char* str_end(const char* str) {
@@ -34,8 +42,7 @@ consteval const char* extract_file_name(const char* str) {
     return windows_file_name(unix_file_name(str));
 }
 
-// NOTE: index_of_brace_in_function_name возвращает
-// индекс символа открывающей скобки в названии функции.
+// Возвращает индекс символа открывающей скобки в названии функции.
 consteval int index_of_brace_in_function_name(const char* str) {
     int n = 0;
     while (*str != '(' && *str != '\0') {
@@ -255,10 +262,6 @@ const char* Text_Format(const char* text, ...) {
         logger_routine(logger_data, (log_type_), str); \
     })
 
-// Usage:
-//
-//     LOG_DEBUG("string template %d", 1);
-//
 #define LOG_DEBUG(...) _LOG_COMMON(Log_Type::DEBUG, __VA_ARGS__)
 #define LOG_INFO(...) _LOG_COMMON(Log_Type::INFO, __VA_ARGS__)
 #define LOG_WARN(...) _LOG_COMMON(Log_Type::WARN, __VA_ARGS__)

@@ -448,7 +448,7 @@ HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     if (human.segment_id != Graph_Segment_ID_Missing) {
         // TODO: After implementing resources.
         // LOG_DEBUG(
-        //     "human.segment.resources_to_transport.size() = {}",
+        //     "human.segment.resources_to_transport.size() = %d",
         //     human.segment.resources_to_transport.size()
         // );
     }
@@ -505,7 +505,7 @@ HumanState_OnHumanMovedToTheNextTile_function(
 ) {
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
-    LOG_DEBUG("human.moving {}.{}", human.moving.pos.x, human.moving.pos.y);
+    LOG_DEBUG("human.moving %d.%d", human.moving.pos.x, human.moving.pos.y);
 
     if (human.type == Human_Type::Constructor                                        //
         && human.building_id != Building_ID_Missing                                  //
@@ -1093,6 +1093,7 @@ void Update_Human_Moving_Component(
         moving.elapsed -= duration;
         Assert(moving.elapsed < duration);
 
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         moving.pos  = moving.to.value();
         moving.from = moving.pos;
         Advance_Moving_To(moving);
@@ -1223,7 +1224,6 @@ void Update_Game_Map(Game_State& state, float dt, MCTX) {
 
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
-    auto  segments    = &game_map.segments;
 
     ImGui::Text("last_segments_to_add_count %d", global_last_segments_to_add_count);
     ImGui::Text("last_segments_to_delete_count %d", global_last_segments_to_delete_count);
@@ -1879,9 +1879,9 @@ BF_FORCE_INLINE void Update_Segments(
     CTX_ALLOCATOR;
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
-    LOG_DEBUG("game_map.segments.count = {}", game_map.segments.count);
-    LOG_DEBUG("segments_to_add.count = {}", segments_to_add.count);
-    LOG_DEBUG("segments_to_delete.count = {}", segments_to_delete.count);
+    LOG_DEBUG("game_map.segments.count = %d", game_map.segments.count);
+    LOG_DEBUG("segments_to_add.count = %d", segments_to_add.count);
+    LOG_DEBUG("segments_to_delete.count = %d", segments_to_delete.count);
 
     TEMP_USAGE(trash_arena);
 
