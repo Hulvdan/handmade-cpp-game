@@ -29,11 +29,9 @@
 
 Бан move, copy конструкторов и операторов.
 
-По совету Jonathan Blow в [Constructors, Destructors](https://www.youtube.com/watch?v=8C6zuDDGU2w):
+Jonathan Blow, [Constructors, Destructors](https://www.youtube.com/watch?v=8C6zuDDGU2w):
 - Бан динамических аллокаций во время отработки конструкторов.
 - В конструкторах ничего не зависит от порядка назначения.
-
-Casey Muratori в [25:00 - 30:20 Handmade Hero Day 341 - Dynamically Growing Arenas](https://www.youtube.com/watch?v=lzdKgeovBN0&t=1500s) высказывает мнение о том, что первичная инициализация памяти "нулями" (Zero Is Initialization, в противопоставление RAII - Resource Acquisition Is Initialization) сокращает количество багов.
 
 ### Полезные ссылки
 
@@ -53,3 +51,7 @@ Casey Muratori в [25:00 - 30:20 Handmade Hero Day 341 - Dynamically Growing Are
 - [YouTube. CppCon. Andrei Alexandrescu. std::allocator Is to Allocation what std::vector Is to Vexation](https://www.youtube.com/watch?v=LIb3L4vKZ7U)
 - [YouTube. Ryan Fleury. Enter The Arena: Simplifying Memory Management (2023)](https://www.youtube.com/watch?v=TZ5a3gCCZYo)
 - [YouTube. CppCon 2014: Mike Acton "Data-Oriented Design and C++"](https://youtu.be/rX0ItVEVjHc?si=iPMMxjQkQEcCm-q4)
+- [YouTube. Casey Muratori. "Clean" Code, Horrible Performance](https://www.youtube.com/watch?v=tD5NrevFtbU)
+- [Article. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 1](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa.md)
+- [Article. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 2](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa-2.md)
+- [YouTube. Casey Muratori | Smart-Pointers, RAII, ZII? Becoming an N+2 programmer](https://www.youtube.com/watch?v=xt1KNDmOYqA)
