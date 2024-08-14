@@ -245,7 +245,7 @@ void Add_Building_Sprite(
 ) {
     Assert(building_id != Building_ID_Missing);
 
-    auto building = Query_Building(game_map, building_id);
+    auto building = Strict_Query_Building(game_map, building_id);
 
     auto& scriptable = *building->scriptable;
 

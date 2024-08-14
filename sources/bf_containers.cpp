@@ -32,6 +32,13 @@ struct Fixed_Size_Slice {
         count++;
         return result;
     }
+
+    T Pop() {
+        Assert(count > 0);
+        auto result = *(items + count - 1);
+        count--;
+        return result;
+    }
 };
 
 template <typename T>
@@ -49,7 +56,6 @@ struct Fixed_Size_Queue {
 
     // PERF: Переписать на ring buffer! Много memmove происходит.
     T Dequeue() {
-        // TODO: Test!
         Assert(base != nullptr);
         Assert(count > 0);
 
@@ -394,6 +400,12 @@ struct Sparse_Array_Of_Ids {
         return result;
     }
 
+    T Pop() {
+        auto result = *(ids + count - 1);
+        count--;
+        return result;
+    }
+
     void Unstable_Remove(const T id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
@@ -418,14 +430,21 @@ struct Sparse_Array_Of_Ids {
     void Enlarge(MCTX) {
         CTX_ALLOCATOR;
 
-        auto new_max_count = max_count * 2;
+        i32 new_max_count = max_count * 2;
+        if (new_max_count == 0)
+            new_max_count = 8;
         Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto old_ids_size = sizeof(T) * max_count;
-        auto old_ids_ptr  = ids;
+        auto old_ids_size  = sizeof(T) * max_count;
+        auto old_ids_ptr   = ids;
 
-        memcpy((void*)ids, (void*)old_ids_ptr, old_ids_size);
-        FREE(old_ids_ptr, old_ids_size);
+        ids  = rcast<T*>(ALLOC(sizeof(T) * new_max_count));
+
+        if (old_ids_ptr)
+            memcpy(ids, old_ids_ptr, old_ids_size);
+
+        if (old_ids_ptr)
+            FREE(old_ids_ptr, old_ids_size);
 
         max_count = new_max_count;
     }

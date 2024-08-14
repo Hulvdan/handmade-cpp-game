@@ -622,6 +622,15 @@ void Win32_Write_To_File(void* file_handle, const char* text) noexcept {
     fprintf((FILE*)file_handle, "%s\n", text);
 }
 
+global_var u64 perf_counter_frequency  = 0;
+global_var u64 perf_counter_started_at = 0;
+
+double Win32_Get_Time() noexcept {
+    auto result = (double)(Win32Clock() - perf_counter_started_at)
+                  / (double)perf_counter_frequency;
+    return result;
+}
+
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
@@ -629,6 +638,9 @@ static int WinMain(
     LPSTR /* command_line */,
     int show_command
 ) {
+    perf_counter_frequency  = Win32Frequency();
+    perf_counter_started_at = Win32Clock();
+
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
 
@@ -893,6 +905,7 @@ static int WinMain(
     library_integration_data.imgui_context = ImGui::GetCurrentContext();
     library_integration_data.Open_File     = Win32_Open_File;
     library_integration_data.Write_To_File = Win32_Write_To_File;
+    library_integration_data.Get_Time      = Win32_Get_Time;
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);
@@ -903,8 +916,7 @@ static int WinMain(
 
     running = true;
 
-    u64 perf_counter_current   = Win32Clock();
-    u64 perf_counter_frequency = Win32Frequency();
+    u64 perf_counter_current = Win32Clock();
 
     f32       last_frame_dt = 0;
     const f32 MAX_FRAME_DT  = 1.0f / 10.0f;

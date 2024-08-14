@@ -505,14 +505,10 @@ enum class Human_Removal_Reason {
         Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
     ))
 
-#define HumanState_OnCurrentSegmentChanged_function(name_) \
-    NOLINT_UNUSED_PARAMETERS(void name_(                   \
-        Human_State&      state,                           \
-        Human&            human,                           \
-        const Human_Data& data,                            \
-        Graph_Segment_ID  old_segment_id,                  \
-        MCTX                                               \
-    ))
+#define HumanState_OnCurrentSegmentChanged_function(name_)                         \
+    NOLINT_UNUSED_PARAMETERS(                                                      \
+        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
+    )
 
 #define HumanState_OnMovedToTheNextTile_function(name_)                            \
     NOLINT_UNUSED_PARAMETERS(                                                      \
@@ -524,7 +520,6 @@ enum class Human_Removal_Reason {
         Human_State&      state,                \
         Human&            human,                \
         const Human_Data& data,                 \
-        Graph_Segment_ID  old_segment_id,       \
         Building_ID       old_building_id,      \
         Building*         old_building,         \
         MCTX                                    \
@@ -566,6 +561,7 @@ struct Human {
 
     Human_States              state                     = {};
     Moving_In_The_World_State state_moving_in_the_world = {};
+    // Graph_Segment_ID          moving_to_destination_segment_id = {};
 
     Graph_Segment_ID segment_id  = {};
     Building_ID      building_id = {};
@@ -609,7 +605,7 @@ struct Game_Map {
     Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings = {};
     Sparse_Array<Building_ID, City_Hall>                city_halls                = {};
     Sparse_Array<Human_ID, Human>                       humans                    = {};
-    Sparse_Array_Of_Ids<Human_ID> humans_going_to_the_city_hall                   = {};
+    Sparse_Array_Of_Ids<Human_ID>                       humans_going_to_city_hall = {};
     // Sparse_Array<Human_ID, Human_Transporter>           transporters = {};
     // Sparse_Array<Human_ID, Human_Constructor>           constructors = {};
     Sparse_Array<Human_ID, Human>                humans_to_add    = {};
