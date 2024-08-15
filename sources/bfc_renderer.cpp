@@ -2003,7 +2003,6 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
 
 // Game_State& state, const Human_ID& id, Human& human, MCTX
 On_Human_Created_function(Renderer_OnHumanCreated) {
-    DEBUG_Print("Human created!");
     auto& rstate = *state.renderer_state;
 
     C_Sprite human_sprite{};

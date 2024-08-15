@@ -561,7 +561,6 @@ struct Human {
 
     Human_States              state                     = {};
     Moving_In_The_World_State state_moving_in_the_world = {};
-    // Graph_Segment_ID          moving_to_destination_segment_id = {};
 
     Graph_Segment_ID segment_id  = {};
     Building_ID      building_id = {};

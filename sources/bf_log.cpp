@@ -100,7 +100,7 @@ void Initialize_Tracing_Logger(Tracing_Logger& logger, Arena& arena) {
     logger.initialized = true;
 }
 
-#if 1
+#if 0
 using Root_Logger_Type = Tracing_Logger;
 #    define MAKE_LOGGER(logger_ptr, arena)                   \
         STATEMENT({                                          \
@@ -285,6 +285,7 @@ Logger_function(Tracing_Logger_Routine) {
 #define _LOG_COMMON(log_type_, ...)                    \
     STATEMENT({                                        \
         const auto str = Text_Format(__VA_ARGS__);     \
+if (logger_routine)\
         logger_routine(logger_data, (log_type_), str); \
     })
 

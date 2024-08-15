@@ -391,6 +391,9 @@ void Human_Moving_Component_Add_Path(
 ) {
     moving.path.Reset();
 
+    if (moving.elapsed == 0)
+        moving.to.reset();
+
     if (path_count != 0) {
         Assert(path != nullptr);
 
@@ -557,25 +560,15 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
 
         auto& segment = *Strict_Query_Graph_Segment(game_map, human.segment_id);
 
-        // NOTE: Следующая клетка, на которую перейдёт (или уже находится) чувак,
-        // - это клетка его сегмента. Нам уже не нужно помнить его путь.
-        if (human.moving.to.has_value()
-            && Graph_Contains(segment.graph, human.moving.to.value())
-            && Graph_Node(segment.graph, human.moving.to.value()) != 0)
+        auto moving_from = human.moving.to.value_or(human.moving.pos);
+        if (human.moving.elapsed == 0)
+            moving_from = human.moving.pos;
+
+        // NOTE: Чувачок уже в сегменте и идёт до его центра.
+        if (Graph_Contains(segment.graph, human.moving.pos)
+            && (Graph_Node(segment.graph, human.moving.pos) != 0))
         {
             human.moving.path.Reset();
-            return;
-        }
-
-        // NOTE: Чувак перешёл на клетку сегмента. Переходим на Moving_Inside_Segment.
-        if (!(human.moving.to.has_value())
-            && Graph_Contains(segment.graph, human.moving.pos)
-            && Graph_Node(segment.graph, human.moving.pos) != 0)
-        {
-            LOG_DEBUG(
-                "Root_Set_Human_State(human, "
-                "Human_States::Moving_Inside_Segment, data, ctx)"
-            );
             Root_Set_Human_State(human, Human_States::MovingInsideSegment, data, ctx);
             return;
         }
@@ -591,21 +584,28 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
 
             Assert(data.trash_arena != nullptr);
 
-            auto [success, path, path_count] = Find_Path(
-                *data.trash_arena,
-                game_map.size,
-                game_map.terrain_tiles,
-                game_map.element_tiles,
-                human.moving.to.value_or(human.moving.pos),
-                Assert_Deref(segment.graph.data).center,
-                true
-            );
-            // human.moving_to_destination_segment_id = human.segment_id;
+            if (human.moving.elapsed == 0)
+                human.moving.to.reset();
+            auto moving_from = human.moving.to.value_or(human.moving.pos);
 
-            Assert(success);
-            Assert(path_count > 0);
+            auto segment_center = Assert_Deref(segment.graph.data).center;
+            if (segment_center != moving_from) {
+                LOG_DEBUG("Calculating path to the segment");
+                auto [success, path, path_count] = Find_Path(
+                    *data.trash_arena,
+                    game_map.size,
+                    game_map.terrain_tiles,
+                    game_map.element_tiles,
+                    moving_from,
+                    segment_center,
+                    true
+                );
 
-            Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+                Assert(success);
+                Assert(path_count > 0);
+
+                Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+            }
         }
     }
     else if (is_constructor_or_employee && (human.building_id != Building_ID_Missing)) {
@@ -623,12 +623,17 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
             Assert(data.trash_arena != nullptr);
 
             TEMP_USAGE(*data.trash_arena);
+
+            if (human.moving.elapsed == 0)
+                human.moving.to.reset();
+            auto moving_from = human.moving.to.value_or(human.moving.pos);
+
             auto [success, path, path_count] = Find_Path(
                 *data.trash_arena,
                 game_map.size,
                 game_map.terrain_tiles,
                 game_map.element_tiles,
-                human.moving.to.value_or(human.moving.pos),
+                moving_from,
                 building.pos,
                 true
             );
@@ -657,6 +662,11 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
         human.building_id = city_hall_id;
 
         TEMP_USAGE(*data.trash_arena);
+
+        if (human.moving.elapsed == 0)
+            human.moving.to.reset();
+
+        LOG_DEBUG("Calculating path to the city hall");
         auto [success, path, path_count] = Find_Path(
             *data.trash_arena,
             game_map.size,
@@ -693,8 +703,6 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     LOG_TRACING_SCOPE;
 
     Assert(human.segment_id != Graph_Segment_ID_Missing);
-    Assert(!human.moving.to.has_value());
-    Assert(human.moving.path.count == 0);
 
     auto& game_map = *data.game_map;
 
@@ -704,12 +712,16 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
         TEMP_USAGE(*data.trash_arena);
         LOG_DEBUG("Calculating path to the center of the segment");
 
+        if (human.moving.elapsed == 0)
+            human.moving.to.reset();
+        auto moving_from = human.moving.to.value_or(human.moving.pos);
+
         auto [success, path, path_count] = Find_Path(
             *data.trash_arena,
             game_map.size,
             game_map.terrain_tiles,
             game_map.element_tiles,
-            human.moving.to.value_or(human.moving.pos),
+            moving_from,
             Assert_Deref(segment.graph.data).center,
             true
         );
@@ -717,6 +729,9 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
         Assert(success);
 
         Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+    }
+    else {
+        // TODO: moving.path.Reset(), moving.to.reset() и идём до вертекса с ресурсом
     }
 }
 
@@ -739,7 +754,6 @@ HumanState_OnCurrentSegmentChanged_function(
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
-    // Tracing.Log("_controller.SetState(human, HumanState.MovingInTheWorld)");
     Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
 }
 
@@ -749,7 +763,7 @@ HumanState_OnMovedToTheNextTile_function(
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
-    // NOTE: Intentionally left blank.
+    // NOTE: Специально оставлено пустым.
 }
 
 HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
