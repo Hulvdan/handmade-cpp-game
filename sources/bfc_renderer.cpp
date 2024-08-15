@@ -417,7 +417,9 @@ float map(float value, float min1, float max1, float min2, float max2) {
 }
 
 void main() {
-    vec2 pos = tex_coord * a_gsize;
+    ivec2 a_gsize_ = a_gsize + ivec2(0, 1);
+
+    vec2 pos = tex_coord * a_gsize_;
 
     ivec2 tile  = ivec2(pos);
 
@@ -426,7 +428,7 @@ void main() {
 
 #if 0
     frag_color = vec4(
-        vec2(tile) / vec2(a_gsize),
+        vec2(tile) / vec2(a_gsize_),
         0,
         1
     );
@@ -436,13 +438,13 @@ void main() {
     if (
         tile.x < 0
         || tile.y < 0
-        || tile.x > a_gsize.x
-        || tile.y > a_gsize.y
+        || tile.x > a_gsize_.x
+        || tile.y > a_gsize_.y
     )
         discard;
 
-    int tiles_count = a_gsize.x * a_gsize.y;
-    int tile_number = tile.y * a_gsize.x + tile.x;
+    int tiles_count = a_gsize_.x * a_gsize_.y;
+    int tile_number = tile.y * a_gsize_.x + tile.x;
 
 #if 0
     frag_color = vec4(
@@ -667,6 +669,7 @@ void main() {
     FOR_RANGE (i32, h, rstate.tilemaps_count) {
         auto& tilemap = rstate.tilemaps[h];
 
+        // NOTE: Добавлен тайл сверху для отрисовки верхушек деревьев
         tilemap.size     = gsize + v2i16(0, 1);
         auto tiles_count = tilemap.size.x * tilemap.size.y;
 
