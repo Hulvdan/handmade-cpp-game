@@ -315,8 +315,6 @@ def make_atlas(path: Path) -> set[int]:
     directory = path.parent
     filename_wo_extension = path.name.rsplit(".", 1)[0]
 
-    texture_name_2_id: dict[str, int] = dict()
-
     # Генерируем атлас из .ftpp файла.
     # Во время этого создаются .json спецификация и .png текстура.
     log.debug("Generating {} atlas".format(path))
@@ -327,19 +325,17 @@ def make_atlas(path: Path) -> set[int]:
     with open(json_path) as json_file:
         json_data = json.load(json_file)
 
-    textures = []
+    found_textures: set[str] = set()
+
+    textures: list[Any] = []
     for name, data in json_data["frames"].items():
         name = name.removeprefix("sources/")
 
-        assert name not in texture_name_2_id
-
-        # NOTE: Резерв 0 для обозначения отсутствия текстуры
-        new_texture_id = len(texture_name_2_id) + 1
-
-        texture_name_2_id[name] = new_texture_id
+        assert name not in found_textures
+        found_textures.add(name)
 
         texture_data = {
-            "id": new_texture_id,
+            "id": -1,
             "debug_name": name,
             "size_x": data["frame"]["w"],
             "size_y": data["frame"]["h"],
@@ -348,8 +344,16 @@ def make_atlas(path: Path) -> set[int]:
         }
         textures.append(texture_data)
 
-    # NOTE: Сортировка по хешу в теории бы позволила в бинарный поиск.
-    textures.sort(key=lambda x: x["id"])
+    texture_name_2_id: dict[str, int] = dict()
+
+    textures.sort(key=lambda x: x["debug_name"])
+
+    for i in range(len(textures)):
+        new_id = i + 1  # NOTE: Резерв 0 для обозначения отсутствия текстуры
+        textures[i]["id"] = new_id
+
+        name = textures[i]["debug_name"]
+        texture_name_2_id[name] = new_id
 
     json_intermediate_path = directory / (filename_wo_extension + ".intermediate.json")
     better_json_dump(
