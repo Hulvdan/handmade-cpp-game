@@ -1784,28 +1784,26 @@ void Render(Game_State& state, f32 dt, MCTX) {
         vertex_data.Free(ctx);
     };
 
+    struct Vertex_Datum {
+        v2f pos;
+        v3f color;
+        v2f tex_coords;
+    };
+
     {
         ZoneScopedN("Iterating over sprites");
-        struct vertex_datum_t {
-            v2f pos;
-            v3f color;
-            v2f tex_coord;
-        };
 
-        auto mem_per_sprite = sizeof(vertex_datum_t) * 6;
+        auto mem_per_sprite = sizeof(Vertex_Datum) * 6;
         vertex_data.Reserve(mem_per_sprite * rstate.sprites.count, ctx);
 
         FOR_RANGE (int, sprites_i, rstate.sprites.count) {
-            auto  entity_id = *(rstate.sprites.ids + sprites_i);
-            auto& s         = *(rstate.sprites.base + sprites_i);
+            auto& s = *(rstate.sprites.base + sprites_i);
 
             Assert(s.texture != 0);
             Assert(s.texture != Texture_ID_Missing);
 
             auto  texture_index = s.texture - 1;
             auto& tex           = *(rstate.atlas.textures.base + texture_index);
-
-            auto texture_id = tex.id;
 
             // TODO: rotation
             // TODO: filter
@@ -1828,7 +1826,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
             f32 ay1 = tex.pos_inside_atlas.y;
             f32 ay0 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
 
-            v2f verticess[] = {
+            v2f vertices[] = {
                 {x0, y0},
                 {x1, y0},
                 {x0, y1},
@@ -1837,7 +1835,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 {x1, y1},
             };
 
-            v2f texture_positions[] = {
+            v2f tex_pos[] = {
                 {ax0, ay0},
                 {ax1, ay0},
                 {ax0, ay1},
@@ -1846,13 +1844,9 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 {ax1, ay1},
             };
 
-            vertex_datum_t vd[6] = {};
+            Vertex_Datum vd[6] = {};
             FOR_RANGE (int, i, 6) {
-                vd[i] = {
-                    verticess[i],
-                    v3f_one,
-                    texture_positions[i],
-                };
+                vd[i] = {vertices[i], v3f_one, tex_pos[i]};
             }
 
             vertex_data.Add_Unsafe((void*)vd, sizeof(vd));
@@ -1869,12 +1863,15 @@ void Render(Game_State& state, f32 dt, MCTX) {
         const auto vbo = BFGL_Load_Vertex_Buffer(
             vertex_data.base, Assert_Truncate_To_i32(vertex_data.count), false
         );
-        BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(f32) * 7, 0);
+
+        const auto pos_off        = Offset_Of_Member(Vertex_Datum, pos);
+        const auto color_off      = Offset_Of_Member(Vertex_Datum, color);
+        const auto tex_coords_off = Offset_Of_Member(Vertex_Datum, tex_coords);
+
+        BFGL_Set_Vertex_Attribute(0, 2, BF_FLOAT, false, sizeof(Vertex_Datum), pos_off);
+        BFGL_Set_Vertex_Attribute(1, 3, BF_FLOAT, false, sizeof(Vertex_Datum), color_off);
         BFGL_Set_Vertex_Attribute(
-            1, 3, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 2
-        );
-        BFGL_Set_Vertex_Attribute(
-            2, 2, BF_FLOAT, false, sizeof(f32) * 7, sizeof(f32) * 5
+            2, 2, BF_FLOAT, false, sizeof(Vertex_Datum), tex_coords_off
         );
         BFGL_Enable_Vertex_Attribute(0);
         BFGL_Enable_Vertex_Attribute(1);
@@ -1959,12 +1956,6 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
             tile_id          = global_road_starting_tile_id + tex;
             auto& texture_id = roads_tilemap.textures[t];
             texture_id       = rstate.road_textures[tex];
-
-            if (offset == v2i16_zero && element_tile.type == Element_Tile_Type::Building)
-            {
-                Assert(false);
-                INVALID_PATH;
-            }
         } break;
 
         case Element_Tile_Type::None:
