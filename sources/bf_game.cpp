@@ -31,19 +31,20 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
+#include "bf_instrument.cpp"
 #include "bf_containers.cpp"
 #include "bf_game_types.cpp"
 #include "bf_strings.cpp"
 #include "bf_hash.cpp"
 #include "bf_game_map.cpp"
 
-#ifdef BF_CLIENT
+#if BF_CLIENT
 #    include "bfc_tilemap.cpp"
 #    include "bfc_renderer.cpp"
-#endif  // BF_CLIENT
+#endif
 
 #if BF_SERVER
-#endif  // BF_SERVER
+#endif
 // NOLINTEND(bugprone-suspicious-include)
 
 bool UI_Clicked(Game_State& state) {
@@ -288,19 +289,19 @@ const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
 }
 
 On_Item_Built_function(On_Item_Built) {
-#ifdef BF_CLIENT
+#if BF_CLIENT
     Renderer_OnItemBuilt(state, pos, item, ctx);
 #endif
 }
 
 On_Human_Created_function(On_Human_Created) {
-#ifdef BF_CLIENT
+#if BF_CLIENT
     Renderer_OnHumanCreated(state, id, human, ctx);
 #endif
 }
 
 On_Human_Removed_function(On_Human_Removed) {
-#ifdef BF_CLIENT
+#if BF_CLIENT
     Renderer_OnHumanRemoved(state, id, human, reason, ctx);
 #endif
 }

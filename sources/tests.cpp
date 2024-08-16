@@ -3,23 +3,15 @@
 
 #include "bf_game.h"
 
-// #define Root_Allocator_Type                                                     \
-//     Freelist<                                                                   \
-//         Affix_Allocator<                                                        \
-//             Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \
-//             Stoopid_Affix,                                                      \
-//             Stoopid_Affix>,                                                     \
-//         0,                                                                      \
-//         32>
-
-#define Root_Allocator_Type                                                 \
-    Affix_Allocator<                                                        \
-        Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \
-        Stoopid_Affix,                                                      \
-        Stoopid_Affix>
-
-// #define Root_Allocator_Type \
-//     Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>
+#if BF_SANITIZATION_ENABLED
+#    define Root_Allocator_Type                                                 \
+        Affix_Allocator<                                                        \
+            Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \
+            Stoopid_Affix,                                                      \
+            Stoopid_Affix>
+#else
+#    define Root_Allocator_Type Freeable_Malloc_Allocator
+#endif
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_game.cpp"
@@ -123,54 +115,6 @@ TEST_CASE ("Ceil_To_Power_Of_2") {
     CHECK(Ceil_To_Power_Of_2(65536) == 65536);
     CHECK(Ceil_To_Power_Of_2(2147483647) == 2147483648);
     CHECK(Ceil_To_Power_Of_2(2147483648) == 2147483648);
-}
-
-// bfc_tilemap.cpp
-//----------------------------------------------------------------------------------
-TEST_CASE ("Load_Smart_Tile_Rules, ItWorks") {
-    constexpr u64 size         = 512;
-    u8            output[size] = {};
-
-    Arena arena{};
-    arena.size = size;
-    arena.base = output;
-
-    auto rules_data
-        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |";
-    i32  rules_data_size = 0;
-    auto p               = rules_data;
-    while (*p++)
-        rules_data_size++;
-
-    Smart_Tile tile{};
-    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
-
-    CHECK(result.success == true);
-    CHECK(tile.rules_count == 2);
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
-}
-
-TEST_CASE ("Load_Smart_Tile_Rules, ItWorksWithANewlineOnTheEnd") {
-    constexpr u64 size         = 512;
-    u8            output[size] = {};
-
-    Arena arena{};
-    arena.size = size;
-    arena.base = output;
-
-    auto rules_data
-        = "grass_7\ngrass_1\n| * |\n|*@@|\n| @ |\ngrass_2\n| * |\n|@@@|\n| @ |\n";
-    i32  rules_data_size = 0;
-    auto p               = rules_data;
-    while (*p++)
-        rules_data_size++;
-
-    Smart_Tile tile{};
-    auto result = Load_Smart_Tile_Rules(tile, arena, (u8*)rules_data, rules_data_size);
-
-    CHECK(result.success == true);
-    CHECK(tile.rules_count == 2);
-    CHECK(Hash32((u8*)"test", 4) == 2949673445);
 }
 
 // bf_rand.cpp

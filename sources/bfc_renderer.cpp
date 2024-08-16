@@ -1,6 +1,7 @@
-#ifndef BF_CLIENT
+#if !BF_CLIENT
 #    error "This code should run on a client! BF_CLIENT must be defined!"
-#endif  // BF_CLIENT
+#endif
+
 #pragma pack(push, 1)
 struct Debug_BMP_Header {
     u16 signature;
@@ -1749,8 +1750,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
             BFGL_Unload_Vertex_Array(vao);
 
             BFGL_Check_Errors();
-
-            SANITIZE;
         }
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, tilemap_framebuffer.id);
@@ -1767,6 +1766,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
             GL_COLOR_BUFFER_BIT,
             GL_NEAREST
         );
+
+        SANITIZE;
     }
 
     BFGL_Check_Errors();
@@ -1782,9 +1783,6 @@ void Render(Game_State& state, f32 dt, MCTX) {
     defer {
         vertex_data.Free(ctx);
     };
-
-    GLfloat zero = 0;
-    GLfloat one  = 1;
 
     {
         ZoneScopedN("Iterating over sprites");

@@ -41,9 +41,6 @@ bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment
     return false;
 }
 
-global_var int global_last_segments_to_add_count    = 0;
-global_var int global_last_segments_to_delete_count = 0;
-
 struct Path_Find_Result {
     bool   success;
     v2i16* path;
@@ -546,6 +543,8 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTh
 }
 
 HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
+    ZoneScoped;
+
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -767,6 +766,8 @@ HumanState_OnMovedToTheNextTile_function(
 }
 
 HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
+    ZoneScoped;
+
     CTX_LOGGER;
     LOG_TRACING_SCOPE;
 
@@ -1145,7 +1146,8 @@ void Update_Human_Moving_Component(
         moving.elapsed = 0;
 
     moving.progress = MIN(1.0f, moving.elapsed / duration);
-    SANITIZE;
+
+    SANITIZE_HUMAN;
 }
 
 void Update_Human(
@@ -1156,34 +1158,50 @@ void Update_Human(
     const Human_Data& data,
     MCTX
 ) {
+    ZoneScoped;
+
     CTX_ALLOCATOR;
 
     auto& human            = *human_ptr;
     auto& humans_to_remove = game_map.humans_to_remove;
 
-    if (human.moving.to.has_value())
+    if (human.moving.to.has_value()) {
+        ZoneScopedN("Update_Human_Moving_Component");
+
         Update_Human_Moving_Component(game_map, human, dt, data, ctx);
+    }
 
     if (humans_to_remove.count > 0 && humans_to_remove.Contains(id))
         return;
 
-    Human_Root_Update(human, data, dt, ctx);
-
-    auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
-    if ((human.state_moving_in_the_world == state)  //
-        && (!human.moving.to.has_value())           //
-        && (human.moving.pos == Strict_Query_Building(game_map, human.building_id)->pos))
     {
-        auto [pid, r_value] = humans_to_remove.Add(ctx);
+        ZoneScopedN("Human_Root_Update");
 
-        *pid     = id;
-        *r_value = Human_Removal_Reason::Transporter_Returned_To_City_Hall;
+        Human_Root_Update(human, data, dt, ctx);
     }
 
-    SANITIZE;
+    {
+        ZoneScopedN("Checking if needs removal");
+
+        auto state = Moving_In_The_World_State::Moving_To_The_City_Hall;
+        if ((human.state_moving_in_the_world == state)  //
+            && (!human.moving.to.has_value())           //
+            && (human.moving.pos
+                == Strict_Query_Building(game_map, human.building_id)->pos))
+        {
+            auto [pid, r_value] = humans_to_remove.Add(ctx);
+
+            *pid     = id;
+            *r_value = Human_Removal_Reason::Transporter_Returned_To_City_Hall;
+        }
+    }
+
+    SANITIZE_HUMAN;
 }
 
 void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
+    ZoneScoped;
+
     CTX_LOGGER;
 
     auto& game_map = state.game_map;
@@ -1220,33 +1238,27 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     Remove_Humans(state, ctx);
 
     {  // NOTE: Debug shiet.
-        int humans                         = 0;
-        int humans_moving_to_the_city_hall = 0;
-        int humans_moving_to_destination   = 0;
-        int humans_moving_inside_segment   = 0;
+        int humans_moving_to_destination = 0;
+        int humans_moving_inside_segment = 0;
         for (auto [id, human_ptr] : Iter(&game_map.humans)) {
-            humans++;
             auto& human = *human_ptr;
 
-            if (human.state == Human_States::MovingInTheWorld) {
-                if (human.state_moving_in_the_world
-                    == Moving_In_The_World_State::Moving_To_The_City_Hall)
-                {
-                    humans_moving_to_the_city_hall++;
-                }
-                else if (human.state_moving_in_the_world  //
-                         == Moving_In_The_World_State::Moving_To_Destination)
-                {
-                    humans_moving_to_destination++;
-                }
+            if (human.state == Human_States::MovingInTheWorld  //
+                && human.state_moving_in_the_world
+                       == Moving_In_The_World_State::Moving_To_Destination)
+            {
+                humans_moving_to_destination++;
             }
             else if (human.state == Human_States::MovingInsideSegment) {
                 humans_moving_inside_segment++;
             }
         }
 
-        ImGui::Text("humans %d", humans);
-        ImGui::Text("humans_moving_to_the_city_hall %d", humans_moving_to_the_city_hall);
+        ImGui::Text("game_map.humans.count %d", game_map.humans.count);
+        ImGui::Text(
+            "game_map.humans_going_to_city_hall %d",
+            game_map.humans_going_to_city_hall.count
+        );
         ImGui::Text("humans_moving_to_destination %d", humans_moving_to_destination);
         ImGui::Text("humans_moving_inside_segment %d", humans_moving_inside_segment);
     }
@@ -1254,17 +1266,19 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
     ZoneScoped;
+
     CTX_LOGGER;
+    CTX_ALLOCATOR;
 
     auto& game_map    = state.game_map;
     auto& trash_arena = state.trash_arena;
 
-    ImGui::Text("last_segments_to_add_count %d", global_last_segments_to_add_count);
-    ImGui::Text("last_segments_to_delete_count %d", global_last_segments_to_delete_count);
     ImGui::Text("game_map.segments.count %d", game_map.segments.count);
 
     Process_City_Halls(state, dt, Assert_Deref(state.game_map.human_data), ctx);
     Update_Humans(state, dt, Assert_Deref(state.game_map.human_data), ctx);
+
+    SANITIZE;
 }
 
 void Add_Map_Resource(
@@ -1815,9 +1829,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
         }
     }
 
-#ifdef ASSERT_SLOW
+#if ASSERT_SLOW
     Assert_Is_Undirected(graph);
-#endif  // ASSERT_SLOW
+#endif
 
     // NOTE: Вычисление центра графа.
     i16* node_eccentricities = Allocate_Zeros_Array(trash_arena, i16, n);
@@ -1911,9 +1925,6 @@ BF_FORCE_INLINE void Update_Segments(
     LOG_DEBUG("segments_to_delete.count = %d", segments_to_delete.count);
 
     TEMP_USAGE(trash_arena);
-
-    global_last_segments_to_add_count    = segments_to_add.count;
-    global_last_segments_to_delete_count = segments_to_delete.count;
 
     // NOTE: `Graph_Segment*` is nullable, `Human*` is not.
     using tttt = std::tuple<Graph_Segment_ID, Graph_Segment*, Human_ID, Human*>;
@@ -2539,7 +2550,7 @@ std::tuple<int, int> Update_Tiles(
 
     SANITIZE;
 
-#ifdef ASSERT_SLOW
+#if ASSERT_SLOW
     for (auto [segment1_id, segment1_ptr] : Iter(segments)) {
         auto& segment1  = *segment1_ptr;
         auto& g1        = segment1.graph;

@@ -1,6 +1,6 @@
-#ifndef BF_CLIENT
+#if !BF_CLIENT
 #    error "This code should run on a client! BF_CLIENT must be defined!"
-#endif  // BF_CLIENT
+#endif
 
 void Load_Smart_Tile_Rule(Smart_Tile& tile, Arena& arena, const BFGame::Tile_Rule* rule) {
     tile.fallback_texture = rule->default_texture();

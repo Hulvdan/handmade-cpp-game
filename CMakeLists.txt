@@ -10,9 +10,9 @@ set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 set(FLATBUFFERS_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/flatbuffers-24.3.25")
 
 add_compile_definitions(
-    BF_INTERNAL
-    BF_CLIENT
-    ASSERT_SLOW
+    BF_INTERNAL=1
+    BF_CLIENT=1
+    BF_SERVER=0
 
     PROFILING
     TRACY_ENABLE
@@ -44,7 +44,7 @@ add_library(bf_game SHARED)
 target_sources(bf_game PUBLIC sources/bf_game.h)
 target_sources(bf_game PRIVATE sources/bf_game.cpp)
 target_compile_definitions(bf_game PRIVATE
-    GAME_LIBRARY_BUILD
+    GAME_LIBRARY_BUILD=1
 
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS
@@ -131,8 +131,8 @@ target_include_directories(tests PRIVATE
     "${PROJECT_SOURCE_DIR}/codegen/flatbuffers"
 )
 target_compile_definitions(tests PRIVATE
-    GAME_LIBRARY_BUILD
-    TESTS
+    GAME_LIBRARY_BUILD=1
+    TESTS=1
 
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
     IMGUI_DEFINE_MATH_OPERATORS

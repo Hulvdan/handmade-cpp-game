@@ -13,7 +13,7 @@
 //
 // Is it possible to write this
 
-#ifdef GAME_LIBRARY_BUILD
+#if GAME_LIBRARY_BUILD
 // #error "We are compiling the library"
 // Building the library
 #    if _WIN32
@@ -26,7 +26,7 @@
 // Assume that no export attributes are needed
 #        define GAME_LIBRARY_EXPORT
 #    endif
-#else  // GAME_LIBRARY_BUILD
+#else
 // #error "We are including the library"
 // Using (including) the library
 #    if _WIN32
@@ -36,7 +36,7 @@
 // Assume that no import attributes are needed
 #        define GAME_LIBRARY_EXPORT
 #    endif
-#endif  // GAME_LIBRARY_BUILD
+#endif
 
 struct GAME_LIBRARY_EXPORT Game_Bitmap {
     i32 width;

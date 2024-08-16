@@ -14,16 +14,16 @@
         statement;           \
     } while (false)
 
-#ifdef BF_INTERNAL
+#if BF_INTERNAL
 #    define BREAKPOINT STATEMENT({ __debugbreak(); })
-#else  // BF_INTERNAL
+#else
 #    define BREAKPOINT STATEMENT({})
-#endif  // BF_INTERNAL
+#endif
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-#ifdef BF_INTERNAL
+#if BF_INTERNAL
 static constexpr auto DEBUG_MAX_LEN = 512;
 
 void DEBUG_Error(const char* text, ...) {
@@ -54,10 +54,10 @@ void DEBUG_Print(const char* text, ...) {
     va_end(args);
 }
 
-#else  // BF_INTERNAL
+#else
 #    define DEBUG_Error(text_, ...)
 #    define DEBUG_Print(text_, ...)
-#endif  // BF_INTERNAL
+#endif
 
 //----------------------------------------------------------------------------------
 // Inline.
@@ -167,7 +167,7 @@ constexpr i64 i64_min = std::numeric_limits<i64>::min();
 
 constexpr f32 f32_inf = std::numeric_limits<f32>::infinity();
 
-#ifdef TESTS
+#if TESTS
 #    define Assert(expr) REQUIRE(expr)
 #    define Assert_False(expr) REQUIRE_FALSE(expr)
 #else

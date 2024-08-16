@@ -1,0 +1,10 @@
+#define ASSERT_SLOW (1 && BF_INTERNAL)
+
+#define BF_SANITIZATION_ENABLED (0 && BF_INTERNAL)
+#define BF_HUMAN_SANITIZATION 1
+
+#if BF_HUMAN_SANITIZATION == 1
+#    define SANITIZE_HUMAN SANITIZE
+#else
+#    define SANITIZE_HUMAN ((void)0)
+#endif

@@ -1,8 +1,17 @@
-#define COALESCE(value, fallback) (((value) != nullptr) ? (value) : (fallback))
+#ifndef Root_Allocator_Type
+#    if BF_SANITIZATION_ENABLED
+#        define Root_Allocator_Type \
+            Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
+#    else
+#        define Root_Allocator_Type Malloc_Allocator
+#    endif
+#endif
+
+#define BF_MEMORY_COALESCE_(value, fallback) (((value) != nullptr) ? (value) : (fallback))
 
 // NOTE: Этим штукам в верхнем scope нужны `allocate`, `allocator_data`
 #define ALLOC(n)                                                  \
-    (COALESCE(allocator, Root_Allocator_Routine)(                 \
+    (BF_MEMORY_COALESCE_(allocator, Root_Allocator_Routine)(      \
         Allocator_Mode::Allocate, (n), 1, 0, 0, allocator_data, 0 \
     ))
 
@@ -13,34 +22,34 @@
         return addr;          \
     }()
 
-#define REALLOC(new_bytes_size, old_bytes_size, old_ptr) \
-    (COALESCE(allocator, Root_Allocator_Routine))(       \
-        Allocator_Mode::Resize,                          \
-        (new_bytes_size),                                \
-        1,                                               \
-        (old_bytes_size),                                \
-        (old_ptr),                                       \
-        allocator_data,                                  \
-        0                                                \
+#define REALLOC(new_bytes_size, old_bytes_size, old_ptr)      \
+    (BF_MEMORY_COALESCE_(allocator, Root_Allocator_Routine))( \
+        Allocator_Mode::Resize,                               \
+        (new_bytes_size),                                     \
+        1,                                                    \
+        (old_bytes_size),                                     \
+        (old_ptr),                                            \
+        allocator_data,                                       \
+        0                                                     \
     )
 
 #define FREE(ptr, bytes_size)                                              \
-    (COALESCE(allocator, Root_Allocator_Routine))(                         \
+    (BF_MEMORY_COALESCE_(allocator, Root_Allocator_Routine))(              \
         Allocator_Mode::Free, (bytes_size), 1, 0, (ptr), allocator_data, 0 \
     )
 
 #define FREE_ALL                                                \
-    (COALESCE(allocator, Root_Allocator_Routine))(              \
+    (BF_MEMORY_COALESCE_(allocator, Root_Allocator_Routine))(   \
         Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0 \
     )
 
-#if 1
+#if (SANITIZATION_ENABLED == 1)
 #    define SANITIZE                                              \
-        (COALESCE(allocator, Root_Allocator_Routine))(            \
+        (BF_MEMORY_COALESCE_(allocator, Root_Allocator_Routine))( \
             Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \
         )
 #else
-#    define SANITIZE (void)0
+#    define SANITIZE ((void)0)
 #endif
 
 #define MCTX Context* ctx
@@ -847,17 +856,6 @@ struct Stoopid_Affix {
         return true;
     }
 };
-
-#ifndef Root_Allocator_Type
-
-#    if 1
-#        define Root_Allocator_Type \
-            Affix_Allocator<Malloc_Allocator, Stoopid_Affix, Stoopid_Affix>
-#    else
-#        define Root_Allocator_Type Malloc_Allocator
-#    endif
-
-#endif  // Root_Allocator_Type
 
 global_var Root_Allocator_Type* root_allocator = nullptr;
 

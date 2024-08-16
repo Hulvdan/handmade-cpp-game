@@ -8,7 +8,7 @@ struct Human;
 struct Human_Data;
 struct Building;
 
-#ifdef BF_CLIENT
+#if BF_CLIENT
 struct Game_Renderer_State;
 struct Loaded_Texture;
 #endif
@@ -356,9 +356,9 @@ struct Scriptable_Building {
 
     Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources = {};
 
-#ifdef BF_CLIENT
+#if BF_CLIENT
     Texture_ID texture = {};
-#endif  // BF_CLIENT
+#endif
 };
 
 enum class Human_Type {
@@ -442,10 +442,10 @@ void Validate_Element_Tile(Element_Tile& tile) {
 struct Scriptable_Resource {
     const char* code = {};
 
-#ifdef BF_CLIENT
+#if BF_CLIENT
     Texture_ID texture       = {};
     Texture_ID small_texture = {};
-#endif  // BF_CLIENT
+#endif
 };
 
 // NOTE: `scriptable` is `null` when `amount` = 0
@@ -683,9 +683,9 @@ struct Game_State {
     Arena non_persistent_arena = {};  // Gets flushed on DLL reloads
     Arena trash_arena          = {};  // Use for transient calculations
 
-#ifdef BF_CLIENT
+#if BF_CLIENT
     Game_Renderer_State* renderer_state = {};
-#endif  // BF_CLIENT
+#endif
 
     const BFGame::Game_Library* gamelib = {};
 };
@@ -708,7 +708,7 @@ Building* Get_Building(Game_Map& game_map, Building_ID id) {
     return game_map.buildings.Find(id);
 }
 
-#ifdef BF_CLIENT
+#if BF_CLIENT
 
 //----------------------------------------------------------------------------------
 // CLIENT. Game Rendering.
@@ -902,4 +902,4 @@ struct Game_Renderer_State {
     size_t rendering_indices_buffer_size = {};
     void*  rendering_indices_buffer      = {};
 };
-#endif  // BF_CLIENT
+#endif
