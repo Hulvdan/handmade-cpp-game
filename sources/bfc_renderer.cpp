@@ -561,11 +561,6 @@ void main() {
         glUniform3f(rstate.tilemap_shader_color_location, 1, 1, 1);
     }
 
-    rstate.grass_smart_tile.id  = 1;
-    rstate.forest_smart_tile.id = 2;
-    rstate.forest_top_tile_id   = 3;
-    rstate.flag_tile_id         = 4;
-
     {
         auto art = state.gamelib->art();
 
@@ -599,6 +594,11 @@ void main() {
             non_persistent_arena,
             state.gamelib->art()->tile_rule_forest()
         );
+
+        rstate.grass_smart_tile.id  = 1;
+        rstate.forest_smart_tile.id = 2;
+        rstate.forest_top_tile_id   = 3;
+        rstate.flag_tile_id         = 4;
 
         Assert(state.gamelib->resources()->size() == state.scriptable_resources_count);
 
@@ -1153,56 +1153,6 @@ v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i32 x, i32 y)
     Assert(id != Texture_ID_Missing);
     auto result = Get_Texture(atlas, id)->pos_inside_atlas;
     return result;
-}
-
-void Map_Sprites_With_Textures(
-    Game_Renderer_State&                                    rstate,
-    std::invocable<C_Texture&, Entity_ID, C_Sprite&> auto&& func
-) {
-    ZoneScopedN("Rendering sprites");
-
-#if 1
-
-    FOR_RANGE (int, sprites_i, rstate.sprites.count) {
-        auto  entity_id = *(rstate.sprites.ids + sprites_i);
-        auto& sprite    = *(rstate.sprites.base + sprites_i);
-
-        Assert(sprite.texture != 0);
-        Assert(sprite.texture != Texture_ID_Missing);
-
-        auto  texture_index = sprite.texture - 1;
-        auto& texture       = *(rstate.atlas.textures.base + texture_index);
-
-        func(texture, entity_id, sprite);
-    }
-
-#else
-
-#    if 1
-    FOR_RANGE (int, sprites_i, rstate.sprites.count) {
-        FOR_RANGE (int, textures_i, rstate.atlas.textures.count) {
-            auto  entity_id = *(rstate.sprites.ids + sprites_i);
-            auto& sprite    = *(rstate.sprites.base + sprites_i);
-            auto& texture   = *(rstate.atlas.textures.base + textures_i);
-
-            if (sprite.texture != texture.id)
-                continue;
-
-            func(texture, entity_id, sprite);
-        }
-    }
-#    else
-    for (auto [entity_id, sprite] : Iter(&rstate.sprites)) {
-        for (auto texture : Iter(&rstate.atlas.textures)) {
-            if (sprite->texture != texture->id)
-                continue;
-
-            func(*texture, entity_id, *sprite);
-        }
-    }
-#    endif
-
-#endif
 }
 
 glm::mat3 Get_W2RelScreen_Matrix(
@@ -1836,19 +1786,31 @@ void Render(Game_State& state, f32 dt, MCTX) {
         vertex_data.Free(ctx);
     };
 
-    auto    sprites_count = 0;
-    GLfloat zero          = 0;
-    GLfloat one           = 1;
+    GLfloat zero = 0;
+    GLfloat one  = 1;
 
-    Map_Sprites_With_Textures(
-        rstate,
-        [&](C_Texture& tex,
-            Entity_ID /* sprite_id */,
-            C_Sprite& s  //
-        ) {
-            auto texture_id   = tex.id;
-            auto required_mem = sizeof(GLfloat) * 7 * 6;
-            vertex_data.Reserve(vertex_data.max_count + required_mem, ctx);
+    {
+        ZoneScopedN("Iterating over sprites");
+        struct vertex_datum_t {
+            v2f pos;
+            v3f color;
+            v2f tex_coord;
+        };
+
+        auto mem_per_sprite = sizeof(vertex_datum_t) * 6;
+        vertex_data.Reserve(mem_per_sprite * rstate.sprites.count, ctx);
+
+        FOR_RANGE (int, sprites_i, rstate.sprites.count) {
+            auto  entity_id = *(rstate.sprites.ids + sprites_i);
+            auto& s         = *(rstate.sprites.base + sprites_i);
+
+            Assert(s.texture != 0);
+            Assert(s.texture != Texture_ID_Missing);
+
+            auto  texture_index = s.texture - 1;
+            auto& tex           = *(rstate.atlas.textures.base + texture_index);
+
+            auto texture_id = tex.id;
 
             // TODO: rotation
             // TODO: filter
@@ -1889,22 +1851,18 @@ void Render(Game_State& state, f32 dt, MCTX) {
                 {ax1, ay1},
             };
 
+            vertex_datum_t vd[6] = {};
             FOR_RANGE (int, i, 6) {
-                const struct {
-                    v2f pos;
-                    v3f color;
-                    v2f tex_coord;
-                } vertex_datum = {
+                vd[i] = {
                     verticess[i],
                     v3f_one,
                     texture_positions[i],
                 };
-                vertex_data.Add_Unsafe((void*)&vertex_datum, sizeof(vertex_datum));
             }
 
-            sprites_count++;
+            vertex_data.Add_Unsafe((void*)vd, sizeof(vd));
         }
-    );
+    }
 
     {
         glUseProgram(rstate.sprites_shader_program);
@@ -1927,7 +1885,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         BFGL_Enable_Vertex_Attribute(1);
         BFGL_Enable_Vertex_Attribute(2);
 
-        glDrawArrays(GL_TRIANGLES, 0, 6 * sprites_count);
+        glDrawArrays(GL_TRIANGLES, 0, 6 * rstate.sprites.count);
 
         BFGL_Unload_Vertex_Buffer(vbo);
 

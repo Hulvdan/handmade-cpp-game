@@ -3,21 +3,19 @@
 #endif  // BF_CLIENT
 
 void Load_Smart_Tile_Rule(Smart_Tile& tile, Arena& arena, const BFGame::Tile_Rule* rule) {
-    // tile.id = 0;
-
     tile.fallback_texture = rule->default_texture();
 
     tile.rules_count = rule->states()->size();
     tile.rules       = Allocate_Array(arena, Tile_Rule, tile.rules_count);
 
     FOR_RANGE (int, i, tile.rules_count) {
-        Tile_Rule* r = tile.rules + i;
+        Tile_Rule*  r     = tile.rules + i;
         const auto& state = rule->states()->Get(i);
-        r->texture   = state->texture();
+        r->texture        = state->texture();
 
         FOR_RANGE (int, k, 8) {
-            auto condition   = (i32)state->condition()->Get(k);
-            r->states[k] = (Tile_State_Condition)condition;
+            auto condition = (i32)state->condition()->Get(k);
+            r->states[k]   = (Tile_State_Condition)condition;
         }
     }
 }

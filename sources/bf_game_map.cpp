@@ -1253,6 +1253,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 }
 
 void Update_Game_Map(Game_State& state, float dt, MCTX) {
+    ZoneScoped;
     CTX_LOGGER;
 
     auto& game_map    = state.game_map;
