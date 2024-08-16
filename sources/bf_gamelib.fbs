@@ -35,16 +35,21 @@ table Building {
     construction_resources: [Construction_Resource_Pair];
 }
 
-// enum Tile_State_Check:byte {
-//     Skip = 0,
-//     Excluded,
-//     Included,
-// }
-//
-// table Tile_Rule {
-//     texture: uint;
-//     states:  uint64;
-// }
+enum Tile_State_Condition:byte {
+    Skip     = 0,
+    Excluded = 1,
+    Included = 2,
+}
+
+struct Tile_State {
+    texture:   uint;
+    condition: [Tile_State_Condition:8];
+}
+
+table Tile_Rule {
+    default_texture: uint;
+    states:          [Tile_State];
+}
 
 table Art {
     human:                uint;
@@ -54,7 +59,8 @@ table Art {
     road:                 [uint];
     flag:                 [uint];
     ui:                   UI;
-    // grass_tile_rule:      Tile_Rule;
+    tile_rule_forest:      Tile_Rule (required);
+    tile_rule_grass:     Tile_Rule (required);
 }
 
 table UI {

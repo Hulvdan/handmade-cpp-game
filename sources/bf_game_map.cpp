@@ -1515,7 +1515,6 @@ void Regenerate_Element_Tiles(
     auto gsize = game_map.size;
 
     v2i16 road_tiles[] = {
-        //
         {0, 0},
         {1, 0},
         {2, 0},
@@ -1526,32 +1525,6 @@ void Regenerate_Element_Tiles(
         {0, 2},
         {1, 2},
         {2, 2},
-        // {0, 1},
-        // {0, 2},
-        // {0, 3},
-        // {1, 2},
-        // {2, 1},
-        // {2, 2},
-        // {2, 3},
-        // {3, 2},
-        // {4, 1},
-        // {4, 2},
-        // {4, 3},
-        // {1, 0},
-        // {2, 0},
-        // {3, 0},
-        // {1, 4},
-        // {2, 4},
-        // {3, 4},
-        // //
-        // {6, 1},
-        // {7, 1},
-        // {8, 1},
-        // {6, 2},
-        // {8, 2},
-        // {6, 3},
-        // {7, 3},
-        // {8, 3},
     };
 
     auto base_offset = v2i16(0, 0);
@@ -1560,6 +1533,26 @@ void Regenerate_Element_Tiles(
         auto          off  = offset + base_offset;
         Element_Tile& tile = game_map.element_tiles[off.y * gsize.x + off.x];
         tile.type          = Element_Tile_Type::Road;
+    }
+
+    FOR_RANGE (int, y, 5) {
+        FOR_RANGE (int, x, 9) {
+            const v2i16 base_offset{5, 5};
+
+            auto          off  = v2i16(x, y) + base_offset;
+            Element_Tile& tile = game_map.element_tiles[off.y * gsize.x + off.x];
+            tile.type          = Element_Tile_Type::Road;
+        }
+    }
+
+    for (int y = 0; y < 5; y += 2) {
+        for (int x = 0; x < 9; x += 2) {
+            const v2i16 base_offset{5, 5};
+
+            auto          off  = v2i16(x, y) + base_offset;
+            Element_Tile& tile = game_map.element_tiles[off.y * gsize.x + off.x];
+            tile.type          = Element_Tile_Type::Flag;
+        }
     }
 
 #if 0

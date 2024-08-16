@@ -723,15 +723,15 @@ struct Loaded_Texture {
 
 using Tile_ID = u32;
 
-enum class Tile_State_Check {
-    Skip,
-    Excluded,
-    Included,
+enum class Tile_State_Condition {
+    Skip     = 0,
+    Excluded = 1,
+    Included = 2,
 };
 
 struct Tile_Rule {
     Texture_ID       texture   = {};
-    Tile_State_Check states[8] = {};
+    Tile_State_Condition states[8] = {};
 };
 
 struct Smart_Tile {
@@ -740,10 +740,6 @@ struct Smart_Tile {
 
     u32        rules_count = {};
     Tile_Rule* rules       = {};
-};
-
-struct Load_Smart_Tile_Result {
-    bool success = {};
 };
 
 struct Tilemap {

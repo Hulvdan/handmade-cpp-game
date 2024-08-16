@@ -589,35 +589,16 @@ void main() {
         ui_state.buildables_panel_texture       = ui->buildables_panel();
         ui_state.buildables_placeholder_texture = ui->buildables_placeholder();
 
-        {
-            TEMP_USAGE(trash_arena);
-
-            auto path = "assets/art/tiles/tilerule_grass.txt";
-            Debug_Load_File(load_result, path, trash_arena);
-
-            auto rule_loading_result = Load_Smart_Tile_Rules(
-                rstate.grass_smart_tile,
-                non_persistent_arena,
-                load_result.output,
-                load_result.size
-            );
-            Assert(rule_loading_result.success);
-        }
-
-        {
-            TEMP_USAGE(trash_arena);
-
-            auto path = "assets/art/tiles/tilerule_forest.txt";
-            Debug_Load_File(load_result, path, trash_arena);
-
-            auto rule_loading_result = Load_Smart_Tile_Rules(
-                rstate.forest_smart_tile,
-                non_persistent_arena,
-                load_result.output,
-                load_result.size
-            );
-            Assert(rule_loading_result.success);
-        }
+        Load_Smart_Tile_Rule(
+            rstate.grass_smart_tile,
+            non_persistent_arena,
+            state.gamelib->art()->tile_rule_grass()
+        );
+        Load_Smart_Tile_Rule(
+            rstate.forest_smart_tile,
+            non_persistent_arena,
+            state.gamelib->art()->tile_rule_forest()
+        );
 
         Assert(state.gamelib->resources()->size() == state.scriptable_resources_count);
 
@@ -1178,6 +1159,39 @@ void Map_Sprites_With_Textures(
     Game_Renderer_State&                                    rstate,
     std::invocable<C_Texture&, Entity_ID, C_Sprite&> auto&& func
 ) {
+    ZoneScopedN("Rendering sprites");
+
+#if 1
+
+    FOR_RANGE (int, sprites_i, rstate.sprites.count) {
+        auto  entity_id = *(rstate.sprites.ids + sprites_i);
+        auto& sprite    = *(rstate.sprites.base + sprites_i);
+
+        Assert(sprite.texture != 0);
+        Assert(sprite.texture != Texture_ID_Missing);
+
+        auto  texture_index = sprite.texture - 1;
+        auto& texture       = *(rstate.atlas.textures.base + texture_index);
+
+        func(texture, entity_id, sprite);
+    }
+
+#else
+
+#    if 1
+    FOR_RANGE (int, sprites_i, rstate.sprites.count) {
+        FOR_RANGE (int, textures_i, rstate.atlas.textures.count) {
+            auto  entity_id = *(rstate.sprites.ids + sprites_i);
+            auto& sprite    = *(rstate.sprites.base + sprites_i);
+            auto& texture   = *(rstate.atlas.textures.base + textures_i);
+
+            if (sprite.texture != texture.id)
+                continue;
+
+            func(texture, entity_id, sprite);
+        }
+    }
+#    else
     for (auto [entity_id, sprite] : Iter(&rstate.sprites)) {
         for (auto texture : Iter(&rstate.atlas.textures)) {
             if (sprite->texture != texture->id)
@@ -1186,6 +1200,9 @@ void Map_Sprites_With_Textures(
             func(*texture, entity_id, *sprite);
         }
     }
+#    endif
+
+#endif
 }
 
 glm::mat3 Get_W2RelScreen_Matrix(
@@ -1630,6 +1647,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     // Обновление позиций чувачков.
     {
+        ZoneScopedN("Human positions updating");
+
         // TODO: Посмотреть что там по ECS
         for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
             auto& human = *human_ptr;
@@ -1654,6 +1673,8 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     // Рисование tilemap.
     if (!rstate.shaders_compilation_failed) {
+        ZoneScopedN("Tilemaps rendering");
+
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
         defer {
             Delete_Framebuffer(tilemap_framebuffer);
@@ -1818,6 +1839,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     auto    sprites_count = 0;
     GLfloat zero          = 0;
     GLfloat one           = 1;
+
     Map_Sprites_With_Textures(
         rstate,
         [&](C_Texture& tex,

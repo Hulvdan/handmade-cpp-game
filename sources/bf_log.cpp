@@ -282,11 +282,11 @@ Logger_function(Tracing_Logger_Routine) {
     }
 }
 
-#define _LOG_COMMON(log_type_, ...)                    \
-    STATEMENT({                                        \
-        const auto str = Text_Format(__VA_ARGS__);     \
-if (logger_routine)\
-        logger_routine(logger_data, (log_type_), str); \
+#define _LOG_COMMON(log_type_, ...)                        \
+    STATEMENT({                                            \
+        const auto str = Text_Format(__VA_ARGS__);         \
+        if (logger_routine)                                \
+            logger_routine(logger_data, (log_type_), str); \
     })
 
 #define LOG_DEBUG(...) _LOG_COMMON(Log_Type::DEBUG, __VA_ARGS__)

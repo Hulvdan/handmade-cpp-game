@@ -434,9 +434,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
 
-        if (first_time_initializing) {
+        if (first_time_initializing)
             state.gamelib = Load_Game_Library(arena);
-        }
 
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);

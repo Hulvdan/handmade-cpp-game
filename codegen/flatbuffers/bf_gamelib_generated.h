@@ -24,6 +24,11 @@ struct Construction_Resource_PairBuilder;
 struct Building;
 struct BuildingBuilder;
 
+struct Tile_State;
+
+struct Tile_Rule;
+struct Tile_RuleBuilder;
+
 struct Art;
 struct ArtBuilder;
 
@@ -74,6 +79,66 @@ inline const char *EnumNameBuilding_Type(Building_Type e) {
   const size_t index = static_cast<size_t>(e);
   return EnumNamesBuilding_Type()[index];
 }
+
+enum Tile_State_Condition : int8_t {
+  Tile_State_Condition_Skip = 0,
+  Tile_State_Condition_Excluded = 1,
+  Tile_State_Condition_Included = 2,
+  Tile_State_Condition_MIN = Tile_State_Condition_Skip,
+  Tile_State_Condition_MAX = Tile_State_Condition_Included
+};
+
+inline const Tile_State_Condition (&EnumValuesTile_State_Condition())[3] {
+  static const Tile_State_Condition values[] = {
+    Tile_State_Condition_Skip,
+    Tile_State_Condition_Excluded,
+    Tile_State_Condition_Included
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesTile_State_Condition() {
+  static const char * const names[4] = {
+    "Skip",
+    "Excluded",
+    "Included",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameTile_State_Condition(Tile_State_Condition e) {
+  if (::flatbuffers::IsOutRange(e, Tile_State_Condition_Skip, Tile_State_Condition_Included)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesTile_State_Condition()[index];
+}
+
+FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Tile_State FLATBUFFERS_FINAL_CLASS {
+ private:
+  uint32_t texture_;
+  int8_t condition_[8];
+
+ public:
+  Tile_State()
+      : texture_(0),
+        condition_() {
+  }
+  Tile_State(uint32_t _texture)
+      : texture_(::flatbuffers::EndianScalar(_texture)),
+        condition_() {
+  }
+  Tile_State(uint32_t _texture, ::flatbuffers::span<const BFGame::Tile_State_Condition, 8> _condition)
+      : texture_(::flatbuffers::EndianScalar(_texture)) {
+    ::flatbuffers::CastToArrayOfEnum<BFGame::Tile_State_Condition>(condition_).CopyFromSpan(_condition);
+  }
+  uint32_t texture() const {
+    return ::flatbuffers::EndianScalar(texture_);
+  }
+  const ::flatbuffers::Array<BFGame::Tile_State_Condition, 8> *condition() const {
+    return &::flatbuffers::CastToArrayOfEnum<BFGame::Tile_State_Condition>(condition_);
+  }
+};
+FLATBUFFERS_STRUCT_END(Tile_State, 12);
 
 struct Resource FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ResourceBuilder Builder;
@@ -366,6 +431,69 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
       construction_resources__);
 }
 
+struct Tile_Rule FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef Tile_RuleBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DEFAULT_TEXTURE = 4,
+    VT_STATES = 6
+  };
+  uint32_t default_texture() const {
+    return GetField<uint32_t>(VT_DEFAULT_TEXTURE, 0);
+  }
+  const ::flatbuffers::Vector<const BFGame::Tile_State *> *states() const {
+    return GetPointer<const ::flatbuffers::Vector<const BFGame::Tile_State *> *>(VT_STATES);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_DEFAULT_TEXTURE, 4) &&
+           VerifyOffset(verifier, VT_STATES) &&
+           verifier.VerifyVector(states()) &&
+           verifier.EndTable();
+  }
+};
+
+struct Tile_RuleBuilder {
+  typedef Tile_Rule Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_default_texture(uint32_t default_texture) {
+    fbb_.AddElement<uint32_t>(Tile_Rule::VT_DEFAULT_TEXTURE, default_texture, 0);
+  }
+  void add_states(::flatbuffers::Offset<::flatbuffers::Vector<const BFGame::Tile_State *>> states) {
+    fbb_.AddOffset(Tile_Rule::VT_STATES, states);
+  }
+  explicit Tile_RuleBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Tile_Rule> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Tile_Rule>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Tile_Rule> CreateTile_Rule(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t default_texture = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<const BFGame::Tile_State *>> states = 0) {
+  Tile_RuleBuilder builder_(_fbb);
+  builder_.add_states(states);
+  builder_.add_default_texture(default_texture);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<Tile_Rule> CreateTile_RuleDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t default_texture = 0,
+    const std::vector<BFGame::Tile_State> *states = nullptr) {
+  auto states__ = states ? _fbb.CreateVectorOfStructs<BFGame::Tile_State>(*states) : 0;
+  return BFGame::CreateTile_Rule(
+      _fbb,
+      default_texture,
+      states__);
+}
+
 struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ArtBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -375,7 +503,9 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_BUILDING_IN_PROGRESS = 10,
     VT_ROAD = 12,
     VT_FLAG = 14,
-    VT_UI = 16
+    VT_UI = 16,
+    VT_TILE_RULE_FOREST = 18,
+    VT_TILE_RULE_GRASS = 20
   };
   uint32_t human() const {
     return GetField<uint32_t>(VT_HUMAN, 0);
@@ -398,6 +528,12 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const BFGame::UI *ui() const {
     return GetPointer<const BFGame::UI *>(VT_UI);
   }
+  const BFGame::Tile_Rule *tile_rule_forest() const {
+    return GetPointer<const BFGame::Tile_Rule *>(VT_TILE_RULE_FOREST);
+  }
+  const BFGame::Tile_Rule *tile_rule_grass() const {
+    return GetPointer<const BFGame::Tile_Rule *>(VT_TILE_RULE_GRASS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint32_t>(verifier, VT_HUMAN, 4) &&
@@ -412,6 +548,10 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyVector(flag()) &&
            VerifyOffset(verifier, VT_UI) &&
            verifier.VerifyTable(ui()) &&
+           VerifyOffsetRequired(verifier, VT_TILE_RULE_FOREST) &&
+           verifier.VerifyTable(tile_rule_forest()) &&
+           VerifyOffsetRequired(verifier, VT_TILE_RULE_GRASS) &&
+           verifier.VerifyTable(tile_rule_grass()) &&
            verifier.EndTable();
   }
 };
@@ -441,6 +581,12 @@ struct ArtBuilder {
   void add_ui(::flatbuffers::Offset<BFGame::UI> ui) {
     fbb_.AddOffset(Art::VT_UI, ui);
   }
+  void add_tile_rule_forest(::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_forest) {
+    fbb_.AddOffset(Art::VT_TILE_RULE_FOREST, tile_rule_forest);
+  }
+  void add_tile_rule_grass(::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_grass) {
+    fbb_.AddOffset(Art::VT_TILE_RULE_GRASS, tile_rule_grass);
+  }
   explicit ArtBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -448,6 +594,8 @@ struct ArtBuilder {
   ::flatbuffers::Offset<Art> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<Art>(end);
+    fbb_.Required(o, Art::VT_TILE_RULE_FOREST);
+    fbb_.Required(o, Art::VT_TILE_RULE_GRASS);
     return o;
   }
 };
@@ -460,8 +608,12 @@ inline ::flatbuffers::Offset<Art> CreateArt(
     uint32_t building_in_progress = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag = 0,
-    ::flatbuffers::Offset<BFGame::UI> ui = 0) {
+    ::flatbuffers::Offset<BFGame::UI> ui = 0,
+    ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_forest = 0,
+    ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_grass = 0) {
   ArtBuilder builder_(_fbb);
+  builder_.add_tile_rule_grass(tile_rule_grass);
+  builder_.add_tile_rule_forest(tile_rule_forest);
   builder_.add_ui(ui);
   builder_.add_flag(flag);
   builder_.add_road(road);
@@ -480,7 +632,9 @@ inline ::flatbuffers::Offset<Art> CreateArtDirect(
     uint32_t building_in_progress = 0,
     const std::vector<uint32_t> *road = nullptr,
     const std::vector<uint32_t> *flag = nullptr,
-    ::flatbuffers::Offset<BFGame::UI> ui = 0) {
+    ::flatbuffers::Offset<BFGame::UI> ui = 0,
+    ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_forest = 0,
+    ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_grass = 0) {
   auto grass__ = grass ? _fbb.CreateVector<uint32_t>(*grass) : 0;
   auto forest__ = forest ? _fbb.CreateVector<uint32_t>(*forest) : 0;
   auto road__ = road ? _fbb.CreateVector<uint32_t>(*road) : 0;
@@ -493,7 +647,9 @@ inline ::flatbuffers::Offset<Art> CreateArtDirect(
       building_in_progress,
       road__,
       flag__,
-      ui);
+      ui,
+      tile_rule_forest,
+      tile_rule_grass);
 }
 
 struct UI FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {

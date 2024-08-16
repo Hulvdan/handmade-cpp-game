@@ -194,32 +194,37 @@ def listfiles_with_hashes_in_dir(path: str | Path) -> dict[str, int]:
     return res
 
 
-def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> None:
+def convert_gamelib_json_to_binary(texture_name_2_id: dict[str, int]) -> None:
     # Загрузка json
     with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
         data = json.load(in_file)
 
     # Хеширование названий текстур с проверкой на то, что они есть в атласе
-    hashify_texture = lambda data, key: hashify_texture_with_check(
-        data, key, hashes_set=texture_name_hashes
+    transform_texture = lambda data, key: transform_to_texture_index(
+        data, key, texture_name_2_id=texture_name_2_id
     )
-    hashify_textures_list = lambda data, key: hashify_textures_list_with_check(
-        data, key, hashes_set=texture_name_hashes
+    transform_textures_list = lambda data, key: transform_to_texture_indexes_list(
+        data, key, texture_name_2_id=texture_name_2_id
     )
 
     for instance in data["buildings"]:
-        hashify_texture(instance, "texture")
+        transform_texture(instance, "texture")
     for instance in data["resources"]:
-        hashify_texture(instance, "texture")
-        hashify_texture(instance, "small_texture")
-    hashify_texture(data["art"]["ui"], "buildables_panel")
-    hashify_texture(data["art"]["ui"], "buildables_placeholder")
-    hashify_texture(data["art"], "human")
-    hashify_texture(data["art"], "building_in_progress")
-    hashify_textures_list(data["art"], "forest")
-    hashify_textures_list(data["art"], "grass")
-    hashify_textures_list(data["art"], "road")
-    hashify_textures_list(data["art"], "flag")
+        transform_texture(instance, "texture")
+        transform_texture(instance, "small_texture")
+    transform_texture(data["art"]["ui"], "buildables_panel")
+    transform_texture(data["art"]["ui"], "buildables_placeholder")
+    transform_texture(data["art"], "human")
+    transform_texture(data["art"], "building_in_progress")
+    transform_textures_list(data["art"], "forest")
+    transform_textures_list(data["art"], "grass")
+    transform_textures_list(data["art"], "road")
+    transform_textures_list(data["art"], "flag")
+
+    data["art"]["tile_rule_forest"] = load_tile_rule(
+        "tile_rule_forest", texture_name_2_id
+    )
+    data["art"]["tile_rule_grass"] = load_tile_rule("tile_rule_grass", texture_name_2_id)
 
     # Создание файла
     intermediate_path = PROJECT_DIR / "gamelib.intermediate.jsonc"
@@ -231,6 +236,67 @@ def convert_gamelib_json_to_binary(texture_name_hashes: set[int]) -> None:
     if os.path.exists(final_binary_path):
         os.remove(final_binary_path)
     os.rename(intermediate_binary_path, final_binary_path)
+
+
+def load_tile_rule(name: str, texture_name_2_id: dict[str, int]) -> Any:
+    with open(PROJECT_DIR / "assets" / "art" / "tiles" / f"{name}.txt") as in_file:
+        data = in_file.readlines()
+
+    data = [  # Убираем пустые строки
+        line.strip(" \r\n\t") for line in data if line.strip(" \r\n\t")
+    ]
+
+    default_texture_name = data[0]
+    default_texture_id = texture_name_2_id[default_texture_name]
+    assert ((len(data) - 1) % 4) == 0, "Incorrect file format!"
+
+    rules_count = (len(data) - 1) // 4
+    assert rules_count < 100, "Maximum of 100 rules per smart tile is supported!"
+
+    states = []
+
+    for i in range(rules_count):
+        texture_name = data[1 + i * 4]
+        texture_id = texture_name_2_id[texture_name]
+
+        rule_lines = (
+            data[2 + i * 4],
+            data[3 + i * 4],
+            data[4 + i * 4],
+        )
+
+        condition = []
+
+        symbols = {
+            " ": 0,  # SKIP,
+            "*": 1,  # EXCLUDED,
+            "@": 2,  # INCLUDED,
+        }
+
+        for i, rule_line in enumerate(rule_lines):
+            assert rule_line.startswith("|")
+            assert rule_line.endswith("|")
+            assert len(rule_line) == 5
+
+            for k in range(3):
+                should_skip = (i == 1) and (k == 1)
+                if should_skip:
+                    continue
+
+                condition.append(symbols[rule_line[1 + k]])
+
+        states.append(
+            {
+                "texture": texture_id,
+                "condition": condition,
+            }
+        )
+
+    result = {
+        "default_texture": default_texture_id,
+        "states": states,
+    }
+    return result
 
 
 def make_atlas(path: Path) -> set[int]:
@@ -248,7 +314,7 @@ def make_atlas(path: Path) -> set[int]:
     directory = path.parent
     filename_wo_extension = path.name.rsplit(".", 1)[0]
 
-    texture_name_hashes: set[int] = set()
+    texture_name_2_id: dict[str, int] = dict()
 
     # Генерируем атлас из .ftpp файла.
     # Во время этого создаются .json спецификация и .png текстура.
@@ -264,12 +330,15 @@ def make_atlas(path: Path) -> set[int]:
     for name, data in json_data["frames"].items():
         name = name.removeprefix("sources/")
 
-        hashed_name = hash32(name)
-        assert hashed_name not in texture_name_hashes
-        texture_name_hashes.add(hashed_name)
+        assert name not in texture_name_2_id
+
+        # NOTE: Резерв 0 для обозначения отсутствия текстуры
+        new_texture_id = len(texture_name_2_id) + 1
+
+        texture_name_2_id[name] = new_texture_id
 
         texture_data = {
-            "id": hash32(name),
+            "id": new_texture_id,
             "debug_name": name,
             "size_x": data["frame"]["w"],
             "size_y": data["frame"]["h"],
@@ -318,7 +387,7 @@ def make_atlas(path: Path) -> set[int]:
     img = Image.open(png_path)
     img.save(bmp_path)
 
-    return texture_name_hashes
+    return texture_name_2_id
 
 
 def remove_intermediate_generation_files() -> None:
@@ -329,7 +398,7 @@ def remove_intermediate_generation_files() -> None:
         os.remove(file)
 
 
-def validate_tilerules(hashes_set: set[int]) -> None:
+def validate_tilerules(texture_name_2_id: dict[str, int]) -> None:
     glob_pattern = PROJECT_DIR / "assets" / "art" / "tiles" / "tilerule_*.txt"
     files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
 
@@ -342,33 +411,40 @@ def validate_tilerules(hashes_set: set[int]) -> None:
             if line.startswith("|"):
                 continue
 
-            hashed_value = hash32(line)
-            assert hashed_value in hashes_set, f"Texture '{line}' not found in atlas!"
+            assert line in texture_name_2_id, f"Texture '{line}' not found in atlas!"
 
 
-def hashify_textures_list_with_check(
+def transform_to_texture_indexes_list(
     data: dict[str, Any],
     key: str,
-    hashes_set: set[int],
+    texture_name_2_id: dict[str, int],
 ) -> None:
     textures = data[key]
     assert isinstance(textures, list)
 
     for i, texture_name in enumerate(textures):
-        hashed_value = hash32(texture_name)
-        assert hashed_value in hashes_set, f"Texture '{texture_name}' not found in atlas!"
-        textures[i] = hashed_value
+        assert (
+            texture_name in texture_name_2_id
+        ), f"Texture '{texture_name}' not found in atlas!"
+
+        texture_index = texture_name_2_id[texture_name]
+        textures[i] = texture_index
 
 
-def hashify_texture_with_check(
-    data: dict[str, Any], key: str, hashes_set: set[int]
+def transform_to_texture_index(
+    data: dict[str, Any],
+    key: str,
+    texture_name_2_id: dict[str, int],
 ) -> None:
     texture_name = data[key]
     assert isinstance(texture_name, str)
 
-    hashed_value = hash32(texture_name)
-    assert hashed_value in hashes_set, f"Texture '{texture_name}' not found in atlas!"
-    data[key] = hashed_value
+    assert (
+        texture_name in texture_name_2_id
+    ), f"Texture '{texture_name}' not found in atlas!"
+
+    texture_index = texture_name_2_id[texture_name]
+    data[key] = texture_index
 
 
 class GraphicsContext:
@@ -487,13 +563,12 @@ def do_generate() -> None:
                 shutil.copyfile(Path(td) / file, FLATBUFFERS_GENERATED_DIR / file)
 
     # Собираем атлас.
-    texture_name_hashes: set[int] = set()
-    texture_name_hashes |= make_atlas(Path("assets") / "art" / "atlas.ftpp")
+    texture_name_2_id = make_atlas(Path("assets") / "art" / "atlas.ftpp")
 
-    validate_tilerules(texture_name_hashes)
+    validate_tilerules(texture_name_2_id)
 
     # Конвертим gamelib.jsonc в бинарю.
-    convert_gamelib_json_to_binary(texture_name_hashes)
+    convert_gamelib_json_to_binary(texture_name_2_id)
 
 
 def do_run() -> None:
