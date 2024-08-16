@@ -562,37 +562,33 @@ void main() {
     }
 
     {
-        auto art = state.gamelib->art();
+        auto& art = *state.gamelib->art();
 
-        rstate.human_texture                = art->human();
-        rstate.building_in_progress_texture = art->building_in_progress();
+        rstate.human_texture                = art.human();
+        rstate.building_in_progress_texture = art.building_in_progress();
 
         FOR_RANGE (int, i, 3) {
-            rstate.forest_textures[i] = art->forest()->Get(i);
+            rstate.forest_textures[i] = art.forest()->Get(i);
         }
         FOR_RANGE (int, i, 17) {
-            rstate.grass_textures[i] = art->grass()->Get(i);
+            rstate.grass_textures[i] = art.grass()->Get(i);
         }
         FOR_RANGE (int, i, 16) {
-            rstate.road_textures[i] = art->road()->Get(i);
+            rstate.road_textures[i] = art.road()->Get(i);
         }
         FOR_RANGE (int, i, 4) {
-            rstate.flag_textures[i] = art->flag()->Get(i);
+            rstate.flag_textures[i] = art.flag()->Get(i);
         }
 
-        auto ui                                 = art->ui();
-        ui_state.buildables_panel_texture       = ui->buildables_panel();
-        ui_state.buildables_placeholder_texture = ui->buildables_placeholder();
+        auto& ui                                = *art.ui();
+        ui_state.buildables_panel_texture       = ui.buildables_panel();
+        ui_state.buildables_placeholder_texture = ui.buildables_placeholder();
 
         Load_Smart_Tile_Rule(
-            rstate.grass_smart_tile,
-            non_persistent_arena,
-            state.gamelib->art()->tile_rule_grass()
+            rstate.grass_smart_tile, non_persistent_arena, art.tile_rule_grass()
         );
         Load_Smart_Tile_Rule(
-            rstate.forest_smart_tile,
-            non_persistent_arena,
-            state.gamelib->art()->tile_rule_forest()
+            rstate.forest_smart_tile, non_persistent_arena, art.tile_rule_forest()
         );
 
         rstate.grass_smart_tile.id  = 1;
@@ -600,10 +596,11 @@ void main() {
         rstate.forest_top_tile_id   = 3;
         rstate.flag_tile_id         = 4;
 
-        Assert(state.gamelib->resources()->size() == state.scriptable_resources_count);
+        auto& resources = *state.gamelib->resources();
+        Assert(resources.size() == state.scriptable_resources_count);
 
         FOR_RANGE (int, i, state.scriptable_resources_count) {
-            const auto& lib_instance = *state.gamelib->resources()->Get(i);
+            const auto& lib_instance = *resources.Get(i);
 
             auto& resource         = state.scriptable_resources[i];
             resource.texture       = lib_instance.texture();

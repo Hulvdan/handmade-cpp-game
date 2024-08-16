@@ -730,7 +730,7 @@ enum class Tile_State_Condition {
 };
 
 struct Tile_Rule {
-    Texture_ID       texture   = {};
+    Texture_ID           texture   = {};
     Tile_State_Condition states[8] = {};
 };
 

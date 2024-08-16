@@ -435,10 +435,10 @@ struct Sparse_Array_Of_Ids {
             new_max_count = 8;
         Assert(max_count < new_max_count);  // NOTE: Ловим overflow
 
-        auto old_ids_size  = sizeof(T) * max_count;
-        auto old_ids_ptr   = ids;
+        auto old_ids_size = sizeof(T) * max_count;
+        auto old_ids_ptr  = ids;
 
-        ids  = rcast<T*>(ALLOC(sizeof(T) * new_max_count));
+        ids = rcast<T*>(ALLOC(sizeof(T) * new_max_count));
 
         if (old_ids_ptr)
             memcpy(ids, old_ids_ptr, old_ids_size);
