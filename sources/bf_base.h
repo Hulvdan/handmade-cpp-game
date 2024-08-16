@@ -166,6 +166,7 @@ constexpr i32 i32_min = std::numeric_limits<i32>::min();
 constexpr i64 i64_min = std::numeric_limits<i64>::min();
 
 constexpr f32 f32_inf = std::numeric_limits<f32>::infinity();
+constexpr f64 f64_inf = std::numeric_limits<f64>::infinity();
 
 #if TESTS
 #    define Assert(expr) REQUIRE(expr)

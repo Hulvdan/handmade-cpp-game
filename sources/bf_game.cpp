@@ -28,13 +28,13 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #include "bf_memory_arena.cpp"
 #include "bf_opengl.cpp"
 #include "bf_rand.cpp"
+#include "bf_strings.cpp"
 #include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
 #include "bf_instrument.cpp"
 #include "bf_containers.cpp"
 #include "bf_game_types.cpp"
-#include "bf_strings.cpp"
 #include "bf_hash.cpp"
 #include "bf_game_map.cpp"
 
@@ -283,7 +283,7 @@ T* Map_Logger(Arena& arena, bool first_time_initializing) {
 }
 
 const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
-    auto result = Debug_Load_File_To_Arena("gamelib.bin", arena);
+    auto result = Debug_Load_File_To_Arena(Resources_File("gamelib.bin"), arena);
     Assert(result.success);
     return BFGame::GetGame_Library(result.output);
 }

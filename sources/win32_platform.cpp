@@ -22,6 +22,8 @@
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_memory_arena.cpp"
+#include "bf_strings.cpp"
+#include "bf_file.cpp"
 #include "bf_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
@@ -398,6 +400,131 @@ ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
         event.position.y = client_height - p.y; \
     })
 
+void* Win32_Open_File(const char* filename) noexcept {
+    FILE* file_handle = nullptr;
+    auto  error       = fopen_s(&file_handle, filename, "w");
+    Assert_False(error);
+    Assert(file_handle != nullptr);
+    return file_handle;
+}
+
+void Win32_Write_To_File(void* file_handle, const char* text) noexcept {
+    fprintf((FILE*)file_handle, "%s\n", text);
+}
+
+void* Win32_Open_Binary_File(const char* filename) noexcept {
+    FILE* file_handle = nullptr;
+    auto  error       = fopen_s(&file_handle, filename, "wb");
+    Assert_False(error);
+    Assert(file_handle != nullptr);
+    return file_handle;
+}
+
+void Win32_Write_To_Binary_File(void* file_handle, void* data, i32 bytes) noexcept {
+    auto result = fwrite((void*)data, bytes, 1, (FILE*)file_handle);
+}
+
+bool Win32_File_Exists(const char* filepath) {
+    DWORD dwAttrib = GetFileAttributes(filepath);
+    auto  result
+        = (dwAttrib != INVALID_FILE_ATTRIBUTES) && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+
+    return (bool)result;
+}
+
+global_var struct Window_Info {
+    i16 width;
+    i16 height;
+    i32 pos_x;
+    i32 pos_y;
+    i16 maximized;
+} window_info = {};
+
+inline static const char* window_info_filepath = "window_info.dat";
+
+constexpr double window_info_save_time_seconds = 0.5;
+global_var bool  window_info_needs_saving      = false;
+global_var f64   window_info_saving_time       = -f64_inf;
+
+bool Restore_Window_Info() {
+    u8 buffer[sizeof(Window_Info) + 1] = {};
+
+    Arena trash_arena = {};
+    trash_arena.base  = buffer;
+    trash_arena.size  = sizeof(Window_Info) + 1;
+
+    bool restored = false;
+
+    if (Win32_File_Exists(window_info_filepath)) {
+        auto load_result = Debug_Load_File_To_Arena(window_info_filepath, trash_arena);
+        if (!load_result.success) {
+            DEBUG_Error("could not load %s", window_info_filepath);
+            goto exit;
+        }
+
+        auto wi = (Window_Info*)load_result.output;
+
+        auto is_valid = (load_result.size == sizeof(Window_Info))  //
+                        && (wi->width > 0)                         //
+                        && (wi->height > 0);
+
+        if (!is_valid) {
+            DEBUG_Error("%s is corrupted. Ignoring it", window_info_filepath);
+            goto exit;
+        }
+
+        window_info = *wi;
+        DEBUG_Print("Loaded %s!", window_info_filepath);
+        restored = true;
+    }
+
+exit:
+    return restored;
+}
+
+void Debug_Save_Binary_File(const char* filepath, void* data, i32 bytes) {
+    auto fp = Win32_Open_Binary_File(filepath);
+    Win32_Write_To_Binary_File(fp, data, bytes);
+    Assert(fclose((FILE*)fp) == 0);
+}
+
+void Save_Window_Info() {
+    u8 buffer[sizeof(Window_Info)] = {};
+
+    *(Window_Info*)buffer = window_info;
+
+    Debug_Save_Binary_File(window_info_filepath, (void*)buffer, sizeof(Window_Info));
+
+    window_info_needs_saving = false;
+    DEBUG_Print("Saved window info!");
+}
+
+u64 Win32Clock() {
+    LARGE_INTEGER res;
+    QueryPerformanceCounter(&res);
+    return res.QuadPart;
+}
+
+u64 Win32Frequency() {
+    LARGE_INTEGER res;
+    QueryPerformanceFrequency(&res);
+    return res.QuadPart;
+}
+
+global_var u64 perf_counter_frequency  = 0;
+global_var u64 perf_counter_started_at = 0;
+
+f64 Win32_Get_Time() noexcept {
+    Assert(perf_counter_started_at != 0);
+    Assert(perf_counter_frequency != 0);
+
+    auto result
+        = (f64)(Win32Clock() - perf_counter_started_at) / (f64)perf_counter_frequency;
+    return result;
+}
+
+global_var bool window_launched = false;
+
 LRESULT
 WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(window_handle, messageType, wParam, lParam))
@@ -417,11 +544,42 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         running = false;
     } break;
 
+    case WM_WINDOWPOSCHANGED: {
+        auto window_pos = *(tagWINDOWPOS*)lParam;
+        if (window_launched) {
+            window_info.pos_x  = window_pos.x;
+            window_info.pos_y  = window_pos.y;
+            window_info.width  = window_pos.cx;
+            window_info.height = window_pos.cy;
+
+            window_info_needs_saving = true;
+            window_info_saving_time  = Win32_Get_Time() + window_info_save_time_seconds;
+        }
+
+        return DefWindowProc(window_handle, messageType, wParam, lParam);
+    } break;
+
     case WM_SIZE: {
         client_width                                    = LOWORD(lParam);
         client_height                                   = HIWORD(lParam);
         should_recreate_bitmap_after_client_area_resize = true;
         Win32GLResize();
+
+        if (window_launched) {
+            b32 was_maximized    = (wParam == SIZE_MAXIMIZED);
+            b32 was_just_resized = (wParam == SIZE_RESTORED);
+
+            if (was_maximized)
+                window_info.maximized = 1;
+            if (was_just_resized)
+                window_info.maximized = 0;
+
+            if (was_maximized || was_just_resized) {
+                window_info_needs_saving = true;
+                window_info_saving_time
+                    = Win32_Get_Time() + window_info_save_time_seconds;
+            }
+        }
     } break;
 
     case WM_LBUTTONDOWN: {
@@ -597,39 +755,6 @@ public:
 private:
     f32 last_angle = 0;
 };
-
-u64 Win32Clock() {
-    LARGE_INTEGER res;
-    QueryPerformanceCounter(&res);
-    return res.QuadPart;
-}
-
-u64 Win32Frequency() {
-    LARGE_INTEGER res;
-    QueryPerformanceFrequency(&res);
-    return res.QuadPart;
-}
-
-void* Win32_Open_File(const char* filename) noexcept {
-    FILE* file_handle = nullptr;
-    auto  error       = fopen_s(&file_handle, filename, "w");
-    Assert_False(error);
-    Assert(file_handle != nullptr);
-    return file_handle;
-}
-
-void Win32_Write_To_File(void* file_handle, const char* text) noexcept {
-    fprintf((FILE*)file_handle, "%s\n", text);
-}
-
-global_var u64 perf_counter_frequency  = 0;
-global_var u64 perf_counter_started_at = 0;
-
-double Win32_Get_Time() noexcept {
-    auto result = (double)(Win32Clock() - perf_counter_started_at)
-                  / (double)perf_counter_frequency;
-    return result;
-}
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
@@ -824,9 +949,30 @@ static int WinMain(
         return -1;
     }
 
-    // ShowWindow(window_handle, SW_SHOWDEFAULT);
-    ShowWindow(window_handle, show_command);
-    UpdateWindow(window_handle);
+    {
+        auto restored = Restore_Window_Info();
+
+        ShowWindow(window_handle, show_command);
+        UpdateWindow(window_handle);
+
+        window_launched = true;
+        auto maximized  = restored && window_info.maximized;
+
+        if (restored && (window_info.width > 0) && (window_info.height > 0)) {
+            SetWindowPos(
+                window_handle,
+                0,
+                window_info.pos_x,
+                window_info.pos_y,
+                window_info.width,
+                window_info.height,
+                0
+            );
+        }
+
+        if (maximized)
+            SendMessage(window_handle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+    }
 
     Assert(client_width >= 0);
     Assert(client_height >= 0);
@@ -937,6 +1083,11 @@ static int WinMain(
 
             TranslateMessage(&message);
             DispatchMessage(&message);
+
+            if (window_info_needs_saving) {
+                if (window_info_saving_time < Win32_Get_Time())
+                    Save_Window_Info();
+            }
         }
 
         if (!running)

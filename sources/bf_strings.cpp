@@ -1,64 +1,37 @@
-// Returns the offset from `filedata` to a newline character (`\r` or `\n`).
-// Returns STRINGS_EOF if reaches the end.
-// Returns STRINGS_ZEROBYTE if finds `\0`.
-const i32 STRINGS_EOF      = -1;
-const i32 STRINGS_ZEROBYTE = -2;
+const char* Text_Format(const char* text, ...) {
+#if !defined(BF_TEXTFORMAT_MAX_SIZE)
+#    define BF_TEXTFORMAT_MAX_SIZE 1024
+#endif
 
-i32 Find_Newline(const u8* buffer, const u32 size) {
-    Assert(size > 0);
+    static char buffer[BF_TEXTFORMAT_MAX_SIZE];
 
-    i32 offset = 0;
-    while (offset < size) {
-        u8 character = *(buffer + offset);
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    va_list args;
+    va_start(args, text);
+    vsnprintf(buffer, BF_TEXTFORMAT_MAX_SIZE, text, args);
+    va_end(args);
 
-        if (character == '\0')
-            return STRINGS_ZEROBYTE;
+    buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';
 
-        if (character == '\n' || character == '\r')
-            return offset;
-
-        offset++;
-    }
-
-    return STRINGS_EOF;
+    return buffer;
 }
 
-i32 Find_Newline_Or_EOF(const u8* buffer, const u32 size) {
-    Assert(size > 0);
+const char* Text_Format2(const char* text, ...) {
+#if !defined(BF_TEXTFORMAT_MAX_SIZE)
+#    define BF_TEXTFORMAT_MAX_SIZE 1024
+#endif
 
-    i32 offset = 0;
-    while (offset < size) {
-        u8 character = *(buffer + offset);
+    static char buffer[BF_TEXTFORMAT_MAX_SIZE];
 
-        if (character == '\0' || character == '\n' || character == '\r')
-            return offset;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    va_list args;
+    va_start(args, text);
+    vsnprintf(buffer, BF_TEXTFORMAT_MAX_SIZE, text, args);
+    va_end(args);
 
-        offset++;
-    }
+    buffer[BF_TEXTFORMAT_MAX_SIZE - 1] = '\0';
 
-    return offset;
-}
-
-// Returns the offset from `filedata` to a newline character (not `\r` and not `\n`).
-// Returns STRINGS_EOF if reaches the end.
-// Returns STRINGS_ZEROBYTE if finds `\0`.
-i32 Find_Not_Newline(const u8* buffer, const u32 size) {
-    Assert(size > 0);
-
-    i32 offset = 0;
-    while (offset < size) {
-        u8 character = *(buffer + offset);
-
-        if (character == '\0')
-            return STRINGS_ZEROBYTE;
-
-        if (character != '\n' && character != '\r')
-            return offset;
-
-        offset++;
-    }
-
-    return STRINGS_EOF;
+    return buffer;
 }
 
 char* Allocate_Formatted_String(Arena& arena, const char* format, ...) {

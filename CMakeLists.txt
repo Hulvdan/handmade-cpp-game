@@ -122,6 +122,13 @@ add_dependencies(win32 bf_game)
 # target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 # target_link_libraries(win32 PRIVATE glew glm)
 
+add_custom_command(
+    TARGET win32 POST_BUILD
+    COMMAND
+        ${CMAKE_COMMAND} -E
+        copy_directory ${CMAKE_SOURCE_DIR}/resources $<TARGET_FILE_DIR:win32>/resources
+    DEPENDS win32)
+
 # === Tests ===
 add_executable(tests sources/tests.cpp)
 target_include_directories(tests PRIVATE

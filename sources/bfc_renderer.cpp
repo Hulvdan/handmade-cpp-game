@@ -91,52 +91,25 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     BFGL_Check_Errors();
 }
 
-void DEBUG_Load_Texture(
-    Arena&          destination_arena,
-    Arena&          trash_arena,
-    const char*     texture_name,
-    Loaded_Texture& out_texture
-) {
-    char filepath[512];
-    sprintf(filepath, "assets/art/%s.bmp", texture_name);
-
-    Load_BMP_RGBA_Result bmp_result{};
-    {
-        TEMP_USAGE(trash_arena);
-        auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
-        Assert(load_result.success);
-
-        bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
-        Assert(bmp_result.success);
-    }
-
-    out_texture.id   = scast<BF_Texture_ID>(Hash32_String(texture_name));
-    out_texture.size = {bmp_result.width, bmp_result.height};
-    out_texture.base = bmp_result.output;
-    Send_Texture_To_GPU(out_texture);
+const char* Resources_File(const char* filepath) {
+    auto result = Text_Format("resources/%s", filepath);
+    return result;
 }
 
 const BFGame::Atlas* Load_Atlas_From_Binary(Arena& arena) {
-    auto result = Debug_Load_File_To_Arena("assets/art/atlas.bin", arena);
+    auto result = Debug_Load_File_To_Arena(Resources_File("atlas.bin"), arena);
     Assert(result.success);
     return BFGame::GetAtlas(result.output);
 }
 
-Atlas Load_Atlas(
-    const char* atlas_name,
-    Arena&      destination_arena,
-    Arena&      trash_arena,
-    MCTX
-) {
+Atlas Load_Atlas(Arena& destination_arena, Arena& trash_arena, MCTX) {
     TEMP_USAGE(trash_arena);
-
-    char filepath[512];
-    sprintf(filepath, "assets/art/%s.bmp", atlas_name);
 
     Load_BMP_RGBA_Result bmp_result{};
     {
         TEMP_USAGE(trash_arena);
-        auto load_result = Debug_Load_File_To_Arena(filepath, trash_arena);
+        auto load_result
+            = Debug_Load_File_To_Arena(Resources_File("atlas.bmp"), trash_arena);
         Assert(load_result.success);
 
         bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
@@ -166,7 +139,7 @@ Atlas Load_Atlas(
     }
 
     auto& atlas_texture = atlas.texture;
-    atlas_texture.id    = scast<BF_Texture_ID>(Hash32_String(atlas_name));
+    atlas_texture.id    = scast<BF_Texture_ID>(Hash32_String("atlas"));
     atlas_texture.size  = {bmp_result.width, bmp_result.height};
     atlas_texture.base  = bmp_result.output;
     Send_Texture_To_GPU(atlas_texture);
@@ -204,10 +177,6 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
 
     return road_texture_number;
 }
-
-#define Debug_Load_File(variable_name_, filepath_, arena_)                  \
-    auto(variable_name_) = Debug_Load_File_To_Arena((filepath_), (arena_)); \
-    Assert((variable_name_).success);
 
 void Init_Renderer(
     bool        first_time_initializing,
@@ -318,11 +287,7 @@ void Post_Init_Renderer(
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    std::construct_at(
-        &rstate.atlas, Load_Atlas("atlas", non_persistent_arena, trash_arena, ctx)
-    );
-
-    std::construct_at(&rstate.sprites);
+    rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
 
     // Шейдеры.
     {
@@ -771,18 +736,6 @@ void main() {
     ui_state.buildables_panel_params.smart_stretchable  = true;
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
-    // DEBUG_Load_Texture(
-    //     arena,
-    //     non_persistent_arena,
-    //     "ui/buildables_panel",
-    //     ui_state.buildables_panel_background
-    // );
-    // DEBUG_Load_Texture(
-    //     arena,
-    //     non_persistent_arena,
-    //     "ui/buildables_placeholder",
-    //     ui_state.buildables_placeholder_background
-    // );
 
     int buildable_buildings_count = 0;
     FOR_RANGE (int, i, state.scriptable_buildings_count) {

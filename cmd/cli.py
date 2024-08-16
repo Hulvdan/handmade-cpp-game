@@ -70,10 +70,11 @@ app = typer.Typer(callback=hook_exit, result_callback=timed_exit)
 LOG_FILE_POSITION = False
 
 PROJECT_DIR = Path(__file__).parent.parent
-CMD_DIR = Path("cmd")
-SOURCES_DIR = Path("sources")
-FLATBUFFERS_GENERATED_DIR = SOURCES_DIR / ".." / "codegen" / "flatbuffers"
-CMAKE_DEBUG_BUILD_DIR = Path(".cmake") / "vs17" / "Debug"
+CMD_DIR = PROJECT_DIR / "cmd"
+RESOURCES_DIR = PROJECT_DIR / "resources"
+SOURCES_DIR = PROJECT_DIR / "sources"
+FLATBUFFERS_GENERATED_DIR = PROJECT_DIR / "codegen" / "flatbuffers"
+CMAKE_DEBUG_BUILD_DIR = PROJECT_DIR / ".cmake" / "vs17" / "Debug"
 
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
@@ -232,7 +233,7 @@ def convert_gamelib_json_to_binary(texture_name_2_id: dict[str, int]) -> None:
     run_command([FLATC_PATH, "-b", SOURCES_DIR / "bf_gamelib.fbs", intermediate_path])
 
     intermediate_binary_path = str(intermediate_path).rsplit(".", 1)[0] + ".bin"
-    final_binary_path = PROJECT_DIR / "gamelib.bin"
+    final_binary_path = RESOURCES_DIR / "gamelib.bin"
     if os.path.exists(final_binary_path):
         os.remove(final_binary_path)
     os.rename(intermediate_binary_path, final_binary_path)
@@ -374,14 +375,14 @@ def make_atlas(path: Path) -> set[int]:
 
     # Переименовываем сгенерированную бинарную спецификацию.
     itermediate_binary_path = directory / (filename_wo_extension + ".intermediate.bin")
-    final_binary_path = directory / (filename_wo_extension + ".bin")
+    final_binary_path = RESOURCES_DIR / (filename_wo_extension + ".bin")
     if os.path.exists(final_binary_path):
         os.remove(final_binary_path)
     os.rename(itermediate_binary_path, final_binary_path)
 
     # Конвертируем .png to .bmp.
     png_path = directory / (filename_wo_extension + ".png")
-    bmp_path = directory / (filename_wo_extension + ".bmp")
+    bmp_path = RESOURCES_DIR / (filename_wo_extension + ".bmp")
     log.debug("Converting {} to {}".format(png_path, bmp_path))
 
     img = Image.open(png_path)
@@ -789,6 +790,9 @@ def main() -> None:
     global global_timing_manager_instance
     global_timing_manager_instance = timing_manager()
 
+    if not os.path.exists(RESOURCES_DIR):
+        os.mkdir(RESOURCES_DIR)
+
     with global_timing_manager_instance:
         try:
             app()
@@ -800,4 +804,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+
     main()
