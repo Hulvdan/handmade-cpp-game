@@ -105,7 +105,7 @@ u32 Ceil_To_Power_Of_2(u32 value) {
 
 // Проверка на то, является ли число степенью двойки.
 // При передаче указателя на power, там окажется значение этой степени.
-bool Is_Power_Of_2(int number, u32* power = nullptr) {
+bool Is_Power_Of_2(u32 number, u32* power = nullptr) {
     if (number < 2)
         return false;
 

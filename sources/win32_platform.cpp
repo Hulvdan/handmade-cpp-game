@@ -1016,7 +1016,7 @@ static int WinMain(
         if (restored && (window_info.width > 0) && (window_info.height > 0)) {
             SetWindowPos(
                 window_handle,
-                0,
+                nullptr,
                 window_info.pos_x,
                 window_info.pos_y,
                 window_info.width,
