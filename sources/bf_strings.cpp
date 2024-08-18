@@ -34,7 +34,8 @@ const char* Text_Format2(const char* text, ...) {
     return buffer;
 }
 
-char* Allocate_Formatted_String(Arena& arena, const char* format, ...) {
+char* Text_Format_To_Arena(Arena& arena, const char* format, ...) {
+#if 0
     const auto MAX_N = 512;
     char       buf[MAX_N];
 
@@ -50,5 +51,24 @@ char* Allocate_Formatted_String(Arena& arena, const char* format, ...) {
     auto allocated_string = Allocate_Array(arena, char, n_wo_zero + 1);
     memcpy(allocated_string, buf, n_wo_zero);
     *(allocated_string + n_wo_zero) = '\0';
+#else
+    auto allocated_string = (char*)(arena.base + arena.used);
+
+    const auto MAX_N = arena.size - arena.used;
+
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    va_list args;
+    va_start(args, format);
+    auto n = vsnprintf(allocated_string, MAX_N, format, args);
+    va_end(args);
+
+    Assert(n >= 0);
+    auto n_wo_zero = MIN(n, MAX_N - 1);
+
+    *(allocated_string + n_wo_zero) = '\0';
+
+    arena.used += n_wo_zero + 1;
+    Assert(arena.used <= arena.size);
+#endif
     return allocated_string;
 }

@@ -68,9 +68,14 @@ vim.keymap.set("n", "<leader>l", function()
     run_command()(cli_command("lint"))
 end, opts)
 
--- Билд.
+-- Билд дебага.
 vim.keymap.set("n", "<A-b>", function()
     run_command()(cli_command("build_game"))
+end, opts)
+
+-- Билд релиза.
+vim.keymap.set("n", "<A-S-b>", function()
+    run_command()(cli_command("release_game"))
 end, opts)
 
 -- Кодген.
@@ -86,6 +91,11 @@ end, opts)
 -- Билд + переключение окна на VS с одновременным запуском проекта.
 vim.keymap.set("n", "<f5>", function()
     run_command()(cli_command("stoopid_windows_visual_studio_run"))
+end, opts)
+
+-- Билд релиза + переключение окна на VS с одновременным запуском проекта.
+vim.keymap.set("n", "<S-f5>", function()
+    run_command()(cli_command("stoopid_windows_visual_studio_run_release"))
 end, opts)
 
 -- Тесты.

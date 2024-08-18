@@ -1,4 +1,3 @@
-
 struct Arena {
     size_t used;
     size_t size;

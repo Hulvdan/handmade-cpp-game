@@ -24,11 +24,17 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #include "bf_gamelib_generated.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
-#include "bf_math.cpp"
 #include "bf_memory_arena.cpp"
-#include "bf_opengl.cpp"
-#include "bf_rand.cpp"
 #include "bf_strings.cpp"
+// NOLINTEND(bugprone-suspicious-include)
+
+// NOLINTBEGIN(bugprone-suspicious-include)
+struct Arena;
+#include "bf_file_h.cpp"
+#include "bf_log_h.cpp"
+
+#include "bf_math.cpp"
+#include "bf_rand.cpp"
 #include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
@@ -40,10 +46,8 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 
 #if BF_CLIENT
 #    include "bfc_tilemap.cpp"
+#    include "bfc_opengl.cpp"
 #    include "bfc_renderer.cpp"
-#endif
-
-#if BF_SERVER
 #endif
 // NOLINTEND(bugprone-suspicious-include)
 
@@ -222,7 +226,7 @@ void Process_Events(
                 INVALID_PATH;
             }
 
-            rstate.zoom_target = MAX(0.5f, MIN(8.0f, rstate.zoom_target));
+            rstate.zoom_target = MAX(1.0f, MIN(4.0f, rstate.zoom_target));
         } break;
 
         case Event_Type::Keyboard_Pressed: {
@@ -269,23 +273,16 @@ void Reset_Arena(Arena& arena) {
     arena.used = 0;
 }
 
-template <typename T>
-T* Map_Logger(Arena& arena, bool first_time_initializing) {
-    if (std::is_same_v<T, void*>)
-        return nullptr;
+const BFGame::Game_Library* Load_Game_Library(Arena* arena_p, Arena* trash_arena_p) {
+    Assert(arena_p != trash_arena_p);
 
-    T* logger = Allocate_For(arena, T);
-    if (first_time_initializing) {
-        MAKE_LOGGER(logger, arena);
-    }
+    TEMP_USAGE(*trash_arena_p);
 
-    return logger;
-}
+    auto loaded_file = Debug_Load_File_To_Arena("resources/gamelib.bin", *arena_p);
+    Assert(loaded_file.success);
 
-const BFGame::Game_Library* Load_Game_Library(Arena& arena) {
-    auto result = Debug_Load_File_To_Arena(Resources_File("gamelib.bin"), arena);
-    Assert(result.success);
-    return BFGame::GetGame_Library(result.output);
+    auto result = BFGame::GetGame_Library(loaded_file.output);
+    return result;
 }
 
 On_Item_Built_function(On_Item_Built) {
@@ -307,6 +304,20 @@ On_Human_Removed_function(On_Human_Removed) {
 }
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
+    Context _ctx(
+        0,
+        nullptr,
+        nullptr,
+        library_integration_data.logger_data,
+        (Logger_function_t)library_integration_data.logger_routine,
+        (Logger_Scope_function_t)library_integration_data.logger_scope_routine
+    );
+    auto ctx = &_ctx;
+
+    CTX_LOGGER;
+
+    LOG_INFO("Game_Update_And_Render_function");
+
     ZoneScoped;
     global_library_integration_data = &library_integration_data;
 
@@ -327,24 +338,16 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
 
     auto first_time_initializing = !memory.is_initialized;
 
-    root_logger = Map_Logger<Root_Logger_Type>(root_arena, first_time_initializing);
-
     if (first_time_initializing) {
+        SCOPED_LOG_INIT("Initializing root_allocator");
+
         root_allocator = Allocate_For(root_arena, Root_Allocator_Type);
         std::construct_at(root_allocator);
     }
 
-    Context _ctx(
-        0,
-        nullptr,
-        nullptr,
-        (root_logger != nullptr) ? Tracing_Logger_Routine : nullptr,
-        (root_logger != nullptr) ? Tracing_Logger_Tracing_Routine : nullptr,
-        root_logger
-    );
-    auto ctx = &_ctx;
-
     if (!library_integration_data.game_context_set) {
+        SCOPED_LOG_INIT("Setting ImGui context");
+
         ImGui::SetCurrentContext(library_integration_data.imgui_context);
         library_integration_data.game_context_set = true;
     }
@@ -352,73 +355,86 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     auto& editor_data = state.editor_data;
 
     // --- IMGUI ---
-    if (first_time_initializing)
-        editor_data = Default_Editor_Data();
+    {
+        SCOPED_LOG_INIT("Doing ImGui");
 
-    if (!first_time_initializing) {
-        auto& rstate = Assert_Deref(state.renderer_state);
-        ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
+        if (first_time_initializing)
+            editor_data = Default_Editor_Data();
 
-        if (ImGui::SliderInt(
-                "Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9
-            ))
-        {
-            editor_data.changed = true;
-        }
-        if (ImGui::SliderFloat(
-                "Terrain Scaling Bias",
-                &editor_data.terrain_perlin.scaling_bias,
-                0.001f,
-                2.0f
-            ))
-        {
-            editor_data.changed = true;
-        }
-        if (ImGui::Button("New Terrain Seed")) {
-            editor_data.changed = true;
-            editor_data.terrain_perlin.seed++;
-        }
-        if (ImGui::SliderInt(
-                "Terrain Max Height", &editor_data.terrain_max_height, 1, 35
-            ))
-        {
-            editor_data.changed = true;
-        }
+        if (!first_time_initializing) {
+            auto& rstate = Assert_Deref(state.renderer_state);
+            ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
-        if (ImGui::SliderInt("Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9))
-        {
-            editor_data.changed = true;
-        }
-        if (ImGui::SliderFloat(
-                "Forest Scaling Bias",
-                &editor_data.forest_perlin.scaling_bias,
-                0.001f,
-                2.0f
-            ))
-        {
-            editor_data.changed = true;
-        }
-        if (ImGui::Button("New Forest Seed")) {
-            editor_data.changed = true;
-            editor_data.forest_perlin.seed++;
-        }
-        if (ImGui::SliderFloat(
-                "Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f
-            ))
-        {
-            editor_data.changed = true;
-        }
-        if (ImGui::SliderInt("Forest MaxAmount", &editor_data.forest_max_amount, 1, 35)) {
-            editor_data.changed = true;
+            if (ImGui::SliderInt(
+                    "Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9
+                ))
+            {
+                editor_data.changed = true;
+            }
+            if (ImGui::SliderFloat(
+                    "Terrain Scaling Bias",
+                    &editor_data.terrain_perlin.scaling_bias,
+                    0.001f,
+                    2.0f
+                ))
+            {
+                editor_data.changed = true;
+            }
+            if (ImGui::Button("New Terrain Seed")) {
+                editor_data.changed = true;
+                editor_data.terrain_perlin.seed++;
+            }
+            if (ImGui::SliderInt(
+                    "Terrain Max Height", &editor_data.terrain_max_height, 1, 35
+                ))
+            {
+                editor_data.changed = true;
+            }
+
+            if (ImGui::SliderInt(
+                    "Forest Octaves", &editor_data.forest_perlin.octaves, 1, 9
+                ))
+            {
+                editor_data.changed = true;
+            }
+            if (ImGui::SliderFloat(
+                    "Forest Scaling Bias",
+                    &editor_data.forest_perlin.scaling_bias,
+                    0.001f,
+                    2.0f
+                ))
+            {
+                editor_data.changed = true;
+            }
+            if (ImGui::Button("New Forest Seed")) {
+                editor_data.changed = true;
+                editor_data.forest_perlin.seed++;
+            }
+            if (ImGui::SliderFloat(
+                    "Forest Threshold", &editor_data.forest_threshold, 0.0f, 1.0f
+                ))
+            {
+                editor_data.changed = true;
+            }
+            if (ImGui::SliderInt(
+                    "Forest MaxAmount", &editor_data.forest_max_amount, 1, 35
+                ))
+            {
+                editor_data.changed = true;
+            }
         }
     }
     // --- IMGUI END ---
 
     if (!first_time_initializing && state.hot_reloaded) {
+        SCOPED_LOG_INIT("Deinitializing game_map");
         Deinit_Game_Map(state, ctx);
     }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
+        SCOPED_LOG_INIT(
+            "first_time_initializing || editor_data.changed || state.hot_reloaded"
+        );
         editor_data.changed = false;
 
         auto trash_arena_size          = Megabytes((size_t)1);
@@ -435,17 +451,23 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
 
-        if (first_time_initializing)
-            state.gamelib = Load_Game_Library(arena);
+        if (first_time_initializing) {
+            SCOPED_LOG_INIT("Load_Game_Library");
+            LOG_INFO("arena.base %lu", arena.base);
+            LOG_INFO("arena.size %d", arena.size);
+            LOG_INFO("arena.used %d", arena.used);
+
+            state.gamelib = Load_Game_Library(&arena, &trash_arena);
+        }
 
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
         state.arena.debug_name          = "arena";
-        non_persistent_arena.debug_name = Allocate_Formatted_String(
+        non_persistent_arena.debug_name = Text_Format_To_Arena(
             non_persistent_arena, "non_persistent_arena_%d", state.dll_reloads_count
         );
-        trash_arena.debug_name = Allocate_Formatted_String(
+        trash_arena.debug_name = Text_Format_To_Arena(
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count
         );
 
@@ -477,6 +499,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             state.scriptable_resources       = new_resources;
         }
 
+        // Инициализация scriptable_buildings
         auto s = state.gamelib->buildings()->size();
         state.scriptable_buildings
             = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, s);
@@ -520,34 +543,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             }
         }
 
-        // {
-        //     auto& b                        = Assert_Deref(state.scriptable_buildings +
-        //     0); b.code                         = "City Hall"; b.type =
-        //     Building_Type::City_Hall; b.human_spawning_delay         = 1;
-        //     b.required_construction_points = 0;
-        //     state.scriptable_building_city_hall = &b;
-        //     Init_Vector(b.construction_resources, ctx);
-        // }
-        // {
-        //     auto& b                = Assert_Deref(state.scriptable_buildings + 1);
-        //     b.code                 = "Lumberjack's Hut";
-        //     b.type                 = Building_Type::Harvest;
-        //     b.human_spawning_delay = 0;
-        //     state.scriptable_building_lumberjacks_hut = &b;
-        //     b.required_construction_points            = 10;
-        //
-        //     Scriptable_Resource* plank_scriptable_resource =
-        //     state.scriptable_resources; Init_Vector(b.construction_resources, ctx);
-        //     Vector_Add(
-        //         b.construction_resources,
-        //         std::tuple(plank_scriptable_resource, (i16)2),
-        //         ctx
-        //     );
-        // }
-
         Init_Game_Map(
             first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
         );
+
         Init_Renderer(
             first_time_initializing,
             state.hot_reloaded,
@@ -558,25 +557,53 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             ctx
         );
 
-        Regenerate_Terrain_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
-        );
-        Regenerate_Element_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
-        );
+        {
+            SCOPED_LOG_INIT("Regenerate_Terrain_Tiles");
+            Regenerate_Terrain_Tiles(
+                state,
+                state.game_map,
+                non_persistent_arena,
+                trash_arena,
+                0,
+                editor_data,
+                ctx
+            );
+        }
+        {
+            SCOPED_LOG_INIT("Regenerate_Element_Tiles");
+            Regenerate_Element_Tiles(
+                state,
+                state.game_map,
+                non_persistent_arena,
+                trash_arena,
+                0,
+                editor_data,
+                ctx
+            );
+        }
 
-        Post_Init_Game_Map(
-            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
-        );
-        Post_Init_Renderer(
-            first_time_initializing,
-            state.hot_reloaded,
-            state,
-            arena,
-            non_persistent_arena,
-            trash_arena,
-            ctx
-        );
+        {
+            SCOPED_LOG_INIT("Post_Init_Game_Map");
+            Post_Init_Game_Map(
+                first_time_initializing,
+                state.hot_reloaded,
+                state,
+                non_persistent_arena,
+                ctx
+            );
+        }
+        {
+            SCOPED_LOG_INIT("Post_Init_Renderer");
+            Post_Init_Renderer(
+                first_time_initializing,
+                state.hot_reloaded,
+                state,
+                arena,
+                non_persistent_arena,
+                trash_arena,
+                ctx
+            );
+        }
 
         memory.is_initialized = true;
     }

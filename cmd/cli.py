@@ -75,6 +75,7 @@ RESOURCES_DIR = PROJECT_DIR / "resources"
 SOURCES_DIR = PROJECT_DIR / "sources"
 FLATBUFFERS_GENERATED_DIR = PROJECT_DIR / "codegen" / "flatbuffers"
 CMAKE_DEBUG_BUILD_DIR = PROJECT_DIR / ".cmake" / "vs17" / "Debug"
+CMAKE_RELEASE_BUILD_DIR = PROJECT_DIR / ".cmake" / "vs17" / "Release" / "RoadsOfHorses"
 
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
@@ -532,16 +533,35 @@ def find_and_test_shaders(
 # -----------------------------------------------------------------------------------
 
 
-def do_build() -> None:
+def do_build_debug() -> None:
     run_command(
-        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3'
+        rf"""
+        "{MSBUILD_PATH}" .cmake\vs17\game.sln
+        -v:minimal
+        -property:WarningLevel=3
+        -t:win32
+        """
     )
 
 
-def do_build_game() -> None:
+def do_build_release() -> None:
     run_command(
-        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -t:win32'
+        rf"""
+        "{MSBUILD_PATH}" .cmake\vs17\game.sln
+        -v:minimal
+        -property:WarningLevel=3
+        -property:Configuration=Release
+        -property:DEBUG=true
+        -property:OutDir=Release\RoadsOfHorses\
+        -t:win32
+        """
     )
+
+    previously_moved_resources_dir = CMAKE_RELEASE_BUILD_DIR / "resources"
+    if previously_moved_resources_dir.exists():
+        shutil.rmtree(previously_moved_resources_dir)
+
+    shutil.move(CMAKE_RELEASE_BUILD_DIR / ".." / "resources", CMAKE_RELEASE_BUILD_DIR)
 
 
 def do_build_tests() -> None:
@@ -576,8 +596,12 @@ def do_generate() -> None:
     convert_gamelib_json_to_binary(texture_name_2_id)
 
 
-def do_run() -> None:
+def do_run_debug() -> None:
     run_command(str(CMAKE_DEBUG_BUILD_DIR / "win32.exe"))
+
+
+def do_run_release() -> None:
+    run_command(str(CMAKE_RELEASE_BUILD_DIR / "win32.exe"))
 
 
 def do_test() -> None:
@@ -636,12 +660,27 @@ def do_lint() -> None:
     )
 
 
-def do_cmake_vs_files() -> None:
+def do_cmake_vs_debug_files() -> None:
     run_command(
         r"""
             cmake
             -G "Visual Studio 17 2022"
             -B .cmake\vs17
+            -DCMAKE_BUILD_TYPE=Debug
+            -DCMAKE_UNITY_BUILD=ON
+            -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
+            --log-level=ERROR
+        """
+    )
+
+
+def do_cmake_vs_release_files() -> None:
+    run_command(
+        r"""
+            cmake
+            -G "Visual Studio 17 2022"
+            -B .cmake\vs17
+            -DCMAKE_BUILD_TYPE=Release
             -DCMAKE_UNITY_BUILD=ON
             -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
             --log-level=ERROR
@@ -708,25 +747,33 @@ def action_generate():
 @app.command("cmake_vs_files")
 @timing
 def action_cmake_vs_files():
-    do_cmake_vs_files()
+    do_cmake_vs_debug_files()
 
 
 @app.command("build_game")
 def action_build_game():
     do_test_shaders()
     do_generate()
-    do_cmake_vs_files()
-    do_build_game()
+    do_cmake_vs_debug_files()
+    do_build_debug()
+
+
+@app.command("release_game")
+def action_release_game():
+    do_test_shaders()
+    do_generate()
+    do_cmake_vs_release_files()
+    do_build_release()
 
 
 @app.command("run")
-def action_run():
+def action_run_debug():
     do_test_shaders()
     do_generate()
-    do_cmake_vs_files()
-    do_build_game()
+    do_cmake_vs_debug_files()
+    do_build_debug()
 
-    do_run()
+    do_run_debug()
 
 
 @app.command("stoopid_windows_visual_studio_run")
@@ -735,7 +782,18 @@ def action_stoopid_windows_visual_studio_run():
 
     do_test_shaders()
     do_generate()
-    do_build_game()
+    do_build_debug()
+
+    do_run_vs_ahk()
+
+
+@app.command("stoopid_windows_visual_studio_run_release")
+def action_stoopid_windows_visual_studio_run_release():
+    do_stop_vs_ahk()
+
+    do_test_shaders()
+    do_generate()
+    do_build_release()
 
     do_run_vs_ahk()
 

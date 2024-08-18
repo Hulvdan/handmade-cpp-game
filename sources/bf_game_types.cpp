@@ -596,8 +596,8 @@ struct Game_Map {
     Terrain_Resource* terrain_resources = {};
     Element_Tile*     element_tiles     = {};
 
-    Game_Map_Data* data       = {};
-    Human_Data*    human_data = {};
+    Game_Map_Data data       = {};
+    Human_Data*   human_data = {};
 
     Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments                  = {};
     Sparse_Array<Building_ID, Building>                 buildings                 = {};
@@ -646,7 +646,7 @@ struct Editor_Data {
 };
 
 Editor_Data Default_Editor_Data() {
-    Editor_Data result = {};
+    Editor_Data result{};
 
     result.terrain_perlin.octaves      = 9;
     result.terrain_perlin.scaling_bias = 2.0f;

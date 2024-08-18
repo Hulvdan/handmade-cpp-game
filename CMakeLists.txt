@@ -10,7 +10,6 @@ set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1")
 set(FLATBUFFERS_DIR "${PROJECT_SOURCE_DIR}/vendor/libraries/flatbuffers-24.3.25")
 
 add_compile_definitions(
-    BF_INTERNAL=1
     BF_CLIENT=1
     BF_SERVER=0
 
@@ -18,6 +17,9 @@ add_compile_definitions(
     TRACY_ENABLE
     # TRACY_ON_DEMAND
 )
+
+add_compile_definitions("$<$<CONFIG:Debug>:BF_DEBUG=1>")
+add_compile_definitions("$<$<NOT:$<CONFIG:Debug>>:BF_DEBUG=0>")
 
 # === glm library ===
 add_subdirectory(vendor/libraries/glm-0.9.9.8)

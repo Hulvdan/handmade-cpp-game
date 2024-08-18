@@ -1,12 +1,14 @@
-struct Debug_Load_File_Result {
-    bool success;
-    u8*  output;
-    u32  size;
-};
-
 Debug_Load_File_Result
 Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
-    char absolute_file_path[512];
+    auto&       logger_data = global_library_integration_data->logger_data;
+    const auto& logger_routine
+        = (Logger_function_t)global_library_integration_data->logger_routine;
+    const auto& logger_scope_routine
+        = (Logger_Scope_function_t)global_library_integration_data->logger_scope_routine;
+
+    LOG_INFO("Debug_Load_File %s...", filename);
+
+    char absolute_file_path[2048];
 
     const auto path = filename;
 
@@ -21,9 +23,14 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
         res.success = true;
         res.output  = output;
         res.size    = read_bytes;
+        LOG_INFO("Debug_Load_File %s... Success!", filename);
+    }
+    else {
+        LOG_WARN("Debug_Load_File %s... Failed!", filename);
     }
 
-    Assert(fclose(file) == 0);
+    auto close_result = fclose(file);
+    Assert(close_result == 0);
     return res;
 }
 

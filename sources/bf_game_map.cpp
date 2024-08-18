@@ -108,11 +108,8 @@ Path_Find_Result Find_Path(
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
     GRID_PTR_VALUE(visited_mtx, source) = true;
 
-    auto bfs_parents_mtx = Allocate_Array(trash_arena, std::optional<v2i16>, tiles_count);
-
-    FOR_RANGE (int, i, tiles_count) {
-        std::construct_at(bfs_parents_mtx + i);
-    }
+    auto bfs_parents_mtx
+        = Allocate_Zeros_Array(trash_arena, std::optional<v2i16>, tiles_count);
 
     while (queue.count > 0) {
         auto pos = queue.Dequeue();
@@ -459,7 +456,7 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates);
 
 HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     if (human.segment_id != Graph_Segment_ID_Missing) {
         // TODO: After implementing resources.
@@ -478,7 +475,7 @@ HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
 
 HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     human.state_moving_in_the_world = Moving_In_The_World_State::None;
     human.moving.path.Reset();
@@ -506,7 +503,7 @@ HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingInTheWorld_OnCurrentSegmentChanged
 ) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     Assert(human.type == Human_Type::Transporter);
     HumanState_MovingInTheWorld_UpdateStates(
@@ -517,7 +514,7 @@ HumanState_OnCurrentSegmentChanged_function(
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
     LOG_DEBUG("human moved to %d.%d", human.moving.pos.x, human.moving.pos.y);
 
     if (human.type == Human_Type::Constructor                                        //
@@ -546,7 +543,7 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
     ZoneScoped;
 
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     auto& game_map       = *data.game_map;
     bool  is_transporter = human.type == Human_Type::Transporter;
@@ -699,7 +696,7 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates);
 
 HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     Assert(human.segment_id != Graph_Segment_ID_Missing);
 
@@ -736,7 +733,7 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
 
 HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     human.moving.path.Reset();
 }
@@ -751,7 +748,7 @@ HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingInsideSegment_OnCurrentSegmentChanged
 ) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
 }
@@ -760,7 +757,7 @@ HumanState_OnMovedToTheNextTile_function(
     HumanState_MovingInsideSegment_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     // NOTE: Специально оставлено пустым.
 }
@@ -769,7 +766,7 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
     ZoneScoped;
 
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
 
     if (human.segment_id == Graph_Segment_ID_Missing) {
         human.moving.path.Reset();
@@ -919,7 +916,7 @@ void Root_Set_Human_State(
     MCTX
 ) {
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
     auto old_state_value = human.state;
     human.state          = new_state_value;
 
@@ -954,7 +951,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     auto& game_map = state.game_map;
 
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
     LOG_DEBUG("Creating a new human...");
 
     Human human{};
@@ -1123,12 +1120,12 @@ void Update_Human_Moving_Component(
     auto& moving = human.moving;
     Assert(moving.to.has_value());
 
-    const auto duration = Assert_Deref(game_map.data).human_moving_one_tile_duration;
+    const auto duration = game_map.data.human_moving_one_tile_duration;
 
     moving.elapsed += dt;
 
     if (moving.elapsed > duration) {
-        LOG_TRACING_SCOPE;
+        LOG_SCOPE;
 
         moving.elapsed -= duration;
         Assert(moving.elapsed < duration);
@@ -1315,6 +1312,9 @@ void Init_Game_Map(
     Arena&      arena,
     MCTX
 ) {
+    CTX_LOGGER;
+    SCOPED_LOG_INIT("Init_Game_Map");
+
 #define X(state_name)                                      \
     human_states[(int)Human_States::state_name] = {        \
         HumanState_##state_name##_OnEnter,                 \
@@ -1329,9 +1329,9 @@ void Init_Game_Map(
 
     auto& game_map = state.game_map;
 
-    game_map.last_entity_id = 0;
+    game_map.last_entity_id                      = 0;
+    game_map.data.human_moving_one_tile_duration = 0.3f;
 
-    game_map.data = std::construct_at(Allocate_For(arena, Game_Map_Data), 0.3f);
     {
         auto human_data         = Allocate_For(arena, Human_Data);
         human_data->game_map    = &state.game_map;
@@ -1919,7 +1919,7 @@ BF_FORCE_INLINE void Update_Segments(
 ) {
     CTX_ALLOCATOR;
     CTX_LOGGER;
-    LOG_TRACING_SCOPE;
+    LOG_SCOPE;
     LOG_DEBUG("game_map.segments.count = %d", game_map.segments.count);
     LOG_DEBUG("segments_to_add.count = %d", segments_to_add.count);
     LOG_DEBUG("segments_to_delete.count = %d", segments_to_delete.count);

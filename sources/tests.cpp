@@ -4,11 +4,14 @@
 #include "bf_game.h"
 
 #if BF_SANITIZATION_ENABLED
-#    define Root_Allocator_Type                                                 \
-        Affix_Allocator<                                                        \
-            Affix_Allocator<Freeable_Malloc_Allocator, Size_Affix, Size_Affix>, \
-            Stoopid_Affix,                                                      \
-            Stoopid_Affix>
+#    define Root_Allocator_Type            \
+        DEBUG_Affix_Allocator<             \
+            DEBUG_Affix_Allocator<         \
+                Freeable_Malloc_Allocator, \
+                DEBUG_Size_Affix,          \
+                DEBUG_Size_Affix>,         \
+            DEBUG_Stoopid_Affix,           \
+            DEBUG_Stoopid_Affix>
 #else
 #    define Root_Allocator_Type Freeable_Malloc_Allocator
 #endif

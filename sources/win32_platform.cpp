@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <source_location>
 #include <vector>
 
 #include "windows.h"
@@ -20,11 +21,20 @@
 #include "bf_base.h"
 #include "bf_game.h"
 
+global_var Library_Integration_Data* global_library_integration_data = {};
+
 // NOLINTBEGIN(bugprone-suspicious-include)
+struct Arena;
+#include "bf_file_h.cpp"
+#include "bf_log_h.cpp"
+
 #include "bf_memory_arena.cpp"
 #include "bf_strings.cpp"
 #include "bf_file.cpp"
-#include "bf_opengl.cpp"
+#include "bf_log.cpp"
+#include "bf_math.cpp"
+#include "bf_memory.cpp"
+#include "bfc_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
 // -- RENDERING STUFF
@@ -37,26 +47,19 @@ struct BF_Bitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
-global_var bool hot_reloaded = false;
 
-global_var Library_Integration_Data library_integration_data = {};
-
-global_var HMODULE game_lib = nullptr;
-global_var size_t  initial_game_memory_size;
-global_var void*   initial_game_memory = nullptr;
+global_var Arena initial_game_memory_arena = {};
 
 global_var size_t events_count    = 0;
 global_var std::vector<u8> events = {};
 
-// TODO: Is there any way to restrict T
-// to be only one of event structs specified in game.h?
 template <typename T>
-void push_event(T& event) {
+void Push_Event(T& event) {
     auto can_push = events.capacity() >= events.size() + sizeof(T) + 1;
     if (!can_push) {
         // TODO: Diagnostic
         INVALID_PATH;
-        OutputDebugStringA("win32_platform: push_event(): skipped");
+        DEBUG_Error("win32_platform: Push_Event(): skipped");
         return;
     }
 
@@ -67,7 +70,10 @@ void push_event(T& event) {
     events.insert(events.end(), data, data + sizeof(T));
 }
 
-#if BF_INTERNAL
+global_var HMODULE game_lib     = nullptr;
+global_var bool    hot_reloaded = false;
+
+#if BF_DEBUG
 global_var FILETIME last_game_dll_write_time;
 
 struct Peek_Filetime_Result {
@@ -89,17 +95,16 @@ Peek_Filetime_Result Peek_Filetime(const char* filename) {
 
     return res;
 }
-#endif  // BF_INTERNAL
+#endif
 
 using Game_Update_And_Render_t = Game_Update_And_Render_function((*));
 Game_Update_And_Render_function(Game_Update_And_Render_stub) {}
 Game_Update_And_Render_t Game_Update_And_Render_ = Game_Update_And_Render_stub;
 
 void Load_Or_Update_Game_Dll() {
-    auto path = R"(bf_game.dll)";
-    //    auto path = R"(.cmake\vs17\Debug\bf_game.dll)";
+    auto path = "bf_game.dll";
 
-#if BF_INTERNAL
+#if BF_DEBUG
     auto filetime = Peek_Filetime(path);
     if (!filetime.success)
         return;
@@ -138,7 +143,7 @@ void Load_Or_Update_Game_Dll() {
     }
 
     path = temp_path;
-#endif  // BF_INTERNAL
+#endif
 
     Game_Update_And_Render_ = Game_Update_And_Render_stub;
 
@@ -158,11 +163,11 @@ void Load_Or_Update_Game_Dll() {
         INVALID_PATH;
     }
 
-#if BF_INTERNAL
-    library_integration_data.game_context_set = false;
-    last_game_dll_write_time                  = filetime.filetime;
-    library_integration_data.dll_reloads_count++;
-#endif  // BF_INTERNAL
+#if BF_DEBUG
+    global_library_integration_data->game_context_set = false;
+    last_game_dll_write_time                          = filetime.filetime;
+    global_library_integration_data->dll_reloads_count++;
+#endif
 
     game_lib                = lib;
     Game_Update_And_Render_ = loaded_Game_Update_And_Render;
@@ -229,7 +234,7 @@ void Load_XAudio_Dll() {
     XAudio2Create_ = (XAudio2CreateType)GetProcAddress(library, "XAudio2Create");
 }
 
-f32 FillSamples(
+f32 Fill_Samples(
     i16* samples,
     i32  samples_count_per_second,
     i32  samples_count_per_channel,
@@ -268,13 +273,13 @@ f32 FillSamples(
     return last_angle;
 }
 
-struct CreateBufferRes {
+struct Create_Buffer_Res {
     XAUDIO2_BUFFER* buffer;
     u8*             samples;
 };
 
-CreateBufferRes
-CreateBuffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
+Create_Buffer_Res
+Create_Buffer(i32 samples_per_channel, i32 channels, i32 bytes_per_sample) {
     Assert(channels > 0);
     Assert(bytes_per_sample > 0);
 
@@ -355,12 +360,12 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
 
     Game_Update_And_Render_(
         dt,
-        initial_game_memory,
-        initial_game_memory_size,
+        initial_game_memory_arena.base + initial_game_memory_arena.used,
+        initial_game_memory_arena.size - initial_game_memory_arena.used,
         screen_bitmap.bitmap,
         (void*)events.data(),
         events_count,
-        library_integration_data,
+        *global_library_integration_data,
         hot_reloaded
     );
 
@@ -375,10 +380,10 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
     events_count = 0;
     events.clear();
 
-#if BF_INTERNAL
+#if BF_DEBUG
     hot_reloaded = false;
     Load_Or_Update_Game_Dll();
-#endif  // BF_INTERNAL
+#endif
 }
 
 void Win32GLResize() {
@@ -410,6 +415,8 @@ void* Win32_Open_File(const char* filename) noexcept {
 
 void Win32_Write_To_File(void* file_handle, const char* text) noexcept {
     fprintf((FILE*)file_handle, "%s\n", text);
+    fflush((FILE*)file_handle);
+    OutputDebugStringA(Text_Format("%s\n", text));
 }
 
 void* Win32_Open_Binary_File(const char* filename) noexcept {
@@ -421,7 +428,9 @@ void* Win32_Open_Binary_File(const char* filename) noexcept {
 }
 
 void Win32_Write_To_Binary_File(void* file_handle, void* data, i32 bytes) noexcept {
+    Assert(bytes != 0);
     auto result = fwrite((void*)data, bytes, 1, (FILE*)file_handle);
+    Assert(result != 0);
 }
 
 bool Win32_File_Exists(const char* filepath) {
@@ -433,11 +442,11 @@ bool Win32_File_Exists(const char* filepath) {
 }
 
 global_var struct Window_Info {
-    i16 width;
-    i16 height;
+    i32 width;
+    i32 height;
     i32 pos_x;
     i32 pos_y;
-    i16 maximized;
+    i32 maximized;
 } window_info = {};
 
 inline static const char* window_info_filepath = "window_info.dat";
@@ -484,11 +493,22 @@ exit:
 
 void Debug_Save_Binary_File(const char* filepath, void* data, i32 bytes) {
     auto fp = Win32_Open_Binary_File(filepath);
+    if (!fp)
+        exit(-1);
+
     Win32_Write_To_Binary_File(fp, data, bytes);
-    Assert(fclose((FILE*)fp) == 0);
+    auto close_result = fclose((FILE*)fp);
+    Assert(close_result == 0);
 }
 
 void Save_Window_Info() {
+    auto&       logger_data = global_library_integration_data->logger_data;
+    const auto& logger_routine
+        = (Logger_function_t)global_library_integration_data->logger_routine;
+    const auto& logger_scope_routine
+        = (Logger_Scope_function_t)global_library_integration_data->logger_scope_routine;
+
+    SCOPED_LOG_INIT("Save_Window_Info");
     u8 buffer[sizeof(Window_Info)] = {};
 
     *(Window_Info*)buffer = window_info;
@@ -496,7 +516,6 @@ void Save_Window_Info() {
     Debug_Save_Binary_File(window_info_filepath, (void*)buffer, sizeof(Window_Info));
 
     window_info_needs_saving = false;
-    DEBUG_Print("Saved window info!");
 }
 
 u64 Win32Clock() {
@@ -531,8 +550,9 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         return 1;
 
     auto mouse_captured = false;
-    if (library_integration_data.imgui_context != nullptr)
-        mouse_captured = library_integration_data.imgui_context->IO.WantCaptureMouse;
+    if (global_library_integration_data->imgui_context != nullptr)
+        mouse_captured
+            = global_library_integration_data->imgui_context->IO.WantCaptureMouse;
 
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
@@ -587,7 +607,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Pressed event{};
             event.type = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -596,7 +616,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Released event{};
             event.type = Mouse_Button_Type::Left;
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -605,7 +625,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Pressed event{};
             event.type = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -614,7 +634,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Released event{};
             event.type = Mouse_Button_Type::Right;
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -623,7 +643,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Pressed event{};
             event.type = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -632,7 +652,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Released event{};
             event.type = Mouse_Button_Type::Middle;
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -641,7 +661,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             Mouse_Scrolled event{};
             i16            scroll = (short)HIWORD(wParam);
             event.value           = scroll;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -649,7 +669,7 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         if (!mouse_captured) {
             Mouse_Moved event{};
             BF_MOUSE_POS;
-            push_event(event);
+            Push_Event(event);
         }
     } break;
 
@@ -711,7 +731,7 @@ public:
         auto& samples = s1;
         auto& buffer  = b1;
 
-        last_angle = FillSamples(
+        last_angle = Fill_Samples(
             (i16*)samples,
             SAMPLES_HZ,
             samples_count_per_channel,
@@ -756,6 +776,32 @@ private:
     f32 last_angle = 0;
 };
 
+//-----------------------------------------------------------------------------------
+// Logging.
+//-----------------------------------------------------------------------------------
+#if 1
+using Root_Logger_Type = Tracing_Logger;
+
+#    define SET_LOGGER                                                                  \
+        Root_Logger_Type logger{};                                                      \
+        Initialize_Tracing_Logger(logger, initial_game_memory_arena);                   \
+        auto logger_data                                = (void*)&logger;               \
+        auto logger_routine                             = Tracing_Logger_Routine;       \
+        auto logger_scope_routine                       = Tracing_Logger_Scope_Routine; \
+        global_library_integration_data->logger_data    = logger_data;                  \
+        global_library_integration_data->logger_routine = (void*)logger_routine;        \
+        global_library_integration_data->logger_scope_routine                           \
+            = (void*)logger_scope_routine;
+
+#else
+// NOTE: Отключение логирования
+using Root_Logger_Type = void*;
+#    define SET_LOGGER                                          \
+        void*                   logger_data          = nullptr; \
+        Logger_function_t       logger_routine       = nullptr; \
+        Logger_Scope_function_t logger_scope_routine = nullptr;
+#endif
+
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 static int WinMain(
     HINSTANCE application_handle,
@@ -763,29 +809,38 @@ static int WinMain(
     LPSTR /* command_line */,
     int show_command
 ) {
+    Library_Integration_Data l{};
+    global_library_integration_data = &l;
+
+    global_library_integration_data->Open_File     = Win32_Open_File;
+    global_library_integration_data->Write_To_File = Win32_Write_To_File;
+    global_library_integration_data->Get_Time      = Win32_Get_Time;
+
+    initial_game_memory_arena.size = Megabytes(64LL);
+    initial_game_memory_arena.base = (u8*)VirtualAlloc(
+        nullptr,
+        initial_game_memory_arena.size,
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_EXECUTE_READWRITE
+    );
+
+    if (!initial_game_memory_arena.base) {
+        // TODO: Diagnostic
+        return -1;
+    }
+
+    SET_LOGGER;
+
+    LOG_WARN("ABOBA!");
+
     perf_counter_frequency  = Win32Frequency();
     perf_counter_started_at = Win32Clock();
-
-    SYSTEM_INFO system_info;
-    GetSystemInfo(&system_info);
 
     Load_Or_Update_Game_Dll();
     Load_XInput_Dll();
     Load_XAudio_Dll();
 
     events.reserve(Kilobytes(64LL));
-
-    initial_game_memory_size = Megabytes(64LL);
-    initial_game_memory      = VirtualAlloc(
-        nullptr,
-        initial_game_memory_size,
-        MEM_RESERVE | MEM_COMMIT,
-        PAGE_EXECUTE_READWRITE
-    );
-    if (!initial_game_memory) {
-        // TODO: Diagnostic
-        return -1;
-    }
 
     const auto SLEEP_MSEC_GRANULARITY = 1;
     timeBeginPeriod(SLEEP_MSEC_GRANULARITY);
@@ -843,10 +898,10 @@ static int WinMain(
                     i32 samples_count_per_channel = SAMPLES_HZ * duration_msec / 1000;
                     Assert(samples_count_per_channel > 0);
 
-                    auto r1 = CreateBuffer(
+                    auto r1 = Create_Buffer(
                         samples_count_per_channel, channels, bytes_per_sample
                     );
-                    auto r2 = CreateBuffer(
+                    auto r2 = Create_Buffer(
                         samples_count_per_channel, channels, bytes_per_sample
                     );
 
@@ -920,7 +975,7 @@ static int WinMain(
 
     if (RegisterClassA(&windowClass) == NULL) {
         // TODO: Diagnostic
-        return 0;
+        return -1;
     }
 
     if (source_voice != nullptr) {
@@ -1048,10 +1103,7 @@ static int WinMain(
 
     ImGui::StyleColorsDark();
 
-    library_integration_data.imgui_context = ImGui::GetCurrentContext();
-    library_integration_data.Open_File     = Win32_Open_File;
-    library_integration_data.Write_To_File = Win32_Write_To_File;
-    library_integration_data.Get_Time      = Win32_Get_Time;
+    global_library_integration_data->imgui_context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);
@@ -1066,8 +1118,7 @@ static int WinMain(
 
     f32       last_frame_dt = 0;
     const f32 MAX_FRAME_DT  = 1.0f / 10.0f;
-    // TODO: Use DirectX / OpenGL to calculate refresh_rate and rework this whole
-    // mess
+
     f32 REFRESH_RATE       = 60.0f;
     i64 frames_before_flip = (i64)((f32)(perf_counter_frequency) / REFRESH_RATE);
 
@@ -1075,18 +1126,23 @@ static int WinMain(
         u64 next_frame_expected_perf_counter = perf_counter_current + frames_before_flip;
 
         MSG message{};
-        while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
-            if (message.message == WM_QUIT) {
-                running = false;
-                break;
-            }
 
-            TranslateMessage(&message);
-            DispatchMessage(&message);
+        {
+            SCOPED_LOG_INIT("Processing messages");
 
-            if (window_info_needs_saving) {
-                if (window_info_saving_time < Win32_Get_Time())
-                    Save_Window_Info();
+            while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
+                if (message.message == WM_QUIT) {
+                    running = false;
+                    break;
+                }
+
+                TranslateMessage(&message);
+                DispatchMessage(&message);
+
+                if (window_info_needs_saving) {
+                    if (window_info_saving_time < Win32_Get_Time())
+                        Save_Window_Info();
+                }
             }
         }
 
@@ -1109,11 +1165,11 @@ static int WinMain(
                 Controller_Axis_Changed event{};
                 event.axis  = 0;
                 event.value = stick_x_normalized;
-                push_event(event);
+                Push_Event(event);
 
                 event.axis  = 1;
                 event.value = stick_y_normalized;
-                push_event(event);
+                Push_Event(event);
 
                 voice_callback.frequency
                     = starting_frequency * powf(2, stick_y_normalized);
@@ -1127,7 +1183,10 @@ static int WinMain(
         auto device_context = GetDC(window_handle);
 
         auto capped_dt = MIN(last_frame_dt, MAX_FRAME_DT);
-        Win32Paint(capped_dt, window_handle, device_context);
+        {
+            SCOPED_LOG_INIT("Win32Paint");
+            Win32Paint(capped_dt, window_handle, device_context);
+        }
         ReleaseDC(window_handle, device_context);
 
         FrameMark;

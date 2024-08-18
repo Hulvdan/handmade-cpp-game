@@ -91,15 +91,11 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     BFGL_Check_Errors();
 }
 
-const char* Resources_File(const char* filepath) {
-    auto result = Text_Format("resources/%s", filepath);
-    return result;
-}
-
 const BFGame::Atlas* Load_Atlas_From_Binary(Arena& arena) {
-    auto result = Debug_Load_File_To_Arena(Resources_File("atlas.bin"), arena);
-    Assert(result.success);
-    return BFGame::GetAtlas(result.output);
+    auto loaded_file = Debug_Load_File_To_Arena("resources/atlas.bin", arena);
+    Assert(loaded_file.success);
+    auto result = BFGame::GetAtlas(loaded_file.output);
+    return result;
 }
 
 Atlas Load_Atlas(Arena& destination_arena, Arena& trash_arena, MCTX) {
@@ -108,8 +104,7 @@ Atlas Load_Atlas(Arena& destination_arena, Arena& trash_arena, MCTX) {
     Load_BMP_RGBA_Result bmp_result{};
     {
         TEMP_USAGE(trash_arena);
-        auto load_result
-            = Debug_Load_File_To_Arena(Resources_File("atlas.bmp"), trash_arena);
+        auto load_result = Debug_Load_File_To_Arena("resources/atlas.bmp", trash_arena);
         Assert(load_result.success);
 
         bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
@@ -188,9 +183,12 @@ void Init_Renderer(
     MCTX
 ) {
     CTX_ALLOCATOR;
+    CTX_LOGGER;
 
     if (!first_time_initializing && !hot_reloaded)
         return;
+
+    SCOPED_LOG_INIT("Init_Renderer");
 
     // NOTE: I could not find a way of initializing glew once
     // in win32 layer so that initializing here'd unnecessary.
@@ -198,8 +196,10 @@ void Init_Renderer(
     local_persist bool glew_was_initialized = false;
     if (!glew_was_initialized) {
         // glewExperimental = GL_TRUE;
-        Assert(glewInit() == GLEW_OK);
+        auto result = glewInit();
+        Assert(result == GLEW_OK);
         glew_was_initialized = true;
+        LOG_INFO("Glew init result %d", result);
     }
 
     if (first_time_initializing)
@@ -274,10 +274,11 @@ void Post_Init_Renderer(
     Arena&      trash_arena,
     MCTX
 ) {
-    CTX_ALLOCATOR;
-
     if (!first_time_initializing && !hot_reloaded)
         return;
+
+    CTX_ALLOCATOR;
+    CTX_LOGGER;
 
     auto& rstate = Assert_Deref(state.renderer_state);
 
@@ -287,10 +288,15 @@ void Post_Init_Renderer(
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
+    {
+        SCOPED_LOG_INIT("Loading atlas");
+        rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
+    }
 
     // Шейдеры.
     {
+        SCOPED_LOG_INIT("Loading sprite shader");
+
         auto sprite_shader_result = BFGL_Create_Shader_Program(
             R"VertexShader(
 #version 330 core
@@ -326,7 +332,8 @@ void main() {
         * vec4(color, 1);
 }
 )FragmentShader",
-            trash_arena
+            trash_arena,
+            ctx
         );
 
         Print_Shader_Compilation_Logs(sprite_shader_result);
@@ -338,6 +345,7 @@ void main() {
     }
 
     {
+        SCOPED_LOG_INIT("Loading tilemap shader");
         auto tilemap_shader_result = BFGL_Create_Shader_Program(
             R"VertexShader(
 #version 430 core
@@ -463,7 +471,8 @@ void main() {
     frag_color.rgb *= color.rgb;
 }
 )FragmentShader",
-            trash_arena
+            trash_arena,
+            ctx
         );
 
         Print_Shader_Compilation_Logs(tilemap_shader_result);
@@ -1431,6 +1440,10 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
 
 void Render(Game_State& state, f32 dt, MCTX) {
     CTX_ALLOCATOR;
+    CTX_LOGGER;
+
+    SCOPED_LOG_INIT("Render");
+
     ZoneScoped;
 
     Arena& trash_arena = state.trash_arena;

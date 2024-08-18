@@ -93,24 +93,45 @@ struct BFGL_Create_Shader_Result {
 BFGL_Create_Shader_Result BFGL_Create_Shader_Program(
     const char* vertex_code,
     const char* fragment_code,
-    Arena&      trash_arena
+    Arena&      trash_arena,
+    MCTX
 ) {
+    CTX_LOGGER;
+
     TEMP_USAGE(trash_arena);
 
     BFGL_Create_Shader_Result result = {};
 
     // Vertex.
+    LOG_INFO("Trying to create vertex shader...");
     auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     defer {
         glDeleteShader(vertex_shader);
     };
-    glShaderSource(vertex_shader, 1, scast<const GLchar* const*>(&vertex_code), nullptr);
-    glCompileShader(vertex_shader);
+
+    {
+        SCOPED_LOG_INIT("glShaderSource");
+        glShaderSource(
+            vertex_shader, 1, scast<const GLchar* const*>(&vertex_code), nullptr
+        );
+    }
+    {
+        SCOPED_LOG_INIT("glCompileShader");
+        glCompileShader(vertex_shader);
+    }
     GLint vertex_success = 0;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
-    result.logs.vertex_log = Get_Shader_Info_Log(vertex_shader, trash_arena);
+    {
+        SCOPED_LOG_INIT("glGetShaderiv");
+        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
+    }
+    {
+        SCOPED_LOG_INIT("result.logs.vertex_log = Get_Shader_Info_Log");
+        result.logs.vertex_log = Get_Shader_Info_Log(vertex_shader, trash_arena);
+    }
+    LOG_DEBUG("Trying to create vertex shader... Success!");
 
     // Fragment.
+    LOG_INFO("Trying to create fragment shader...");
     auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     defer {
         glDeleteShader(fragment_shader);
@@ -122,6 +143,7 @@ BFGL_Create_Shader_Result BFGL_Create_Shader_Program(
     GLint fragment_success = 0;
     glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &fragment_success);
     result.logs.fragment_log = Get_Shader_Info_Log(fragment_shader, trash_arena);
+    LOG_DEBUG("Trying to create fragment shader... Success!");
 
     if (!vertex_success || !fragment_success)
         return result;
@@ -145,9 +167,10 @@ BFGL_Create_Shader_Result BFGL_Create_Shader_Program(
     GLint program_success = 0;
     glGetProgramiv(program, GL_LINK_STATUS, &program_success);
 
-    result.success = program_success;
-    if (program_success)
+    if (program_success) {
         result.program = program;
+        result.success = true;
+    }
 
     return result;
 }

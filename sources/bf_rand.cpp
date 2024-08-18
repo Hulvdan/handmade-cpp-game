@@ -31,8 +31,10 @@ void Cycled_Perlin_2D(
     Assert(sx > 0);
     Assert(sy > 0);
     Assert(sx == sy);
-    Assert(Is_Power_Of_2(sx, &sx_power));
-    Assert(Is_Power_Of_2(sy, &sy_power));
+    auto sx_is = Is_Power_Of_2(sx, &sx_power);
+    auto sy_is = Is_Power_Of_2(sy, &sy_power);
+    Assert(sx_is);
+    Assert(sy_is);
 
     Assert(params.octaves > 0);
     Assert(params.scaling_bias > 0);

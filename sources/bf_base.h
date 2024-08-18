@@ -14,16 +14,16 @@
         statement;           \
     } while (false)
 
-#if BF_INTERNAL
+#if BF_DEBUG
 #    define BREAKPOINT STATEMENT({ __debugbreak(); })
 #else
-#    define BREAKPOINT STATEMENT({})
+#    define BREAKPOINT ((void*)0)
 #endif
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-#if BF_INTERNAL
+#if BF_DEBUG
 static constexpr auto DEBUG_MAX_LEN = 512;
 
 void DEBUG_Error(const char* text, ...) {
@@ -55,8 +55,8 @@ void DEBUG_Print(const char* text, ...) {
 }
 
 #else
-#    define DEBUG_Error(text_, ...)
-#    define DEBUG_Print(text_, ...)
+#    define DEBUG_Error(text_, ...) ((void*)0)
+#    define DEBUG_Print(text_, ...) ((void*)0)
 #endif
 
 //----------------------------------------------------------------------------------
@@ -171,10 +171,13 @@ constexpr f64 f64_inf = std::numeric_limits<f64>::infinity();
 #if TESTS
 #    define Assert(expr) REQUIRE(expr)
 #    define Assert_False(expr) REQUIRE_FALSE(expr)
-#else
+#elif BF_DEBUG
 #    include <cassert>
 #    define Assert(expr) STATEMENT({ assert((bool)(expr)); })
 #    define Assert_False(expr) STATEMENT({ assert(!(bool)(expr)); })
+#else
+#    define Assert(expr) ((void*)0)
+#    define Assert_False(expr) ((void*)0)
 #endif
 
 template <typename T>

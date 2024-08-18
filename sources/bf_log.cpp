@@ -2,7 +2,7 @@
 //
 //     void function(Human& human, MCTX) {
 //         CTX_LOGGER;
-//         LOG_TRACING_SCOPE;
+//         LOG_SCOPE;
 //         LOG_DEBUG("human.moving %d.%d", human.moving.pos.x, human.moving.pos.y);
 //     }
 
@@ -59,16 +59,6 @@ consteval int string_length(const char* str) {
     return n;
 }
 
-enum class Log_Type { DEBUG = 0, INFO, WARN, ERR };
-
-#define Logger_function(name_) \
-    void name_(void* logger_data, Log_Type log_type, const char* message)
-#define Logger_Tracing_function(name_) \
-    void name_(void* logger_data, bool push, const char* location)
-
-using Logger_function_t         = Logger_function((*));
-using Logger_Tracing_function_t = Logger_Tracing_function((*));
-
 struct Tracing_Logger {
     static constexpr int MAX_BUFFER_SIZE = 4096;
 
@@ -99,21 +89,6 @@ void Initialize_Tracing_Logger(Tracing_Logger& logger, Arena& arena) {
         = Allocate_Zeros_Array(arena, char, Tracing_Logger::MAX_BUFFER_SIZE);
     logger.initialized = true;
 }
-
-#if 0
-using Root_Logger_Type = Tracing_Logger;
-#    define MAKE_LOGGER(logger_ptr, arena)                   \
-        STATEMENT({                                          \
-            std::construct_at(logger_ptr);                   \
-            Initialize_Tracing_Logger(*(logger_ptr), arena); \
-        })
-#else
-// NOTE: void* = отключение логирования
-using Root_Logger_Type = void*;
-#    define MAKE_LOGGER(logger_ptr, arena) (void)0
-#endif
-
-global_var Root_Logger_Type* root_logger = nullptr;
 
 BF_FORCE_INLINE void Assert_String_Copy_With_Indentation(
     char*             destination_buffer,
@@ -246,18 +221,6 @@ Logger_function(Tracing_Logger_Routine) {
     }
 }
 
-#define _LOG_COMMON(log_type_, ...)                        \
-    STATEMENT({                                            \
-        const auto str = Text_Format(__VA_ARGS__);         \
-        if (logger_routine)                                \
-            logger_routine(logger_data, (log_type_), str); \
-    })
-
-#define LOG_DEBUG(...) _LOG_COMMON(Log_Type::DEBUG, __VA_ARGS__)
-#define LOG_INFO(...) _LOG_COMMON(Log_Type::INFO, __VA_ARGS__)
-#define LOG_WARN(...) _LOG_COMMON(Log_Type::WARN, __VA_ARGS__)
-#define LOG_ERROR(...) _LOG_COMMON(Log_Type::ERR, __VA_ARGS__)
-
 bool operator==(const std::source_location& a, const std::source_location& b) {
     return (
         a.line() == b.line()               //
@@ -267,7 +230,7 @@ bool operator==(const std::source_location& a, const std::source_location& b) {
     );
 }
 
-Logger_Tracing_function(Tracing_Logger_Tracing_Routine) {
+Logger_Scope_function(Tracing_Logger_Scope_Routine) {
     Assert(logger_data != nullptr);
     auto  logger_routine = Tracing_Logger_Routine;
     auto& data           = *(Tracing_Logger*)logger_data;
@@ -289,9 +252,8 @@ consteval auto extract_substring(const char* src) {
     return res;
 }
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
-#define LOG_TRACING_SCOPE                                                                 \
-    if (logger_tracing_routine != nullptr) {                                              \
+#define LOG_SCOPE                                                                         \
+    if (logger_scope_routine != nullptr) {                                                \
         constexpr const auto  loc = std::source_location::current();                      \
         constexpr const auto  n   = index_of_brace_in_function_name(loc.function_name()); \
         constexpr const auto  function_name = extract_substring<n>(loc.function_name());  \
@@ -301,16 +263,25 @@ consteval auto extract_substring(const char* src) {
             "[%s:%d:%d:%s]", file_n, loc.line(), loc.column(), function_name.data()       \
         );                                                                                \
                                                                                           \
-        logger_tracing_routine(logger_data, true, scope_name);                            \
+        logger_scope_routine(logger_data, true, scope_name);                              \
     }                                                                                     \
                                                                                           \
     defer {                                                                               \
-        if (logger_tracing_routine != nullptr)                                            \
-            logger_tracing_routine(logger_data, false, nullptr);                          \
+        if (logger_scope_routine != nullptr)                                              \
+            logger_scope_routine(logger_data, false, nullptr);                            \
     };
-// NOLINTEND(cppcoreguidelines-pro-type-const-cast)
 
-#define CTX_LOGGER                                              \
-    auto& logger_routine         = ctx->logger_routine;         \
-    auto& logger_tracing_routine = ctx->logger_tracing_routine; \
-    auto& logger_data            = ctx->logger_data;
+#if 1
+#    define SCOPED_LOG_INIT(mes)                           \
+        LOG_INFO(Text_Format("%s...", mes));               \
+        defer {                                            \
+            LOG_DEBUG(Text_Format("%s... Success!", mes)); \
+        };
+#else
+#    define SCOPED_LOG_INIT(mes) ((void*)0)
+#endif
+
+#define CTX_LOGGER                                          \
+    auto& logger_routine       = ctx->logger_routine;       \
+    auto& logger_scope_routine = ctx->logger_scope_routine; \
+    auto& logger_data          = ctx->logger_data;
