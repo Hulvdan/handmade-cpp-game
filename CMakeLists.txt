@@ -1,4 +1,5 @@
 # SHIT: Oh, god, I hate this shit
+
 cmake_minimum_required(VERSION 3.27)
 
 project(game LANGUAGES CXX)
@@ -21,10 +22,14 @@ add_compile_definitions(
 add_compile_definitions("$<$<CONFIG:Debug>:BF_DEBUG=1>")
 add_compile_definitions("$<$<NOT:$<CONFIG:Debug>>:BF_DEBUG=0>")
 
-# === glm library ===
+#-----------------------------------------------------------------------------------
+# glm library.
+#-----------------------------------------------------------------------------------
 add_subdirectory(vendor/libraries/glm-0.9.9.8)
 
-# === GLEW library ===
+#-----------------------------------------------------------------------------------
+# GLEW library.
+#-----------------------------------------------------------------------------------
 add_library(glew STATIC IMPORTED)
 set_target_properties(glew PROPERTIES
     IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/lib/Release/x64/glew32s.lib"
@@ -32,7 +37,9 @@ set_target_properties(glew PROPERTIES
 target_include_directories(glew INTERFACE "${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
 target_compile_definitions(glew INTERFACE GLEW_STATIC)
 
-# === Tracy Profiler as Dll ===
+#-----------------------------------------------------------------------------------
+# Tracy Profiler as Dll.
+#-----------------------------------------------------------------------------------
 add_library(tracy SHARED)
 target_include_directories(tracy PUBLIC "${PROJECT_SOURCE_DIR}/vendor/tracy/public")
 target_compile_definitions(tracy PRIVATE TRACY_EXPORTS)
@@ -41,7 +48,9 @@ target_sources(tracy PRIVATE
     "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
 )
 
-# === bf_game.dll ===
+#-----------------------------------------------------------------------------------
+# bf_game.
+#-----------------------------------------------------------------------------------
 add_library(bf_game SHARED)
 target_sources(bf_game PUBLIC sources/bf_game.h)
 target_sources(bf_game PRIVATE sources/bf_game.cpp)
@@ -75,7 +84,9 @@ target_sources(bf_game PRIVATE
 # TODO: How to decouple from windows OpenGL?
 target_link_libraries(bf_game PRIVATE glm glew glu32.lib opengl32.lib tracy)
 
-# === Building win32_platform.exe ===
+#-----------------------------------------------------------------------------------
+# Building win32.
+#-----------------------------------------------------------------------------------
 add_executable(win32 WIN32 sources/win32_platform.cpp)
 target_compile_definitions(win32 PRIVATE
     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
@@ -97,7 +108,9 @@ target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib ope
 target_link_libraries(win32 PRIVATE glew glm tracy)
 add_dependencies(win32 bf_game)
 
-# === Building win32_noise_sandbox.exe ===
+#-----------------------------------------------------------------------------------
+# Building win32_noise_sandbox.
+#-----------------------------------------------------------------------------------
 # add_executable(win32_noise_sandbox sources/win32_noise_sandbox.cpp)
 # target_compile_definitions(win32_noise_sandbox PRIVATE
 #     IMGUI_IMPL_OPENGL_LOADER_CUSTOM
@@ -119,7 +132,9 @@ add_dependencies(win32 bf_game)
 # target_link_libraries(win32_noise_sandbox PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 # target_link_libraries(win32_noise_sandbox PRIVATE glew glm)
 
-# === Building meta_tools.exe ===
+#-----------------------------------------------------------------------------------
+# Building meta_tools.
+#-----------------------------------------------------------------------------------
 # add_executable(meta_tools sources/meta_tools.cpp)
 # target_link_libraries(win32 PRIVATE user32.lib gdi32.lib winmm.lib glu32.lib opengl32.lib)
 # target_link_libraries(win32 PRIVATE glew glm)
@@ -128,10 +143,12 @@ add_custom_command(
     TARGET win32 POST_BUILD
     COMMAND
         ${CMAKE_COMMAND} -E
-        copy_directory ${CMAKE_SOURCE_DIR}/resources $<TARGET_FILE_DIR:win32>/resources
+        copy_directory_if_different ${CMAKE_SOURCE_DIR}/resources $<TARGET_FILE_DIR:win32>/resources
     DEPENDS win32)
 
-# === Tests ===
+#-----------------------------------------------------------------------------------
+# Tests.
+#-----------------------------------------------------------------------------------
 add_executable(tests sources/tests.cpp)
 target_include_directories(tests PRIVATE
     "${IMGUI_DIR}"
@@ -167,11 +184,12 @@ IF(WIN32 AND NOT CMAKE_GENERATOR STREQUAL Ninja)
     target_compile_options(tests PRIVATE ${COMPILATION_FLAGS})
 ENDIF()
 
-# === Cleaning Up Stale Files ===
-# Kinda related information:
+#-----------------------------------------------------------------------------------
+# Cleaning Up Stale Files.
+#-----------------------------------------------------------------------------------
 # - Casey Muratori: MSVC PDBs Are Filled With Stale Debug Info:
 #   https://www.computerenhance.com/p/msvc-pdbs-are-filled-with-stale-debug
-IF (WIN32)
+IF ((WIN32) AND (NOT CMAKE_CONFIGURATION_TYPES STREQUAL "RelWithDebInfo"))
     # NOTE: Visual Studio won't let us delete old bf_game.dll PDB files.
     # This is why we are creating PDBs with timestamped names.
     string(TIMESTAMP V_TIMESTAMP "%Y%m%d-%H%M%S" UTC)
@@ -188,14 +206,9 @@ IF (WIN32)
     ENDIF()
 ENDIF()
 
-# === Disabling incremental linking warning on win32 ===
-IF(MSVC)
-    set_target_properties(bf_game PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
-    set_target_properties(win32 PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
-    set_target_properties(tests PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
-ENDIF()
-
-# === Enabling Linting On Win32 ===
+#-----------------------------------------------------------------------------------
+# Enabling Linting On Win32.
+#-----------------------------------------------------------------------------------
 IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glm-0.9.9.8")
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/glew-2.2.0/include/GL")
@@ -204,8 +217,19 @@ IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
     include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/imgui-1.90.1/backends")
 ENDIF()
 
-# === Other Win32 Bullshiet ===
+#-----------------------------------------------------------------------------------
+# Other Win32 Bullshiet.
+#-----------------------------------------------------------------------------------
+# Disabling incremental linking warning on win32.
+IF(MSVC)
+    set_target_properties(bf_game PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
+    set_target_properties(win32 PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
+    set_target_properties(tests PROPERTIES LINK_FLAGS "/INCREMENTAL:NO")
+ENDIF()
+
+# Setting win32 as a startup project.
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT win32)
+
 # Now VS will be able to load generated dll file if opened cmake-generated sln file.
 set_target_properties(win32 PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:win32>"

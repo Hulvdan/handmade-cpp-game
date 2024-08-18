@@ -51,6 +51,7 @@ struct ImGuiContext;
 #define OS_Open_File_function(name_) void* name_(const char* filename) noexcept
 #define OS_Write_To_File_function(name_) void name_(void* file, const char* text) noexcept
 #define OS_Get_Time_function(name_) double name_() noexcept
+#define OS_Die_function(name_) void name_() noexcept
 
 struct GAME_LIBRARY_EXPORT Library_Integration_Data {
     bool          game_context_set  = {};
@@ -64,6 +65,7 @@ struct GAME_LIBRARY_EXPORT Library_Integration_Data {
     OS_Open_File_function((*Open_File))         = {};
     OS_Write_To_File_function((*Write_To_File)) = {};
     OS_Get_Time_function((*Get_Time))           = {};
+    OS_Die_function((*Die))                     = {};
 };
 
 // --- EVENTS START ---

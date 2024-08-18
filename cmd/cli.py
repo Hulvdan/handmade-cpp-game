@@ -5,10 +5,12 @@
 (из корня проекта)
 
 - poetry run python cmd\cli.py generate
-- poetry run python cmd\cli.py cmake_vs_files
-- poetry run python cmd\cli.py build
-- poetry run python cmd\cli.py run
-- poetry run python cmd\cli.py stoopid_windows_visual_studio_run
+- poetry run python cmd\cli.py cmake_vs_debug_files
+- poetry run python cmd\cli.py cmake_vs_release_files
+- poetry run python cmd\cli.py build_game_debug
+- poetry run python cmd\cli.py build_game_release
+- poetry run python cmd\cli.py stoopid_windows_visual_studio_run_debug
+- poetry run python cmd\cli.py stoopid_windows_visual_studio_run_release
 - poetry run python cmd\cli.py test
 - poetry run python cmd\cli.py format
 - poetry run python cmd\cli.py format file1 file2 ...
@@ -550,18 +552,18 @@ def do_build_release() -> None:
         "{MSBUILD_PATH}" .cmake\vs17\game.sln
         -v:minimal
         -property:WarningLevel=3
-        -property:Configuration=Release
-        -property:DEBUG=true
-        -property:OutDir=Release\RoadsOfHorses\
         -t:win32
         """
     )
-
-    previously_moved_resources_dir = CMAKE_RELEASE_BUILD_DIR / "resources"
-    if previously_moved_resources_dir.exists():
-        shutil.rmtree(previously_moved_resources_dir)
-
-    shutil.move(CMAKE_RELEASE_BUILD_DIR / ".." / "resources", CMAKE_RELEASE_BUILD_DIR)
+    # -property:OutDir=RelWithDebInfo\RoadsOfHorses\
+    #
+    # previously_moved_resources_dir = CMAKE_RELEASE_BUILD_DIR / "resources"
+    # if previously_moved_resources_dir.exists():
+    #     shutil.rmtree(previously_moved_resources_dir)
+    #
+    # p = CMAKE_RELEASE_BUILD_DIR / ".." / "resources"
+    # assert p.exists(), f"CMake-copied resources directory was expected to exist! ({p})"
+    # shutil.move(p, CMAKE_RELEASE_BUILD_DIR)
 
 
 def do_build_tests() -> None:
@@ -594,14 +596,6 @@ def do_generate() -> None:
 
     # Конвертим gamelib.jsonc в бинарю.
     convert_gamelib_json_to_binary(texture_name_2_id)
-
-
-def do_run_debug() -> None:
-    run_command(str(CMAKE_DEBUG_BUILD_DIR / "win32.exe"))
-
-
-def do_run_release() -> None:
-    run_command(str(CMAKE_RELEASE_BUILD_DIR / "win32.exe"))
 
 
 def do_test() -> None:
@@ -666,7 +660,7 @@ def do_cmake_vs_debug_files() -> None:
             cmake
             -G "Visual Studio 17 2022"
             -B .cmake\vs17
-            -DCMAKE_BUILD_TYPE=Debug
+            -DCMAKE_CONFIGURATION_TYPES=Debug
             -DCMAKE_UNITY_BUILD=ON
             -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
             --log-level=ERROR
@@ -680,7 +674,7 @@ def do_cmake_vs_release_files() -> None:
             cmake
             -G "Visual Studio 17 2022"
             -B .cmake\vs17
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_CONFIGURATION_TYPES=RelWithDebInfo
             -DCMAKE_UNITY_BUILD=ON
             -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
             --log-level=ERROR
@@ -744,41 +738,40 @@ def action_generate():
     do_generate()
 
 
-@app.command("cmake_vs_files")
+@app.command("cmake_vs_debug_files")
 @timing
-def action_cmake_vs_files():
+def action_cmake_vs_debug_files():
     do_cmake_vs_debug_files()
 
 
-@app.command("build_game")
-def action_build_game():
+@app.command("cmake_vs_release_files")
+@timing
+def action_cmake_vs_release_files():
+    do_cmake_vs_release_files()
+
+
+@app.command("build_game_debug")
+def action_build_game_debug():
     do_test_shaders()
     do_generate()
     do_cmake_vs_debug_files()
     do_build_debug()
 
 
-@app.command("release_game")
-def action_release_game():
+@app.command("build_game_release")
+def action_build_game_release():
     do_test_shaders()
     do_generate()
     do_cmake_vs_release_files()
     do_build_release()
 
 
-@app.command("run")
-def action_run_debug():
-    do_test_shaders()
-    do_generate()
-    do_cmake_vs_debug_files()
-    do_build_debug()
-
-    do_run_debug()
-
-
-@app.command("stoopid_windows_visual_studio_run")
-def action_stoopid_windows_visual_studio_run():
+@app.command("stoopid_windows_visual_studio_run_debug")
+def action_stoopid_windows_visual_studio_run_debug():
     do_stop_vs_ahk()
+
+    # NOTE: Итерация будет проходить быстрее, если будет закомменчено.
+    # do_cmake_vs_debug_files()
 
     do_test_shaders()
     do_generate()
@@ -790,6 +783,9 @@ def action_stoopid_windows_visual_studio_run():
 @app.command("stoopid_windows_visual_studio_run_release")
 def action_stoopid_windows_visual_studio_run_release():
     do_stop_vs_ahk()
+
+    # NOTE: Итерация будет проходить быстрее, если будет закомменчено.
+    do_cmake_vs_release_files()
 
     do_test_shaders()
     do_generate()

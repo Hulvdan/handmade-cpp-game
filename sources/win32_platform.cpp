@@ -441,6 +441,10 @@ bool Win32_File_Exists(const char* filepath) {
     return (bool)result;
 }
 
+void Win32_Die() noexcept {
+    exit(-1);
+}
+
 global_var struct Window_Info {
     i32 width;
     i32 height;
@@ -815,6 +819,7 @@ static int WinMain(
     global_library_integration_data->Open_File     = Win32_Open_File;
     global_library_integration_data->Write_To_File = Win32_Write_To_File;
     global_library_integration_data->Get_Time      = Win32_Get_Time;
+    global_library_integration_data->Die           = Win32_Die;
 
     initial_game_memory_arena.size = Megabytes(64LL);
     initial_game_memory_arena.base = (u8*)VirtualAlloc(
@@ -830,8 +835,6 @@ static int WinMain(
     }
 
     SET_LOGGER;
-
-    LOG_WARN("ABOBA!");
 
     perf_counter_frequency  = Win32Frequency();
     perf_counter_started_at = Win32Clock();
@@ -987,7 +990,11 @@ static int WinMain(
     auto window_handle = CreateWindowExA(
         0,
         windowClass.lpszClassName,
-        "The Big Fuken Game",
+#if BF_DEBUG
+        "Roads of Horses - DEBUG",
+#else
+        "Roads of Horses",
+#endif
         WS_TILEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,

@@ -6,7 +6,7 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
     const auto& logger_scope_routine
         = (Logger_Scope_function_t)global_library_integration_data->logger_scope_routine;
 
-    LOG_INFO("Debug_Load_File %s...", filename);
+    LOG_INFO("Loading file: %s...", filename);
 
     char absolute_file_path[2048];
 
@@ -14,7 +14,12 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
 
     FILE* file   = nullptr;
     auto  failed = fopen_s(&file, path, "rb");
+
     Assert(!failed);
+    if (failed) {
+        LOG_ERROR("Could not load file: %s", filename);
+        global_library_integration_data->Die();
+    }
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);
 
@@ -25,9 +30,8 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
         res.size    = read_bytes;
         LOG_INFO("Debug_Load_File %s... Success!", filename);
     }
-    else {
+    else
         LOG_WARN("Debug_Load_File %s... Failed!", filename);
-    }
 
     auto close_result = fclose(file);
     Assert(close_result == 0);

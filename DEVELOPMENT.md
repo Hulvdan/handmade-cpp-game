@@ -25,25 +25,31 @@ pyenv local 3.11.3
 pip install poetry
 poetry install
 
-REM Создать / перегенерить .sln
-.venv\Scripts\python.exe cmd\cli.py cmake_vs_files
-
 REM Кодогенерация
 .venv\Scripts\python.exe cmd\cli.py generate
 
-REM Билд проекта
-.venv\Scripts\python.exe cmd\cli.py build
+REM Создать / перегенерить .sln для дебага
+.venv\Scripts\python.exe cmd\cli.py cmake_vs_debug_files
+
+REM Создать / перегенерить .sln для релиза
+.venv\Scripts\python.exe cmd\cli.py cmake_vs_release_files
+
+REM Билд проекта - дебаг
+.venv\Scripts\python.exe cmd\cli.py build_game_debug
+
+REM Билд проекта - релиз
+.venv\Scripts\python.exe cmd\cli.py build_game_release
 
 REM Прогнать тесты
 .venv\Scripts\python.exe cmd\cli.py test
 
-REM Запуск
-.venv\Scripts\python.exe cmd\cli.py run
-
-REM Форматирование
+REM Форматирование всех файлов в проекте
 .venv\Scripts\python.exe cmd\cli.py format
 
-REM Запуск линта
+REM Форматирование указанных файлов
+.venv\Scripts\python.exe cmd\cli.py format file1 file2 ...
+
+REM Линт
 .venv\Scripts\python.exe cmd\cli.py lint
 
 

@@ -88,7 +88,7 @@ void Deallocate_(Arena& arena, size_t size) {
 //     size_t X = trash_arena.used;
 //     {
 //         TEMP_USAGE(trash_arena);
-//         int* aboba = ALLOCATE_FOR(trash_arena, u32);
+//         u32* allocated_on_arena_u32 = ALLOCATE_FOR(trash_arena, u32);
 //         Assert(trash_arena.used == X + 4);
 //     }
 //     Assert(trash_arena.used == X);
