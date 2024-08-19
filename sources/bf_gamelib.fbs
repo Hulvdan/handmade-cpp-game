@@ -28,9 +28,9 @@ table Building {
     type:    Building_Type = Undefined;
     texture: uint;
 
-    human_spawning_delay:         float;
-    required_construction_points: float;
-    can_be_built:                 bool;
+    human_spawning_delay: float;
+    construction_points:  float;
+    can_be_built:         bool;
 
     construction_resources: [Construction_Resource_Pair];
 }

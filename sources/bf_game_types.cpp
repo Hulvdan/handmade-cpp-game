@@ -349,8 +349,8 @@ struct Scriptable_Building {
 
     Scriptable_Resource* harvestable_resource = {};
 
-    f32 human_spawning_delay         = {};
-    f32 required_construction_points = {};
+    f32 human_spawning_delay = {};
+    f32 construction_points  = {};
 
     bool can_be_built = {};
 
@@ -572,12 +572,9 @@ struct Building {
     v2i16                pos        = {};
     Scriptable_Building* scriptable = {};
     Player_ID            player_id  = {};
-};
 
-struct Not_Constructed_Building {
-    Human_Constructor_ID constructor         = {};  // optional
-    f32                  construction_points = {};
-    // Vector<Resource_To_Book> resources_to_book;
+    Human_Constructor_ID constructor                   = {};  // optional
+    f32                  remaining_construction_points = {};
 };
 
 struct City_Hall {
@@ -599,12 +596,12 @@ struct World {
     World_Data  data       = {};
     Human_Data* human_data = {};
 
-    Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments                  = {};
-    Sparse_Array<Building_ID, Building>                 buildings                 = {};
-    Sparse_Array<Building_ID, Not_Constructed_Building> not_constructed_buildings = {};
-    Sparse_Array<Building_ID, City_Hall>                city_halls                = {};
-    Sparse_Array<Human_ID, Human>                       humans                    = {};
-    Sparse_Array_Of_Ids<Human_ID>                       humans_going_to_city_hall = {};
+    Sparse_Array<Graph_Segment_ID, Graph_Segment> segments                  = {};
+    Sparse_Array<Building_ID, Building>           buildings                 = {};
+    Sparse_Array_Of_Ids<Building_ID>              not_constructed_buildings = {};
+    Sparse_Array<Building_ID, City_Hall>          city_halls                = {};
+    Sparse_Array<Human_ID, Human>                 humans                    = {};
+    Sparse_Array_Of_Ids<Human_ID>                 humans_going_to_city_hall = {};
     // Sparse_Array<Human_ID, Human_Transporter>           transporters = {};
     // Sparse_Array<Human_ID, Human_Constructor>           constructors = {};
     Sparse_Array<Human_ID, Human>                   humans_to_add    = {};

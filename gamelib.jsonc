@@ -13,7 +13,7 @@
             "construction_resources": [
                 ["planks", 2],
             ],
-            "required_construction_points": 10,
+            "construction_points": 10,
             "can_be_built": true,
         },
     ],

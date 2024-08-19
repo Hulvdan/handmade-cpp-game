@@ -220,9 +220,9 @@ void Add_Building_Sprite(
 ) {
     Assert(building_id != Building_ID_Missing);
 
-    auto building = Strict_Query_Building(world, building_id);
+    auto building = *Strict_Query_Building(world, building_id);
 
-    auto& scriptable = *building->scriptable;
+    auto& scriptable = *building.scriptable;
 
     C_Sprite building_sprite{};
     building_sprite.pos   = pos;
@@ -232,8 +232,12 @@ void Add_Building_Sprite(
     building_sprite.rotation = 0;
     Assert(scriptable.texture != 0);
     Assert(scriptable.texture != Texture_ID_Missing);
-    building_sprite.texture = scriptable.texture;
-    building_sprite.z       = 0;
+    building_sprite.z = 0;
+
+    if (building.remaining_construction_points)
+        building_sprite.texture = rstate.building_in_progress_texture;
+    else
+        building_sprite.texture = scriptable.texture;
 
     {
         auto [pid, pvalue] = rstate.sprites.Add(ctx);

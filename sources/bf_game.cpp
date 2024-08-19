@@ -501,8 +501,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
 
             building.human_spawning_delay  //
                 = libbuilding.human_spawning_delay();
-            building.required_construction_points  //
-                = libbuilding.required_construction_points();
+            building.construction_points  //
+                = libbuilding.construction_points();
 
             building.can_be_built = libbuilding.can_be_built();
 

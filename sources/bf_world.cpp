@@ -1,4 +1,4 @@
-#define WORLD_PTR_OFFSET(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
+#define WORLD_PTR_OFFSET(arr_p, pos) (*((arr_p) + gsize.x * (pos).y + (pos).x))
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
     FOR_RANGE (i32, i1, s1.vertices_count) {
@@ -176,7 +176,7 @@ void Deinit_Queue(Queue<T>& container, MCTX) {
 }
 
 template <typename T>
-void Deinit_Sparse_Array(Sparse_Array_Of_Ids<T>& container, MCTX) {
+void Deinit_Sparse_Array_Of_Ids(Sparse_Array_Of_Ids<T>& container, MCTX) {
     CTX_ALLOCATOR;
 
     if (container.ids != nullptr) {
@@ -251,7 +251,7 @@ World_Resource_ID Next_World_Resource_ID(Entity_ID& last_entity_id) {
 void Place_Building(
     Game_State&          state,
     v2i16                pos,
-    Scriptable_Building* scriptable_building,
+    Scriptable_Building* scriptable,
     bool                 built,
     MCTX
 ) {
@@ -259,59 +259,45 @@ void Place_Building(
     auto  gsize = world.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
-    auto     bid = Next_Building_ID(world.last_entity_id);
+    auto     id = Next_Building_ID(world.last_entity_id);
     Building b{};
     b.pos        = pos;
-    b.scriptable = scriptable_building;
+    b.scriptable = scriptable;
+    if (!built) 
+        b.remaining_construction_points = scriptable->construction_points;
 
     {
         auto [pid, pvalue] = world.buildings.Add(ctx);
-        *pid               = bid;
+        *pid               = id;
         *pvalue            = b;
     }
 
-    C_Sprite sprite{};
-    sprite.anchor = {0.5f, 0};
-    sprite.pos    = pos;
-
     if (built) {
-        Assert(scriptable_building->type == Building_Type::City_Hall);
+        Assert(scriptable->type == Building_Type::City_Hall);
 
         City_Hall c{};
         c.time_since_human_was_created = f32_inf;
         {
             auto [pid, pvalue] = world.city_halls.Add(ctx);
-            *pid               = bid;
+            *pid               = id;
             *pvalue            = c;
         }
-
-        sprite.texture = scriptable_building->texture;
     }
     else {
-        for (auto pair_ptr : Iter(&scriptable_building->construction_resources)) {
-            auto& [resource, count] = *pair_ptr;
+        for (auto pair_p : Iter(&scriptable->construction_resources)) {
+            auto& [resource, count] = *pair_p;
 
             *world.resources_booking_queue.Vector_Occupy_Slot(ctx)
-                = World_Resource_To_Book(resource, count, bid);
+                = World_Resource_To_Book(resource, count, id);
         }
 
-        Not_Constructed_Building c{};
-        c.constructor         = Human_Constructor_ID_Missing;
-        c.construction_points = 0;
-
-        {
-            auto [pid, pvalue] = world.not_constructed_buildings.Add(ctx);
-            *pid               = bid;
-            *pvalue            = c;
-        }
-
-        sprite.texture = state.renderer_state->building_in_progress_texture;
+        *world.not_constructed_buildings.Add(ctx) = id;
     }
 
     auto& tile = *(world.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
     tile.type        = Element_Tile_Type::Building;
-    tile.building_id = bid;
+    tile.building_id = id;
 }
 
 // void Update_Building__Not_Constructed(Building& building, float dt) {
@@ -942,14 +928,14 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     human.state_moving_in_the_world = Moving_In_The_World_State::None;
     human.building_id               = Building_ID_Missing;
 
-    auto [human_id, human_ptr] = world.humans_to_add.Add(ctx);
+    auto [human_id, human_p] = world.humans_to_add.Add(ctx);
 
-    *human_id  = Next_Human_ID(world.last_entity_id);
-    *human_ptr = human;
+    *human_id = Next_Human_ID(world.last_entity_id);
+    *human_p  = human;
 
-    Root_Set_Human_State(*human_ptr, Human_States::MovingInTheWorld, data, ctx);
+    Root_Set_Human_State(*human_p, Human_States::MovingInTheWorld, data, ctx);
 
-    On_Human_Created(state, *human_id, *human_ptr, ctx);
+    On_Human_Created(state, *human_id, *human_p, ctx);
 
     // TODO:
     // onHumanCreated.OnNext(new() { human = human });
@@ -963,7 +949,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     auto& segment             = *Query_Graph_Segment(world, segment_id);
     segment.assigned_human_id = Human_ID_Missing;
 
-    return {*human_id, human_ptr};
+    return {*human_id, human_p};
 }
 
 // void Update_Building__Constructed(
@@ -996,29 +982,17 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 //     // TODO: _building_controller.Update(building, dt);
 // }
 
-void Map_Buildings_With_City_Halls(
-    World&                                                    world,
-    std::invocable<Building_ID, Building*, City_Hall*> auto&& func
-) {
-    for (auto [building_id, building] : Iter(&world.buildings)) {
-        for (auto [city_hall_id, city_hall] : Iter(&world.city_halls)) {
-            if (building_id != city_hall_id)
-                continue;
-
-            func(building_id, building, city_hall);
-        }
-    }
-}
-
 void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     CTX_ALLOCATOR;
     CTX_LOGGER;
 
     auto& world = state.world;
 
-    Map_Buildings_With_City_Halls(
-        world,
-        [&](Building_ID /* id */, Building* building, City_Hall* city_hall) {
+    for (auto [building_id, building] : Iter(&world.buildings)) {
+        for (auto [city_hall_id, city_hall] : Iter(&world.city_halls)) {
+            if (building_id != city_hall_id)
+                continue;
+
             auto delay = building->scriptable->human_spawning_delay;
 
             auto& since_created = city_hall->time_since_human_was_created;
@@ -1040,41 +1014,35 @@ void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX)
                 }
             }
         }
-    );
+    }
 }
 
 void Process_Humans_Moving_To_City_Halls() {
     // TODO:
 }
 
-void Map_Humans_To_Remove(
-    World&                                                        world,
-    std::invocable<Human_ID, Human&, Human_Removal_Reason> auto&& func
-) {
-    for (auto [id, reason] : Iter(&world.humans_to_remove))
-        func(id, *Strict_Query_Human(world, id), *reason);
-}
-
 void Remove_Humans(Game_State& state, MCTX) {
     auto& world = state.world;
 
-    Map_Humans_To_Remove(
-        world,
-        [&](Human_ID id, Human& human, Human_Removal_Reason reason) {
-            if (reason == Human_Removal_Reason::Transporter_Returned_To_City_Hall) {
-                // TODO: on_Human_Reached_City_Hall.On_Next(new (){human = human});
-                world.humans_going_to_city_hall.Unstable_Remove(id);
-            }
-            else if (reason == Human_Removal_Reason::Employee_Reached_Building) {
-                // TODO: on_Employee_Reached_Building.On_Next(new (){human = human});
-                // TODO: human.building->employee = nullptr;
-                Assert(human.building_id != Building_ID_Missing);
-            }
+    for (auto [id, reason_p] : Iter(&world.humans_to_remove)) {
+        auto& reason = *reason_p;
+        auto& human  = *Strict_Query_Human(world, id);
 
-            world.humans.Unstable_Remove(id);
-            On_Human_Removed(state, id, human, reason, ctx);
+        if (reason == Human_Removal_Reason::Transporter_Returned_To_City_Hall) {
+            // TODO: on_Human_Reached_City_Hall.On_Next(new (){human = human});
+            world.humans_going_to_city_hall.Unstable_Remove(id);
         }
-    );
+        else if (reason == Human_Removal_Reason::Employee_Reached_Building) {
+            // TODO: on_Employee_Reached_Building.On_Next(new (){human = human});
+            // TODO: human.building->employee = nullptr;
+            Assert(human.building_id != Building_ID_Missing);
+        }
+
+        Deinit_Queue(human.moving.path, ctx);
+
+        world.humans.Unstable_Remove(id);
+        On_Human_Removed(state, id, human, reason, ctx);
+    }
 
     world.humans_to_remove.Reset();
 }
@@ -1122,7 +1090,7 @@ void Update_Human_Moving_Component(
 void Update_Human(
     World&            world,
     Human_ID          id,
-    Human*            human_ptr,
+    Human*            human_p,
     float             dt,
     const Human_Data& data,
     MCTX
@@ -1131,7 +1099,7 @@ void Update_Human(
 
     CTX_ALLOCATOR;
 
-    auto& human            = *human_ptr;
+    auto& human            = *human_p;
     auto& humans_to_remove = world.humans_to_remove;
 
     if (human.moving.to.has_value()) {
@@ -1157,9 +1125,9 @@ void Update_Human(
             && (!human.moving.to.has_value())           //
             && (human.moving.pos == Strict_Query_Building(world, human.building_id)->pos))
         {
-            auto [pid, r_value] = humans_to_remove.Add(ctx);
+            auto [id_p, r_value] = humans_to_remove.Add(ctx);
 
-            *pid     = id;
+            *id_p    = id;
             *r_value = Human_Removal_Reason::Transporter_Returned_To_City_Hall;
         }
     }
@@ -1174,20 +1142,20 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
 
     auto& world = state.world;
 
-    for (auto [id, reason_ptr] : Iter(&world.humans_to_remove))
-        Assert(*reason_ptr != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
+    for (auto [id, reason_p] : Iter(&world.humans_to_remove))
+        Assert(*reason_p != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
 
     Remove_Humans(state, ctx);
 
-    for (auto [id, human_ptr] : Iter(&world.humans))
-        Update_Human(world, id, human_ptr, dt, data, ctx);
+    for (auto [id, human_p] : Iter(&world.humans))
+        Update_Human(world, id, human_p, dt, data, ctx);
 
     auto prev_count = world.humans_to_add.count;
     for (auto [id, human_to_move] : Iter(&world.humans_to_add)) {
         LOG_DEBUG("Update_Humans: moving human from humans_to_add to humans");
-        auto [pid, phuman] = world.humans.Add(ctx);
+        auto [id_p, phuman] = world.humans.Add(ctx);
 
-        *pid    = id;
+        *id_p   = id;
         *phuman = *human_to_move;
 
         auto& human = *phuman;
@@ -1208,8 +1176,8 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     {  // NOTE: Debug shiet.
         int humans_moving_to_destination = 0;
         int humans_moving_inside_segment = 0;
-        for (auto [id, human_ptr] : Iter(&world.humans)) {
-            auto& human = *human_ptr;
+        for (auto [id, human_p] : Iter(&world.humans)) {
+            auto& human = *human_p;
 
             if (human.state == Human_States::MovingInTheWorld  //
                 && human.state_moving_in_the_world
@@ -1269,9 +1237,9 @@ void Add_World_Resource(
     resource.carrying_human = Human_ID_Missing;
 
     {
-        auto [pid, presource] = world.resources.Add(ctx);
-        *pid                  = Next_World_Resource_ID(world.last_entity_id);
-        *presource            = resource;
+        auto [id_p, presource] = world.resources.Add(ctx);
+        *id_p                  = Next_World_Resource_ID(world.last_entity_id);
+        *presource             = resource;
     }
 }
 
@@ -1337,8 +1305,8 @@ void Deinit_World(Game_State& state, MCTX) {
     CTX_ALLOCATOR;
     auto& world = state.world;
 
-    for (auto [id, segment_ptr] : Iter(&world.segments)) {
-        auto& segment = *segment_ptr;
+    for (auto [id, segment_p] : Iter(&world.segments)) {
+        auto& segment = *segment_p;
 
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
         FREE(segment.graph.nodes, sizeof(u8) * segment.graph.nodes_allocation_count);
@@ -1365,14 +1333,14 @@ void Deinit_World(Game_State& state, MCTX) {
     Deinit_Queue(world.segments_wo_humans, ctx);
 
     Deinit_Sparse_Array(world.buildings, ctx);
-    Deinit_Sparse_Array(world.not_constructed_buildings, ctx);
+    Deinit_Sparse_Array_Of_Ids(world.not_constructed_buildings, ctx);
     Deinit_Sparse_Array(world.city_halls, ctx);
 
     for (auto [_, human] : Iter(&world.humans))
         Deinit_Queue(human->moving.path, ctx);
     Deinit_Sparse_Array(world.humans, ctx);
 
-    Deinit_Sparse_Array(world.humans_going_to_city_hall, ctx);
+    Deinit_Sparse_Array_Of_Ids(world.humans_going_to_city_hall, ctx);
     Deinit_Sparse_Array(world.humans_to_add, ctx);
     Deinit_Sparse_Array(world.humans_to_remove, ctx);
     Deinit_Sparse_Array(world.resources, ctx);
@@ -1856,19 +1824,19 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
         Init_Vector(segment.linked_segments, ctx);
     }
 
-    auto [pid, segment1_ptr] = segments.Add(ctx);
-    *pid                     = Next_Graph_Segment_ID(last_entity_id);
-    *segment1_ptr            = segment;
+    auto [id_p, segment1_p] = segments.Add(ctx);
+    *id_p                   = Next_Graph_Segment_ID(last_entity_id);
+    *segment1_p             = segment;
 
-    auto& id = *pid;
+    auto& id = *id_p;
 
-    for (auto [segment2_id, segment2_ptr] : Iter(&segments)) {
+    for (auto [segment2_id, segment2_p] : Iter(&segments)) {
         if (segment2_id == id)
             continue;
 
         // PERF: Мб AABB / QuadTree стоит заюзать.
-        auto& segment1 = *segment1_ptr;
-        auto& segment2 = *segment2_ptr;
+        auto& segment1 = *segment1_p;
+        auto& segment2 = *segment2_p;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
             if (segment2.linked_segments.Index_Of(id) == -1)
                 *segment2.linked_segments.Vector_Occupy_Slot(ctx) = id;
@@ -1880,7 +1848,7 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
 
     SANITIZE;
 
-    return {id, segment1_ptr};
+    return {id, segment1_p};
 }
 
 using Graph_Segments_To_Add = Fixed_Size_Slice<Graph_Segment>;
@@ -1913,8 +1881,8 @@ BF_FORCE_INLINE void Update_Segments(
     // Удаление сегментов (отвязка от чувачков,
     // от других сегментов и высвобождение памяти).
     FOR_RANGE (u32, i, segments_to_delete.count) {
-        auto [segment_id, segment_ptr] = segments_to_delete.items[i];
-        auto& segment                  = *segment_ptr;
+        auto [segment_id, segment_p] = segments_to_delete.items[i];
+        auto& segment                = *segment_p;
 
         LOG_DEBUG("Update_Segments: deleting segment %d", segment_id);
         LOG_DEBUG("segment.assigned_human_id %d", segment.assigned_human_id);
@@ -1948,8 +1916,8 @@ BF_FORCE_INLINE void Update_Segments(
         SANITIZE;
 
         // Отвязываем сегмент от других сегментов.
-        for (auto linked_segment_id_ptr : Iter(&segment.linked_segments)) {
-            auto linked_segment_id = *linked_segment_id_ptr;
+        for (auto linked_segment_id_p : Iter(&segment.linked_segments)) {
+            auto linked_segment_id = *linked_segment_id_p;
             LOG_DEBUG(
                 "Update_Segments: Unlinking %d from %d", linked_segment_id, segment_id
             );
@@ -2034,8 +2002,8 @@ BF_FORCE_INLINE void Update_Segments(
     while ((added_segments_count > 0)  //
            && (world.humans_going_to_city_hall.count > 0))
     {
-        auto [segment_id, segment_ptr] = added_segments[--added_segments_count];
-        auto& segment                  = *segment_ptr;
+        auto [segment_id, segment_p] = added_segments[--added_segments_count];
+        auto& segment                = *segment_p;
 
         auto  human_id = world.humans_going_to_city_hall.Pop();
         auto& human    = *Strict_Query_Human(world, human_id);
@@ -2388,9 +2356,9 @@ std::tuple<int, int> Update_Tiles(
         trash_arena, Segment_To_Delete, segments_to_delete_allocate
     );
 
-    for (auto [id, segment_ptr] : Iter(segments)) {
-        if (Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, *segment_ptr))
-            *segments_to_delete.Add_Unsafe() = Segment_To_Delete(id, segment_ptr);
+    for (auto [id, segment_p] : Iter(segments)) {
+        if (Should_Segment_Be_Deleted(gsize, element_tiles, updated_tiles, *segment_p))
+            *segments_to_delete.Add_Unsafe() = Segment_To_Delete(id, segment_p);
     };
 
     // NOTE: Создание новых сегментов.
@@ -2530,16 +2498,16 @@ std::tuple<int, int> Update_Tiles(
     SANITIZE;
 
 #if ASSERT_SLOW
-    for (auto [segment1_id, segment1_ptr] : Iter(segments)) {
-        auto& segment1  = *segment1_ptr;
+    for (auto [segment1_id, segment1_p] : Iter(segments)) {
+        auto& segment1  = *segment1_p;
         auto& g1        = segment1.graph;
         v2i16 g1_offset = {g1.offset.x, g1.offset.y};
 
-        for (auto [segment2_id, segment2_ptr] : Iter(segments)) {
+        for (auto [segment2_id, segment2_p] : Iter(segments)) {
             if (segment1_id == segment2_id)
                 continue;
 
-            auto& segment2 = *segment2_ptr;
+            auto& segment2 = *segment2_p;
 
             auto& g2 = segment2.graph;
 
