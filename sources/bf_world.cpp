@@ -1,4 +1,4 @@
-#define GRID_PTR_VALUE(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
+#define WORLD_PTR_OFFSET(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
 
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
     FOR_RANGE (i32, i1, s1.vertices_count) {
@@ -32,8 +32,8 @@ std::tuple<v2i16*, i32> Build_Path(
     auto path_max_count = 1;
     {
         v2i16 dest = destination;
-        while (GRID_PTR_VALUE(bfs_parents_mtx, dest).has_value()) {
-            auto value = GRID_PTR_VALUE(bfs_parents_mtx, dest).value();
+        while (WORLD_PTR_OFFSET(bfs_parents_mtx, dest).has_value()) {
+            auto value = WORLD_PTR_OFFSET(bfs_parents_mtx, dest).value();
             path_max_count++;
             dest = value;
         }
@@ -47,8 +47,8 @@ std::tuple<v2i16*, i32> Build_Path(
     auto path       = Allocate_Zeros_Array(trash_arena, v2i16, path_max_count);
 
     Array_Push(path, path_count, path_max_count, destination);
-    while (GRID_PTR_VALUE(bfs_parents_mtx, destination).has_value()) {
-        auto value = GRID_PTR_VALUE(bfs_parents_mtx, destination).value();
+    while (WORLD_PTR_OFFSET(bfs_parents_mtx, destination).has_value()) {
+        auto value = WORLD_PTR_OFFSET(bfs_parents_mtx, destination).value();
         Array_Push(path, path_count, path_max_count, value);
         destination = value;
     }
@@ -80,7 +80,7 @@ Path_Find_Result Find_Path(
     *queue.Enqueue()  = source;
 
     bool* visited_mtx = Allocate_Zeros_Array(trash_arena, bool, tiles_count);
-    GRID_PTR_VALUE(visited_mtx, source) = true;
+    WORLD_PTR_OFFSET(visited_mtx, source) = true;
 
     auto bfs_parents_mtx
         = Allocate_Zeros_Array(trash_arena, std::optional<v2i16>, tiles_count);
@@ -93,20 +93,20 @@ Path_Find_Result Find_Path(
             if (!Pos_Is_In_Bounds(new_pos, gsize))
                 continue;
 
-            auto& visited = GRID_PTR_VALUE(visited_mtx, new_pos);
+            auto& visited = WORLD_PTR_OFFSET(visited_mtx, new_pos);
             if (visited)
                 continue;
 
             if (avoid_harvestable_resources) {
-                auto& terrain_tile = GRID_PTR_VALUE(terrain_tiles, new_pos);
+                auto& terrain_tile = WORLD_PTR_OFFSET(terrain_tiles, new_pos);
                 if (terrain_tile.resource_amount > 0)
                     continue;
             }
 
-            auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+            auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
             visited            = true;
 
-            GRID_PTR_VALUE(bfs_parents_mtx, new_pos) = pos;
+            WORLD_PTR_OFFSET(bfs_parents_mtx, new_pos) = pos;
 
             if (new_pos == destination) {
                 result.success = true;
@@ -2086,7 +2086,7 @@ void Update_Graphs(
 
         auto [_, p_pos] = p;
         if (full_graph_build)
-            GRID_PTR_VALUE(vis, p_pos) = true;
+            WORLD_PTR_OFFSET(vis, p_pos) = true;
 
         auto vertices      = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
         auto segment_tiles = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
@@ -2103,9 +2103,9 @@ void Update_Graphs(
         while (queue.count) {
             auto [dir, pos] = queue.Dequeue();
             if (full_graph_build)
-                GRID_PTR_VALUE(vis, pos) = true;
+                WORLD_PTR_OFFSET(vis, pos) = true;
 
-            auto& tile = GRID_PTR_VALUE(element_tiles, pos);
+            auto& tile = WORLD_PTR_OFFSET(element_tiles, pos);
 
             bool is_flag     = tile.type == Element_Tile_Type::Flag;
             bool is_building = tile.type == Element_Tile_Type::Building;
@@ -2118,7 +2118,7 @@ void Update_Graphs(
                 if (is_vertex && dir_index != dir)
                     continue;
 
-                u8& visited_value = GRID_PTR_VALUE(visited, pos);
+                u8& visited_value = WORLD_PTR_OFFSET(visited, pos);
                 if (Graph_Node_Has(visited_value, dir_index))
                     continue;
 
@@ -2127,11 +2127,11 @@ void Update_Graphs(
                     continue;
 
                 Direction opposite_dir_index = Opposite(dir_index);
-                u8&       new_visited_value  = GRID_PTR_VALUE(visited, new_pos);
+                u8&       new_visited_value  = WORLD_PTR_OFFSET(visited, new_pos);
                 if (Graph_Node_Has(new_visited_value, opposite_dir_index))
                     continue;
 
-                auto& new_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& new_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (new_tile.type == Element_Tile_Type::None)
                     continue;
 
@@ -2190,9 +2190,9 @@ void Update_Graphs(
             FOR_RANGE (int, y, gsize.y) {
                 FOR_RANGE (int, x, gsize.x) {
                     auto  pos  = v2i16(x, y);
-                    auto& tile = GRID_PTR_VALUE(element_tiles, pos);
-                    u8&   v1   = GRID_PTR_VALUE(visited, pos);
-                    bool& v2   = GRID_PTR_VALUE(vis, pos);
+                    auto& tile = WORLD_PTR_OFFSET(element_tiles, pos);
+                    u8&   v1   = WORLD_PTR_OFFSET(visited, pos);
+                    bool& v2   = WORLD_PTR_OFFSET(vis, pos);
 
                     bool is_building = tile.type == Element_Tile_Type::Building;
                     bool is_flag     = tile.type == Element_Tile_Type::Flag;
@@ -2415,7 +2415,7 @@ std::tuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
@@ -2429,7 +2429,7 @@ std::tuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road)
                     *big_queue.Enqueue() = {dir, pos};
             }
@@ -2441,7 +2441,7 @@ std::tuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (element_tile.type != Element_Tile_Type::None)
                     *big_queue.Enqueue() = {dir, pos};
             }
@@ -2453,7 +2453,7 @@ std::tuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
@@ -2469,7 +2469,7 @@ std::tuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::None)
                     continue;
 
@@ -2491,7 +2491,7 @@ std::tuple<int, int> Update_Tiles(
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                auto& element_tile = GRID_PTR_VALUE(element_tiles, new_pos);
+                auto& element_tile = WORLD_PTR_OFFSET(element_tiles, new_pos);
                 if (element_tile.type == Element_Tile_Type::Road) {
                     FOR_DIRECTION (new_dir) {
                         *big_queue.Enqueue() = {new_dir, new_pos};
