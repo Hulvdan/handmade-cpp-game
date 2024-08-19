@@ -242,10 +242,10 @@ Graph_Segment_ID Next_Graph_Segment_ID(Entity_ID& last_entity_id) {
     return ent | Graph_Segment::component_mask;
 }
 
-Map_Resource_ID Next_Map_Resource_ID(Entity_ID& last_entity_id) {
+World_Resource_ID Next_World_Resource_ID(Entity_ID& last_entity_id) {
     auto ent = ++last_entity_id;
-    Assert_No_Collision(ent, Map_Resource::component_mask);
-    return ent | Map_Resource::component_mask;
+    Assert_No_Collision(ent, World_Resource::component_mask);
+    return ent | World_Resource::component_mask;
 }
 
 void Place_Building(
@@ -292,7 +292,7 @@ void Place_Building(
             auto& [resource, count] = *pair_ptr;
 
             *world.resources_booking_queue.Vector_Occupy_Slot(ctx)
-                = Map_Resource_To_Book(resource, count, bid);
+                = World_Resource_To_Book(resource, count, bid);
         }
 
         Not_Constructed_Building c{};
@@ -1248,7 +1248,7 @@ void Update_World(Game_State& state, float dt, MCTX) {
     SANITIZE;
 }
 
-void Add_Map_Resource(
+void Add_World_Resource(
     Game_State&          state,
     Scriptable_Resource* scriptable,
     const v2i16          pos,
@@ -1259,10 +1259,10 @@ void Add_Map_Resource(
     auto  gsize       = world.size;
     auto& trash_arena = state.trash_arena;
 
-    Map_Resource resource{};
+    World_Resource resource{};
     resource.scriptable = scriptable;
     resource.pos        = pos;
-    resource.booking    = Map_Resource_Booking_ID_Missing;
+    resource.booking    = World_Resource_Booking_ID_Missing;
     Init_Vector(resource.transportation_segments, ctx);
     Init_Vector(resource.transportation_vertices, ctx);
     resource.targeted_human = Human_ID_Missing;
@@ -1270,7 +1270,7 @@ void Add_Map_Resource(
 
     {
         auto [pid, presource] = world.resources.Add(ctx);
-        *pid                  = Next_Map_Resource_ID(world.last_entity_id);
+        *pid                  = Next_World_Resource_ID(world.last_entity_id);
         *presource            = resource;
     }
 }
@@ -1330,7 +1330,7 @@ void Post_Init_World(
 
     // TODO: !!!
     Assert(state.scriptable_resources_count > 0);
-    Add_Map_Resource(state, state.scriptable_resources + 0, {0, 0}, ctx);
+    Add_World_Resource(state, state.scriptable_resources + 0, {0, 0}, ctx);
 }
 
 void Deinit_World(Game_State& state, MCTX) {

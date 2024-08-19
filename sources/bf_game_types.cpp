@@ -195,38 +195,38 @@ struct Graph_Segment;
 
 // using Graph_Segment_ID = Bucket_Locator;
 // const Graph_Segment_ID No_Graph_Segment_ID(-1, -1);
-// using Map_Resource_ID = Bucket_Locator;
-// const Map_Resource_ID No_Map_Resource_ID(-1, -1);
+// using World_Resource_ID = Bucket_Locator;
+// const World_Resource_ID No_World_Resource_ID(-1, -1);
 
 using Graph_Segment_ID                          = Entity_ID;
 const Graph_Segment_ID Graph_Segment_ID_Missing = Entity_ID_Missing;
 
-using Map_Resource_ID                         = Entity_ID;
-const Map_Resource_ID Map_Resource_ID_Missing = Entity_ID_Missing;
+using World_Resource_ID                           = Entity_ID;
+const World_Resource_ID World_Resource_ID_Missing = Entity_ID_Missing;
 
-using Map_Resource_Booking_ID                                 = u16;
-const Map_Resource_Booking_ID Map_Resource_Booking_ID_Missing = 0;
+using World_Resource_Booking_ID                                   = u16;
+const World_Resource_Booking_ID World_Resource_Booking_ID_Missing = 0;
 
-enum class Map_Resource_Booking_Type {
+enum class World_Resource_Booking_Type {
     Construction,
     // Processing,
 };
 
-struct Map_Resource_Booking {
+struct World_Resource_Booking {
     static const Entity_ID component_mask = Component_Mask(4);
 
-    Map_Resource_Booking_Type type        = {};
-    Building_ID               building_id = {};
+    World_Resource_Booking_Type type        = {};
+    Building_ID                 building_id = {};
 };
 
-struct Map_Resource {
+struct World_Resource {
     static const Entity_ID component_mask = Component_Mask(3);
 
     Scriptable_Resource* scriptable = {};
 
     v2i16 pos = {};
 
-    Map_Resource_Booking_ID booking = {};
+    World_Resource_Booking_ID booking = {};
 
     Vector<Graph_Segment_ID> transportation_segments = {};
     Vector<v2i16>            transportation_vertices = {};
@@ -285,7 +285,7 @@ struct Graph_Segment {
     Human_ID                 assigned_human_id = {};  // optional
     Vector<Graph_Segment_ID> linked_segments   = {};
 
-    Queue<Map_Resource> resources_to_transport = {};
+    Queue<World_Resource> resources_to_transport = {};
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -390,7 +390,7 @@ struct Moving_In_The_World {
     Main_Controller*          controller = {};
 };
 
-struct Map_Resource_To_Book {
+struct World_Resource_To_Book {
     Scriptable_Resource* scriptable  = {};
     u8                   count       = {};
     Building_ID          building_id = {};
@@ -607,12 +607,12 @@ struct World {
     Sparse_Array_Of_Ids<Human_ID>                       humans_going_to_city_hall = {};
     // Sparse_Array<Human_ID, Human_Transporter>           transporters = {};
     // Sparse_Array<Human_ID, Human_Constructor>           constructors = {};
-    Sparse_Array<Human_ID, Human>                humans_to_add    = {};
-    Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove = {};
-    Sparse_Array<Map_Resource_ID, Map_Resource>  resources        = {};
+    Sparse_Array<Human_ID, Human>                   humans_to_add    = {};
+    Sparse_Array<Human_ID, Human_Removal_Reason>    humans_to_remove = {};
+    Sparse_Array<World_Resource_ID, World_Resource> resources        = {};
 
-    Queue<Graph_Segment_ID>      segments_wo_humans      = {};
-    Vector<Map_Resource_To_Book> resources_booking_queue = {};
+    Queue<Graph_Segment_ID>        segments_wo_humans      = {};
+    Vector<World_Resource_To_Book> resources_booking_queue = {};
 };
 
 #define On_Item_Built_function(name_) \
