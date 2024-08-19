@@ -208,14 +208,14 @@ void Init_Renderer(
     }
 
     if (first_time_initializing)
-        game.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+        game.renderer = Allocate_Zeros_For(arena, Renderer);
 }
 
 void Add_Building_Sprite(
-    Game_Renderer_State& rstate,
-    World&               world,
-    v2i                  pos,
-    Building_ID          building_id,
+    Renderer&   renderer,
+    World&      world,
+    v2i         pos,
+    Building_ID building_id,
     MCTX
 ) {
     Assert(building_id != Building_ID_Missing);
@@ -235,27 +235,27 @@ void Add_Building_Sprite(
     building_sprite.z = 0;
 
     if (building.remaining_construction_points)
-        building_sprite.texture = rstate.building_in_progress_texture;
+        building_sprite.texture = renderer.building_in_progress_texture;
     else
         building_sprite.texture = scriptable.texture;
 
     {
-        auto [pid, pvalue] = rstate.sprites.Add(ctx);
+        auto [pid, pvalue] = renderer.sprites.Add(ctx);
         *pid               = building_id;
         *pvalue            = building_sprite;
     }
 }
 
-void Set_Flag_Tile(Game_Renderer_State& rstate, World& /* world */, v2i pos, MCTX_) {
-    auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
+void Set_Flag_Tile(Renderer& renderer, World& /* world */, v2i pos, MCTX_) {
+    auto& placeables_tilemap = renderer.tilemaps[renderer.element_tilemap_index + 1];
 
     auto t = pos.y * placeables_tilemap.size.x + pos.x;
 
     auto& tile_id    = placeables_tilemap.tiles[t];
     auto& texture_id = placeables_tilemap.textures[t];
 
-    tile_id    = rstate.flag_tile_id;
-    texture_id = rstate.flag_textures[0];
+    tile_id    = renderer.flag_tile_id;
+    texture_id = renderer.flag_textures[0];
 }
 
 void Print_Shader_Compilation_Logs(BFGL_Create_Shader_Result result) {
@@ -286,15 +286,15 @@ void Post_Init_Renderer(
 
     SCOPED_LOG_INIT("Post_Init_Renderer");
 
-    auto& rstate = Assert_Deref(game.renderer_state);
+    auto& renderer = Assert_Deref(game.renderer);
 
-    rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
-    auto& ui_state  = *rstate.ui_state;
+    renderer.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
+    auto& ui_state    = *renderer.ui_state;
 
     auto& world = game.world;
     auto  gsize = world.size;
 
-    rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
+    renderer.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
 
     // Шейдеры.
     {
@@ -342,8 +342,8 @@ void main() {
         Print_Shader_Compilation_Logs(sprite_shader_result);
 
         if (sprite_shader_result.success) {
-            BFGL_Delete_Shader_Program(rstate.sprites_shader_program);
-            rstate.sprites_shader_program = sprite_shader_result.program;
+            BFGL_Delete_Shader_Program(renderer.sprites_shader_program);
+            renderer.sprites_shader_program = sprite_shader_result.program;
         }
     }
 
@@ -481,81 +481,81 @@ void main() {
         Print_Shader_Compilation_Logs(tilemap_shader_result);
 
         if (tilemap_shader_result.success) {
-            BFGL_Delete_Shader_Program(rstate.tilemap_shader_program);
-            rstate.tilemap_shader_program = tilemap_shader_result.program;
+            BFGL_Delete_Shader_Program(renderer.tilemap_shader_program);
+            renderer.tilemap_shader_program = tilemap_shader_result.program;
         }
     }
 
-    if (!rstate.shaders_compilation_failed) {
-        glUseProgram(rstate.sprites_shader_program);
+    if (!renderer.shaders_compilation_failed) {
+        glUseProgram(renderer.sprites_shader_program);
         glEnable(GL_TEXTURE_2D);
         {
             auto location = glGetUniformLocation(
-                rstate.sprites_shader_program, "a_tile_size_relative_to_atlas"
+                renderer.sprites_shader_program, "a_tile_size_relative_to_atlas"
             );
-            auto tile_x = 16.0f / (f32)rstate.atlas.texture.size.x;
-            auto tile_y = 16.0f / (f32)rstate.atlas.texture.size.y;
+            auto tile_x = 16.0f / (f32)renderer.atlas.texture.size.x;
+            auto tile_y = 16.0f / (f32)renderer.atlas.texture.size.y;
             glUniform2f(location, tile_x, tile_y);
         }
 
-        glUseProgram(rstate.tilemap_shader_program);
+        glUseProgram(renderer.tilemap_shader_program);
         glEnable(GL_TEXTURE_2D);
         {
             auto location = glGetUniformLocation(
-                rstate.tilemap_shader_program, "a_tile_size_relative_to_atlas"
+                renderer.tilemap_shader_program, "a_tile_size_relative_to_atlas"
             );
-            auto tile_x = 16.0f / (f32)rstate.atlas.texture.size.x;
-            auto tile_y = 16.0f / (f32)rstate.atlas.texture.size.y;
+            auto tile_x = 16.0f / (f32)renderer.atlas.texture.size.x;
+            auto tile_y = 16.0f / (f32)renderer.atlas.texture.size.y;
             glUniform2f(location, tile_x, tile_y);
         }
         {
             auto location
-                = glGetUniformLocation(rstate.tilemap_shader_program, "a_gsize");
+                = glGetUniformLocation(renderer.tilemap_shader_program, "a_gsize");
             glUniform2i(location, gsize.x, gsize.y);
         }
         {
             auto location = glGetUniformLocation(
-                rstate.tilemap_shader_program, "a_atlas_texture_size"
+                renderer.tilemap_shader_program, "a_atlas_texture_size"
             );
             glUniform2i(
                 location,
-                Assert_Truncate_To_i32(rstate.atlas.texture.size.x),
-                Assert_Truncate_To_i32(rstate.atlas.texture.size.y)
+                Assert_Truncate_To_i32(renderer.atlas.texture.size.x),
+                Assert_Truncate_To_i32(renderer.atlas.texture.size.y)
             );
         }
 
-        rstate.sprites_shader_gl2w_location
-            = glGetUniformLocation(rstate.sprites_shader_program, "a_gl2w");
+        renderer.sprites_shader_gl2w_location
+            = glGetUniformLocation(renderer.sprites_shader_program, "a_gl2w");
 
-        rstate.tilemap_shader_gl2w_location
-            = glGetUniformLocation(rstate.tilemap_shader_program, "a_gl2w");
-        rstate.tilemap_shader_relscreen2w_location
-            = glGetUniformLocation(rstate.tilemap_shader_program, "a_relscreen2w");
-        rstate.tilemap_shader_resolution_location
-            = glGetUniformLocation(rstate.tilemap_shader_program, "a_resolution");
+        renderer.tilemap_shader_gl2w_location
+            = glGetUniformLocation(renderer.tilemap_shader_program, "a_gl2w");
+        renderer.tilemap_shader_relscreen2w_location
+            = glGetUniformLocation(renderer.tilemap_shader_program, "a_relscreen2w");
+        renderer.tilemap_shader_resolution_location
+            = glGetUniformLocation(renderer.tilemap_shader_program, "a_resolution");
 
-        rstate.tilemap_shader_color_location
-            = glGetUniformLocation(rstate.tilemap_shader_program, "a_color");
-        glUniform3f(rstate.tilemap_shader_color_location, 1, 1, 1);
+        renderer.tilemap_shader_color_location
+            = glGetUniformLocation(renderer.tilemap_shader_program, "a_color");
+        glUniform3f(renderer.tilemap_shader_color_location, 1, 1, 1);
     }
 
     {
         auto& art = *game.gamelib->art();
 
-        rstate.human_texture                = art.human();
-        rstate.building_in_progress_texture = art.building_in_progress();
+        renderer.human_texture                = art.human();
+        renderer.building_in_progress_texture = art.building_in_progress();
 
         FOR_RANGE (int, i, 3) {
-            rstate.forest_textures[i] = art.forest()->Get(i);
+            renderer.forest_textures[i] = art.forest()->Get(i);
         }
         FOR_RANGE (int, i, 17) {
-            rstate.grass_textures[i] = art.grass()->Get(i);
+            renderer.grass_textures[i] = art.grass()->Get(i);
         }
         FOR_RANGE (int, i, 16) {
-            rstate.road_textures[i] = art.road()->Get(i);
+            renderer.road_textures[i] = art.road()->Get(i);
         }
         FOR_RANGE (int, i, 4) {
-            rstate.flag_textures[i] = art.flag()->Get(i);
+            renderer.flag_textures[i] = art.flag()->Get(i);
         }
 
         auto& ui                                = *art.ui();
@@ -563,16 +563,16 @@ void main() {
         ui_state.buildables_placeholder_texture = ui.buildables_placeholder();
 
         Load_Smart_Tile_Rule(
-            rstate.grass_smart_tile, non_persistent_arena, art.tile_rule_grass()
+            renderer.grass_smart_tile, non_persistent_arena, art.tile_rule_grass()
         );
         Load_Smart_Tile_Rule(
-            rstate.forest_smart_tile, non_persistent_arena, art.tile_rule_forest()
+            renderer.forest_smart_tile, non_persistent_arena, art.tile_rule_forest()
         );
 
-        rstate.grass_smart_tile.id  = 1;
-        rstate.forest_smart_tile.id = 2;
-        rstate.forest_top_tile_id   = 3;
-        rstate.flag_tile_id         = 4;
+        renderer.grass_smart_tile.id  = 1;
+        renderer.forest_smart_tile.id = 2;
+        renderer.forest_top_tile_id   = 3;
+        renderer.flag_tile_id         = 4;
 
         auto& resources = *game.gamelib->resources();
         Assert(resources.size() == game.scriptable_resources_count);
@@ -601,29 +601,29 @@ void main() {
         }
     }
 
-    rstate.tilemaps_count = 0;
+    renderer.tilemaps_count = 0;
     // NOTE: Terrain tilemaps ([0; max_height])
-    rstate.terrain_tilemaps_count = max_height + 1;
-    rstate.tilemaps_count += rstate.terrain_tilemaps_count;
+    renderer.terrain_tilemaps_count = max_height + 1;
+    renderer.tilemaps_count += renderer.terrain_tilemaps_count;
 
     // NOTE: Terrain Resources (forests, stones, etc.)
     // 1) Forests
     // 2) Tree's top tiles
-    rstate.resources_tilemap_index = rstate.tilemaps_count;
-    rstate.tilemaps_count += 2;
+    renderer.resources_tilemap_index = renderer.tilemaps_count;
+    renderer.tilemaps_count += 2;
 
     // NOTE: Element Tiles (roads, buildings, etc.)
     // 1) Roads
     // 2) Flags above roads
-    rstate.element_tilemap_index = rstate.tilemaps_count;
-    rstate.tilemaps_count += 2;
+    renderer.element_tilemap_index = renderer.tilemaps_count;
+    renderer.tilemaps_count += 2;
 
-    rstate.tilemaps = Allocate_Array_And_Initialize(
-        non_persistent_arena, Tilemap, rstate.tilemaps_count
+    renderer.tilemaps = Allocate_Array_And_Initialize(
+        non_persistent_arena, Tilemap, renderer.tilemaps_count
     );
 
-    FOR_RANGE (i32, h, rstate.tilemaps_count) {
-        auto& tilemap = rstate.tilemaps[h];
+    FOR_RANGE (i32, h, renderer.tilemaps_count) {
+        auto& tilemap = renderer.tilemaps[h];
 
         // NOTE: Добавлен тайл сверху для отрисовки верхушек деревьев
         tilemap.size     = gsize + v2i16(0, 1);
@@ -636,8 +636,8 @@ void main() {
     }
 
     // Проставление текстур тайлов в tilemap-е terrain-а.
-    FOR_RANGE (i32, h, rstate.terrain_tilemaps_count) {
-        auto& tilemap = rstate.tilemaps[h];
+    FOR_RANGE (i32, h, renderer.terrain_tilemaps_count) {
+        auto& tilemap = renderer.tilemaps[h];
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
@@ -645,7 +645,7 @@ void main() {
                 auto& tilemap_tile = tilemap.tiles[y * gsize.x + x];
 
                 bool grass   = tile.terrain == Terrain::Grass && tile.height >= h;
-                tilemap_tile = grass * rstate.grass_smart_tile.id;
+                tilemap_tile = grass * renderer.grass_smart_tile.id;
             }
         }
 
@@ -655,7 +655,7 @@ void main() {
 
                 if (tilemap.tiles[y * gsize.x + x])
                     id = Test_Smart_Tile(
-                        tilemap, world.size, {x, y}, rstate.grass_smart_tile
+                        tilemap, world.size, {x, y}, renderer.grass_smart_tile
                     );
                 else
                     id = Texture_ID_Missing;
@@ -665,8 +665,8 @@ void main() {
         }
     }
 
-    auto& resources_tilemap  = rstate.tilemaps[rstate.resources_tilemap_index];
-    auto& resources_tilemap2 = rstate.tilemaps[rstate.resources_tilemap_index + 1];
+    auto& resources_tilemap  = renderer.tilemaps[renderer.resources_tilemap_index];
+    auto& resources_tilemap2 = renderer.tilemaps[renderer.resources_tilemap_index + 1];
 
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
@@ -676,7 +676,7 @@ void main() {
 
             if (forest) {
                 auto& tile = resources_tilemap.tiles[y * gsize.x + x];
-                tile       = rstate.forest_smart_tile.id;
+                tile       = renderer.forest_smart_tile.id;
             }
         }
     }
@@ -693,24 +693,24 @@ void main() {
                 continue;
 
             resources_tilemap.textures[t] = Test_Smart_Tile(
-                resources_tilemap, gsize, {x, y}, rstate.forest_smart_tile
+                resources_tilemap, gsize, {x, y}, renderer.forest_smart_tile
             );
 
             bool forest_is_above = false;
             if (!is_last_row) {
                 auto& tile_above = resources_tilemap.tiles[t_above];
-                forest_is_above  = tile_above == rstate.forest_smart_tile.id;
+                forest_is_above  = tile_above == renderer.forest_smart_tile.id;
             }
 
             if (!forest_is_above) {
-                resources_tilemap2.tiles[t_above]    = rstate.forest_top_tile_id;
-                resources_tilemap2.textures[t_above] = rstate.forest_textures[0];
+                resources_tilemap2.tiles[t_above]    = renderer.forest_top_tile_id;
+                resources_tilemap2.textures[t_above] = renderer.forest_textures[0];
             }
         }
     }
 
     // --- Element Tiles ---
-    auto& element_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
+    auto& element_tilemap = renderer.tilemaps[renderer.element_tilemap_index];
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
             const auto t = y * gsize.x + x;
@@ -727,23 +727,23 @@ void main() {
                     = Get_Road_Texture_Number(world.element_tiles, v2i16(x, y), gsize);
                 auto& tile_id               = element_tilemap.tiles[t];
                 tile_id                     = global_road_starting_tile_id + tex;
-                element_tilemap.textures[t] = rstate.road_textures[tex];
+                element_tilemap.textures[t] = renderer.road_textures[tex];
 
                 if (element_tile.type == Element_Tile_Type::Building)
                     Add_Building_Sprite(
-                        rstate, world, {x, y}, element_tile.building_id, ctx
+                        renderer, world, {x, y}, element_tile.building_id, ctx
                     );
 
                 if (element_tile.type == Element_Tile_Type::Flag)
-                    Set_Flag_Tile(rstate, world, {x, y}, ctx);
+                    Set_Flag_Tile(renderer, world, {x, y}, ctx);
             }
         }
     }
     // --- Element Tiles End ---
 
-    rstate.zoom        = 1;
-    rstate.zoom_target = 1;
-    rstate.cell_size   = 32;
+    renderer.zoom        = 1;
+    renderer.zoom_target = 1;
+    renderer.cell_size   = 32;
 
     ui_state.buildables_panel_params.smart_stretchable  = true;
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
@@ -793,12 +793,12 @@ void main() {
 void Deinit_Renderer(Game& game, MCTX) {
     CTX_ALLOCATOR;
 
-    auto& rstate = *game.renderer_state;
+    auto& renderer = *game.renderer;
 
-    // TODO: deinit `rstate.sprites`
+    // TODO: deinit `renderer.sprites`
 
-    FOR_RANGE (int, i, rstate.tilemaps_count) {
-        auto& tilemap = rstate.tilemaps[i];
+    FOR_RANGE (int, i, renderer.tilemaps_count) {
+        auto& tilemap = renderer.tilemaps[i];
 
         auto tiles_count = tilemap.size.x * tilemap.size.y;
 
@@ -808,10 +808,10 @@ void Deinit_Renderer(Game& game, MCTX) {
         tilemap.textures = nullptr;
     }
 
-    if (rstate.rendering_indices_buffer_size > 0) {
-        FREE(rstate.rendering_indices_buffer, rstate.rendering_indices_buffer_size);
-        rstate.rendering_indices_buffer      = nullptr;
-        rstate.rendering_indices_buffer_size = 0;
+    if (renderer.rendering_indices_buffer_size > 0) {
+        FREE(renderer.rendering_indices_buffer, renderer.rendering_indices_buffer_size);
+        renderer.rendering_indices_buffer      = nullptr;
+        renderer.rendering_indices_buffer_size = 0;
     }
 }
 
@@ -865,15 +865,15 @@ C_Texture* Get_Texture(Atlas& atlas, Texture_ID id) {
 }
 
 void Draw_UI_Sprite(
-    f32                  tex_coord_x0,
-    f32                  tex_coord_x1,
-    f32                  tex_coord_y0,
-    f32                  tex_coord_y1,
-    v2f                  gl_pos,
-    v2f                  gl_size,
-    v2f                  anchor,
-    BF_Color             color,
-    Game_Renderer_State& rstate
+    f32       tex_coord_x0,
+    f32       tex_coord_x1,
+    f32       tex_coord_y0,
+    f32       tex_coord_y1,
+    v2f       gl_pos,
+    v2f       gl_size,
+    v2f       anchor,
+    BF_Color  color,
+    Renderer& renderer
 ) {
     std::swap(tex_coord_y0, tex_coord_y1);
 
@@ -927,7 +927,7 @@ void Draw_UI_Sprite(
     BFGL_Enable_Vertex_Attribute(1);
     BFGL_Enable_Vertex_Attribute(2);
 
-    glUseProgram(rstate.sprites_shader_program);
+    glUseProgram(renderer.sprites_shader_program);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     BFGL_Disable_Vertex_Array();
@@ -935,17 +935,17 @@ void Draw_UI_Sprite(
 };
 
 v2f World_To_Screen(Game& game, v2f pos) {
-    auto&        rstate = Assert_Deref(game.renderer_state);
-    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
+    auto&        renderer = Assert_Deref(game.renderer);
+    Game_Bitmap& bitmap   = Assert_Deref(renderer.bitmap);
 
     auto swidth    = (f32)bitmap.width;
     auto sheight   = (f32)bitmap.height;
     auto gsize     = game.world.size;
-    auto cell_size = rstate.cell_size;
+    auto cell_size = renderer.cell_size;
 
     auto projection = glm::mat3(1);
-    projection      = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection      = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
+    projection      = glm::translate(projection, renderer.pan_pos + renderer.pan_offset);
+    projection      = glm::scale(projection, v2f(renderer.zoom, renderer.zoom));
     projection      = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
     projection      = glm::translate(projection, -(v2f)gsize * cell_size / 2.0f);
     projection      = glm::scale(projection, v2f(cell_size, cell_size));
@@ -954,20 +954,20 @@ v2f World_To_Screen(Game& game, v2f pos) {
 }
 
 v2f Screen_To_World(Game& game, v2f pos) {
-    auto&        rstate = Assert_Deref(game.renderer_state);
-    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
+    auto&        renderer = Assert_Deref(game.renderer);
+    Game_Bitmap& bitmap   = Assert_Deref(renderer.bitmap);
 
     auto swidth    = (f32)bitmap.width;
     auto sheight   = (f32)bitmap.height;
     auto gsize     = game.world.size;
-    auto cell_size = rstate.cell_size;
+    auto cell_size = renderer.cell_size;
 
-    auto projection     = glm::mat3(1);
-    projection          = glm::translate(projection, rstate.pan_pos + rstate.pan_offset);
-    projection          = glm::scale(projection, v2f(rstate.zoom, rstate.zoom));
-    projection          = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
-    projection          = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
-    projection          = glm::scale(projection, v2f(cell_size, cell_size));
+    auto projection = glm::mat3(1);
+    projection      = glm::translate(projection, renderer.pan_pos + renderer.pan_offset);
+    projection      = glm::scale(projection, v2f(renderer.zoom, renderer.zoom));
+    projection      = glm::translate(projection, v2f(swidth, sheight) / 2.0f);
+    projection      = glm::translate(projection, -(v2f)gsize * (f32)cell_size / 2.0f);
+    projection      = glm::scale(projection, v2f(cell_size, cell_size));
     auto projection_inv = glm::inverse(projection);
 
     return projection_inv * v3f(pos.x, pos.y, 1);
@@ -993,7 +993,7 @@ void Draw_Stretchable_Sprite(
     const UI_Sprite_Params& sprite_params,
     const v2i16             sprite_size,
     const f32               in_scale,
-    Game_Renderer_State&    rstate
+    Renderer&               renderer
 ) {
     const auto& tex = *Get_Texture(atlas, id);
 
@@ -1068,7 +1068,7 @@ void Draw_Stretchable_Sprite(
                 v2f(sx, sy),
                 v2f(0, 0),
                 BF_Color_White,
-                rstate
+                renderer
             );
         }
     }
@@ -1080,8 +1080,8 @@ struct Get_Buildable_Textures_Result {
 };
 
 Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game& game) {
-    auto& rstate   = Assert_Deref(game.renderer_state);
-    auto& ui_state = Assert_Deref(rstate.ui_state);
+    auto& renderer = Assert_Deref(game.renderer);
+    auto& ui_state = Assert_Deref(renderer.ui_state);
 
     Get_Buildable_Textures_Result res{};
     auto allocation_size = sizeof(GLuint) * ui_state.buildables_count;
@@ -1094,7 +1094,7 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game& g
 
         switch (buildable.type) {
         case Item_To_Build_Type::Road: {
-            res.textures[i] = rstate.road_textures[15];
+            res.textures[i] = renderer.road_textures[15];
         } break;
 
         case Item_To_Build_Type::Building: {
@@ -1191,15 +1191,15 @@ glm::mat3 Get_UI_Projection_Matrix(v2f screen_size) {
 }
 
 void Render_UI(Game& game, f32 /* dt */, MCTX_) {
-    auto& rstate   = *game.renderer_state;
-    auto& ui_state = *rstate.ui_state;
+    auto& renderer = *game.renderer;
+    auto& ui_state = *renderer.ui_state;
 
     auto& world = game.world;
 
     Arena& trash_arena = game.trash_arena;
     TEMP_USAGE(trash_arena);
 
-    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
+    Game_Bitmap& bitmap = Assert_Deref(renderer.bitmap);
 
     const auto swidth  = (f32)bitmap.width;
     const auto sheight = (f32)bitmap.height;
@@ -1208,17 +1208,17 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
 
     // Рисование UI плашки слева.
     {
-        glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
+        glBindTexture(GL_TEXTURE_2D, renderer.atlas.texture.id);
 
         const auto  sprite_params = ui_state.buildables_panel_params;
         const auto& pad_h         = sprite_params.stretch_paddings_h;
         const auto& pad_v         = sprite_params.stretch_paddings_v;
 
         const auto& panel_texture
-            = *Get_Texture(rstate.atlas, ui_state.buildables_panel_texture);
+            = *Get_Texture(renderer.atlas, ui_state.buildables_panel_texture);
 
         const auto& placeholder_texture
-            = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
+            = *Get_Texture(renderer.atlas, ui_state.buildables_placeholder_texture);
 
         const v2f psize = v2f(placeholder_texture.size);
 
@@ -1256,7 +1256,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
             auto p1 = PROJECTION * VIEW * p1_local;
 
             Draw_Stretchable_Sprite(
-                rstate.atlas,
+                renderer.atlas,
                 ui_state.buildables_panel_texture,
                 p0.x,
                 p1.x,
@@ -1265,7 +1265,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
                 sprite_params,
                 panel_size,
                 in_scale,
-                rstate
+                renderer
             );
 
             auto origin = (p1_local + p0_local) / 2.0f;
@@ -1288,15 +1288,15 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
                 Draw_UI_Sprite(
                     tex.pos_inside_atlas.x,
                     tex.pos_inside_atlas.x
-                        + (f32)tex.size.x / (f32)rstate.atlas.texture.size.x,
+                        + (f32)tex.size.x / (f32)renderer.atlas.texture.size.x,
                     tex.pos_inside_atlas.y,
                     tex.pos_inside_atlas.y
-                        + (f32)tex.size.y / (f32)rstate.atlas.texture.size.y,
+                        + (f32)tex.size.y / (f32)renderer.atlas.texture.size.y,
                     p,
                     s,
                     v2f_one / 2.0f,
                     color,
-                    rstate
+                    renderer
                 );
             }
 
@@ -1305,7 +1305,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE (int, i, placeholders) {
                 const auto& tex
-                    = *Get_Texture(rstate.atlas, buildable_textures.textures[i]);
+                    = *Get_Texture(renderer.atlas, buildable_textures.textures[i]);
 
                 auto drawing_point = origin;
                 drawing_point.y -= (placeholders - 1) * (psize.y + placeholders_gap) / 2;
@@ -1321,15 +1321,15 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
                 Draw_UI_Sprite(
                     tex.pos_inside_atlas.x,
                     tex.pos_inside_atlas.x
-                        + (f32)tex.size.x / (f32)rstate.atlas.texture.size.x,
+                        + (f32)tex.size.x / (f32)renderer.atlas.texture.size.x,
                     tex.pos_inside_atlas.y,
                     tex.pos_inside_atlas.y
-                        + (f32)tex.size.y / (f32)rstate.atlas.texture.size.y,
+                        + (f32)tex.size.y / (f32)renderer.atlas.texture.size.y,
                     p,
                     s,
                     v2f_one / 2.0f,
                     color,
-                    rstate
+                    renderer
                 );
             }
         }
@@ -1449,9 +1449,9 @@ void Render(Game& game, f32 dt, MCTX) {
     Arena& trash_arena = game.trash_arena;
     TEMP_USAGE(trash_arena);
 
-    auto&        rstate = Assert_Deref(game.renderer_state);
-    auto&        world  = game.world;
-    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
+    auto&        renderer = Assert_Deref(game.renderer);
+    auto&        world    = game.world;
+    Game_Bitmap& bitmap   = Assert_Deref(renderer.bitmap);
 
     const auto gsize     = world.size;
     const auto swidth    = (f32)bitmap.width;
@@ -1464,20 +1464,20 @@ void Render(Game& game, f32 dt, MCTX) {
     // Обработка зума карты к курсору.
     // TODO: Зафиксить небольшую неточность, небольшой телепорт в самом конце анимации.
     {
-        auto cursor_on_tilemap_pos = Screen_To_World(game, rstate.mouse_pos);
+        auto cursor_on_tilemap_pos = Screen_To_World(game, renderer.mouse_pos);
         ImGui::Text(
             "Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y
         );
 
         auto new_zoom
-            = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
-        rstate.zoom = new_zoom;
+            = Move_Towards(renderer.zoom, renderer.zoom_target, 2 * dt * renderer.zoom);
+        renderer.zoom = new_zoom;
 
-        auto cursor_on_tilemap_pos2 = Screen_To_World(game, rstate.mouse_pos);
+        auto cursor_on_tilemap_pos2 = Screen_To_World(game, renderer.mouse_pos);
 
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
-        rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
+        renderer.pan_pos += cursor_d * (f32)(renderer.zoom * cell_size);
 
         auto d3 = World_To_Screen(game, v2f(0, 0));
         ImGui::Text("d3 %.3f.%.3f", d3.x, d3.y);
@@ -1545,9 +1545,9 @@ void Render(Game& game, f32 dt, MCTX) {
     const auto W2RelScreen = Get_W2RelScreen_Matrix(
         gsize,
         {viewport[2], viewport[3]},
-        rstate.pan_pos,
-        rstate.pan_offset,
-        rstate.zoom,
+        renderer.pan_pos,
+        renderer.pan_offset,
+        renderer.zoom,
         cell_size
     );
     const auto RelScreen2W = glm::inverse(W2RelScreen);
@@ -1567,7 +1567,7 @@ void Render(Game& game, f32 dt, MCTX) {
         for (auto [human_id, human_ptr] : Iter(&world.humans)) {
             auto& human = *human_ptr;
 
-            for (auto [sprite_id, sprite_ptr] : Iter(&rstate.sprites)) {
+            for (auto [sprite_id, sprite_ptr] : Iter(&renderer.sprites)) {
                 if (human_id != sprite_id)
                     continue;
 
@@ -1586,7 +1586,7 @@ void Render(Game& game, f32 dt, MCTX) {
     }
 
     // Рисование tilemap.
-    if (!rstate.shaders_compilation_failed) {
+    if (!renderer.shaders_compilation_failed) {
         ZoneScopedN("Tilemaps rendering");
 
         auto tilemap_framebuffer = Create_Framebuffer(v2i(viewport[2], viewport[3]));
@@ -1594,23 +1594,25 @@ void Render(Game& game, f32 dt, MCTX) {
             Delete_Framebuffer(tilemap_framebuffer);
         };
 
-        glUseProgram(rstate.tilemap_shader_program);
+        glUseProgram(renderer.tilemap_shader_program);
         glBindFramebuffer(GL_FRAMEBUFFER, tilemap_framebuffer.id);
-        glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
+        glBindTexture(GL_TEXTURE_2D, renderer.atlas.texture.id);
 
         const auto GL2W = glm::inverse(W2GL);
         glUniformMatrix3fv(
-            rstate.tilemap_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
+            renderer.tilemap_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
         );
 
         glUniformMatrix3fv(
-            rstate.sprites_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
+            renderer.sprites_shader_gl2w_location, 1, GL_FALSE, (GLfloat*)(&GL2W)
         );
 
-        glUniform2i(rstate.tilemap_shader_resolution_location, viewport[2], viewport[3]);
+        glUniform2i(
+            renderer.tilemap_shader_resolution_location, viewport[2], viewport[3]
+        );
 
         glUniformMatrix3fv(
-            rstate.tilemap_shader_relscreen2w_location,
+            renderer.tilemap_shader_relscreen2w_location,
             1,
             GL_FALSE,
             (GLfloat*)(&RelScreen2W)
@@ -1618,20 +1620,20 @@ void Render(Game& game, f32 dt, MCTX) {
 
         // Выделение памяти под rendering_indices_buffer.
         auto bytes_per_tile  = 2 * sizeof(GLfloat);
-        auto tiles_count     = rstate.tilemaps[0].size.x * rstate.tilemaps[0].size.y;
+        auto tiles_count     = renderer.tilemaps[0].size.x * renderer.tilemaps[0].size.y;
         auto required_memory = bytes_per_tile * tiles_count;
 
-        if (rstate.rendering_indices_buffer == nullptr) {
-            rstate.rendering_indices_buffer      = ALLOC(required_memory);
-            rstate.rendering_indices_buffer_size = required_memory;
+        if (renderer.rendering_indices_buffer == nullptr) {
+            renderer.rendering_indices_buffer      = ALLOC(required_memory);
+            renderer.rendering_indices_buffer_size = required_memory;
         }
 
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
         glBlendEquation(GL_FUNC_ADD);
         glEnable(GL_BLEND);
 
-        FOR_RANGE (int, i, rstate.tilemaps_count) {
-            auto& tilemap = rstate.tilemaps[i];
+        FOR_RANGE (int, i, renderer.tilemaps_count) {
+            auto& tilemap = renderer.tilemaps[i];
 
             {
                 TEMP_USAGE(trash_arena);
@@ -1648,13 +1650,14 @@ void Render(Game& game, f32 dt, MCTX) {
             size_t t = 0;
             FOR_RANGE (int, y, tilemap.size.y) {
                 FOR_RANGE (int, x, tilemap.size.x) {
-                    GLfloat* px = ((GLfloat*)rstate.rendering_indices_buffer) + t;
-                    GLfloat* py = ((GLfloat*)rstate.rendering_indices_buffer) + t + 1;
+                    GLfloat* px = ((GLfloat*)renderer.rendering_indices_buffer) + t;
+                    GLfloat* py = ((GLfloat*)renderer.rendering_indices_buffer) + t + 1;
 
                     auto tile = tilemap.tiles[y * tilemap.size.x + x];
                     if (tile) {
-                        auto pos
-                            = Query_Texture_Pos_Inside_Atlas(rstate.atlas, tilemap, x, y);
+                        auto pos = Query_Texture_Pos_Inside_Atlas(
+                            renderer.atlas, tilemap, x, y
+                        );
                         *px = pos.x;
                         *py = pos.y;
                     }
@@ -1673,7 +1676,7 @@ void Render(Game& game, f32 dt, MCTX) {
             glBufferData(
                 GL_SHADER_STORAGE_BUFFER,
                 Assert_Truncate_To_i64(required_memory),
-                rstate.rendering_indices_buffer,
+                renderer.rendering_indices_buffer,
                 GL_DYNAMIC_DRAW
             );
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
@@ -1760,16 +1763,16 @@ void Render(Game& game, f32 dt, MCTX) {
         ZoneScopedN("Iterating over sprites");
 
         auto mem_per_sprite = sizeof(Vertex_Datum) * 6;
-        vertex_data.Reserve(mem_per_sprite * rstate.sprites.count, ctx);
+        vertex_data.Reserve(mem_per_sprite * renderer.sprites.count, ctx);
 
-        FOR_RANGE (int, sprites_i, rstate.sprites.count) {
-            auto& s = *(rstate.sprites.base + sprites_i);
+        FOR_RANGE (int, sprites_i, renderer.sprites.count) {
+            auto& s = *(renderer.sprites.base + sprites_i);
 
             Assert(s.texture != 0);
             Assert(s.texture != Texture_ID_Missing);
 
             auto  texture_index = s.texture - 1;
-            auto& tex           = *(rstate.atlas.textures.base + texture_index);
+            auto& tex           = *(renderer.atlas.textures.base + texture_index);
 
             // TODO: rotation
             // TODO: filter
@@ -1788,9 +1791,9 @@ void Render(Game& game, f32 dt, MCTX) {
             y1 = p1.y;
 
             f32 ax0 = tex.pos_inside_atlas.x;
-            f32 ax1 = tex.pos_inside_atlas.x + (f32(tex.size.x) / rstate.atlas.size.x);
+            f32 ax1 = tex.pos_inside_atlas.x + (f32(tex.size.x) / renderer.atlas.size.x);
             f32 ay1 = tex.pos_inside_atlas.y;
-            f32 ay0 = tex.pos_inside_atlas.y + (f32(tex.size.y) / rstate.atlas.size.y);
+            f32 ay0 = tex.pos_inside_atlas.y + (f32(tex.size.y) / renderer.atlas.size.y);
 
             v2f vertices[] = {
                 {x0, y0},
@@ -1820,8 +1823,8 @@ void Render(Game& game, f32 dt, MCTX) {
     }
 
     {
-        glUseProgram(rstate.sprites_shader_program);
-        glBindTexture(GL_TEXTURE_2D, rstate.atlas.texture.id);
+        glUseProgram(renderer.sprites_shader_program);
+        glBindTexture(GL_TEXTURE_2D, renderer.atlas.texture.id);
 
         const auto vao = BFGL_Load_Vertex_Array();
         BFGL_Enable_Vertex_Array(vao);
@@ -1843,7 +1846,7 @@ void Render(Game& game, f32 dt, MCTX) {
         BFGL_Enable_Vertex_Attribute(1);
         BFGL_Enable_Vertex_Attribute(2);
 
-        glDrawArrays(GL_TRIANGLES, 0, 6 * rstate.sprites.count);
+        glDrawArrays(GL_TRIANGLES, 0, 6 * renderer.sprites.count);
 
         BFGL_Unload_Vertex_Buffer(vbo);
 
@@ -1864,18 +1867,18 @@ void Render(Game& game, f32 dt, MCTX) {
 On_Item_Built_function(Renderer_OnItemBuilt) {
     UNUSED(item);
 
-    Assert(game.renderer_state != nullptr);
+    Assert(game.renderer != nullptr);
 
     CTX_ALLOCATOR;
 
-    auto& rstate = *game.renderer_state;
-    auto& world  = game.world;
-    auto  gsize  = world.size;
+    auto& renderer = *game.renderer;
+    auto& world    = game.world;
+    auto  gsize    = world.size;
 
     // Тут рисуются дороги.
-    auto& roads_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
+    auto& roads_tilemap = renderer.tilemaps[renderer.element_tilemap_index];
     // Тут рисуются флаги и здания.
-    auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
+    auto& placeables_tilemap = renderer.tilemaps[renderer.element_tilemap_index + 1];
 
     auto t = pos.y * gsize.x + pos.x;
 
@@ -1899,10 +1902,10 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
         Assert(element_tile.building_id == Building_ID_Missing);
 
     if (element_tile.type == Element_Tile_Type::Building)
-        Add_Building_Sprite(rstate, world, pos, element_tile.building_id, ctx);
+        Add_Building_Sprite(renderer, world, pos, element_tile.building_id, ctx);
 
     if (element_tile.type == Element_Tile_Type::Flag)
-        Set_Flag_Tile(rstate, world, pos, ctx);
+        Set_Flag_Tile(renderer, world, pos, ctx);
 
     for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;
@@ -1921,7 +1924,7 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
             auto& tile_id = roads_tilemap.tiles[t];
             tile_id       = global_road_starting_tile_id + tex;
             auto& texture_id = roads_tilemap.textures[t];
-            texture_id       = rstate.road_textures[tex];
+            texture_id       = renderer.road_textures[tex];
         } break;
 
         case Element_Tile_Type::None:
@@ -1935,18 +1938,18 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
 
 // Game& game, const Human_ID& id, Human& human, MCTX
 On_Human_Created_function(Renderer_OnHumanCreated) {
-    auto& rstate = *game.renderer_state;
+    auto& renderer = *game.renderer;
 
     C_Sprite human_sprite{};
     human_sprite.pos      = v2f(human.moving.pos) + v2f_one / 2.0f;
     human_sprite.scale    = v2f(1, 1) / 2.0f;
     human_sprite.anchor   = {0.5f, 0.5f + 2.0f / 7.0f};
     human_sprite.rotation = 0;
-    human_sprite.texture  = rstate.human_texture;
+    human_sprite.texture  = renderer.human_texture;
     human_sprite.z        = 0;
 
     {
-        auto [pid, pvalue] = rstate.sprites.Add(ctx);
+        auto [pid, pvalue] = renderer.sprites.Add(ctx);
         *pid               = id;
         *pvalue            = human_sprite;
     }
@@ -1964,7 +1967,7 @@ On_Human_Removed_function(Renderer_OnHumanRemoved) {
     CTX_LOGGER;
     LOG_DEBUG("Renderer_OnHumanRemoved");
 
-    auto& rstate = *game.renderer_state;
+    auto& renderer = *game.renderer;
 
-    rstate.sprites.Unstable_Remove(id);
+    renderer.sprites.Unstable_Remove(id);
 }

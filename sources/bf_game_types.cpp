@@ -9,7 +9,7 @@ struct Human_Data;
 struct Building;
 
 #if BF_CLIENT
-struct Game_Renderer_State;
+struct Renderer;
 struct Loaded_Texture;
 #endif
 
@@ -677,7 +677,7 @@ struct Game {
     Arena trash_arena          = {};  // Use for transient calculations
 
 #if BF_CLIENT
-    Game_Renderer_State* renderer_state = {};
+    Renderer* renderer = {};
 #endif
 
     const BFGame::Game_Library* gamelib = {};
@@ -843,7 +843,7 @@ struct OpenGL_Framebuffer {
     GLuint color = {};  // color_texture_id
 };
 
-struct Game_Renderer_State {
+struct Renderer {
     Game_UI_State* ui_state = {};
     Game_Bitmap*   bitmap   = {};
 

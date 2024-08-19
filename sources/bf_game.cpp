@@ -52,10 +52,10 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 
 bool UI_Clicked(Game& game) {
     auto& world    = game.world;
-    auto& rstate   = *game.renderer_state;
-    auto& ui_state = *rstate.ui_state;
+    auto& renderer = *game.renderer;
+    auto& ui_state = *renderer.ui_state;
 
-    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
+    Game_Bitmap& bitmap = Assert_Deref(renderer.bitmap);
 
     const auto gsize   = world.size;
     const auto swidth  = (f32)bitmap.width;
@@ -66,7 +66,7 @@ bool UI_Clicked(Game& game) {
     const auto& pad_v         = sprite_params.stretch_paddings_v;
 
     const auto& placeholder_texture
-        = *Get_Texture(rstate.atlas, ui_state.buildables_placeholder_texture);
+        = *Get_Texture(renderer.atlas, ui_state.buildables_placeholder_texture);
 
     const v2f psize = v2f(placeholder_texture.size);
 
@@ -109,7 +109,7 @@ bool UI_Clicked(Game& game) {
             v3f p   = VIEW * drawing_point;
             v3f s   = VIEW * v3f(psize, 0);
             v2f p2  = v2f(p) - v2f(s) * 0.5f;  // anchor
-            v2f off = v2f(rstate.mouse_pos) - p2;
+            v2f off = v2f(renderer.mouse_pos) - p2;
             if (Pos_Is_In_Bounds(off, s)) {
                 clicked_buildable_index = i;
                 break;
@@ -135,8 +135,8 @@ void Process_Events(
     float /* dt */,
     MCTX
 ) {
-    auto& rstate   = *game.renderer_state;
-    auto& ui_state = *rstate.ui_state;
+    auto& renderer = *game.renderer;
+    auto& ui_state = *renderer.ui_state;
 
     while (input_events_count > 0) {
         input_events_count--;
@@ -147,7 +147,7 @@ void Process_Events(
         case Event_Type::Mouse_Pressed: {
             PROCESS_EVENTS_CONSUME(Mouse_Pressed, event);
 
-            rstate.mouse_pos = event.position;
+            renderer.mouse_pos = event.position;
 
             if (!UI_Clicked(game)) {
                 if (event.type == Mouse_Button_Type::Left) {
@@ -159,7 +159,8 @@ void Process_Events(
                             = *(ui_state.buildables + ui_state.selected_buildable_index);
 
                         auto tile_pos
-                            = World_Pos_To_Tile(Screen_To_World(game, rstate.mouse_pos));
+                            = World_Pos_To_Tile(Screen_To_World(game, renderer.mouse_pos)
+                            );
                         if (Pos_Is_In_Bounds(tile_pos, game.world.size)) {
                             switch (selected_buildable.type) {
                             case Item_To_Build_Type::Road: {
@@ -182,9 +183,9 @@ void Process_Events(
                     }
                 }
                 else if (event.type == Mouse_Button_Type::Right) {
-                    rstate.panning       = true;
-                    rstate.pan_start_pos = event.position;
-                    rstate.pan_offset    = v2i(0, 0);
+                    renderer.panning       = true;
+                    renderer.pan_start_pos = event.position;
+                    renderer.pan_offset    = v2i(0, 0);
                 }
             }
         } break;
@@ -192,40 +193,40 @@ void Process_Events(
         case Event_Type::Mouse_Released: {
             PROCESS_EVENTS_CONSUME(Mouse_Released, event);
 
-            rstate.mouse_pos = event.position;
+            renderer.mouse_pos = event.position;
 
             if (event.type == Mouse_Button_Type::Left) {
             }
             else if (event.type == Mouse_Button_Type::Right) {
-                rstate.panning    = false;
-                rstate.pan_pos    = (v2i)rstate.pan_pos + (v2i)rstate.pan_offset;
-                rstate.pan_offset = v2i(0, 0);
+                renderer.panning    = false;
+                renderer.pan_pos    = (v2i)renderer.pan_pos + (v2i)renderer.pan_offset;
+                renderer.pan_offset = v2i(0, 0);
             }
         } break;
 
         case Event_Type::Mouse_Moved: {
             PROCESS_EVENTS_CONSUME(Mouse_Moved, event);
 
-            if (rstate.panning)
-                rstate.pan_offset = event.position - rstate.pan_start_pos;
+            if (renderer.panning)
+                renderer.pan_offset = event.position - renderer.pan_start_pos;
 
-            rstate.mouse_pos = event.position;
+            renderer.mouse_pos = event.position;
         } break;
 
         case Event_Type::Mouse_Scrolled: {
             PROCESS_EVENTS_CONSUME(Mouse_Scrolled, event);
 
             if (event.value > 0) {
-                rstate.zoom_target *= 2.0f;
+                renderer.zoom_target *= 2.0f;
             }
             else if (event.value < 0) {
-                rstate.zoom_target /= 2.0f;
+                renderer.zoom_target /= 2.0f;
             }
             else {
                 INVALID_PATH;
             }
 
-            rstate.zoom_target = MAX(1.0f, MIN(4.0f, rstate.zoom_target));
+            renderer.zoom_target = MAX(1.0f, MIN(4.0f, renderer.zoom_target));
         } break;
 
         case Event_Type::Keyboard_Pressed: {
@@ -361,8 +362,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         editor_data = Default_Editor_Data();
 
     if (!first_time_initializing) {
-        auto& rstate = Assert_Deref(game.renderer_state);
-        ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
+        auto& renderer = Assert_Deref(game.renderer);
+        ImGui::Text("Mouse %d.%d", renderer.mouse_pos.x, renderer.mouse_pos.y);
 
         if (ImGui::SliderInt(
                 "Terrain Octaves", &editor_data.terrain_perlin.octaves, 1, 9
@@ -566,12 +567,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         memory.is_initialized = true;
     }
 
-    if (game.renderer_state != nullptr && game.renderer_state->shaders_compilation_failed)
+    if (game.renderer != nullptr && game.renderer->shaders_compilation_failed)
         ImGui::Text("ERROR: Shaders compilation failed!");
 
     // TODO: Оно ругается на null-pointer dereference. Если так написать, норм?
-    if (game.renderer_state != nullptr)
-        game.renderer_state->bitmap = &bitmap;
+    if (game.renderer != nullptr)
+        game.renderer->bitmap = &bitmap;
     else
         INVALID_PATH;
 
