@@ -1,3 +1,37 @@
+//----------------------------------------------------------------------------------
+// Простые функции.
+//----------------------------------------------------------------------------------
+
+#define Array_Push(array, array_count, array_max_count, value) \
+    STATEMENT({                                                \
+        *((array) + (array_count)) = value;                    \
+        (array_count)++;                                       \
+        Assert((array_count) <= (array_max_count));            \
+    })
+
+template <typename T>
+BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
+    Assert(array_count > 0);
+    T result = *(array + array_count - 1);
+    array_count--;
+    return result;
+}
+
+#define Array_Reverse(array, count)          \
+    STATEMENT({                              \
+        Assert((count) >= 0);                \
+        FOR_RANGE (i32, l, (count) / 2) {    \
+            auto r         = (count)-l - 1;  \
+            auto t         = *((array) + l); \
+            *((array) + l) = *((array) + r); \
+            *((array) + r) = t;              \
+        }                                    \
+    })
+
+//----------------------------------------------------------------------------------
+// Контейнеры.
+//----------------------------------------------------------------------------------
+
 #define CONTAINER_ALLOCATOR                                           \
     auto allocator      = (Allocator_function_t)container.allocator_; \
     auto allocator_data = container.allocator_data_;                  \

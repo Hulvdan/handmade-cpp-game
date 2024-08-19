@@ -1,31 +1,5 @@
 #define GRID_PTR_VALUE(arr_ptr, pos) (*((arr_ptr) + gsize.x * (pos).y + (pos).x))
 
-#define Array_Push(array, array_count, array_max_count, value) \
-    STATEMENT({                                                \
-        *((array) + (array_count)) = value;                    \
-        (array_count)++;                                       \
-        Assert((array_count) <= (array_max_count));            \
-    })
-
-template <typename T>
-BF_FORCE_INLINE T Array_Pop(T* array, auto& array_count) {
-    Assert(array_count > 0);
-    T result = *(array + array_count - 1);
-    array_count--;
-    return result;
-}
-
-#define Array_Reverse(array, count)          \
-    STATEMENT({                              \
-        Assert((count) >= 0);                \
-        FOR_RANGE (i32, l, (count) / 2) {    \
-            auto r         = (count)-l - 1;  \
-            auto t         = *((array) + l); \
-            *((array) + l) = *((array) + r); \
-            *((array) + r) = t;              \
-        }                                    \
-    })
-
 bool Have_Some_Of_The_Same_Vertices(const Graph_Segment& s1, const Graph_Segment& s2) {
     FOR_RANGE (i32, i1, s1.vertices_count) {
         auto& v1 = *(s1.vertices + i1);
@@ -333,8 +307,6 @@ void Place_Building(
 
         sprite.texture = state.renderer_state->building_in_progress_texture;
     }
-
-    // state.renderer_state->sprites.Add(bid, sprite, ctx);
 
     auto& tile = *(game_map.element_tiles + gsize.x * pos.y + pos.x);
     Assert(tile.type == Element_Tile_Type::None);
