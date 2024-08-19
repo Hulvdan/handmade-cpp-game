@@ -179,10 +179,10 @@ int Get_Road_Texture_Number(Element_Tile* element_tiles, v2i16 pos, v2i16 gsize)
 }
 
 void Init_Renderer(
-    bool        first_time_initializing,
-    bool        hot_reloaded,
-    Game_State& state,
-    Arena&      arena,
+    bool   first_time_initializing,
+    bool   hot_reloaded,
+    Game&  game,
+    Arena& arena,
     Arena& /* non_persistent_arena */,
     Arena& /* trash_arena */,
     MCTX
@@ -208,7 +208,7 @@ void Init_Renderer(
     }
 
     if (first_time_initializing)
-        state.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
+        game.renderer_state = Allocate_Zeros_For(arena, Game_Renderer_State);
 }
 
 void Add_Building_Sprite(
@@ -270,12 +270,12 @@ void Print_Shader_Compilation_Logs(BFGL_Create_Shader_Result result) {
 }
 
 void Post_Init_Renderer(
-    bool        first_time_initializing,
-    bool        hot_reloaded,
-    Game_State& state,
-    Arena&      arena,
-    Arena&      non_persistent_arena,
-    Arena&      trash_arena,
+    bool   first_time_initializing,
+    bool   hot_reloaded,
+    Game&  game,
+    Arena& arena,
+    Arena& non_persistent_arena,
+    Arena& trash_arena,
     MCTX
 ) {
     if (!first_time_initializing && !hot_reloaded)
@@ -286,12 +286,12 @@ void Post_Init_Renderer(
 
     SCOPED_LOG_INIT("Post_Init_Renderer");
 
-    auto& rstate = Assert_Deref(state.renderer_state);
+    auto& rstate = Assert_Deref(game.renderer_state);
 
     rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
     auto& ui_state  = *rstate.ui_state;
 
-    auto& world = state.world;
+    auto& world = game.world;
     auto  gsize = world.size;
 
     rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
@@ -540,7 +540,7 @@ void main() {
     }
 
     {
-        auto& art = *state.gamelib->art();
+        auto& art = *game.gamelib->art();
 
         rstate.human_texture                = art.human();
         rstate.building_in_progress_texture = art.building_in_progress();
@@ -574,21 +574,21 @@ void main() {
         rstate.forest_top_tile_id   = 3;
         rstate.flag_tile_id         = 4;
 
-        auto& resources = *state.gamelib->resources();
-        Assert(resources.size() == state.scriptable_resources_count);
+        auto& resources = *game.gamelib->resources();
+        Assert(resources.size() == game.scriptable_resources_count);
 
-        FOR_RANGE (int, i, state.scriptable_resources_count) {
+        FOR_RANGE (int, i, game.scriptable_resources_count) {
             const auto& lib_instance = *resources.Get(i);
 
-            auto& resource         = state.scriptable_resources[i];
+            auto& resource         = game.scriptable_resources[i];
             resource.texture       = lib_instance.texture();
             resource.small_texture = lib_instance.small_texture();
         }
 
-        FOR_RANGE (int, i, state.scriptable_buildings_count) {
-            const auto& lib_instance = *state.gamelib->buildings()->Get(i);
+        FOR_RANGE (int, i, game.scriptable_buildings_count) {
+            const auto& lib_instance = *game.gamelib->buildings()->Get(i);
 
-            auto& building   = state.scriptable_buildings[i];
+            auto& building   = game.scriptable_buildings[i];
             building.texture = lib_instance.texture();
         }
     }
@@ -750,8 +750,8 @@ void main() {
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
 
     int buildable_buildings_count = 0;
-    FOR_RANGE (int, i, state.scriptable_buildings_count) {
-        if (state.scriptable_buildings[i].can_be_built) {
+    FOR_RANGE (int, i, game.scriptable_buildings_count) {
+        if (game.scriptable_buildings[i].can_be_built) {
             buildable_buildings_count++;
         }
     }
@@ -762,8 +762,8 @@ void main() {
     ui_state.buildables[0].scriptable_building = nullptr;
 
     auto ii = 1;
-    FOR_RANGE (int, i, state.scriptable_buildings_count) {
-        auto scriptable_building = state.scriptable_buildings + i;
+    FOR_RANGE (int, i, game.scriptable_buildings_count) {
+        auto scriptable_building = game.scriptable_buildings + i;
         if (scriptable_building->can_be_built) {
             auto& buildable = ui_state.buildables[ii];
 
@@ -790,10 +790,10 @@ void main() {
     ui_state.selected_buildable_color.b     = 176.0f / 255.0f;
 }
 
-void Deinit_Renderer(Game_State& state, MCTX) {
+void Deinit_Renderer(Game& game, MCTX) {
     CTX_ALLOCATOR;
 
-    auto& rstate = *state.renderer_state;
+    auto& rstate = *game.renderer_state;
 
     // TODO: deinit `rstate.sprites`
 
@@ -934,13 +934,13 @@ void Draw_UI_Sprite(
     BFGL_Unload_Vertex_Array(vao);
 };
 
-v2f World_To_Screen(Game_State& state, v2f pos) {
-    auto&        rstate = Assert_Deref(state.renderer_state);
+v2f World_To_Screen(Game& game, v2f pos) {
+    auto&        rstate = Assert_Deref(game.renderer_state);
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     auto swidth    = (f32)bitmap.width;
     auto sheight   = (f32)bitmap.height;
-    auto gsize     = state.world.size;
+    auto gsize     = game.world.size;
     auto cell_size = rstate.cell_size;
 
     auto projection = glm::mat3(1);
@@ -953,13 +953,13 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
     return projection * v3f(pos.x, pos.y, 1);
 }
 
-v2f Screen_To_World(Game_State& state, v2f pos) {
-    auto&        rstate = Assert_Deref(state.renderer_state);
+v2f Screen_To_World(Game& game, v2f pos) {
+    auto&        rstate = Assert_Deref(game.renderer_state);
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     auto swidth    = (f32)bitmap.width;
     auto sheight   = (f32)bitmap.height;
-    auto gsize     = state.world.size;
+    auto gsize     = game.world.size;
     auto cell_size = rstate.cell_size;
 
     auto projection     = glm::mat3(1);
@@ -1079,9 +1079,8 @@ struct Get_Buildable_Textures_Result {
     Texture_ID* textures;
 };
 
-Get_Buildable_Textures_Result
-Get_Buildable_Textures(Arena& trash_arena, Game_State& state) {
-    auto& rstate   = Assert_Deref(state.renderer_state);
+Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game& game) {
+    auto& rstate   = Assert_Deref(game.renderer_state);
     auto& ui_state = Assert_Deref(rstate.ui_state);
 
     Get_Buildable_Textures_Result res{};
@@ -1191,13 +1190,13 @@ glm::mat3 Get_UI_Projection_Matrix(v2f screen_size) {
     return mat;
 }
 
-void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
-    auto& rstate   = *state.renderer_state;
+void Render_UI(Game& game, f32 /* dt */, MCTX_) {
+    auto& rstate   = *game.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
-    auto& world = state.world;
+    auto& world = game.world;
 
-    Arena& trash_arena = state.trash_arena;
+    Arena& trash_arena = game.trash_arena;
     TEMP_USAGE(trash_arena);
 
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
@@ -1301,7 +1300,7 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
                 );
             }
 
-            auto buildable_textures = Get_Buildable_Textures(trash_arena, state);
+            auto buildable_textures = Get_Buildable_Textures(trash_arena, game);
 
             auto buildable_size = v2f(psize) * (2.0f / 3.0f);
             FOR_RANGE (int, i, placeholders) {
@@ -1441,17 +1440,17 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
     );
 }
 
-void Render(Game_State& state, f32 dt, MCTX) {
+void Render(Game& game, f32 dt, MCTX) {
     CTX_ALLOCATOR;
     CTX_LOGGER;
 
     ZoneScoped;
 
-    Arena& trash_arena = state.trash_arena;
+    Arena& trash_arena = game.trash_arena;
     TEMP_USAGE(trash_arena);
 
-    auto&        rstate = Assert_Deref(state.renderer_state);
-    auto&        world  = state.world;
+    auto&        rstate = Assert_Deref(game.renderer_state);
+    auto&        world  = game.world;
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
     const auto gsize     = world.size;
@@ -1465,7 +1464,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
     // Обработка зума карты к курсору.
     // TODO: Зафиксить небольшую неточность, небольшой телепорт в самом конце анимации.
     {
-        auto cursor_on_tilemap_pos = Screen_To_World(state, rstate.mouse_pos);
+        auto cursor_on_tilemap_pos = Screen_To_World(game, rstate.mouse_pos);
         ImGui::Text(
             "Tilemap %.3f.%.3f", cursor_on_tilemap_pos.x, cursor_on_tilemap_pos.y
         );
@@ -1474,13 +1473,13 @@ void Render(Game_State& state, f32 dt, MCTX) {
             = Move_Towards(rstate.zoom, rstate.zoom_target, 2 * dt * rstate.zoom);
         rstate.zoom = new_zoom;
 
-        auto cursor_on_tilemap_pos2 = Screen_To_World(state, rstate.mouse_pos);
+        auto cursor_on_tilemap_pos2 = Screen_To_World(game, rstate.mouse_pos);
 
         auto cursor_d = cursor_on_tilemap_pos2 - cursor_on_tilemap_pos;
 
         rstate.pan_pos += cursor_d * (f32)(rstate.zoom * cell_size);
 
-        auto d3 = World_To_Screen(state, v2f(0, 0));
+        auto d3 = World_To_Screen(game, v2f(0, 0));
         ImGui::Text("d3 %.3f.%.3f", d3.x, d3.y);
 
         auto d4 = World_Pos_To_Tile(cursor_on_tilemap_pos2);
@@ -1856,21 +1855,21 @@ void Render(Game_State& state, f32 dt, MCTX) {
 
     SANITIZE;
 
-    Render_UI(state, dt, ctx);
+    Render_UI(game, dt, ctx);
 
     SANITIZE;
 }
 
-// NOTE: Game_State& state, v2i16 pos, Item_To_Build item
+// NOTE: Game& game, v2i16 pos, Item_To_Build item
 On_Item_Built_function(Renderer_OnItemBuilt) {
     UNUSED(item);
 
-    Assert(state.renderer_state != nullptr);
+    Assert(game.renderer_state != nullptr);
 
     CTX_ALLOCATOR;
 
-    auto& rstate = *state.renderer_state;
-    auto& world  = state.world;
+    auto& rstate = *game.renderer_state;
+    auto& world  = game.world;
     auto  gsize  = world.size;
 
     // Тут рисуются дороги.
@@ -1934,9 +1933,9 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
     }
 }
 
-// Game_State& state, const Human_ID& id, Human& human, MCTX
+// Game& game, const Human_ID& id, Human& human, MCTX
 On_Human_Created_function(Renderer_OnHumanCreated) {
-    auto& rstate = *state.renderer_state;
+    auto& rstate = *game.renderer_state;
 
     C_Sprite human_sprite{};
     human_sprite.pos      = v2f(human.moving.pos) + v2f_one / 2.0f;
@@ -1953,7 +1952,7 @@ On_Human_Created_function(Renderer_OnHumanCreated) {
     }
 }
 
-// Game_State&          state,
+// Game&          game,
 // const Human_ID&      id,
 // Human&               human,
 // Human_Removal_Reason reason,
@@ -1965,7 +1964,7 @@ On_Human_Removed_function(Renderer_OnHumanRemoved) {
     CTX_LOGGER;
     LOG_DEBUG("Renderer_OnHumanRemoved");
 
-    auto& rstate = *state.renderer_state;
+    auto& rstate = *game.renderer_state;
 
     rstate.sprites.Unstable_Remove(id);
 }

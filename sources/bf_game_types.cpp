@@ -3,7 +3,7 @@
 //----------------------------------------------------------------------------------
 //
 // SHIT: Oh, god, I hate this shit
-struct Game_State;
+struct Game;
 struct Human;
 struct Human_Data;
 struct Building;
@@ -613,18 +613,14 @@ struct World {
 };
 
 #define On_Item_Built_function(name_) \
-    void name_(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX)
+    void name_(Game& game, v2i16 pos, const Item_To_Build& item, MCTX)
 
 #define On_Human_Created_function(name_) \
-    void name_(Game_State& state, const Human_ID& id, Human& human, MCTX)
+    void name_(Game& game, const Human_ID& id, Human& human, MCTX)
 
-#define On_Human_Removed_function(name_) \
-    void name_(                          \
-        Game_State&          state,      \
-        const Human_ID&      id,         \
-        Human&               human,      \
-        Human_Removal_Reason reason,     \
-        MCTX                             \
+#define On_Human_Removed_function(name_)                                                \
+    void name_(                                                                         \
+        Game& game, const Human_ID& id, Human& human, Human_Removal_Reason reason, MCTX \
     )
 
 On_Item_Built_function(On_Item_Built);
@@ -659,7 +655,7 @@ Editor_Data Default_Editor_Data() {
     return result;
 }
 
-struct Game_State {
+struct Game {
     bool hot_reloaded      = {};
     u16  dll_reloads_count = {};
 
@@ -688,8 +684,8 @@ struct Game_State {
 };
 
 struct Game_Memory {
-    bool       is_initialized = {};
-    Game_State state          = {};
+    bool is_initialized = {};
+    Game game           = {};
 };
 
 enum class Tile_Updated_Type {

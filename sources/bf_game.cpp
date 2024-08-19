@@ -50,9 +50,9 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #endif
 // NOLINTEND(bugprone-suspicious-include)
 
-bool UI_Clicked(Game_State& state) {
-    auto& world    = state.world;
-    auto& rstate   = *state.renderer_state;
+bool UI_Clicked(Game& game) {
+    auto& world    = game.world;
+    auto& rstate   = *game.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
@@ -129,13 +129,13 @@ bool UI_Clicked(Game_State& state) {
     events += sizeof(event_type_);
 
 void Process_Events(
-    Game_State& state,
-    const u8*   events,
-    size_t      input_events_count,
+    Game&     game,
+    const u8* events,
+    size_t    input_events_count,
     float /* dt */,
     MCTX
 ) {
-    auto& rstate   = *state.renderer_state;
+    auto& rstate   = *game.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
     while (input_events_count > 0) {
@@ -149,7 +149,7 @@ void Process_Events(
 
             rstate.mouse_pos = event.position;
 
-            if (!UI_Clicked(state)) {
+            if (!UI_Clicked(game)) {
                 if (event.type == Mouse_Button_Type::Left) {
                     if (ui_state.selected_buildable_index >= 0) {
                         Assert(
@@ -159,20 +159,20 @@ void Process_Events(
                             = *(ui_state.buildables + ui_state.selected_buildable_index);
 
                         auto tile_pos
-                            = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
-                        if (Pos_Is_In_Bounds(tile_pos, state.world.size)) {
+                            = World_Pos_To_Tile(Screen_To_World(game, rstate.mouse_pos));
+                        if (Pos_Is_In_Bounds(tile_pos, game.world.size)) {
                             switch (selected_buildable.type) {
                             case Item_To_Build_Type::Road: {
-                                Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
-                                Try_Build(state, tile_pos, Item_To_Build_Road, ctx);
+                                Try_Build(game, tile_pos, Item_To_Build_Flag, ctx);
+                                Try_Build(game, tile_pos, Item_To_Build_Road, ctx);
                             } break;
 
                             case Item_To_Build_Type::Flag: {
-                                Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
+                                Try_Build(game, tile_pos, Item_To_Build_Flag, ctx);
                             } break;
 
                             case Item_To_Build_Type::Building: {
-                                Try_Build(state, tile_pos, selected_buildable, ctx);
+                                Try_Build(game, tile_pos, selected_buildable, ctx);
                             } break;
 
                             default:
@@ -250,9 +250,9 @@ void Process_Events(
             Assert(event.axis <= 1);
 
             if (event.axis == 0)
-                state.player_pos.x += event.value;
+                game.player_pos.x += event.value;
             else
-                state.player_pos.y -= event.value;
+                game.player_pos.y -= event.value;
         } break;
 
         default:
@@ -287,19 +287,19 @@ Load_Game_Library(Arena* arena_p, Arena* trash_arena_p, MCTX) {
 
 On_Item_Built_function(On_Item_Built) {
 #if BF_CLIENT
-    Renderer_OnItemBuilt(state, pos, item, ctx);
+    Renderer_OnItemBuilt(game, pos, item, ctx);
 #endif
 }
 
 On_Human_Created_function(On_Human_Created) {
 #if BF_CLIENT
-    Renderer_OnHumanCreated(state, id, human, ctx);
+    Renderer_OnHumanCreated(game, id, human, ctx);
 #endif
 }
 
 On_Human_Removed_function(On_Human_Removed) {
 #if BF_CLIENT
-    Renderer_OnHumanRemoved(state, id, human, reason, ctx);
+    Renderer_OnHumanRemoved(game, id, human, reason, ctx);
 #endif
 }
 
@@ -335,8 +335,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
 
     auto& memory = *Allocate_For(root_arena, Game_Memory);
 
-    Game_State& state  = memory.state;
-    state.hot_reloaded = hot_reloaded;
+    Game& game        = memory.game;
+    game.hot_reloaded = hot_reloaded;
 
     auto first_time_initializing = !memory.is_initialized;
 
@@ -354,14 +354,14 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         library_integration_data.game_context_set = true;
     }
 
-    auto& editor_data = state.editor_data;
+    auto& editor_data = game.editor_data;
 
     // --- IMGUI ---
     if (first_time_initializing)
         editor_data = Default_Editor_Data();
 
     if (!first_time_initializing) {
-        auto& rstate = Assert_Deref(state.renderer_state);
+        auto& rstate = Assert_Deref(game.renderer_state);
         ImGui::Text("Mouse %d.%d", rstate.mouse_pos.x, rstate.mouse_pos.y);
 
         if (ImGui::SliderInt(
@@ -419,14 +419,14 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     }
     // --- IMGUI END ---
 
-    if (!first_time_initializing && state.hot_reloaded) {
+    if (!first_time_initializing && game.hot_reloaded) {
         SCOPED_LOG_INIT("Deinitializing world");
-        Deinit_World(state, ctx);
+        Deinit_World(game, ctx);
     }
 
-    if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
+    if (first_time_initializing || editor_data.changed || game.hot_reloaded) {
         SCOPED_LOG_INIT(
-            "first_time_initializing || editor_data.changed || state.hot_reloaded"
+            "first_time_initializing || editor_data.changed || game.hot_reloaded"
         );
         editor_data.changed = false;
 
@@ -436,42 +436,42 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
                           - trash_arena_size;
 
         // NOTE: `arena` remains the same after hot reloading. Others get reset
-        auto& arena                = state.arena;
-        auto& non_persistent_arena = state.non_persistent_arena;
-        auto& trash_arena          = state.trash_arena;
+        auto& arena                = game.arena;
+        auto& non_persistent_arena = game.non_persistent_arena;
+        auto& trash_arena          = game.trash_arena;
 
         Map_Arena(root_arena, arena, arena_size);
         Map_Arena(root_arena, non_persistent_arena, non_persistent_arena_size);
         Map_Arena(root_arena, trash_arena, trash_arena_size);
 
         if (first_time_initializing)
-            state.gamelib = Load_Game_Library(&arena, &trash_arena, ctx);
+            game.gamelib = Load_Game_Library(&arena, &trash_arena, ctx);
 
         Reset_Arena(non_persistent_arena);
         Reset_Arena(trash_arena);
 
-        state.arena.debug_name          = "arena";
+        game.arena.debug_name           = "arena";
         non_persistent_arena.debug_name = Text_Format_To_Arena(
-            non_persistent_arena, "non_persistent_arena_%d", state.dll_reloads_count
+            non_persistent_arena, "non_persistent_arena_%d", game.dll_reloads_count
         );
         trash_arena.debug_name = Text_Format_To_Arena(
-            non_persistent_arena, "trash_arena_%d", state.dll_reloads_count
+            non_persistent_arena, "trash_arena_%d", game.dll_reloads_count
         );
 
-        Initialize_As_Zeros<World>(state.world);
-        state.world.size = {32, 24};
-        auto& gsize      = state.world.size;
+        Initialize_As_Zeros<World>(game.world);
+        game.world.size = {32, 24};
+        auto& gsize     = game.world.size;
 
         auto tiles_count = (size_t)gsize.x * gsize.y;
-        state.world.terrain_tiles
+        game.world.terrain_tiles
             = Allocate_Zeros_Array(non_persistent_arena, Terrain_Tile, tiles_count);
-        state.world.terrain_resources
+        game.world.terrain_resources
             = Allocate_Zeros_Array(non_persistent_arena, Terrain_Resource, tiles_count);
-        state.world.element_tiles
+        game.world.element_tiles
             = Allocate_Zeros_Array(non_persistent_arena, Element_Tile, tiles_count);
 
         if (first_time_initializing) {
-            auto resources = state.gamelib->resources();
+            auto resources = game.gamelib->resources();
 
             auto new_resources
                 = Allocate_Array(arena, Scriptable_Resource, resources->size());
@@ -482,18 +482,18 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
                 new_resource.code  = resource->code()->c_str();
             }
 
-            state.scriptable_resources_count = resources->size();
-            state.scriptable_resources       = new_resources;
+            game.scriptable_resources_count = resources->size();
+            game.scriptable_resources       = new_resources;
         }
 
         // Инициализация scriptable_buildings.
-        auto s = state.gamelib->buildings()->size();
-        state.scriptable_buildings
+        auto s = game.gamelib->buildings()->size();
+        game.scriptable_buildings
             = Allocate_Zeros_Array(non_persistent_arena, Scriptable_Building, s);
-        state.scriptable_buildings_count = s;
+        game.scriptable_buildings_count = s;
         FOR_RANGE (int, i, s) {
-            auto& building    = state.scriptable_buildings[i];
-            auto& libbuilding = *state.gamelib->buildings()->Get(i);
+            auto& building    = game.scriptable_buildings[i];
+            auto& libbuilding = *game.gamelib->buildings()->Get(i);
 
             building.code                 = libbuilding.code()->c_str();
             building.type                 = (Building_Type)libbuilding.type();
@@ -515,8 +515,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
                     auto count    = resource->count();
 
                     Scriptable_Resource* scriptable_resource = nullptr;
-                    FOR_RANGE (int, k, state.scriptable_resources_count) {
-                        auto res = state.scriptable_resources + k;
+                    FOR_RANGE (int, k, game.scriptable_resources_count) {
+                        auto res = game.scriptable_resources + k;
                         if (strcmp(res->code, code) == 0) {
                             scriptable_resource = res;
                             break;
@@ -531,12 +531,12 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         }
 
         Init_World(
-            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
+            first_time_initializing, game.hot_reloaded, game, non_persistent_arena, ctx
         );
         Init_Renderer(
             first_time_initializing,
-            state.hot_reloaded,
-            state,
+            game.hot_reloaded,
+            game,
             arena,
             non_persistent_arena,
             trash_arena,
@@ -544,19 +544,19 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         );
 
         Regenerate_Terrain_Tiles(
-            state, state.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
+            game, game.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
         Regenerate_Element_Tiles(
-            state, state.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
+            game, game.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
         Post_Init_World(
-            first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
+            first_time_initializing, game.hot_reloaded, game, non_persistent_arena, ctx
         );
         Post_Init_Renderer(
             first_time_initializing,
-            state.hot_reloaded,
-            state,
+            game.hot_reloaded,
+            game,
             arena,
             non_persistent_arena,
             trash_arena,
@@ -566,24 +566,23 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         memory.is_initialized = true;
     }
 
-    if (state.renderer_state != nullptr
-        && state.renderer_state->shaders_compilation_failed)
+    if (game.renderer_state != nullptr && game.renderer_state->shaders_compilation_failed)
         ImGui::Text("ERROR: Shaders compilation failed!");
 
     // TODO: Оно ругается на null-pointer dereference. Если так написать, норм?
-    if (state.renderer_state != nullptr)
-        state.renderer_state->bitmap = &bitmap;
+    if (game.renderer_state != nullptr)
+        game.renderer_state->bitmap = &bitmap;
     else
         INVALID_PATH;
 
     Assert(bitmap.bits_per_pixel == 32);
     auto pixel = (u32*)bitmap.memory;
 
-    auto offset_x = (i32)state.offset_x;
-    auto offset_y = (i32)state.offset_y;
+    auto offset_x = (i32)game.offset_x;
+    auto offset_y = (i32)game.offset_y;
 
-    state.offset_y += dt * 24.0f;
-    state.offset_x += dt * 32.0f;
+    game.offset_y += dt * 24.0f;
+    game.offset_x += dt * 32.0f;
 
     const auto player_radius = 24;
 
@@ -599,8 +598,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             // u32 blue = (u8)(x + offset_x);
             u32 blue = (u8)(y + offset_y);
 
-            auto dx = x - (i32)state.player_pos.x;
-            auto dy = y - (i32)state.player_pos.y;
+            auto dx = x - (i32)game.player_pos.x;
+            auto dy = y - (i32)game.player_pos.y;
             if (dx * dx + dy * dy < player_radius * player_radius) {
                 const auto player_color = 255;
                 red                     = player_color;
@@ -612,10 +611,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         }
     }
 
-    auto& trash_arena = state.trash_arena;
+    auto& trash_arena = game.trash_arena;
     TEMP_USAGE(trash_arena);
 
-    Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);
-    Update_World(state, dt, ctx);
-    Render(state, dt, ctx);
+    Process_Events(game, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);
+    Update_World(game, dt, ctx);
+    Render(game, dt, ctx);
 }

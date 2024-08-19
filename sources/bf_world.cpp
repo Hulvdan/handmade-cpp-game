@@ -249,13 +249,13 @@ World_Resource_ID Next_World_Resource_ID(Entity_ID& last_entity_id) {
 }
 
 void Place_Building(
-    Game_State&          state,
+    Game&                game,
     v2i16                pos,
     Scriptable_Building* scriptable,
     bool                 built,
     MCTX
 ) {
-    auto& world = state.world;
+    auto& world = game.world;
     auto  gsize = world.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
@@ -263,7 +263,7 @@ void Place_Building(
     Building b{};
     b.pos        = pos;
     b.scriptable = scriptable;
-    if (!built) 
+    if (!built)
         b.remaining_construction_points = scriptable->construction_points;
 
     {
@@ -313,9 +313,9 @@ void Place_Building(
 
 // TODO: rename to Human_Controller_Dependencies
 struct Human_Data {
-    Game_State* state;
-    World*      world;
-    Arena*      trash_arena;
+    Game*  game;
+    World* world;
+    Arena* trash_arena;
 };
 
 void Root_Set_Human_State(
@@ -899,14 +899,14 @@ void Root_Set_Human_State(
 // Он добавляется в world.humans_to_add, после чего перекидывается в gama_map.humans.
 // Привязка к сегменту происходит в этот момент.
 std::tuple<Human_ID, Human*> Create_Human_Transporter(
-    Game_State&       state,
+    Game&             game,
     v2i16             pos,
     Graph_Segment_ID  segment_id,
     Player_ID         player_id,
     const Human_Data& data,
     MCTX
 ) {
-    auto& world = state.world;
+    auto& world = game.world;
 
     CTX_LOGGER;
     LOG_SCOPE;
@@ -935,7 +935,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 
     Root_Set_Human_State(*human_p, Human_States::MovingInTheWorld, data, ctx);
 
-    On_Human_Created(state, *human_id, *human_p, ctx);
+    On_Human_Created(game, *human_id, *human_p, ctx);
 
     // TODO:
     // onHumanCreated.OnNext(new() { human = human });
@@ -953,14 +953,14 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 }
 
 // void Update_Building__Constructed(
-//     Game_State&       state,
+//     Game&       game,
 //     World&         world,
 //     Building*       building,
 //     f32               dt,
 //     const Human_Data& data,
 //     MCTX
 // ) {
-//     auto& scriptable = *Get_Scriptable_Building(state, building->scriptable);
+//     auto& scriptable = *Get_Scriptable_Building(game, building->scriptable);
 //
 //     auto delay = scriptable.human_spawning_delay;
 //
@@ -982,11 +982,11 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 //     // TODO: _building_controller.Update(building, dt);
 // }
 
-void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
+void Process_City_Halls(Game& game, f32 dt, const Human_Data& data, MCTX) {
     CTX_ALLOCATOR;
     CTX_LOGGER;
 
-    auto& world = state.world;
+    auto& world = game.world;
 
     for (auto [building_id, building] : Iter(&world.buildings)) {
         for (auto [city_hall_id, city_hall] : Iter(&world.city_halls)) {
@@ -1004,7 +1004,7 @@ void Process_City_Halls(Game_State& state, f32 dt, const Human_Data& data, MCTX)
                 if (since_created >= delay) {
                     since_created -= delay;
                     Create_Human_Transporter(
-                        state,
+                        game,
                         building->pos,
                         world.segments_wo_humans.Dequeue(),
                         building->player_id,
@@ -1021,8 +1021,8 @@ void Process_Humans_Moving_To_City_Halls() {
     // TODO:
 }
 
-void Remove_Humans(Game_State& state, MCTX) {
-    auto& world = state.world;
+void Remove_Humans(Game& game, MCTX) {
+    auto& world = game.world;
 
     for (auto [id, reason_p] : Iter(&world.humans_to_remove)) {
         auto& reason = *reason_p;
@@ -1041,7 +1041,7 @@ void Remove_Humans(Game_State& state, MCTX) {
         Deinit_Queue(human.moving.path, ctx);
 
         world.humans.Unstable_Remove(id);
-        On_Human_Removed(state, id, human, reason, ctx);
+        On_Human_Removed(game, id, human, reason, ctx);
     }
 
     world.humans_to_remove.Reset();
@@ -1135,17 +1135,17 @@ void Update_Human(
     SANITIZE_HUMAN;
 }
 
-void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
+void Update_Humans(Game& game, f32 dt, const Human_Data& data, MCTX) {
     ZoneScoped;
 
     CTX_LOGGER;
 
-    auto& world = state.world;
+    auto& world = game.world;
 
     for (auto [id, reason_p] : Iter(&world.humans_to_remove))
         Assert(*reason_p != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
 
-    Remove_Humans(state, ctx);
+    Remove_Humans(game, ctx);
 
     for (auto [id, human_p] : Iter(&world.humans))
         Update_Human(world, id, human_p, dt, data, ctx);
@@ -1171,7 +1171,7 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     Assert(prev_count == world.humans_to_add.count);
     world.humans_to_add.Reset();
 
-    Remove_Humans(state, ctx);
+    Remove_Humans(game, ctx);
 
     {  // NOTE: Debug shiet.
         int humans_moving_to_destination = 0;
@@ -1199,33 +1199,33 @@ void Update_Humans(Game_State& state, f32 dt, const Human_Data& data, MCTX) {
     }
 }
 
-void Update_World(Game_State& state, float dt, MCTX) {
+void Update_World(Game& game, float dt, MCTX) {
     ZoneScoped;
 
     CTX_LOGGER;
     CTX_ALLOCATOR;
 
-    auto& world       = state.world;
-    auto& trash_arena = state.trash_arena;
+    auto& world       = game.world;
+    auto& trash_arena = game.trash_arena;
 
     ImGui::Text("world.segments.count %d", world.segments.count);
 
-    Process_City_Halls(state, dt, Assert_Deref(state.world.human_data), ctx);
-    Update_Humans(state, dt, Assert_Deref(state.world.human_data), ctx);
+    Process_City_Halls(game, dt, Assert_Deref(game.world.human_data), ctx);
+    Update_Humans(game, dt, Assert_Deref(game.world.human_data), ctx);
 
     SANITIZE;
 }
 
 void Add_World_Resource(
-    Game_State&          state,
+    Game&                game,
     Scriptable_Resource* scriptable,
     const v2i16          pos,
     MCTX
 ) {
     CTX_ALLOCATOR;
-    auto& world       = state.world;
+    auto& world       = game.world;
     auto  gsize       = world.size;
-    auto& trash_arena = state.trash_arena;
+    auto& trash_arena = game.trash_arena;
 
     World_Resource resource{};
     resource.scriptable = scriptable;
@@ -1246,8 +1246,8 @@ void Add_World_Resource(
 void Init_World(
     bool /* first_time_initializing */,
     bool /* hot_reloaded */,
-    Game_State& state,
-    Arena&      arena,
+    Game&  game,
+    Arena& arena,
     MCTX
 ) {
     CTX_LOGGER;
@@ -1265,16 +1265,16 @@ void Init_World(
     Human_States_Table;
 #undef X
 
-    auto& world = state.world;
+    auto& world = game.world;
 
     world.last_entity_id                      = 0;
     world.data.human_moving_one_tile_duration = 0.3f;
 
     {
         auto human_data         = Allocate_For(arena, Human_Data);
-        human_data->world       = &state.world;
-        human_data->trash_arena = &state.trash_arena;
-        human_data->state       = &state;
+        human_data->world       = &game.world;
+        human_data->trash_arena = &game.trash_arena;
+        human_data->game        = &game;
 
         world.human_data = human_data;
     }
@@ -1286,7 +1286,7 @@ void Init_World(
 void Post_Init_World(
     bool /* first_time_initializing */,
     bool /* hot_reloaded */,
-    Game_State& state,
+    Game& game,
     Arena& /* arena */,
     MCTX
 ) {
@@ -1294,16 +1294,16 @@ void Post_Init_World(
     SCOPED_LOG_INIT("Post_Init_World");
 
     bool built = true;
-    Place_Building(state, {4, 1}, state.scriptable_buildings + 0, built, ctx);
+    Place_Building(game, {4, 1}, game.scriptable_buildings + 0, built, ctx);
 
     // TODO: !!!
-    Assert(state.scriptable_resources_count > 0);
-    Add_World_Resource(state, state.scriptable_resources + 0, {0, 0}, ctx);
+    Assert(game.scriptable_resources_count > 0);
+    Add_World_Resource(game, game.scriptable_resources + 0, {0, 0}, ctx);
 }
 
-void Deinit_World(Game_State& state, MCTX) {
+void Deinit_World(Game& game, MCTX) {
     CTX_ALLOCATOR;
-    auto& world = state.world;
+    auto& world = game.world;
 
     for (auto [id, segment_p] : Iter(&world.segments)) {
         auto& segment = *segment_p;
@@ -1349,7 +1349,7 @@ void Deinit_World(Game_State& state, MCTX) {
 }
 
 void Regenerate_Terrain_Tiles(
-    Game_State& /* state */,
+    Game& /* game */,
     World& world,
     Arena& /* arena */,
     Arena& trash_arena,
@@ -1463,7 +1463,7 @@ void Regenerate_Terrain_Tiles(
 }
 
 void Regenerate_Element_Tiles(
-    Game_State& /* state */,
+    Game& /* game */,
     World& world,
     Arena& /* arena */,
     Arena& /* trash_arena */,
@@ -1858,7 +1858,7 @@ using Graph_Segments_To_Delete = Fixed_Size_Slice<Segment_To_Delete>;
 
 BF_FORCE_INLINE void Update_Segments(
     Arena& trash_arena,
-    Game_State& /* state */,
+    Game& /* game */,
     World&                    world,
     Graph_Segments_To_Add&    segments_to_add,
     Graph_Segments_To_Delete& segments_to_delete,
@@ -2540,34 +2540,34 @@ std::tuple<int, int> Update_Tiles(
     auto type__            = (type_);                      \
     (variable_name_).type  = &type__;
 
-#define INVOKE_UPDATE_TILES                                                             \
-    STATEMENT({                                                                         \
-        Update_Tiles(                                                                   \
-            state.world.size,                                                           \
-            state.world.element_tiles,                                                  \
-            &state.world.segments,                                                      \
-            trash_arena,                                                                \
-            updated_tiles,                                                              \
-            [&world, &trash_arena, &state](                                             \
-                Graph_Segments_To_Add&    segments_to_add,                              \
-                Graph_Segments_To_Delete& segments_to_delete,                           \
-                MCTX                                                                    \
-            ) {                                                                         \
-                Update_Segments(                                                        \
-                    trash_arena, state, world, segments_to_add, segments_to_delete, ctx \
-                );                                                                      \
-            },                                                                          \
-            ctx                                                                         \
-        );                                                                              \
+#define INVOKE_UPDATE_TILES                                                            \
+    STATEMENT({                                                                        \
+        Update_Tiles(                                                                  \
+            game.world.size,                                                           \
+            game.world.element_tiles,                                                  \
+            &game.world.segments,                                                      \
+            trash_arena,                                                               \
+            updated_tiles,                                                             \
+            [&world, &trash_arena, &game](                                             \
+                Graph_Segments_To_Add&    segments_to_add,                             \
+                Graph_Segments_To_Delete& segments_to_delete,                          \
+                MCTX                                                                   \
+            ) {                                                                        \
+                Update_Segments(                                                       \
+                    trash_arena, game, world, segments_to_add, segments_to_delete, ctx \
+                );                                                                     \
+            },                                                                         \
+            ctx                                                                        \
+        );                                                                             \
     })
 
-bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
+bool Try_Build(Game& game, v2i16 pos, const Item_To_Build& item, MCTX) {
     CTX_LOGGER;
-    auto& arena                = state.arena;
-    auto& non_persistent_arena = state.non_persistent_arena;
-    auto& trash_arena          = state.trash_arena;
+    auto& arena                = game.arena;
+    auto& non_persistent_arena = game.non_persistent_arena;
+    auto& trash_arena          = game.trash_arena;
 
-    auto& world = state.world;
+    auto& world = game.world;
     auto  gsize = world.size;
     Assert(Pos_Is_In_Bounds(pos, gsize));
 
@@ -2632,7 +2632,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
             return false;
 
         bool built = false;
-        Place_Building(state, pos, item.scriptable_building, built, ctx);
+        Place_Building(game, pos, item.scriptable_building, built, ctx);
 
         Declare_Updated_Tiles(updated_tiles, pos, Tile_Updated_Type::Building_Placed);
 
@@ -2649,7 +2649,7 @@ bool Try_Build(Game_State& state, v2i16 pos, const Item_To_Build& item, MCTX) {
         INVALID_PATH;
     }
 
-    On_Item_Built(state, pos, item, ctx);
+    On_Item_Built(game, pos, item, ctx);
 
     return true;
 }
