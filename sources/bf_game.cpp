@@ -303,15 +303,20 @@ On_Human_Removed_function(On_Human_Removed) {
 #endif
 }
 
+// f32                       dt
+// void*                     memory_ptr
+// size_t                    memory_size
+// Game_Bitmap&              bitmap
+// void*                     input_events_bytes_ptr
+// size_t                    input_events_count
+// Library_Integration_Data& library_integration_data
+// bool                      hot_reloaded
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
-    Context _ctx(
-        0,
-        nullptr,
-        nullptr,
-        library_integration_data.logger_data,
-        (Logger_function_t)library_integration_data.logger_routine,
-        (Logger_Scope_function_t)library_integration_data.logger_scope_routine
-    );
+    Context _ctx{};
+    _ctx.logger_data          = library_integration_data.logger_data;
+    _ctx.logger_routine       = library_integration_data.logger_routine;
+    _ctx.logger_scope_routine = library_integration_data.logger_scope_routine;
+
     auto ctx = &_ctx;
     CTX_LOGGER;
 

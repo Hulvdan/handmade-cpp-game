@@ -6,9 +6,9 @@ enum class Log_Type {
 };
 
 #define Logger_function(name_) \
-    void name_(void* logger_data, Log_Type log_type, const char* message)
+    void name_(void* logger_data, Log_Type log_type, const char* message) noexcept
 #define Logger_Scope_function(name_) \
-    void name_(void* logger_data, bool push, const char* location)
+    void name_(void* logger_data, bool push, const char* location) noexcept
 
 using Logger_function_t       = Logger_function((*));
 using Logger_Scope_function_t = Logger_Scope_function((*));

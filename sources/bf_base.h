@@ -98,6 +98,8 @@ void DEBUG_Print(const char* text, ...) {
 #define Member(T, m) (((T*)nullptr)->m)
 #define Offset_Of_Member(T, m) Int_From_Ptr(&Member(T, m))
 
+using void_func = void (*)();
+
 using v2f   = glm::vec2;
 using v2i   = glm::ivec2;
 using v2u   = glm::uvec2;
@@ -287,8 +289,8 @@ struct Arrow_Proxy {
 //         int field1;
 //         int field2;
 //
-//         NOTE: Требуется реализовать этот метод
-//         bool Equal_To(const A& other) {
+//         NOTE: Требуется реализовать этот метод.
+//         [[nodiscard]] bool Equal_To(const A& other) {
 //             auto result = (
 //                 field1 == other.field1
 //                 && field2 == other.field2
@@ -296,6 +298,7 @@ struct Arrow_Proxy {
 //             return result;
 //         }
 //     }
+//
 template <typename Derived>
 struct Equatable {
 private:

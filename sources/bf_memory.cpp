@@ -73,7 +73,7 @@ enum class Allocator_Mode {
         void*          old_memory_ptr,              \
         void*          allocator_data,              \
         u64            options                      \
-    )
+    ) noexcept
 
 using Allocator_function_t = Allocator_function((*));
 

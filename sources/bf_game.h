@@ -58,9 +58,9 @@ struct GAME_LIBRARY_EXPORT Library_Integration_Data {
     ImGuiContext* imgui_context     = {};
     int           dll_reloads_count = {};
 
-    void* logger_data          = {};
-    void* logger_routine       = {};
-    void* logger_scope_routine = {};
+    void*     logger_data          = {};
+    void_func logger_routine       = {};
+    void_func logger_scope_routine = {};
 
     OS_Open_File_function((*Open_File))         = {};
     OS_Write_To_File_function((*Write_To_File)) = {};

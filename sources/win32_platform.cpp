@@ -458,7 +458,7 @@ struct Window_Info : public Equatable<Window_Info> {
     i32 pos_y;
     i32 maximized;
 
-    bool Equal_To(const Window_Info& other) const {
+    [[nodiscard]] bool Equal_To(const Window_Info& other) const {
         auto result = (width == other.width)       //
                       && (height == other.height)  //
                       && (pos_x == other.pos_x)    //
@@ -804,23 +804,20 @@ private:
 #if 1
 using Root_Logger_Type = Tracing_Logger;
 
-#    define SET_LOGGER                                                                  \
-        Root_Logger_Type logger{};                                                      \
-        Initialize_Tracing_Logger(logger, initial_game_memory_arena);                   \
-        ctx_.logger_data                                = (void*)&logger;               \
-        ctx_.logger_routine                             = Tracing_Logger_Routine;       \
-        ctx_.logger_scope_routine                       = Tracing_Logger_Scope_Routine; \
-        global_library_integration_data->logger_data    = ctx_.logger_data;             \
-        global_library_integration_data->logger_routine = ctx_.logger_routine;          \
+#    define SET_LOGGER                                                               \
+        Root_Logger_Type logger{};                                                   \
+        Initialize_Tracing_Logger(logger, initial_game_memory_arena);                \
+        ctx_.logger_data          = (void*)&logger;                                  \
+        ctx_.logger_routine       = (void_func)Tracing_Logger_Routine;               \
+        ctx_.logger_scope_routine = (void_func)Tracing_Logger_Scope_Routine;         \
+        global_library_integration_data->logger_data          = ctx_.logger_data;    \
+        global_library_integration_data->logger_routine       = ctx_.logger_routine; \
         global_library_integration_data->logger_scope_routine = ctx_.logger_scope_routine;
 
 #else
 // NOTE: Отключение логирования
 using Root_Logger_Type = void*;
-#    define SET_LOGGER                                          \
-        void*                   logger_data          = nullptr; \
-        Logger_function_t       logger_routine       = nullptr; \
-        Logger_Scope_function_t logger_scope_routine = nullptr;
+#    define SET_LOGGER ((void*)0)
 #endif
 
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
