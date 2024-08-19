@@ -91,27 +91,32 @@ void Send_Texture_To_GPU(Loaded_Texture& texture) {
     BFGL_Check_Errors();
 }
 
-const BFGame::Atlas* Load_Atlas_From_Binary(Arena& arena) {
-    auto loaded_file = Debug_Load_File_To_Arena("resources/atlas.bin", arena);
+const BFGame::Atlas* Load_Atlas_From_Binary(Arena& arena, MCTX) {
+    auto loaded_file = Debug_Load_File_To_Arena("resources/atlas.bin", arena, ctx);
     Assert(loaded_file.success);
     auto result = BFGame::GetAtlas(loaded_file.output);
     return result;
 }
 
 Atlas Load_Atlas(Arena& destination_arena, Arena& trash_arena, MCTX) {
+    CTX_LOGGER;
+
+    SCOPED_LOG_INIT("Loading atlas");
+
     TEMP_USAGE(trash_arena);
 
     Load_BMP_RGBA_Result bmp_result{};
     {
         TEMP_USAGE(trash_arena);
-        auto load_result = Debug_Load_File_To_Arena("resources/atlas.bmp", trash_arena);
+        auto load_result
+            = Debug_Load_File_To_Arena("resources/atlas.bmp", trash_arena, ctx);
         Assert(load_result.success);
 
         bmp_result = Load_BMP_RGBA(destination_arena, load_result.output);
         Assert(bmp_result.success);
     }
 
-    auto atlas_spec = Load_Atlas_From_Binary(trash_arena);
+    auto atlas_spec = Load_Atlas_From_Binary(trash_arena, ctx);
 
     Atlas atlas{};
     atlas.size = {atlas_spec->size_x(), atlas_spec->size_y()};
@@ -280,6 +285,8 @@ void Post_Init_Renderer(
     CTX_ALLOCATOR;
     CTX_LOGGER;
 
+    SCOPED_LOG_INIT("Post_Init_Renderer");
+
     auto& rstate = Assert_Deref(state.renderer_state);
 
     rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
@@ -288,10 +295,7 @@ void Post_Init_Renderer(
     auto& game_map = state.game_map;
     auto  gsize    = game_map.size;
 
-    {
-        SCOPED_LOG_INIT("Loading atlas");
-        rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
-    }
+    rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
 
     // Шейдеры.
     {
@@ -1441,8 +1445,6 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
 void Render(Game_State& state, f32 dt, MCTX) {
     CTX_ALLOCATOR;
     CTX_LOGGER;
-
-    SCOPED_LOG_INIT("Render");
 
     ZoneScoped;
 

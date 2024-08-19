@@ -55,19 +55,6 @@
 #    define SANITIZE ((void)0)
 #endif
 
-#define MCTX Context* ctx
-#define MCTX_ Context* /* ctx */
-
-#define CTX_ALLOCATOR                      \
-    auto& allocator      = ctx->allocator; \
-    auto& allocator_data = ctx->allocator_data;
-
-#define PUSH_CONTEXT(new_ctx, code) \
-    STATEMENT({                     \
-        auto ctx = (new_ctx);       \
-        (code);                     \
-    })
-
 enum class Allocator_Mode {
     Allocate = 0,
     Resize,
@@ -89,17 +76,6 @@ enum class Allocator_Mode {
     )
 
 using Allocator_function_t = Allocator_function((*));
-
-struct Context {
-    u32 thread_index = {};
-
-    Allocator_function_t allocator      = {};
-    void*                allocator_data = {};
-
-    void*                   logger_data          = {};
-    Logger_function_t       logger_routine       = {};
-    Logger_Scope_function_t logger_scope_routine = {};
-};
 
 struct Blk {
     void*  ptr    = {};

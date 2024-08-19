@@ -173,7 +173,7 @@ void Init_Queue(Queue<T>& container, MCTX) {
     container.max_count = 0;
     container.base      = nullptr;
 
-    container.allocator_      = ctx->allocator;
+    container.allocator_      = (Allocator_function_t)ctx->allocator;
     container.allocator_data_ = ctx->allocator_data;
 }
 
@@ -183,7 +183,7 @@ void Init_Vector(Vector<T>& container, MCTX) {
     container.max_count = 0;
     container.base      = nullptr;
 
-    container.allocator_      = ctx->allocator;
+    container.allocator_      = (Allocator_function_t)ctx->allocator;
     container.allocator_data_ = ctx->allocator_data;
 }
 
@@ -1352,6 +1352,9 @@ void Post_Init_Game_Map(
     Arena& /* arena */,
     MCTX
 ) {
+    CTX_LOGGER;
+    SCOPED_LOG_INIT("Post_Init_Game_Map");
+
     bool built = true;
     Place_Building(state, {4, 1}, state.scriptable_buildings + 0, built, ctx);
 
@@ -1414,8 +1417,11 @@ void Regenerate_Terrain_Tiles(
     Arena& trash_arena,
     uint /* seed */,
     Editor_Data& data,
-    MCTX_
+    MCTX
 ) {
+    CTX_LOGGER;
+    SCOPED_LOG_INIT("Regenerate_Terrain_Tiles");
+
     auto gsize = game_map.size;
 
     auto noise_pitch = (size_t)Ceil_To_Power_Of_2((u32)MAX(gsize.x, gsize.y));
@@ -1525,8 +1531,11 @@ void Regenerate_Element_Tiles(
     Arena& /* trash_arena */,
     uint /* seed */,
     Editor_Data& /* data */,
-    MCTX_
+    MCTX
 ) {
+    CTX_LOGGER;
+    SCOPED_LOG_INIT("Regenerate_Terrain_Tiles");
+
     auto gsize = game_map.size;
 
     v2i16 road_tiles[] = {

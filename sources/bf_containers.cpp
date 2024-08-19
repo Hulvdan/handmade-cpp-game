@@ -1,23 +1,23 @@
-#define CONTAINER_ALLOCATOR                           \
-    auto  allocator      = container.allocator_;      \
-    void* allocator_data = container.allocator_data_; \
-    {                                                 \
-        if (allocator == nullptr) {                   \
-            Assert(allocator_data == nullptr);        \
-            allocator      = ctx->allocator;          \
-            allocator_data = ctx->allocator_data;     \
-        }                                             \
+#define CONTAINER_ALLOCATOR                                           \
+    auto allocator      = (Allocator_function_t)container.allocator_; \
+    auto allocator_data = container.allocator_data_;                  \
+    {                                                                 \
+        if (allocator == nullptr) {                                   \
+            Assert(allocator_data == nullptr);                        \
+            allocator      = (Allocator_function_t)ctx->allocator;    \
+            allocator_data = ctx->allocator_data;                     \
+        }                                                             \
     }
 
-#define CONTAINER_MEMBER_ALLOCATOR                \
-    auto  allocator      = allocator_;            \
-    void* allocator_data = allocator_data_;       \
-    {                                             \
-        if (allocator == nullptr) {               \
-            Assert(allocator_data == nullptr);    \
-            allocator      = ctx->allocator;      \
-            allocator_data = ctx->allocator_data; \
-        }                                         \
+#define CONTAINER_MEMBER_ALLOCATOR                                 \
+    auto  allocator      = (Allocator_function_t)allocator_;       \
+    void* allocator_data = allocator_data_;                        \
+    {                                                              \
+        if (allocator == nullptr) {                                \
+            Assert(allocator_data == nullptr);                     \
+            allocator      = (Allocator_function_t)ctx->allocator; \
+            allocator_data = ctx->allocator_data;                  \
+        }                                                          \
     }
 
 template <typename T>

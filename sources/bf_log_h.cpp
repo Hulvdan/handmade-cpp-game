@@ -13,12 +13,12 @@ enum class Log_Type {
 using Logger_function_t       = Logger_function((*));
 using Logger_Scope_function_t = Logger_Scope_function((*));
 
-#define _LOG_COMMON(log_type_, ...)                        \
-    STATEMENT({                                            \
-        if (logger_routine) {                              \
-            const auto str = Text_Format(__VA_ARGS__);     \
-            logger_routine(logger_data, (log_type_), str); \
-        }                                                  \
+#define _LOG_COMMON(log_type_, ...)                                             \
+    STATEMENT({                                                                 \
+        if (logger_routine) {                                                   \
+            const auto str = Text_Format(__VA_ARGS__);                          \
+            ((Logger_function_t)logger_routine)(logger_data, (log_type_), str); \
+        }                                                                       \
     })
 
 #define LOG_DEBUG(...) _LOG_COMMON(Log_Type::DEBUG, __VA_ARGS__)

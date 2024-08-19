@@ -263,12 +263,15 @@ consteval auto extract_substring(const char* src) {
             "[%s:%d:%d:%s]", file_n, loc.line(), loc.column(), function_name.data()       \
         );                                                                                \
                                                                                           \
-        logger_scope_routine(logger_data, true, scope_name);                              \
+        auto scope_routine = ((Logger_Scope_function_t)logger_scope_routine);             \
+        scope_routine(logger_data, true, scope_name);                                     \
     }                                                                                     \
                                                                                           \
     defer {                                                                               \
-        if (logger_scope_routine != nullptr)                                              \
-            logger_scope_routine(logger_data, false, nullptr);                            \
+        if (logger_scope_routine != nullptr) {                                            \
+            auto scope_routine = ((Logger_Scope_function_t)logger_scope_routine);         \
+            scope_routine(logger_data, false, nullptr);                                   \
+        }                                                                                 \
     };
 
 #if 1
@@ -280,8 +283,3 @@ consteval auto extract_substring(const char* src) {
 #else
 #    define SCOPED_LOG_INIT(mes) ((void*)0)
 #endif
-
-#define CTX_LOGGER                                          \
-    auto& logger_routine       = ctx->logger_routine;       \
-    auto& logger_scope_routine = ctx->logger_scope_routine; \
-    auto& logger_data          = ctx->logger_data;

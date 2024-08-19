@@ -24,16 +24,19 @@
 global_var Library_Integration_Data* global_library_integration_data = {};
 
 // NOLINTBEGIN(bugprone-suspicious-include)
-struct Arena;
-#include "bf_file_h.cpp"
-#include "bf_log_h.cpp"
+#include "bf_context.cpp"
 
 #include "bf_memory_arena.cpp"
 #include "bf_strings.cpp"
+
+#include "bf_file_h.cpp"
+#include "bf_log_h.cpp"
+
+#include "bf_math.cpp"
 #include "bf_file.cpp"
 #include "bf_log.cpp"
-#include "bf_math.cpp"
 #include "bf_memory.cpp"
+
 #include "bfc_opengl.cpp"
 // NOLINTEND(bugprone-suspicious-include)
 
@@ -47,6 +50,7 @@ struct BF_Bitmap {
 // -- RENDERING STUFF END
 
 // -- GAME STUFF
+global_var Context* ctx = {};
 
 global_var Arena initial_game_memory_arena = {};
 
@@ -57,9 +61,11 @@ template <typename T>
 void Push_Event(T& event) {
     auto can_push = events.capacity() >= events.size() + sizeof(T) + 1;
     if (!can_push) {
-        // TODO: Diagnostic
         INVALID_PATH;
-        DEBUG_Error("win32_platform: Push_Event(): skipped");
+
+        CTX_LOGGER;
+        LOG_ERROR("win32_platform: Push_Event(): skipped");
+
         return;
     }
 
@@ -445,13 +451,24 @@ void Win32_Die() noexcept {
     exit(-1);
 }
 
-global_var struct Window_Info {
+struct Window_Info : public Equatable<Window_Info> {
     i32 width;
     i32 height;
     i32 pos_x;
     i32 pos_y;
     i32 maximized;
-} window_info = {};
+
+    bool Equal_To(const Window_Info& other) const {
+        auto result = (width == other.width)       //
+                      && (height == other.height)  //
+                      && (pos_x == other.pos_x)    //
+                      && (pos_y == other.pos_y)    //
+                      && (maximized == other.maximized);
+        return result;
+    }
+};
+
+global_var Window_Info window_info = {};
 
 inline static const char* window_info_filepath = "window_info.dat";
 
@@ -460,19 +477,19 @@ global_var bool  window_info_needs_saving      = false;
 global_var f64   window_info_saving_time       = -f64_inf;
 
 bool Restore_Window_Info() {
+    CTX_LOGGER;
     u8 buffer[sizeof(Window_Info) + 1] = {};
 
     Arena trash_arena = {};
     trash_arena.base  = buffer;
     trash_arena.size  = sizeof(Window_Info) + 1;
 
-    bool restored = false;
-
     if (Win32_File_Exists(window_info_filepath)) {
-        auto load_result = Debug_Load_File_To_Arena(window_info_filepath, trash_arena);
+        auto load_result
+            = Debug_Load_File_To_Arena(window_info_filepath, trash_arena, ctx);
         if (!load_result.success) {
-            DEBUG_Error("could not load %s", window_info_filepath);
-            goto exit;
+            LOG_ERROR("could not load %s", window_info_filepath);
+            return false;
         }
 
         auto wi = (Window_Info*)load_result.output;
@@ -482,17 +499,15 @@ bool Restore_Window_Info() {
                         && (wi->height > 0);
 
         if (!is_valid) {
-            DEBUG_Error("%s is corrupted. Ignoring it", window_info_filepath);
-            goto exit;
+            LOG_ERROR("%s is corrupted. Ignoring it", window_info_filepath);
+            return false;
         }
 
         window_info = *wi;
-        DEBUG_Print("Loaded %s!", window_info_filepath);
-        restored = true;
+        LOG_INFO("Loaded %s!", window_info_filepath);
     }
 
-exit:
-    return restored;
+    return true;
 }
 
 void Debug_Save_Binary_File(const char* filepath, void* data, i32 bytes) {
@@ -506,11 +521,7 @@ void Debug_Save_Binary_File(const char* filepath, void* data, i32 bytes) {
 }
 
 void Save_Window_Info() {
-    auto&       logger_data = global_library_integration_data->logger_data;
-    const auto& logger_routine
-        = (Logger_function_t)global_library_integration_data->logger_routine;
-    const auto& logger_scope_routine
-        = (Logger_Scope_function_t)global_library_integration_data->logger_scope_routine;
+    CTX_LOGGER;
 
     SCOPED_LOG_INIT("Save_Window_Info");
     u8 buffer[sizeof(Window_Info)] = {};
@@ -571,13 +582,17 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
     case WM_WINDOWPOSCHANGED: {
         auto window_pos = *(tagWINDOWPOS*)lParam;
         if (window_launched) {
+            auto old_window_info = window_info;
+
             window_info.pos_x  = window_pos.x;
             window_info.pos_y  = window_pos.y;
             window_info.width  = window_pos.cx;
             window_info.height = window_pos.cy;
 
-            window_info_needs_saving = true;
-            window_info_saving_time  = Win32_Get_Time() + window_info_save_time_seconds;
+            window_info_needs_saving = (old_window_info != window_info);
+            if (window_info_needs_saving)
+                window_info_saving_time
+                    = Win32_Get_Time() + window_info_save_time_seconds;
         }
 
         return DefWindowProc(window_handle, messageType, wParam, lParam);
@@ -593,15 +608,18 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
             b32 was_maximized    = (wParam == SIZE_MAXIMIZED);
             b32 was_just_resized = (wParam == SIZE_RESTORED);
 
+            auto old_window_info = window_info;
+
             if (was_maximized)
                 window_info.maximized = 1;
             if (was_just_resized)
                 window_info.maximized = 0;
 
             if (was_maximized || was_just_resized) {
-                window_info_needs_saving = true;
-                window_info_saving_time
-                    = Win32_Get_Time() + window_info_save_time_seconds;
+                window_info_needs_saving = (old_window_info != window_info);
+                if (window_info_needs_saving)
+                    window_info_saving_time
+                        = Win32_Get_Time() + window_info_save_time_seconds;
             }
         }
     } break;
@@ -789,13 +807,12 @@ using Root_Logger_Type = Tracing_Logger;
 #    define SET_LOGGER                                                                  \
         Root_Logger_Type logger{};                                                      \
         Initialize_Tracing_Logger(logger, initial_game_memory_arena);                   \
-        auto logger_data                                = (void*)&logger;               \
-        auto logger_routine                             = Tracing_Logger_Routine;       \
-        auto logger_scope_routine                       = Tracing_Logger_Scope_Routine; \
-        global_library_integration_data->logger_data    = logger_data;                  \
-        global_library_integration_data->logger_routine = (void*)logger_routine;        \
-        global_library_integration_data->logger_scope_routine                           \
-            = (void*)logger_scope_routine;
+        ctx_.logger_data                                = (void*)&logger;               \
+        ctx_.logger_routine                             = Tracing_Logger_Routine;       \
+        ctx_.logger_scope_routine                       = Tracing_Logger_Scope_Routine; \
+        global_library_integration_data->logger_data    = ctx_.logger_data;             \
+        global_library_integration_data->logger_routine = ctx_.logger_routine;          \
+        global_library_integration_data->logger_scope_routine = ctx_.logger_scope_routine;
 
 #else
 // NOTE: Отключение логирования
@@ -834,7 +851,10 @@ static int WinMain(
         return -1;
     }
 
+    Context ctx_{};
+    ctx = &ctx_;
     SET_LOGGER;
+    CTX_LOGGER;
 
     perf_counter_frequency  = Win32Frequency();
     perf_counter_started_at = Win32Clock();
@@ -1134,22 +1154,18 @@ static int WinMain(
 
         MSG message{};
 
-        {
-            SCOPED_LOG_INIT("Processing messages");
+        while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
+            if (message.message == WM_QUIT) {
+                running = false;
+                break;
+            }
 
-            while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
-                if (message.message == WM_QUIT) {
-                    running = false;
-                    break;
-                }
+            TranslateMessage(&message);
+            DispatchMessage(&message);
 
-                TranslateMessage(&message);
-                DispatchMessage(&message);
-
-                if (window_info_needs_saving) {
-                    if (window_info_saving_time < Win32_Get_Time())
-                        Save_Window_Info();
-                }
+            if (window_info_needs_saving) {
+                if (window_info_saving_time < Win32_Get_Time())
+                    Save_Window_Info();
             }
         }
 
@@ -1190,10 +1206,7 @@ static int WinMain(
         auto device_context = GetDC(window_handle);
 
         auto capped_dt = MIN(last_frame_dt, MAX_FRAME_DT);
-        {
-            SCOPED_LOG_INIT("Win32Paint");
-            Win32Paint(capped_dt, window_handle, device_context);
-        }
+        Win32Paint(capped_dt, window_handle, device_context);
         ReleaseDC(window_handle, device_context);
 
         FrameMark;

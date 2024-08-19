@@ -77,7 +77,6 @@ RESOURCES_DIR = PROJECT_DIR / "resources"
 SOURCES_DIR = PROJECT_DIR / "sources"
 FLATBUFFERS_GENERATED_DIR = PROJECT_DIR / "codegen" / "flatbuffers"
 CMAKE_DEBUG_BUILD_DIR = PROJECT_DIR / ".cmake" / "vs17" / "Debug"
-CMAKE_RELEASE_BUILD_DIR = PROJECT_DIR / ".cmake" / "vs17" / "Release" / "RoadsOfHorses"
 
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
@@ -555,15 +554,6 @@ def do_build_release() -> None:
         -t:win32
         """
     )
-    # -property:OutDir=RelWithDebInfo\RoadsOfHorses\
-    #
-    # previously_moved_resources_dir = CMAKE_RELEASE_BUILD_DIR / "resources"
-    # if previously_moved_resources_dir.exists():
-    #     shutil.rmtree(previously_moved_resources_dir)
-    #
-    # p = CMAKE_RELEASE_BUILD_DIR / ".." / "resources"
-    # assert p.exists(), f"CMake-copied resources directory was expected to exist! ({p})"
-    # shutil.move(p, CMAKE_RELEASE_BUILD_DIR)
 
 
 def do_build_tests() -> None:

@@ -1,12 +1,8 @@
 Debug_Load_File_Result
-Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
-    auto&       logger_data = global_library_integration_data->logger_data;
-    const auto& logger_routine
-        = (Logger_function_t)global_library_integration_data->logger_routine;
-    const auto& logger_scope_routine
-        = (Logger_Scope_function_t)global_library_integration_data->logger_scope_routine;
+Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes, MCTX) {
+    CTX_LOGGER;
 
-    LOG_INFO("Loading file: %s...", filename);
+    LOG_INFO("Debug_Load_File: %s...", filename);
 
     char absolute_file_path[2048];
 
@@ -28,19 +24,21 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes) {
         res.success = true;
         res.output  = output;
         res.size    = read_bytes;
-        LOG_INFO("Debug_Load_File %s... Success!", filename);
+        LOG_INFO("Debug_Load_File: %s... Success!", filename);
     }
     else
-        LOG_WARN("Debug_Load_File %s... Failed!", filename);
+        LOG_WARN("Debug_Load_File: %s... Failed!", filename);
 
     auto close_result = fclose(file);
     Assert(close_result == 0);
     return res;
 }
 
-Debug_Load_File_Result Debug_Load_File_To_Arena(const char* filename, Arena& arena) {
-    auto res
-        = Debug_Load_File(filename, arena.base + arena.used, arena.size - arena.used);
+Debug_Load_File_Result
+Debug_Load_File_To_Arena(const char* filename, Arena& arena, MCTX) {
+    auto res = Debug_Load_File(
+        filename, arena.base + arena.used, arena.size - arena.used, ctx
+    );
     res.output = Allocate_Array(arena, u8, res.size);
     return res;
 }

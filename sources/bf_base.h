@@ -288,10 +288,10 @@ struct Arrow_Proxy {
 //         int field2;
 //
 //         NOTE: Требуется реализовать этот метод
-//         bool Equal_To(const A& v1, const A& v2) {
+//         bool Equal_To(const A& other) {
 //             auto result = (
-//                 v1.field1 == v2.field1
-//                 && v1.field2 == v2.field2
+//                 field1 == other.field1
+//                 && field2 == other.field2
 //             );
 //             return result;
 //         }

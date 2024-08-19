@@ -1,5 +1,4 @@
 # SHIT: Oh, god, I hate this shit
-
 cmake_minimum_required(VERSION 3.27)
 
 project(game LANGUAGES CXX)
