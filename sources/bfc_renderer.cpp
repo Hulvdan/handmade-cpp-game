@@ -120,7 +120,7 @@ Atlas Load_Atlas(Arena& destination_arena, Arena& trash_arena, MCTX) {
 
     Atlas atlas{};
     atlas.size = {atlas_spec->size_x(), atlas_spec->size_y()};
-    Init_Vector(atlas.textures, ctx);
+
     const auto textures_count = atlas_spec->textures()->size();
 
     FOR_RANGE (int, i, textures_count) {
@@ -745,6 +745,25 @@ void main() {
     renderer.zoom_target = 1;
     renderer.cell_size   = 32;
 
+    FOR_RANGE (int, i, world.resources.count) {
+        auto& id         = *(world.resources.ids + i);
+        auto& resource   = *(world.resources.base + i);
+        auto& scriptable = *resource.scriptable;
+
+        C_Sprite sprite{};
+        sprite.texture = scriptable.small_texture;
+        sprite.pos     = v2f(resource.pos) + v2f_half;
+        sprite.scale   = v2f_half;
+        sprite.anchor  = v2f_half;
+
+        {
+            auto [id_p, sprite_p] = renderer.sprites.Add(ctx);
+
+            *id_p     = id;
+            *sprite_p = sprite;
+        }
+    }
+
     ui_state.buildables_panel_params.smart_stretchable  = true;
     ui_state.buildables_panel_params.stretch_paddings_h = {6, 6};
     ui_state.buildables_panel_params.stretch_paddings_v = {5, 6};
@@ -1327,7 +1346,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
                         + (f32)tex.size.y / (f32)renderer.atlas.texture.size.y,
                     p,
                     s,
-                    v2f_one / 2.0f,
+                    v2f_half,
                     color,
                     renderer
                 );
@@ -1343,7 +1362,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
 #if 0
             if (human.moving.path.count > 0) {
                 auto last_p = human.moving.path.base[human.moving.path.count - 1];
-                auto p = W2GL * v3f((v2f(last_p) + v2f_one / 2.0f) * (f32)cell_size, 1);
+                auto p = W2GL * v3f((v2f(last_p) + v2f_half) * (f32)cell_size, 1);
 
                 glPointSize(12);
 
@@ -1403,7 +1422,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
                         continue;
 
                     v2f center = v2f(x, y) + v2f(graph.offset.x, graph.offset.y)
-                                 + v2f_one / 2.0f;
+                                 + v2f_half;
                     FOR_RANGE (int, ii, 4) {
                         auto dir = (Direction)ii;
                         if (!Graph_Node_Has(node, dir))
@@ -1580,7 +1599,7 @@ void Render(Game& game, f32 dt, MCTX) {
                         human.moving.progress
                     );
 
-                sprite_ptr->pos = pos + v2f_one / 2.0f;
+                sprite_ptr->pos = pos + v2f_half;
             }
         }
     }
@@ -1941,8 +1960,8 @@ On_Human_Created_function(Renderer_OnHumanCreated) {
     auto& renderer = *game.renderer;
 
     C_Sprite human_sprite{};
-    human_sprite.pos      = v2f(human.moving.pos) + v2f_one / 2.0f;
-    human_sprite.scale    = v2f(1, 1) / 2.0f;
+    human_sprite.pos      = v2f(human.moving.pos) + v2f_half;
+    human_sprite.scale    = v2f_half;
     human_sprite.anchor   = {0.5f, 0.5f + 2.0f / 7.0f};
     human_sprite.rotation = 0;
     human_sprite.texture  = renderer.human_texture;

@@ -127,6 +127,7 @@ constexpr v2i16 v2i16_bottom = v2i16(0, -1);
 
 constexpr v2f v2f_zero   = v2f(0, 0);
 constexpr v2f v2f_one    = v2f(1, 1);
+constexpr v2f v2f_half   = v2f(1, 1) / 2.0f;
 constexpr v2f v2f_right  = v2f(1, 0);
 constexpr v2f v2f_up     = v2f(0, 1);
 constexpr v2f v2f_left   = v2f(-1, 0);

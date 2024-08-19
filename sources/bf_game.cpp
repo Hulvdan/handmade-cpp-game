@@ -507,8 +507,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
 
             building.can_be_built = libbuilding.can_be_built();
 
-            Init_Vector(building.construction_resources, ctx);
-
             if (libbuilding.construction_resources() != nullptr) {
                 FOR_RANGE (int, i, libbuilding.construction_resources()->size()) {
                     auto resource = libbuilding.construction_resources()->Get(i);

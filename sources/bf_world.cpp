@@ -142,26 +142,6 @@ void Set_Container_Allocator_Context(T& container, MCTX) {
 }
 
 template <typename T>
-void Init_Queue(Queue<T>& container, MCTX) {
-    container.count     = 0;
-    container.max_count = 0;
-    container.base      = nullptr;
-
-    container.allocator_      = (Allocator_function_t)ctx->allocator;
-    container.allocator_data_ = ctx->allocator_data;
-}
-
-template <typename T>
-void Init_Vector(Vector<T>& container, MCTX) {
-    container.count     = 0;
-    container.max_count = 0;
-    container.base      = nullptr;
-
-    container.allocator_      = (Allocator_function_t)ctx->allocator;
-    container.allocator_data_ = ctx->allocator_data;
-}
-
-template <typename T>
 void Deinit_Queue(Queue<T>& container, MCTX) {
     CONTAINER_ALLOCATOR;
 
@@ -1228,11 +1208,9 @@ void Add_World_Resource(
     auto& trash_arena = game.trash_arena;
 
     World_Resource resource{};
-    resource.scriptable = scriptable;
-    resource.pos        = pos;
-    resource.booking    = World_Resource_Booking_ID_Missing;
-    Init_Vector(resource.transportation_segments, ctx);
-    Init_Vector(resource.transportation_vertices, ctx);
+    resource.scriptable     = scriptable;
+    resource.pos            = pos;
+    resource.booking        = World_Resource_Booking_ID_Missing;
     resource.targeted_human = Human_ID_Missing;
     resource.carrying_human = Human_ID_Missing;
 
@@ -1278,9 +1256,6 @@ void Init_World(
 
         world.human_data = human_data;
     }
-
-    Init_Queue(world.segments_wo_humans, ctx);
-    Init_Vector(world.resources_booking_queue, ctx);
 }
 
 void Post_Init_World(
@@ -1818,11 +1793,8 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
     // NOTE: Создание финального Graph_Segment,
     // который будет использоваться в игровой логике.
     Graph_Segment segment = added_segment;
-    {
-        Calculate_Graph_Data(segment.graph, trash_arena, ctx);
-        segment.assigned_human_id = Human_ID_Missing;
-        Init_Vector(segment.linked_segments, ctx);
-    }
+    Calculate_Graph_Data(segment.graph, trash_arena, ctx);
+    segment.assigned_human_id = Human_ID_Missing;
 
     auto [id_p, segment1_p] = segments.Add(ctx);
     *id_p                   = Next_Graph_Segment_ID(last_entity_id);
