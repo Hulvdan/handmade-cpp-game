@@ -584,11 +584,11 @@ struct City_Hall {
     f32 time_since_human_was_created = {};
 };
 
-struct Game_Map_Data {
+struct World_Data {
     f32 human_moving_one_tile_duration = {};
 };
 
-struct Game_Map {
+struct World {
     Entity_ID last_entity_id = {};
 
     v2i16             size              = {};
@@ -596,8 +596,8 @@ struct Game_Map {
     Terrain_Resource* terrain_resources = {};
     Element_Tile*     element_tiles     = {};
 
-    Game_Map_Data data       = {};
-    Human_Data*   human_data = {};
+    World_Data  data       = {};
+    Human_Data* human_data = {};
 
     Sparse_Array<Graph_Segment_ID, Graph_Segment>       segments                  = {};
     Sparse_Array<Building_ID, Building>                 buildings                 = {};
@@ -669,8 +669,8 @@ struct Game_State {
     f32 offset_x = {};
     f32 offset_y = {};
 
-    v2f      player_pos = {};
-    Game_Map game_map   = {};
+    v2f   player_pos = {};
+    World world      = {};
 
     Editor_Data editor_data = {};
 
@@ -704,8 +704,8 @@ enum class Tile_Updated_Type {
     Building_Removed,
 };
 
-Building* Get_Building(Game_Map& game_map, Building_ID id) {
-    return game_map.buildings.Find(id);
+Building* Get_Building(World& world, Building_ID id) {
+    return world.buildings.Find(id);
 }
 
 #if BF_CLIENT

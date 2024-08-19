@@ -213,14 +213,14 @@ void Init_Renderer(
 
 void Add_Building_Sprite(
     Game_Renderer_State& rstate,
-    Game_Map&            game_map,
+    World&               world,
     v2i                  pos,
     Building_ID          building_id,
     MCTX
 ) {
     Assert(building_id != Building_ID_Missing);
 
-    auto building = Strict_Query_Building(game_map, building_id);
+    auto building = Strict_Query_Building(world, building_id);
 
     auto& scriptable = *building->scriptable;
 
@@ -242,12 +242,7 @@ void Add_Building_Sprite(
     }
 }
 
-void Set_Flag_Tile(
-    Game_Renderer_State& rstate,
-    Game_Map& /* game_map */,
-    v2i pos,
-    MCTX_
-) {
+void Set_Flag_Tile(Game_Renderer_State& rstate, World& /* world */, v2i pos, MCTX_) {
     auto& placeables_tilemap = rstate.tilemaps[rstate.element_tilemap_index + 1];
 
     auto t = pos.y * placeables_tilemap.size.x + pos.x;
@@ -292,8 +287,8 @@ void Post_Init_Renderer(
     rstate.ui_state = Allocate_Zeros_For(non_persistent_arena, Game_UI_State);
     auto& ui_state  = *rstate.ui_state;
 
-    auto& game_map = state.game_map;
-    auto  gsize    = game_map.size;
+    auto& world = state.world;
+    auto  gsize = world.size;
 
     rstate.atlas = Load_Atlas(non_persistent_arena, trash_arena, ctx);
 
@@ -597,7 +592,7 @@ void main() {
     i32 max_height = 0;
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
-            auto& terrain_tile = game_map.terrain_tiles[y * gsize.x + x];
+            auto& terrain_tile = world.terrain_tiles[y * gsize.x + x];
             max_height         = MAX(max_height, terrain_tile.height);
         }
     }
@@ -642,7 +637,7 @@ void main() {
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
-                auto& tile         = game_map.terrain_tiles[y * gsize.x + x];
+                auto& tile         = world.terrain_tiles[y * gsize.x + x];
                 auto& tilemap_tile = tilemap.tiles[y * gsize.x + x];
 
                 bool grass   = tile.terrain == Terrain::Grass && tile.height >= h;
@@ -656,7 +651,7 @@ void main() {
 
                 if (tilemap.tiles[y * gsize.x + x])
                     id = Test_Smart_Tile(
-                        tilemap, game_map.size, {x, y}, rstate.grass_smart_tile
+                        tilemap, world.size, {x, y}, rstate.grass_smart_tile
                     );
                 else
                     id = Texture_ID_Missing;
@@ -671,7 +666,7 @@ void main() {
 
     FOR_RANGE (i32, y, gsize.y) {
         FOR_RANGE (i32, x, gsize.x) {
-            const auto& resource = game_map.terrain_resources[y * gsize.x + x];
+            const auto& resource = world.terrain_resources[y * gsize.x + x];
 
             const bool forest = resource.amount > 0;
 
@@ -716,7 +711,7 @@ void main() {
         FOR_RANGE (i32, x, gsize.x) {
             const auto t = y * gsize.x + x;
 
-            const Element_Tile& element_tile = game_map.element_tiles[t];
+            const Element_Tile& element_tile = world.element_tiles[t];
 
             auto type = element_tile.type;
 
@@ -725,18 +720,18 @@ void main() {
                 || type == Element_Tile_Type::Road)
             {
                 auto tex
-                    = Get_Road_Texture_Number(game_map.element_tiles, v2i16(x, y), gsize);
+                    = Get_Road_Texture_Number(world.element_tiles, v2i16(x, y), gsize);
                 auto& tile_id               = element_tilemap.tiles[t];
                 tile_id                     = global_road_starting_tile_id + tex;
                 element_tilemap.textures[t] = rstate.road_textures[tex];
 
                 if (element_tile.type == Element_Tile_Type::Building)
                     Add_Building_Sprite(
-                        rstate, game_map, {x, y}, element_tile.building_id, ctx
+                        rstate, world, {x, y}, element_tile.building_id, ctx
                     );
 
                 if (element_tile.type == Element_Tile_Type::Flag)
-                    Set_Flag_Tile(rstate, game_map, {x, y}, ctx);
+                    Set_Flag_Tile(rstate, world, {x, y}, ctx);
             }
         }
     }
@@ -941,7 +936,7 @@ v2f World_To_Screen(Game_State& state, v2f pos) {
 
     auto swidth    = (f32)bitmap.width;
     auto sheight   = (f32)bitmap.height;
-    auto gsize     = state.game_map.size;
+    auto gsize     = state.world.size;
     auto cell_size = rstate.cell_size;
 
     auto projection = glm::mat3(1);
@@ -960,7 +955,7 @@ v2f Screen_To_World(Game_State& state, v2f pos) {
 
     auto swidth    = (f32)bitmap.width;
     auto sheight   = (f32)bitmap.height;
-    auto gsize     = state.game_map.size;
+    auto gsize     = state.world.size;
     auto cell_size = rstate.cell_size;
 
     auto projection     = glm::mat3(1);
@@ -1196,7 +1191,7 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
     auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
-    auto& game_map = state.game_map;
+    auto& world = state.world;
 
     Arena& trash_arena = state.trash_arena;
     TEMP_USAGE(trash_arena);
@@ -1339,7 +1334,7 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
 
     // Дебаг-рисование штук для чувачков.
     {
-        for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
+        for (auto [human_id, human_ptr] : Iter(&world.humans)) {
             auto& human = Assert_Deref(human_ptr);
 
 #if 0
@@ -1392,7 +1387,7 @@ void Render_UI(Game_State& state, f32 /* dt */, MCTX_) {
             segment_index = 0;
 
         int rendered_segments = 0;
-        for (auto segment_ptr : Iter(&game_map.segments)) {
+        for (auto segment_ptr : Iter(&world.segments)) {
             auto& segment = *segment_ptr;
             auto& graph   = segment.graph;
 
@@ -1451,11 +1446,11 @@ void Render(Game_State& state, f32 dt, MCTX) {
     Arena& trash_arena = state.trash_arena;
     TEMP_USAGE(trash_arena);
 
-    auto&        rstate   = Assert_Deref(state.renderer_state);
-    auto&        game_map = state.game_map;
-    Game_Bitmap& bitmap   = Assert_Deref(rstate.bitmap);
+    auto&        rstate = Assert_Deref(state.renderer_state);
+    auto&        world  = state.world;
+    Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
-    const auto gsize     = game_map.size;
+    const auto gsize     = world.size;
     const auto swidth    = (f32)bitmap.width;
     const auto sheight   = (f32)bitmap.height;
     const auto cell_size = 32;
@@ -1566,7 +1561,7 @@ void Render(Game_State& state, f32 dt, MCTX) {
         ZoneScopedN("Human positions updating");
 
         // TODO: Посмотреть что там по ECS
-        for (auto [human_id, human_ptr] : Iter(&game_map.humans)) {
+        for (auto [human_id, human_ptr] : Iter(&world.humans)) {
             auto& human = *human_ptr;
 
             for (auto [sprite_id, sprite_ptr] : Iter(&rstate.sprites)) {
@@ -1870,9 +1865,9 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
 
     CTX_ALLOCATOR;
 
-    auto& rstate   = *state.renderer_state;
-    auto& game_map = state.game_map;
-    auto  gsize    = game_map.size;
+    auto& rstate = *state.renderer_state;
+    auto& world  = state.world;
+    auto  gsize  = world.size;
 
     // Тут рисуются дороги.
     auto& roads_tilemap = rstate.tilemaps[rstate.element_tilemap_index];
@@ -1881,7 +1876,7 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
 
     auto t = pos.y * gsize.x + pos.x;
 
-    auto& element_tile = game_map.element_tiles[t];
+    auto& element_tile = world.element_tiles[t];
 
     switch (element_tile.type) {
     case Element_Tile_Type::Building:
@@ -1901,10 +1896,10 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
         Assert(element_tile.building_id == Building_ID_Missing);
 
     if (element_tile.type == Element_Tile_Type::Building)
-        Add_Building_Sprite(rstate, game_map, pos, element_tile.building_id, ctx);
+        Add_Building_Sprite(rstate, world, pos, element_tile.building_id, ctx);
 
     if (element_tile.type == Element_Tile_Type::Flag)
-        Set_Flag_Tile(rstate, game_map, pos, ctx);
+        Set_Flag_Tile(rstate, world, pos, ctx);
 
     for (auto offset : v2i16_adjacent_offsets_including_0) {
         auto new_pos = pos + offset;
@@ -1913,15 +1908,15 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
 
         auto t = new_pos.y * gsize.x + new_pos.x;
 
-        auto& element_tile = game_map.element_tiles[t];
+        auto& element_tile = world.element_tiles[t];
 
         switch (element_tile.type) {
         case Element_Tile_Type::Building:
         case Element_Tile_Type::Flag:
         case Element_Tile_Type::Road: {
-            auto  tex = Get_Road_Texture_Number(game_map.element_tiles, new_pos, gsize);
-            auto& tile_id    = roads_tilemap.tiles[t];
-            tile_id          = global_road_starting_tile_id + tex;
+            auto  tex     = Get_Road_Texture_Number(world.element_tiles, new_pos, gsize);
+            auto& tile_id = roads_tilemap.tiles[t];
+            tile_id       = global_road_starting_tile_id + tex;
             auto& texture_id = roads_tilemap.textures[t];
             texture_id       = rstate.road_textures[tex];
         } break;

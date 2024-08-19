@@ -41,7 +41,7 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #include "bf_containers.cpp"
 #include "bf_game_types.cpp"
 #include "bf_hash.cpp"
-#include "bf_game_map.cpp"
+#include "bf_world.cpp"
 
 #if BF_CLIENT
 #    include "bfc_tilemap.cpp"
@@ -51,13 +51,13 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 // NOLINTEND(bugprone-suspicious-include)
 
 bool UI_Clicked(Game_State& state) {
-    auto& game_map = state.game_map;
+    auto& world    = state.world;
     auto& rstate   = *state.renderer_state;
     auto& ui_state = *rstate.ui_state;
 
     Game_Bitmap& bitmap = Assert_Deref(rstate.bitmap);
 
-    const auto gsize   = game_map.size;
+    const auto gsize   = world.size;
     const auto swidth  = (f32)bitmap.width;
     const auto sheight = (f32)bitmap.height;
 
@@ -160,7 +160,7 @@ void Process_Events(
 
                         auto tile_pos
                             = World_Pos_To_Tile(Screen_To_World(state, rstate.mouse_pos));
-                        if (Pos_Is_In_Bounds(tile_pos, state.game_map.size)) {
+                        if (Pos_Is_In_Bounds(tile_pos, state.world.size)) {
                             switch (selected_buildable.type) {
                             case Item_To_Build_Type::Road: {
                                 Try_Build(state, tile_pos, Item_To_Build_Flag, ctx);
@@ -420,8 +420,8 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     // --- IMGUI END ---
 
     if (!first_time_initializing && state.hot_reloaded) {
-        SCOPED_LOG_INIT("Deinitializing game_map");
-        Deinit_Game_Map(state, ctx);
+        SCOPED_LOG_INIT("Deinitializing world");
+        Deinit_World(state, ctx);
     }
 
     if (first_time_initializing || editor_data.changed || state.hot_reloaded) {
@@ -458,16 +458,16 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             non_persistent_arena, "trash_arena_%d", state.dll_reloads_count
         );
 
-        Initialize_As_Zeros<Game_Map>(state.game_map);
-        state.game_map.size = {32, 24};
-        auto& gsize         = state.game_map.size;
+        Initialize_As_Zeros<World>(state.world);
+        state.world.size = {32, 24};
+        auto& gsize      = state.world.size;
 
         auto tiles_count = (size_t)gsize.x * gsize.y;
-        state.game_map.terrain_tiles
+        state.world.terrain_tiles
             = Allocate_Zeros_Array(non_persistent_arena, Terrain_Tile, tiles_count);
-        state.game_map.terrain_resources
+        state.world.terrain_resources
             = Allocate_Zeros_Array(non_persistent_arena, Terrain_Resource, tiles_count);
-        state.game_map.element_tiles
+        state.world.element_tiles
             = Allocate_Zeros_Array(non_persistent_arena, Element_Tile, tiles_count);
 
         if (first_time_initializing) {
@@ -530,7 +530,7 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             }
         }
 
-        Init_Game_Map(
+        Init_World(
             first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
         );
         Init_Renderer(
@@ -544,13 +544,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         );
 
         Regenerate_Terrain_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
+            state, state.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
         Regenerate_Element_Tiles(
-            state, state.game_map, non_persistent_arena, trash_arena, 0, editor_data, ctx
+            state, state.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
-        Post_Init_Game_Map(
+        Post_Init_World(
             first_time_initializing, state.hot_reloaded, state, non_persistent_arena, ctx
         );
         Post_Init_Renderer(
@@ -616,6 +616,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     TEMP_USAGE(trash_arena);
 
     Process_Events(state, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);
-    Update_Game_Map(state, dt, ctx);
+    Update_World(state, dt, ctx);
     Render(state, dt, ctx);
 }
