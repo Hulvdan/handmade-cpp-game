@@ -40,11 +40,11 @@ target_compile_definitions(glew INTERFACE GLEW_STATIC)
 # Tracy Profiler as Dll.
 #-----------------------------------------------------------------------------------
 add_library(tracy SHARED)
-target_include_directories(tracy PUBLIC "${PROJECT_SOURCE_DIR}/vendor/tracy/public")
+target_include_directories(tracy PUBLIC "${PROJECT_SOURCE_DIR}/vendor/libraries/tracy/public")
 target_compile_definitions(tracy PRIVATE TRACY_EXPORTS)
 target_compile_definitions(tracy INTERFACE TRACY_IMPORTS)
 target_sources(tracy PRIVATE
-    "${PROJECT_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp"
+    "${PROJECT_SOURCE_DIR}/vendor/libraries/tracy/public/TracyClient.cpp"
 )
 
 #-----------------------------------------------------------------------------------
