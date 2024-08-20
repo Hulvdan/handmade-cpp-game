@@ -52,6 +52,7 @@ Jonathan Blow, [Constructors, Destructors](https://www.youtube.com/watch?v=8C6zu
 - [YouTube. CppCon. Andrei Alexandrescu. std::allocator Is to Allocation what std::vector Is to Vexation](https://www.youtube.com/watch?v=LIb3L4vKZ7U)
 - [YouTube. Ryan Fleury. Enter The Arena: Simplifying Memory Management (2023)](https://www.youtube.com/watch?v=TZ5a3gCCZYo)
 - [YouTube. CppCon 2014: Mike Acton "Data-Oriented Design and C++"](https://youtu.be/rX0ItVEVjHc?si=iPMMxjQkQEcCm-q4)
+- [Book. Richard Fabian - Data-Oriented Design](https://www.dataorienteddesign.com/dodbook/)
 - [YouTube. Casey Muratori. "Clean" Code, Horrible Performance](https://www.youtube.com/watch?v=tD5NrevFtbU)
 - [Article. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 1](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa.md)
 - [Article. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 2](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa-2.md)
