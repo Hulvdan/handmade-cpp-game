@@ -36,24 +36,54 @@ Jonathan Blow, [Constructors, Destructors](https://www.youtube.com/watch?v=8C6zu
 
 ### Полезные ссылки
 
-- [Videos. Handmade Hero](https://handmadehero.org/)
-- [Article. Orthodox C++](https://gist.github.com/bkaradzic/2e39896bc7d8c34e042b)
-- [Article. Jonathan Blow's blog, John Carmack on Inlined Code](http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html)
-- [Article. Casey Muratori. Semantic Compression](https://caseymuratori.com/blog_0015)
-- [YouTube. Timothy Cain. Programming Languages](https://www.youtube.com/watch?v=wTjm-e0eZ8E)
-- [YouTube. Jonathan Blow. Demo: Implicit Context](https://www.youtube.com/watch?v=ciGQCP6HgqI&list=PLmV5I2fxaiCKfxMBrNsU1kgKJXD3PkyxO&index=16)
+#### Философия
+
+- [Записи стримов. Handmade Hero](https://guide.handmadehero.org/code/)
+- [Статья. Orthodox C++](https://gist.github.com/bkaradzic/2e39896bc7d8c34e042b)
+- [Статья. Casey Muratori. Semantic Compression](https://caseymuratori.com/blog_0015)
+- [Статья. Jonathan Blow's blog, John Carmack on Inlined Code](http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html)
 - [YouTube. Jonathan Blow. Constructors, Destructors](https://youtu.be/8C6zuDDGU2w?si=OGRfXkEhbdGNHj3J)
 - [YouTube. Jonathan Blow. Q&A: Constructors, Destructors](https://youtu.be/wfG2mCPzIA4?si=lSGcsKcshtv-bOg5)
+
+#### Работа с памятью
+
+Арены
+
+- В "Handmade Hero" Casey Muratori изначально начинает использовать арены.
+- [YouTube. Ryan Fleury. Enter The Arena: Simplifying Memory Management (2023)](https://www.youtube.com/watch?v=TZ5a3gCCZYo)
+
+Generic аллокации
+
+- [YouTube. CppCon. Andrei Alexandrescu. std::allocator Is to Allocation what std::vector Is to Vexation](https://www.youtube.com/watch?v=LIb3L4vKZ7U)
+
+Размышления на тему
+
+- [YouTube. Jonathan Blow. Demo: Implicit Context](https://www.youtube.com/watch?v=ciGQCP6HgqI&list=PLmV5I2fxaiCKfxMBrNsU1kgKJXD3PkyxO&index=16)
+
+#### Data Oriented Design
+
+- [YouTube. CppCon 2014: Mike Acton "Data-Oriented Design and C++"](https://youtu.be/rX0ItVEVjHc?si=iPMMxjQkQEcCm-q4)
+- [Книга. Richard Fabian - Data-Oriented Design](https://www.dataorienteddesign.com/dodbook/)
+
+#### Критика
+
+- [Форум-тред. Why many AAA gamedev studios opt out of the STL](https://web.archive.org/web/20220227163717/https://threadreaderapp.com/thread/1497768472184430600.html)
+- [YouTube. Timothy Cain. Programming Languages](https://www.youtube.com/watch?v=wTjm-e0eZ8E)
+- [YouTube. Casey Muratori | Smart-Pointers, RAII, ZII? Becoming an N+2 programmer](https://www.youtube.com/watch?v=xt1KNDmOYqA)
 - [YouTube. Casey Muratori. Handmade Hero | Getting rid of the OOP mindset](https://youtu.be/GKYCA3UsmrU?si=5aWiWEaT06OcTPxg)
 - [YouTube. Casey Muratori. Handmade Hero | Private Data & Getters/Setters (Epic rant!)](https://youtu.be/_xLgr6Ng4qQ?si=aCAFzwsmz5F_SNMp)
-- [Forum Thread. Why many AAA gamedev studios opt out of the STL](https://web.archive.org/web/20220227163717/https://threadreaderapp.com/thread/1497768472184430600.html)
-- [Article. Ryan Fleury. Table-Driven Code Generation](https://www.rfleury.com/p/table-driven-code-generation)
 - [Email response. Linus Torvalds on C++](https://harmful.cat-v.org/software/c++/linus)
-- [YouTube. CppCon. Andrei Alexandrescu. std::allocator Is to Allocation what std::vector Is to Vexation](https://www.youtube.com/watch?v=LIb3L4vKZ7U)
-- [YouTube. Ryan Fleury. Enter The Arena: Simplifying Memory Management (2023)](https://www.youtube.com/watch?v=TZ5a3gCCZYo)
-- [YouTube. CppCon 2014: Mike Acton "Data-Oriented Design and C++"](https://youtu.be/rX0ItVEVjHc?si=iPMMxjQkQEcCm-q4)
-- [Book. Richard Fabian - Data-Oriented Design](https://www.dataorienteddesign.com/dodbook/)
 - [YouTube. Casey Muratori. "Clean" Code, Horrible Performance](https://www.youtube.com/watch?v=tD5NrevFtbU)
-- [Article. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 1](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa.md)
-- [Article. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 2](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa-2.md)
-- [YouTube. Casey Muratori | Smart-Pointers, RAII, ZII? Becoming an N+2 programmer](https://www.youtube.com/watch?v=xt1KNDmOYqA)
+- [Статья. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 1](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa.md)
+- [Статья. Discussion between Casey Muratori and Robert Martin (Uncle Bob) about Clean Code. Part 2](https://github.com/unclebob/cmuratori-discussion/blob/main/cleancodeqa-2.md)
+
+#### Кодогенерация
+
+- [Статья. Ryan Fleury. Table-Driven Code Generation](https://www.rfleury.com/p/table-driven-code-generation)
+
+#### Инструменты
+
+- [Free Texture Packer](http://free-tex-packer.com/cli/)
+- [Godbolt. Compiler Explorer](https://godbolt.org/)
+- [FlatBuffers](https://flatbuffers.dev/)
+
