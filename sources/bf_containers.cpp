@@ -180,6 +180,10 @@ struct Queue {
         return base + (count - values_count);
     }
 
+    inline T* First() const {
+        return base;
+    }
+
     // PERF: Много memmove происходит
     T Dequeue() {
         Assert(base != nullptr);

@@ -13,6 +13,8 @@
 #include "glew.h"
 #include "wglew.h"
 
+#include "bf_instrument.h"
+
 #include "bf_base.h"
 #include "bf_game.h"
 
@@ -37,7 +39,6 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #include "bf_file.cpp"
 #include "bf_log.cpp"
 #include "bf_memory.cpp"
-#include "bf_instrument.cpp"
 #include "bf_containers.cpp"
 #include "bf_game_types.cpp"
 #include "bf_hash.cpp"
@@ -549,21 +550,25 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
             game, game.world, non_persistent_arena, trash_arena, 0, editor_data, ctx
         );
 
-        Post_Init_World(
-            first_time_initializing, game.hot_reloaded, game, non_persistent_arena, ctx
-        );
-        Post_Init_Renderer(
-            first_time_initializing,
-            game.hot_reloaded,
-            game,
-            arena,
-            non_persistent_arena,
-            trash_arena,
-            ctx
-        );
-
         memory.is_initialized = true;
     }
+
+    auto& arena                = game.arena;
+    auto& non_persistent_arena = game.non_persistent_arena;
+    auto& trash_arena          = game.trash_arena;
+
+    Post_Init_World(
+        first_time_initializing, game.hot_reloaded, game, non_persistent_arena, ctx
+    );
+    Post_Init_Renderer(
+        first_time_initializing,
+        game.hot_reloaded,
+        game,
+        arena,
+        non_persistent_arena,
+        trash_arena,
+        ctx
+    );
 
     if (game.renderer != nullptr && game.renderer->shaders_compilation_failed)
         ImGui::Text("ERROR: Shaders compilation failed!");
@@ -610,7 +615,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         }
     }
 
-    auto& trash_arena = game.trash_arena;
     TEMP_USAGE(trash_arena);
 
     Process_Events(game, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);

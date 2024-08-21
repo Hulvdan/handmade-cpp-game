@@ -46,7 +46,7 @@
         Allocator_Mode::Free_All, 0, 1, 0, 0, allocator_data, 0 \
     )
 
-#if (SANITIZATION_ENABLED == 1)
+#if BF_SANITIZATION_ENABLED
 #    define SANITIZE                                              \
         (BF_MEMORY_COALESCE_(allocator, Root_Allocator_Routine))( \
             Allocator_Mode::Sanity, 0, 0, 0, 0, allocator_data, 0 \

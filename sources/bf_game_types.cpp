@@ -587,8 +587,9 @@ struct Human {
     Moving_In_The_World_State state_moving_in_the_world = {};
     Moving_Resources_Substate substate_moving_resources = {};
 
-    Graph_Segment_ID segment_id  = {};
-    Building_ID      building_id = {};
+    Graph_Segment_ID  segment_id  = {};
+    Building_ID       building_id = {};
+    World_Resource_ID resource_id = {};
 };
 
 struct Building {

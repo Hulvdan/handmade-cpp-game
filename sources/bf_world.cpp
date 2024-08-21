@@ -259,14 +259,14 @@ void Place_Building(
     }
 
     if (built) {
-        Assert(scriptable->type == Building_Type::City_Hall);
-
-        City_Hall c{};
-        c.time_since_human_was_created = f32_inf;
-        {
-            auto [pid, pvalue] = world.city_halls.Add(ctx);
-            *pid               = id;
-            *pvalue            = c;
+        if (scriptable->type == Building_Type::City_Hall) {
+            City_Hall c{};
+            c.time_since_human_was_created = f32_inf;
+            {
+                auto [pid, pvalue] = world.city_halls.Add(ctx);
+                *pid               = id;
+                *pvalue            = c;
+            }
         }
     }
     else {
@@ -381,11 +381,23 @@ Human* Strict_Query_Human(World& world, Human_ID id) {
 }
 
 Graph_Segment* Query_Graph_Segment(World& world, Graph_Segment_ID id) {
-    return world.segments.Find(id);
+    auto result = world.segments.Find(id);
+    return result;
 }
 
 Graph_Segment* Strict_Query_Graph_Segment(World& world, Graph_Segment_ID id) {
     auto result = Query_Graph_Segment(world, id);
+    Assert(result != nullptr);
+    return result;
+}
+
+World_Resource* Query_World_Resource(World& world, World_Resource_ID id) {
+    auto result = world.resources.Find(id);
+    return result;
+}
+
+World_Resource* Strict_Query_World_Resource(World& world, World_Resource_ID id) {
+    auto result = Query_World_Resource(world, id);
     Assert(result != nullptr);
     return result;
 }
@@ -763,6 +775,21 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 // MovingResources Substates.
 //----------------------------------------------------------------------------------
 
+void HumanState_MovingResources_SetSubstate(
+    Human_State&              state,
+    Human&                    human,
+    Moving_Resources_Substate new_state_value,
+    const Human_Data&         data,
+    MCTX
+);
+
+void HumanState_MovingResources_Exit(
+    Human_State&      state,
+    Human&            human,
+    const Human_Data& data,
+    MCTX
+);
+
 // MovingToResource Substate.
 //----------------------------------------------------------------------------------
 
@@ -770,20 +797,62 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
+
+    human.resource_id = *segment.resources_to_transport.First();
+
+    auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
+    // res.targeted_human_id = TODO: это нужно???
+
+    if (human.moving.elapsed == 0)
+        human.moving.to.reset();
+
+    if ((res.pos == human.moving.pos) && (human.moving.elapsed == 0)) {
+        HumanState_MovingResources_SetSubstate(
+            state, human, Moving_Resources_Substate::Picking_Up_Resource, data, ctx
+        );
+        return;
+    }
+
+    auto graph_contains   = Graph_Contains(segment.graph, human.moving.pos);
+    auto node_is_walkable = Graph_Node(segment.graph, human.moving.pos) != 0;
+
+    auto  will_move_to = human.moving.to.value_or(human.moving.pos);
+    auto& world        = *data.world;
+
+    if ((res.pos != will_move_to) && graph_contains && node_is_walkable) {
+        auto [success, path, path_count] = Find_Path(
+            *data.trash_arena,
+            world.size,
+            world.terrain_tiles,
+            world.element_tiles,
+            will_move_to,
+            res.pos,
+            true
+        );
+
+        Assert(success);
+        Assert(path_count > 0);
+        Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+    }
+    else if ((!graph_contains) || (!node_is_walkable))
+        HumanState_MovingResources_Exit(state, human, data, ctx);
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingToResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    human.moving.path.Reset();
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingToResource_Update) {
     CTX_LOGGER;
-    // TODO:
+
+    // NOTE: Специально оставлено пустым.
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -792,7 +861,8 @@ HumanState_OnCurrentSegmentChanged_function(
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    HumanState_MovingResources_Exit(state, human, data, ctx);
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -800,7 +870,20 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTh
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    if ((human.resource_id == World_Resource_ID_Missing) || (human.resource_id == 0)) {
+        HumanState_MovingResources_Exit(state, human, data, ctx);
+        return;
+    }
+
+    if (human.moving.elapsed == 0)
+        human.moving.to.reset();
+
+    auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
+    if (human.moving.pos == res.pos)
+        HumanState_MovingResources_SetSubstate(
+            state, human, Moving_Resources_Substate::Picking_Up_Resource, data, ctx
+        );
 }
 
 // Human_State&      state
@@ -1021,6 +1104,36 @@ void HumanState_MovingResources_SetSubstate(
     default:
         INVALID_PATH;
     }
+}
+
+void HumanState_MovingResources_Exit(
+    Human_State&      state,
+    Human&            human,
+    const Human_Data& data,
+    MCTX
+) {
+    switch (human.substate_moving_resources) {
+    case Moving_Resources_Substate::Moving_To_Resource: {
+        HumanState_MovingToResource_OnExit(state, human, data, ctx);
+    } break;
+
+    case Moving_Resources_Substate::Picking_Up_Resource: {
+        HumanState_PickingUpResource_OnExit(state, human, data, ctx);
+    } break;
+
+    case Moving_Resources_Substate::Moving_Resource: {
+        HumanState_MovingResource_OnExit(state, human, data, ctx);
+    } break;
+
+    case Moving_Resources_Substate::Placing_Resource: {
+        HumanState_PlacingResource_OnExit(state, human, data, ctx);
+    } break;
+
+    default:
+        INVALID_PATH;
+    }
+
+    Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -1586,8 +1699,8 @@ void Update_World(Game& game, float dt, MCTX) {
             auto node_with_all_directions_marked       = 0b00001111;
             WORLD_PTR_OFFSET(visited, destination_pos) = node_with_all_directions_marked;
 
-            World_Resource_ID* found_resource_id = nullptr;
-            World_Resource*    found_resource    = nullptr;
+            World_Resource_ID found_resource_id = World_Resource_ID_Missing;
+            World_Resource*   found_resource    = nullptr;
 
             // TODO(Hulvdan): Investigate ways of refactoring pathfinding algorithms
             // using some kind of sets of rules that differ depending on use cases.
@@ -1609,7 +1722,7 @@ void Update_World(Game& game, float dt, MCTX) {
                 if (!Pos_Is_In_Bounds(new_pos, gsize))
                     continue;
 
-                if (!Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir)))
+                if (Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir)))
                     continue;
 
                 min_x = MIN(min_x, new_pos.x);
@@ -1644,7 +1757,7 @@ void Update_World(Game& game, float dt, MCTX) {
                     && (new_tile_building->scriptable->type != Building_Type::City_Hall))
                     continue;
 
-                WORLD_PTR_OFFSET(bfs_parents, pos) = pos;
+                WORLD_PTR_OFFSET(bfs_parents, new_pos) = pos;
 
                 FOR_RANGE (int, k, world.resources.count) {
                     const auto& res_id  = *(world.resources.ids + k);
@@ -1658,6 +1771,7 @@ void Update_World(Game& game, float dt, MCTX) {
                         && (resource_to_book.scriptable == res.scriptable))
                     {
                         found_resource                            = res_ptr;
+                        found_resource_id                         = res_id;
                         *booked_resources.Vector_Occupy_Slot(ctx) = res_id;
                         break;
                     }
@@ -1684,6 +1798,7 @@ void Update_World(Game& game, float dt, MCTX) {
 
             if (found_resource != nullptr) {
                 Vector<v2i16> path{};
+                *path.Vector_Occupy_Slot(ctx) = found_resource->pos;
 
                 auto destination = found_resource->pos;
 
@@ -1708,7 +1823,7 @@ void Update_World(Game& game, float dt, MCTX) {
 
                 if (WORLD_PTR_OFFSET(bfs_parents, destination) == -v2i16_one)
                     *found_pairs.Vector_Occupy_Slot(ctx)
-                        = {resource_to_book, *found_resource_id, found_resource, path};
+                        = {resource_to_book, found_resource_id, found_resource, path};
             }
 
             for (int y = min_y; y <= max_y; y++) {
@@ -1741,7 +1856,7 @@ void Update_World(Game& game, float dt, MCTX) {
                     if (!Graph_Contains(seg.graph, a))
                         continue;
 
-                    auto node = WORLD_PTR_OFFSET(seg.graph.nodes, a);
+                    auto node = Graph_Node(seg.graph, a);
                     if (!Graph_Node_Has(node, dir))
                         continue;
 
@@ -1763,10 +1878,11 @@ void Update_World(Game& game, float dt, MCTX) {
                         auto c = *(path.base + path_section_idx + 2);
 
                         if (Graph_Contains(seg.graph, c)) {
-                            auto node_c = WORLD_PTR_OFFSET(seg.graph.nodes, c);
+                            auto node_c = Graph_Node(seg.graph, c);
                             // Checking if b is an intermediate vertex
                             // that should be skipped.
-                            if (Graph_Node_Has(node_c, v2i16_To_Direction(b - c)))
+                            auto dir = v2i16_To_Direction(b - c);
+                            if (Graph_Node_Has(node_c, dir))
                                 continue;
                         }
                     }
@@ -1781,11 +1897,14 @@ void Update_World(Game& game, float dt, MCTX) {
                             //      rrrr
                             *res.transportation_segments.Vector_Occupy_Slot(ctx) = seg_id;
                             *res.transportation_vertices.Vector_Occupy_Slot(ctx) = b;
+                            SANITIZE;
                             break;
                         }
+                        SANITIZE;
                     }
                 }
             }
+            SANITIZE;
 
             Assert(
                 res.transportation_vertices.count == res.transportation_segments.count
@@ -1799,9 +1918,10 @@ void Update_World(Game& game, float dt, MCTX) {
                 Assert_False(seg.linked_resources.Contains(res_id));
             }
 
-            World_Resource_Booking booking{};
-            booking.type        = World_Resource_Booking_Type::Construction;
-            booking.building_id = resource_to_book.building_id;
+            World_Resource_Booking booking{
+                .type        = World_Resource_Booking_Type::Construction,
+                .building_id = resource_to_book.building_id,
+            };
 
             auto booking_id = Next_World_Resource_Booking_ID(world.last_entity_id);
             {
@@ -1859,9 +1979,9 @@ void Add_World_Resource(
     };
 
     {
-        auto [id_p, presource] = world.resources.Add(ctx);
-        *id_p                  = Next_World_Resource_ID(world.last_entity_id);
-        *presource             = resource;
+        auto [id_p, resource_p] = world.resources.Add(ctx);
+        *id_p                   = Next_World_Resource_ID(world.last_entity_id);
+        *resource_p             = resource;
     }
 }
 
@@ -1902,21 +2022,36 @@ void Init_World(
     }
 }
 
+bool Try_Build(Game& game, v2i16 pos, const Item_To_Build& item, MCTX);
+
 void Post_Init_World(
-    bool /* first_time_initializing */,
+    bool first_time_initializing,
     bool /* hot_reloaded */,
     Game& game,
     Arena& /* arena */,
     MCTX
 ) {
+    // Ставим здание на след. кадр после начального.
+    static bool placed_building = false;
+    if (!first_time_initializing && !placed_building) {
+        Item_To_Build lumberjacks_hut{
+            .type                = Item_To_Build_Type::Building,
+            .scriptable_building = game.scriptable_buildings + 1,
+        };
+        Try_Build(game, {0, 3}, lumberjacks_hut, ctx);
+
+        Assert(game.scriptable_resources_count > 0);
+    }
+
+    if (!first_time_initializing)
+        return;
+
     CTX_LOGGER;
     SCOPED_LOG_INIT("Post_Init_World");
 
-    bool built = true;
-    Place_Building(game, {4, 1}, game.scriptable_buildings + 0, built, ctx);
+    Place_Building(game, {4, 1}, game.scriptable_buildings + 0, true, ctx);  // built=true
 
-    Assert(game.scriptable_resources_count > 0);
-    Add_World_Resource(game, game.scriptable_resources + 0, {2, 1}, ctx);
+    Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
 }
 
 void Deinit_World(Game& game, MCTX) {
@@ -2105,6 +2240,8 @@ void Regenerate_Element_Tiles(
         {0, 2},
         {1, 2},
         {2, 2},
+
+        {3, 1},
     };
 
     auto base_offset = v2i16(0, 0);
