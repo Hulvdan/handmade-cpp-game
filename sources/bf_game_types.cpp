@@ -245,8 +245,8 @@ struct World_Resource {
     Vector<Graph_Segment_ID> transportation_segments = {};
     Vector<v2i16>            transportation_vertices = {};
 
-    Human_ID targeted_human = {};  // optional
-    Human_ID carrying_human = {};  // optional
+    Human_ID targeted_human_id = {};  // optional
+    Human_ID carrying_human_id = {};  // optional
 };
 
 // NOTE: Сегмент - это несколько склеенных друг с другом клеток карты,
@@ -398,7 +398,7 @@ enum class Moving_In_The_World_State {
     Moving_To_Destination,
 };
 
-enum class Moving_Resources_State {
+enum class Moving_Resources_Substate {
     None = 0,
     Moving_To_Resource,
     Picking_Up_Resource,
@@ -585,6 +585,7 @@ struct Human {
 
     Human_States              state                     = {};
     Moving_In_The_World_State state_moving_in_the_world = {};
+    Moving_Resources_Substate substate_moving_resources = {};
 
     Graph_Segment_ID segment_id  = {};
     Building_ID      building_id = {};

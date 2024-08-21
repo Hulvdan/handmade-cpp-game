@@ -768,16 +768,21 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingToResource_OnExit) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingToResource_Update) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -785,12 +790,16 @@ HumanState_Update_function(HumanState_MovingToResource_Update) {
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingToResource_OnCurrentSegmentChanged
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTheNextTile
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
@@ -801,6 +810,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTh
 // Building*         old_building
 // MCTX
 HumanState_UpdateStates_function(HumanState_MovingToResource_UpdateStates) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -809,16 +819,21 @@ HumanState_UpdateStates_function(HumanState_MovingToResource_UpdateStates) {
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_PickingUpResource_OnExit) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_PickingUpResource_Update) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -826,12 +841,16 @@ HumanState_Update_function(HumanState_PickingUpResource_Update) {
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_PickingUpResource_OnCurrentSegmentChanged
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_PickingUpResource_OnMovedToTheNextTile
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
@@ -842,6 +861,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_PickingUpResource_OnMovedToT
 // Building*         old_building
 // MCTX
 HumanState_UpdateStates_function(HumanState_PickingUpResource_UpdateStates) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -850,16 +870,21 @@ HumanState_UpdateStates_function(HumanState_PickingUpResource_UpdateStates) {
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_MovingResource_OnEnter) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingResource_OnExit) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingResource_Update) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -867,11 +892,15 @@ HumanState_Update_function(HumanState_MovingResource_Update) {
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingResource_OnCurrentSegmentChanged
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingResource_OnMovedToTheNextTile) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
@@ -882,6 +911,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingResource_OnMovedToTheN
 // Building*         old_building
 // MCTX
 HumanState_UpdateStates_function(HumanState_MovingResource_UpdateStates) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -890,16 +920,21 @@ HumanState_UpdateStates_function(HumanState_MovingResource_UpdateStates) {
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_PlacingResource_OnEnter) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_PlacingResource_OnExit) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_PlacingResource_Update) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -907,12 +942,16 @@ HumanState_Update_function(HumanState_PlacingResource_Update) {
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_PlacingResource_OnCurrentSegmentChanged
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_PlacingResource_OnMovedToTheNextTile
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
@@ -923,6 +962,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_PlacingResource_OnMovedToThe
 // Building*         old_building
 // MCTX
 HumanState_UpdateStates_function(HumanState_PlacingResource_UpdateStates) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -930,22 +970,84 @@ HumanState_UpdateStates_function(HumanState_PlacingResource_UpdateStates) {
 // MovingResources State Functions.
 //----------------------------------------------------------------------------------
 
+void HumanState_MovingResources_SetSubstate(
+    Human_State&              state,
+    Human&                    human,
+    Moving_Resources_Substate new_state_value,
+    const Human_Data&         data,
+    MCTX
+) {
+    auto old_state = human.substate_moving_resources;
+    if (old_state != Moving_Resources_Substate::None) {
+        switch (human.substate_moving_resources) {
+        case Moving_Resources_Substate::Moving_To_Resource: {
+            HumanState_MovingToResource_OnExit(state, human, data, ctx);
+        } break;
+
+        case Moving_Resources_Substate::Picking_Up_Resource: {
+            HumanState_PickingUpResource_OnExit(state, human, data, ctx);
+        } break;
+
+        case Moving_Resources_Substate::Moving_Resource: {
+            HumanState_MovingResource_OnExit(state, human, data, ctx);
+        } break;
+
+        case Moving_Resources_Substate::Placing_Resource: {
+            HumanState_PlacingResource_OnExit(state, human, data, ctx);
+        } break;
+
+        default:
+            INVALID_PATH;
+        }
+    }
+
+    switch (new_state_value) {
+    case Moving_Resources_Substate::Moving_To_Resource: {
+        HumanState_MovingToResource_OnEnter(state, human, data, ctx);
+    } break;
+
+    case Moving_Resources_Substate::Picking_Up_Resource: {
+        HumanState_PickingUpResource_OnEnter(state, human, data, ctx);
+    } break;
+
+    case Moving_Resources_Substate::Moving_Resource: {
+        HumanState_MovingResource_OnEnter(state, human, data, ctx);
+    } break;
+
+    case Moving_Resources_Substate::Placing_Resource: {
+        HumanState_PlacingResource_OnEnter(state, human, data, ctx);
+    } break;
+
+    default:
+        INVALID_PATH;
+    }
+}
+
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
-    Assert(human.segment != 0);
-    Assert(human.segment != Graph_Segment_ID_Missing);
+    CTX_LOGGER;
+    LOG_SCOPE;
+    Assert(human.segment_id != 0);
+    Assert(human.segment_id != Graph_Segment_ID_Missing);
 
-    auto& segment = *Strict_Query_Graph_Segment(data.world, human.segment);
+    auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
     Assert(segment.resources_to_transport.count > 0);
+
+    HumanState_MovingResources_SetSubstate(
+        state, human, Moving_Resources_Substate::Moving_To_Resource, data, ctx
+    );
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingResources_OnExit) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingResources_Update) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -953,12 +1055,16 @@ HumanState_Update_function(HumanState_MovingResources_Update) {
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingResources_OnCurrentSegmentChanged
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToTheNextTile
 ) {
+    CTX_LOGGER;
+    LOG_SCOPE;
     // TODO:
 }
 
@@ -969,6 +1075,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToThe
 // Building*         old_building
 // MCTX
 HumanState_UpdateStates_function(HumanState_MovingResources_UpdateStates) {
+    CTX_LOGGER;
     // TODO:
 }
 
@@ -1743,12 +1850,13 @@ void Add_World_Resource(
     auto  gsize       = world.size;
     auto& trash_arena = game.trash_arena;
 
-    World_Resource resource{};
-    resource.scriptable     = scriptable;
-    resource.pos            = pos;
-    resource.booking_id     = World_Resource_Booking_ID_Missing;
-    resource.targeted_human = Human_ID_Missing;
-    resource.carrying_human = Human_ID_Missing;
+    World_Resource resource{
+        .scriptable        = scriptable,
+        .pos               = pos,
+        .booking_id        = World_Resource_Booking_ID_Missing,
+        .targeted_human_id = Human_ID_Missing,
+        .carrying_human_id = Human_ID_Missing,
+    };
 
     {
         auto [id_p, presource] = world.resources.Add(ctx);
