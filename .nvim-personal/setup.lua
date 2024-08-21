@@ -59,6 +59,48 @@ vim.keymap.set("n", "<leader>0", function()
     end
 end, opts)
 
+vim.keymap.set("n", "<leader><leader>*", function()
+    vim.api.nvim_input("ds)hx")
+end, opts)
+
+vim.keymap.set("v", "<leader>*", function()
+    local _, ls, cs = unpack(vim.fn.getpos("v"))
+
+    local _, le, ce = unpack(vim.fn.getpos("."))
+    if ls > le then
+        t = le
+        le = ls
+        ls = t
+        t = cs
+        cs = ce
+        ce = t
+    end
+    if ls == le then
+        if cs > ce then
+            t = cs
+            cs = ce
+            ce = t
+        end
+    end
+
+    vim.api.nvim_input(
+        string.format(
+            "<ESC>" --
+                .. ":call cursor(%d,%d)<CR>"
+                .. "i*(<ESC>"
+                .. ":call cursor(%d,%d)<CR>"
+                .. "i)<ESC>"
+                .. ":call cursor(%d,%d)<CR>",
+            ls,
+            cs,
+            le,
+            ce + 3,
+            ls,
+            cs + 2
+        )
+    )
+end, opts)
+
 ------------------------------------------------------------------------------------
 -- Кнопки работы с проектом
 ------------------------------------------------------------------------------------
