@@ -228,6 +228,12 @@ World_Resource_ID Next_World_Resource_ID(Entity_ID& last_entity_id) {
     return ent | World_Resource::component_mask;
 }
 
+World_Resource_Booking_ID Next_World_Resource_Booking_ID(Entity_ID& last_entity_id) {
+    auto ent = ++last_entity_id;
+    Assert_No_Collision(ent, World_Resource_Booking::component_mask);
+    return ent | World_Resource_Booking::component_mask;
+}
+
 void Place_Building(
     Game&                game,
     v2i16                pos,
@@ -267,8 +273,13 @@ void Place_Building(
         for (auto pair_p : Iter(&scriptable->construction_resources)) {
             auto& [resource, count] = *pair_p;
 
-            *world.resources_booking_queue.Vector_Occupy_Slot(ctx)
-                = World_Resource_To_Book(resource, count, id);
+            World_Resource_To_Book to_book{
+                .scriptable  = resource,
+                .count       = (u8)count,
+                .building_id = id,
+            };
+
+            *world.resources_to_book.Vector_Occupy_Slot(ctx) = to_book;
         }
 
         *world.not_constructed_buildings.Add(ctx) = id;
@@ -392,6 +403,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTh
 );
 HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates);
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -411,6 +423,7 @@ HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     );
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -426,6 +439,7 @@ HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
     }
 }
 
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
     HumanState_MovingInTheWorld_UpdateStates(
         state,
@@ -437,6 +451,7 @@ HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
     );
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingInTheWorld_OnCurrentSegmentChanged
 ) {
@@ -449,6 +464,7 @@ HumanState_OnCurrentSegmentChanged_function(
     );
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
@@ -477,6 +493,12 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTh
     }
 }
 
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
 HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
     ZoneScoped;
 
@@ -632,6 +654,7 @@ HumanState_OnMovedToTheNextTile_function(
 );
 HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates);
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -669,6 +692,7 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     }
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -676,12 +700,14 @@ HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
     human.moving.path.Reset();
 }
 
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingInsideSegment_Update) {
     HumanState_MovingInsideSegment_UpdateStates(
         state, human, data, Building_ID_Missing, nullptr, ctx
     );
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingInsideSegment_OnCurrentSegmentChanged
 ) {
@@ -691,6 +717,7 @@ HumanState_OnCurrentSegmentChanged_function(
     Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(
     HumanState_MovingInsideSegment_OnMovedToTheNextTile
 ) {
@@ -700,6 +727,12 @@ HumanState_OnMovedToTheNextTile_function(
     // NOTE: Специально оставлено пустым.
 }
 
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
 HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
     ZoneScoped;
 
@@ -727,31 +760,214 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 }
 
 //----------------------------------------------------------------------------------
-// MovingResources State Functions.
+// MovingResources Substates.
 //----------------------------------------------------------------------------------
-HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
+
+// MovingToResource Substate.
+//----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnExit_function(HumanState_MovingToResource_OnExit) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+HumanState_Update_function(HumanState_MovingToResource_Update) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_MovingToResource_OnCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTheNextTile
+) {
+    // TODO:
+}
+
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
+HumanState_UpdateStates_function(HumanState_MovingToResource_UpdateStates) {
+    // TODO:
+}
+
+// PickingUpResource Substate.
+//----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnExit_function(HumanState_PickingUpResource_OnExit) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+HumanState_Update_function(HumanState_PickingUpResource_Update) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_PickingUpResource_OnCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnMovedToTheNextTile_function(HumanState_PickingUpResource_OnMovedToTheNextTile
+) {
+    // TODO:
+}
+
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
+HumanState_UpdateStates_function(HumanState_PickingUpResource_UpdateStates) {
+    // TODO:
+}
+
+// MovingResource Substate.
+//----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnEnter_function(HumanState_MovingResource_OnEnter) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnExit_function(HumanState_MovingResource_OnExit) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+HumanState_Update_function(HumanState_MovingResource_Update) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_MovingResource_OnCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnMovedToTheNextTile_function(HumanState_MovingResource_OnMovedToTheNextTile) {
+    // TODO:
+}
+
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
+HumanState_UpdateStates_function(HumanState_MovingResource_UpdateStates) {
+    // TODO:
+}
+
+// PlacingResource Substate.
+//----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnEnter_function(HumanState_PlacingResource_OnEnter) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnExit_function(HumanState_PlacingResource_OnExit) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+HumanState_Update_function(HumanState_PlacingResource_Update) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_PlacingResource_OnCurrentSegmentChanged
+) {
+    // TODO:
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnMovedToTheNextTile_function(HumanState_PlacingResource_OnMovedToTheNextTile
+) {
+    // TODO:
+}
+
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
+HumanState_UpdateStates_function(HumanState_PlacingResource_UpdateStates) {
+    // TODO:
+}
+
+//----------------------------------------------------------------------------------
+// MovingResources State Functions.
+//----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
+HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
+    Assert(human.segment != 0);
+    Assert(human.segment != Graph_Segment_ID_Missing);
+
+    auto& segment = *Strict_Query_Graph_Segment(data.world, human.segment);
+    Assert(segment.resources_to_transport.count > 0);
+}
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_MovingResources_OnExit) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingResources_Update) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingResources_OnCurrentSegmentChanged
 ) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToTheNextTile
 ) {
     // TODO:
 }
 
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
 HumanState_UpdateStates_function(HumanState_MovingResources_UpdateStates) {
     // TODO:
 }
@@ -759,28 +975,40 @@ HumanState_UpdateStates_function(HumanState_MovingResources_UpdateStates) {
 //----------------------------------------------------------------------------------
 // Construction State Functions.
 //----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_Construction_OnEnter) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_Construction_OnExit) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_Construction_Update) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_Construction_OnCurrentSegmentChanged
 ) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_Construction_OnMovedToTheNextTile) {
     // TODO:
 }
 
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
 HumanState_UpdateStates_function(HumanState_Construction_UpdateStates) {
     // TODO:
 }
@@ -788,26 +1016,38 @@ HumanState_UpdateStates_function(HumanState_Construction_UpdateStates) {
 //----------------------------------------------------------------------------------
 // Employee State Functions.
 //----------------------------------------------------------------------------------
+
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnEnter_function(HumanState_Employee_OnEnter) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_Employee_OnExit) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_Employee_Update) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnCurrentSegmentChanged_function(HumanState_Employee_OnCurrentSegmentChanged) {
     // TODO:
 }
 
+// Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_Employee_OnMovedToTheNextTile) {
     // TODO:
 }
 
+// Human_State&      state
+// Human&            human
+// const Human_Data& data
+// Building_ID       old_building_id
+// Building*         old_building
+// MCTX
 HumanState_UpdateStates_function(HumanState_Employee_UpdateStates) {
     // TODO:
 }
@@ -1193,6 +1433,302 @@ void Update_World(Game& game, float dt, MCTX) {
     Process_City_Halls(game, dt, Assert_Deref(game.world.human_data), ctx);
     Update_Humans(game, dt, Assert_Deref(game.world.human_data), ctx);
 
+    {  // Pathfind_Resources_In_Queue();
+        auto& trash_arena = game.trash_arena;
+
+        TEMP_USAGE(trash_arena);
+
+        //--------------------------------------------------------------------------
+        // `FindPairs`.
+        //--------------------------------------------------------------------------
+        Queue<std::tuple<Direction, v2i16>> bfqueue{};
+
+        const auto gsize       = world.size;
+        const auto tiles_count = gsize.x * gsize.y;
+
+        auto visited     = Allocate_Zeros_Array(trash_arena, u8, tiles_count);
+        auto bfs_parents = Allocate_Zeros_Array(trash_arena, v2i16, tiles_count);
+        FOR_RANGE (int, i, tiles_count) {
+            *(bfs_parents + i) = -v2i16_one;
+        }
+
+        bool iteration_warning_emitted  = false;
+        bool iteration2_warning_emitted = false;
+
+        using Found_Resource_t = std::tuple<
+            World_Resource_To_Book,
+            World_Resource_ID,
+            World_Resource*,
+            Vector<v2i16>>;
+        Vector<Found_Resource_t> found_pairs{};
+
+        FOR_RANGE (int, i, world.resources_to_book.count) {
+            auto& resource_to_book = *(world.resources_to_book.base + i);
+            auto& building = *Strict_Query_Building(world, resource_to_book.building_id);
+            auto  destination_pos = building.pos;
+
+            FOR_DIRECTION (d) {
+                *bfqueue.Enqueue(ctx) = {d, destination_pos};
+            }
+
+            auto min_x = destination_pos.x;
+            auto max_x = destination_pos.x;
+            auto min_y = destination_pos.y;
+            auto max_y = destination_pos.y;
+
+            auto node_with_all_directions_marked       = 0b00001111;
+            WORLD_PTR_OFFSET(visited, destination_pos) = node_with_all_directions_marked;
+
+            World_Resource_ID* found_resource_id = nullptr;
+            World_Resource*    found_resource    = nullptr;
+
+            // TODO(Hulvdan): Investigate ways of refactoring pathfinding algorithms
+            // using some kind of sets of rules that differ depending on use cases.
+            // Preferably without a performance hit.
+
+            const int _DEV_MAX_ITERATIONS = 256;
+
+            Vector<World_Resource_ID> booked_resources{};
+
+            int iteration = 0;
+            while ((iteration++ < 10 * _DEV_MAX_ITERATIONS)  //
+                   && (found_resource == nullptr)            //
+                   && (bfqueue.count > 0))
+            {
+                auto [dir, pos] = bfqueue.Dequeue();
+
+                auto new_pos = pos + As_Offset(dir);
+
+                if (!Pos_Is_In_Bounds(new_pos, gsize))
+                    continue;
+
+                if (!Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir)))
+                    continue;
+
+                min_x = MIN(min_x, new_pos.x);
+                max_x = MAX(max_x, new_pos.x);
+                min_y = MIN(min_y, new_pos.y);
+                max_y = MAX(max_y, new_pos.y);
+
+                WORLD_PTR_OFFSET(visited, new_pos) = Graph_Node_Mark(
+                    WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir), true
+                );
+                WORLD_PTR_OFFSET(visited, pos)
+                    = Graph_Node_Mark(WORLD_PTR_OFFSET(visited, pos), dir, true);
+
+                auto& tile = WORLD_PTR_OFFSET(world.element_tiles, pos);
+
+                auto& new_tile = WORLD_PTR_OFFSET(world.element_tiles, new_pos);
+
+                if ((tile.type == Element_Tile_Type::Building)
+                    && (new_tile.type == Element_Tile_Type::Building))
+                    continue;
+
+                if ((tile.type == Element_Tile_Type::None)
+                    || (new_tile.type == Element_Tile_Type::None))
+                    continue;
+
+                Building* new_tile_building = nullptr;
+                if (new_tile.type == Element_Tile_Type::Building)
+                    new_tile_building
+                        = Strict_Query_Building(world, new_tile.building_id);
+
+                if ((new_tile.type == Element_Tile_Type::Building)
+                    && (new_tile_building->scriptable->type != Building_Type::City_Hall))
+                    continue;
+
+                WORLD_PTR_OFFSET(bfs_parents, pos) = pos;
+
+                FOR_RANGE (int, k, world.resources.count) {
+                    const auto& res_id  = *(world.resources.ids + k);
+                    const auto  res_ptr = world.resources.base + k;
+                    auto&       res     = *res_ptr;
+
+                    if (booked_resources.Contains(res_id))
+                        continue;
+
+                    if ((res.pos == new_pos)
+                        && (resource_to_book.scriptable == res.scriptable))
+                    {
+                        found_resource                            = res_ptr;
+                        *booked_resources.Vector_Occupy_Slot(ctx) = res_id;
+                        break;
+                    }
+                }
+
+                FOR_DIRECTION (queue_dir) {
+                    if (queue_dir == Opposite(dir))
+                        continue;
+
+                    if (Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), queue_dir))
+                        continue;
+
+                    *bfqueue.Enqueue(ctx) = {queue_dir, new_pos};
+                }
+            }
+
+            Assert(iteration < 10 * _DEV_MAX_ITERATIONS);
+            if (iteration >= _DEV_MAX_ITERATIONS && !iteration_warning_emitted) {
+                iteration_warning_emitted = true;
+                LOG_WARN("WTF?");
+            }
+
+            bfqueue.Reset();
+
+            if (found_resource != nullptr) {
+                Vector<v2i16> path{};
+
+                auto destination = found_resource->pos;
+
+                int iteration2 = 0;
+                while ((iteration2++ < 10 * _DEV_MAX_ITERATIONS)
+                       && (WORLD_PTR_OFFSET(bfs_parents, destination) != -v2i16_one))
+                {
+                    *path.Vector_Occupy_Slot(ctx)
+                        = WORLD_PTR_OFFSET(bfs_parents, destination);
+
+                    auto new_destination = WORLD_PTR_OFFSET(bfs_parents, destination);
+                    Assert(destination != new_destination);
+
+                    destination = new_destination;
+                }
+
+                Assert(iteration2 < 10 * _DEV_MAX_ITERATIONS);
+                if ((iteration2 >= _DEV_MAX_ITERATIONS) && !iteration2_warning_emitted) {
+                    LOG_WARN("WTF?");
+                    iteration2_warning_emitted = true;
+                }
+
+                if (WORLD_PTR_OFFSET(bfs_parents, destination) == -v2i16_one)
+                    *found_pairs.Vector_Occupy_Slot(ctx)
+                        = {resource_to_book, *found_resource_id, found_resource, path};
+            }
+
+            for (int y = min_y; y <= max_y; y++) {
+                for (int x = min_x; x <= max_x; x++)
+                    WORLD_PTR_OFFSET(bfs_parents, v2i16(x, y)) = -v2i16_one;
+            }
+        }
+
+        FOR_RANGE (int, i, found_pairs.count) {
+            //-------------------------------------------------------------------
+            // `BookResource`.
+            //-------------------------------------------------------------------
+            // using var _ = Tracing.Scope();
+            auto& [resource_to_book, res_id, res_p, path] = *(found_pairs.base + i);
+
+            auto& res = *res_p;
+
+            Assert(res.transportation_segments.count == 0);
+            Assert(res.transportation_vertices.count == 0);
+
+            FOR_RANGE (int, path_section_idx, path.count - 1) {
+                auto a = *(path.base + path_section_idx);
+                auto b = *(path.base + path_section_idx + 1);
+
+                auto dir = v2i16_To_Direction(b - a);
+                FOR_RANGE (int, segment_idx, world.segments.count) {
+                    auto& seg_id = *(world.segments.ids + segment_idx);
+                    auto& seg    = *(world.segments.base + segment_idx);
+
+                    if (!Graph_Contains(seg.graph, a))
+                        continue;
+
+                    auto node = WORLD_PTR_OFFSET(seg.graph.nodes, a);
+                    if (!Graph_Node_Has(node, dir))
+                        continue;
+
+                    // Skipping vertices as in this example when moving from C to B:
+                    //     CrrFrrB
+                    //       rrr
+                    //
+                    // We don't wanna see the F (flag) in our vertices list.
+                    // We need only ending vertex per segment.
+                    // In this example there should only be B (building) added in the
+                    // list of vertices
+                    //
+                    // TODO: !!!
+                    // Check the following:
+                    //     CrrFFrrB
+                    //       rrrr
+                    //
+                    if (path_section_idx + 2 <= path.count - 1) {
+                        auto c = *(path.base + path_section_idx + 2);
+
+                        if (Graph_Contains(seg.graph, c)) {
+                            auto node_c = WORLD_PTR_OFFSET(seg.graph.nodes, c);
+                            // Checking if b is an intermediate vertex
+                            // that should be skipped.
+                            if (Graph_Node_Has(node_c, v2i16_To_Direction(b - c)))
+                                continue;
+                        }
+                    }
+
+                    FOR_RANGE (int, vertex_idx, seg.vertices_count) {
+                        auto& vertex = *(seg.vertices + vertex_idx);
+
+                        if (vertex == b) {
+                            // Hulvdan: transportation_segments can contain duplicates.
+                            // Consider the case:
+                            //     CrFFrB
+                            //      rrrr
+                            *res.transportation_segments.Vector_Occupy_Slot(ctx) = seg_id;
+                            *res.transportation_vertices.Vector_Occupy_Slot(ctx) = b;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            Assert(
+                res.transportation_vertices.count == res.transportation_segments.count
+            );
+
+            FOR_RANGE (int, i, res.transportation_segments.count) {
+                const auto  seg_id = *(res.transportation_segments.base + i);
+                const auto& seg    = *Strict_Query_Graph_Segment(world, seg_id);
+
+                Assert_False(seg.resources_to_transport.Contains(res_id));
+                Assert_False(seg.linked_resources.Contains(res_id));
+            }
+
+            World_Resource_Booking booking{};
+            booking.type        = World_Resource_Booking_Type::Construction;
+            booking.building_id = resource_to_book.building_id;
+
+            auto booking_id = Next_World_Resource_Booking_ID(world.last_entity_id);
+            {
+                auto [booking_id_p, booking_p] = world.resource_bookings.Add(ctx);
+
+                *booking_id_p = booking_id;
+                *booking_p    = booking;
+            }
+            res.booking_id = booking_id;
+
+            auto& starting_segment_id = *(res.transportation_segments.base + 0);
+            auto& starting_segment
+                = *Strict_Query_Graph_Segment(world, starting_segment_id);
+            *starting_segment.resources_to_transport.Enqueue(ctx) = res_id;
+
+            FOR_RANGE (int, transportation_seg_idx, res.transportation_segments.count) {
+                auto seg_id
+                    = *(res.transportation_segments.base + transportation_seg_idx);
+                auto& seg = *Strict_Query_Graph_Segment(world, seg_id);
+
+                if (!seg.linked_resources.Contains(res_id))
+                    *seg.linked_resources.Vector_Occupy_Slot(ctx) = res_id;
+            }
+        }
+
+        FOR_RANGE (int, i, found_pairs.count) {
+            auto& [resource_to_book, res_id, res_p, path] = *(found_pairs.base + i);
+
+            world.resources_to_book.Unstable_Remove_At(
+                world.resources_to_book.Index_Of(resource_to_book)
+            );
+        }
+    }
+
     SANITIZE;
 }
 
@@ -1210,7 +1746,7 @@ void Add_World_Resource(
     World_Resource resource{};
     resource.scriptable     = scriptable;
     resource.pos            = pos;
-    resource.booking        = World_Resource_Booking_ID_Missing;
+    resource.booking_id     = World_Resource_Booking_ID_Missing;
     resource.targeted_human = Human_ID_Missing;
     resource.carrying_human = Human_ID_Missing;
 
@@ -1271,9 +1807,8 @@ void Post_Init_World(
     bool built = true;
     Place_Building(game, {4, 1}, game.scriptable_buildings + 0, built, ctx);
 
-    // TODO: !!!
     Assert(game.scriptable_resources_count > 0);
-    Add_World_Resource(game, game.scriptable_resources + 0, {0, 0}, ctx);
+    Add_World_Resource(game, game.scriptable_resources + 0, {2, 1}, ctx);
 }
 
 void Deinit_World(Game& game, MCTX) {
@@ -1320,7 +1855,7 @@ void Deinit_World(Game& game, MCTX) {
     Deinit_Sparse_Array(world.humans_to_remove, ctx);
     Deinit_Sparse_Array(world.resources, ctx);
 
-    Deinit_Vector(world.resources_booking_queue, ctx);
+    Deinit_Vector(world.resources_to_book, ctx);
 }
 
 void Regenerate_Terrain_Tiles(
@@ -1671,8 +2206,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     }
 
     // NOTE: |V| = _nodes_count
-    // > let dist be a |V| × |V| array of minimum distances initialized to ∞ (infinity)
-    // > let prev be a |V| × |V| array of minimum distances initialized to null
+    // > let dist be a |V| × |V| array of minimum distances initialized to ∞
+    // (infinity) > let prev be a |V| × |V| array of minimum distances initialized to
+    // null
     auto& dist = data.dist;
     auto& prev = data.prev;
     dist       = (i16*)ALLOC(sizeof(i16) * n * n);

@@ -111,27 +111,27 @@ const v2i16 v2i16_adjacent_offsets[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 const v2i16 v2i16_adjacent_offsets_including_0[5]
     = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
-constexpr v2i v2i_zero   = v2i(0, 0);
-constexpr v2i v2i_one    = v2i(1, 1);
-constexpr v2i v2i_right  = v2i(1, 0);
-constexpr v2i v2i_up     = v2i(0, 1);
-constexpr v2i v2i_left   = v2i(-1, 0);
-constexpr v2i v2i_bottom = v2i(0, -1);
+constexpr v2i v2i_zero  = v2i(0, 0);
+constexpr v2i v2i_one   = v2i(1, 1);
+constexpr v2i v2i_right = v2i(1, 0);
+constexpr v2i v2i_up    = v2i(0, 1);
+constexpr v2i v2i_left  = v2i(-1, 0);
+constexpr v2i v2i_down  = v2i(0, -1);
 
-constexpr v2i16 v2i16_zero   = v2i16(0, 0);
-constexpr v2i16 v2i16_one    = v2i16(1, 1);
-constexpr v2i16 v2i16_right  = v2i16(1, 0);
-constexpr v2i16 v2i16_up     = v2i16(0, 1);
-constexpr v2i16 v2i16_left   = v2i16(-1, 0);
-constexpr v2i16 v2i16_bottom = v2i16(0, -1);
+constexpr v2i16 v2i16_zero  = v2i16(0, 0);
+constexpr v2i16 v2i16_one   = v2i16(1, 1);
+constexpr v2i16 v2i16_right = v2i16(1, 0);
+constexpr v2i16 v2i16_up    = v2i16(0, 1);
+constexpr v2i16 v2i16_left  = v2i16(-1, 0);
+constexpr v2i16 v2i16_down  = v2i16(0, -1);
 
-constexpr v2f v2f_zero   = v2f(0, 0);
-constexpr v2f v2f_one    = v2f(1, 1);
-constexpr v2f v2f_half   = v2f(1, 1) / 2.0f;
-constexpr v2f v2f_right  = v2f(1, 0);
-constexpr v2f v2f_up     = v2f(0, 1);
-constexpr v2f v2f_left   = v2f(-1, 0);
-constexpr v2f v2f_bottom = v2f(0, -1);
+constexpr v2f v2f_zero  = v2f(0, 0);
+constexpr v2f v2f_one   = v2f(1, 1);
+constexpr v2f v2f_half  = v2f(1, 1) / 2.0f;
+constexpr v2f v2f_right = v2f(1, 0);
+constexpr v2f v2f_up    = v2f(0, 1);
+constexpr v2f v2f_left  = v2f(-1, 0);
+constexpr v2f v2f_down  = v2f(0, -1);
 
 constexpr v3i v3i_zero = v3i(0, 0, 0);
 constexpr v3i v3i_one  = v3i(1, 1, 1);
@@ -291,7 +291,7 @@ struct Arrow_Proxy {
 //         int field2;
 //
 //         NOTE: Требуется реализовать этот метод.
-//         [[nodiscard]] bool Equal_To(const A& other) {
+//         [[nodiscard]] bool Equal_To(const A& other) const {
 //             auto result = (
 //                 field1 == other.field1
 //                 && field2 == other.field2

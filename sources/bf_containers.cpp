@@ -112,7 +112,7 @@ struct Queue {
     Allocator_function((*allocator_)) = nullptr;
     void* allocator_data_             = nullptr;
 
-    i32 Index_Of(const T& value) {
+    inline i32 Index_Of(const T& value) const {
         FOR_RANGE (i32, i, count) {
             auto& v = base[i];
             if (v == value)
@@ -120,6 +120,11 @@ struct Queue {
         }
 
         return -1;
+    }
+
+    inline bool Contains(const T& value) const {
+        auto result = Index_Of(value) != -1;
+        return result;
     }
 
     T* Enqueue(MCTX) {
@@ -216,9 +221,9 @@ struct Vector {
     Allocator_function((*allocator_)) = nullptr;
     void* allocator_data_             = nullptr;
 
-    i32 Index_Of(const T& value) {
+    inline i32 Index_Of(const T& value) const {
         FOR_RANGE (i32, i, count) {
-            auto& v = base[i];
+            auto& v = *(base + i);
             if (v == value)
                 return i;
         }
@@ -226,16 +231,23 @@ struct Vector {
         return -1;
     }
 
-    // TODO: Подумать о целесообразности.
-    i32 Index_Of(const T& value, std::invocable<const T&, const T&, bool&> auto&& func) {
+    inline i32 Index_Of(
+        const T&                                         value,
+        std::invocable<const T&, const T&, bool&> auto&& func
+    ) const {
         bool found = false;
         FOR_RANGE (i32, i, count) {
-            func(value, base[i], found);
+            func(value, *(base + i), found);
             if (found)
                 return i;
         }
 
         return -1;
+    }
+
+    inline bool Contains(const T& value) const {
+        auto result = Index_Of(value) != -1;
+        return result;
     }
 
     i32 Index_By_Ptr(const T* const value_ptr) {
@@ -245,7 +257,7 @@ struct Vector {
         return (value_ptr - base) / sizeof(T);
     }
 
-    T* Vector_Occupy_Slot(MCTX) {
+    inline T* Vector_Occupy_Slot(MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         if (base == nullptr) {
@@ -275,20 +287,20 @@ struct Vector {
         return result;
     }
 
-    void Remove_At(i32 i) {
+    inline void Remove_At(const i32 i) {
         Assert(i >= 0);
         Assert(i < count);
 
-        i32 delta_count = count - i - 1;
-        Assert(delta_count >= 0);
+        auto move_from_right_count = count - i - 1;
+        Assert(move_from_right_count >= 0);
 
-        if (delta_count > 0)
-            memmove(base + i, base + i + 1, sizeof(T) * delta_count);
+        if (move_from_right_count > 0)
+            memmove(base + i, base + i + 1, sizeof(T) * move_from_right_count);
 
         count--;
     }
 
-    void Unordered_Remove_At(const i32 i) {
+    inline void Unstable_Remove_At(const i32 i) {
         Assert(i >= 0);
         Assert(i < count);
 
@@ -298,7 +310,7 @@ struct Vector {
         count--;
     }
 
-    T Pop() {
+    inline T Pop() {
         Assert(count > 0);
 
         T result = base[count - 1];
@@ -309,7 +321,7 @@ struct Vector {
 
     // Изменение максимального количества элементов,
     // которое вектор сможет содержать без реаллокации.
-    void Resize(u32 elements_count, MCTX) {
+    void Resize(const u32 elements_count, MCTX) {
         CTX_ALLOCATOR;
 
         if (max_count < elements_count) {
@@ -345,7 +357,7 @@ struct Vector {
         }
     }
 
-    void Reset() {
+    inline void Reset() {
         count = 0;
     }
 };
@@ -453,7 +465,7 @@ struct Sparse_Array_Of_Ids {
         Assert(false);
     }
 
-    bool Contains(const T& id) {
+    inline bool Contains(const T& id) {
         FOR_RANGE (int, i, count) {
             if (ids[i] == id)
                 return true;
@@ -495,7 +507,7 @@ struct Sparse_Array {
     i32 count     = 0;
     i32 max_count = 0;
 
-    std::tuple<T*, U*> Add(MCTX) {
+    inline std::tuple<T*, U*> Add(MCTX) {
         Assert(count >= 0);
         Assert(max_count >= 0);
 
@@ -507,7 +519,7 @@ struct Sparse_Array {
         return result;
     }
 
-    U* Find(const T id) {
+    inline U* Find(const T& id) const {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id)
                 return base + i;
@@ -516,7 +528,10 @@ struct Sparse_Array {
     }
 
     // TODO: Подумать о целесообразности.
-    i32 Index_Of(const T& value, std::invocable<const T&, const T&, bool&> auto&& func) {
+    inline i32 Index_Of(
+        const T&                                         value,
+        std::invocable<const T&, const T&, bool&> auto&& func
+    ) const {
         bool found = false;
         FOR_RANGE (i32, i, count) {
             func(value, base[i], found);
@@ -527,7 +542,7 @@ struct Sparse_Array {
         return -1;
     }
 
-    void Unstable_Remove(const T id) {
+    inline void Unstable_Remove(const T& id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
                 if (i != count - 1) {
@@ -541,7 +556,7 @@ struct Sparse_Array {
         INVALID_PATH;
     }
 
-    bool Contains(const T id) {
+    inline bool Contains(const T& id) {
         FOR_RANGE (int, i, count) {
             if (ids[i] == id)
                 return true;

@@ -55,6 +55,20 @@ enum class Direction {
     Down  = 3,
 };
 
+Direction v2i16_To_Direction(v2i16 value) {
+    if (value == v2i16_right)
+        return Direction::Right;
+    if (value == v2i16_up)
+        return Direction::Up;
+    if (value == v2i16_left)
+        return Direction::Left;
+    if (value == v2i16_down)
+        return Direction::Down;
+
+    INVALID_PATH;
+    return Direction::Right;
+}
+
 // NOLINTBEGIN(bugprone-macro-parentheses)
 #define FOR_DIRECTION(var_name)                             \
     for (auto var_name = (Direction)0; (int)(var_name) < 4; \
@@ -226,7 +240,7 @@ struct World_Resource {
 
     v2i16 pos = {};
 
-    World_Resource_Booking_ID booking = {};
+    World_Resource_Booking_ID booking_id = {};
 
     Vector<Graph_Segment_ID> transportation_segments = {};
     Vector<v2i16>            transportation_vertices = {};
@@ -282,10 +296,11 @@ struct Graph_Segment {
 
     Graph graph = {};
 
-    Human_ID                 assigned_human_id = {};  // optional
-    Vector<Graph_Segment_ID> linked_segments   = {};
+    Human_ID                  assigned_human_id = {};  // optional
+    Vector<Graph_Segment_ID>  linked_segments   = {};
+    Vector<World_Resource_ID> linked_resources  = {};
 
-    Queue<World_Resource> resources_to_transport = {};
+    Queue<World_Resource_ID> resources_to_transport = {};
 };
 
 struct Graph_Segment_Precalculated_Data {
@@ -383,17 +398,26 @@ enum class Moving_In_The_World_State {
     Moving_To_Destination,
 };
 
-struct Main_Controller;
-
-struct Moving_In_The_World {
-    Moving_In_The_World_State state      = {};
-    Main_Controller*          controller = {};
+enum class Moving_Resources_State {
+    None = 0,
+    Moving_To_Resource,
+    Picking_Up_Resource,
+    Moving_Resource,
+    Placing_Resource,
 };
 
-struct World_Resource_To_Book {
+struct World_Resource_To_Book : public Equatable<World_Resource_To_Book> {
     Scriptable_Resource* scriptable  = {};
     u8                   count       = {};
     Building_ID          building_id = {};
+
+    [[nodiscard]] bool Equal_To(const World_Resource_To_Book& other) const {
+        auto result
+            = (scriptable == other.scriptable  //
+               && count == other.count         //
+               && building_id == other.building_id);
+        return result;
+    }
 };
 
 struct Resource_To_Book {
@@ -604,12 +628,15 @@ struct World {
     Sparse_Array_Of_Ids<Human_ID>                 humans_going_to_city_hall = {};
     // Sparse_Array<Human_ID, Human_Transporter>           transporters = {};
     // Sparse_Array<Human_ID, Human_Constructor>           constructors = {};
-    Sparse_Array<Human_ID, Human>                   humans_to_add    = {};
-    Sparse_Array<Human_ID, Human_Removal_Reason>    humans_to_remove = {};
-    Sparse_Array<World_Resource_ID, World_Resource> resources        = {};
+    Sparse_Array<Human_ID, Human>                humans_to_add    = {};
+    Sparse_Array<Human_ID, Human_Removal_Reason> humans_to_remove = {};
 
-    Queue<Graph_Segment_ID>        segments_wo_humans      = {};
-    Vector<World_Resource_To_Book> resources_booking_queue = {};
+    Sparse_Array<World_Resource_ID, World_Resource>                 resources = {};
+    Sparse_Array<World_Resource_Booking_ID, World_Resource_Booking> resource_bookings
+        = {};
+
+    Queue<Graph_Segment_ID>        segments_wo_humans = {};
+    Vector<World_Resource_To_Book> resources_to_book  = {};
 };
 
 #define On_Item_Built_function(name_) \
