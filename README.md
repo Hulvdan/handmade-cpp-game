@@ -69,6 +69,7 @@ Generic аллокации
 
 - [Форум-тред. Why many AAA gamedev studios opt out of the STL](https://web.archive.org/web/20220227163717/https://threadreaderapp.com/thread/1497768472184430600.html)
 - [YouTube. Timothy Cain. Programming Languages](https://www.youtube.com/watch?v=wTjm-e0eZ8E)
+- [YouTube. Handmade Hero | new vs delete | struct vs class | How to get fired](https://www.youtube.com/watch?v=zjkuXtiG1og)
 - [YouTube. Casey Muratori | Smart-Pointers, RAII, ZII? Becoming an N+2 programmer](https://www.youtube.com/watch?v=xt1KNDmOYqA)
 - [YouTube. Casey Muratori. Handmade Hero | Getting rid of the OOP mindset](https://youtu.be/GKYCA3UsmrU?si=5aWiWEaT06OcTPxg)
 - [YouTube. Casey Muratori. Handmade Hero | Private Data & Getters/Setters (Epic rant!)](https://youtu.be/_xLgr6Ng4qQ?si=aCAFzwsmz5F_SNMp)
