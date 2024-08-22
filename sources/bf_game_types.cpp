@@ -98,7 +98,7 @@ struct Calculated_Graph_Data {
 };
 
 struct Graph {
-    u16 not_zero_nodes_count = {};
+    u16 non_zero_nodes_count = {};
 
     // 0  0   0000
     // 1  1   0001 R
@@ -334,9 +334,9 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
         = (!value) && (node != 0) && (Graph_Node_Mark(node, dir, false) == 0);
 
     if (node_is_zero_but_wont_be_after)
-        graph.not_zero_nodes_count += 1;
+        graph.non_zero_nodes_count += 1;
     else if (node_is_not_zero_but_will_be)
-        graph.not_zero_nodes_count -= 1;
+        graph.non_zero_nodes_count -= 1;
 
     node = Graph_Node_Mark(node, dir, value);
 }
