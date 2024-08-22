@@ -1555,10 +1555,6 @@ void Process_City_Halls(Game& game, f32 dt, const Human_Data& data, MCTX) {
     }
 }
 
-void Process_Humans_Moving_To_City_Halls() {
-    // TODO:
-}
-
 void Remove_Humans(Game& game, MCTX) {
     auto& world = game.world;
 
