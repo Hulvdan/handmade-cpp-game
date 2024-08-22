@@ -1450,7 +1450,6 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     Game&             game,
     v2i16             pos,
     Graph_Segment_ID  segment_id,
-    Player_ID         player_id,
     const Human_Data& data,
     MCTX
 ) {
@@ -1463,7 +1462,6 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
         .moving = {
             .pos = pos,
         },
-        .player_id                 = player_id,
         .type                      = Human_Type::Transporter,
         .state                     = Human_States::None,
         .state_moving_in_the_world = Moving_In_The_World_State::None,
@@ -1549,12 +1547,7 @@ void Process_City_Halls(Game& game, f32 dt, const Human_Data& data, MCTX) {
                 if (since_created >= delay) {
                     since_created -= delay;
                     Create_Human_Transporter(
-                        game,
-                        building->pos,
-                        world.segments_wo_humans.Dequeue(),
-                        building->player_id,
-                        data,
-                        ctx
+                        game, building->pos, world.segments_wo_humans.Dequeue(), data, ctx
                     );
                 }
             }

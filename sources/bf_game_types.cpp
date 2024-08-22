@@ -20,8 +20,6 @@ constexpr Entity_ID Component_Mask(Entity_ID component_number) {
     return component_number << 22;
 }
 
-using Player_ID = u8;
-
 using Human_ID                  = Entity_ID;
 const Human_ID Human_ID_Missing = Entity_ID_Missing;
 
@@ -341,8 +339,7 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
     node = Graph_Node_Mark(node, dir, value);
 }
 
-using Player_ID = u8;
-using Human_ID  = u32;
+using Human_ID = u32;
 
 enum class Building_Type {
     Undefined = 0,
@@ -445,7 +442,6 @@ enum class Element_Tile_Type {
 struct Element_Tile {
     Element_Tile_Type type        = {};
     Building_ID       building_id = {};
-    Player_ID         player_id   = {};
 };
 
 void Validate_Element_Tile(Element_Tile& tile) {
@@ -575,8 +571,7 @@ struct Human {
 
     Human_Moving_Component moving = {};
 
-    Player_ID  player_id = {};
-    Human_Type type      = {};
+    Human_Type type = {};
 
     Human_States              state                     = {};
     Moving_In_The_World_State state_moving_in_the_world = {};
@@ -595,7 +590,6 @@ struct Building {
 
     v2i16                pos        = {};
     Scriptable_Building* scriptable = {};
-    Player_ID            player_id  = {};
 
     Human_Constructor_ID constructor                   = {};  // optional
     f32                  remaining_construction_points = {};
