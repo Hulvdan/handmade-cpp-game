@@ -646,9 +646,53 @@ struct World {
         Game& game, const Human_ID& id, Human& human, Human_Removal_Reason reason, MCTX \
     )
 
+#define On_Human_Started_Picking_Up_Resource_function(name_) \
+    void name_(                                              \
+        Game&                    game,                       \
+        const Human_ID&          id,                         \
+        Human&                   human,                      \
+        const World_Resource_ID& resource_id,                \
+        World_Resource&          resource,                   \
+        MCTX                                                 \
+    )
+
+#define On_Human_Finished_Picking_Up_Resource_function(name_) \
+    void name_(                                               \
+        Game&                    game,                        \
+        const Human_ID&          id,                          \
+        Human&                   human,                       \
+        const World_Resource_ID& resource_id,                 \
+        World_Resource&          resource,                    \
+        MCTX                                                  \
+    )
+
+#define On_Human_Started_Placing_Resource_function(name_) \
+    void name_(                                           \
+        Game&                    game,                    \
+        const Human_ID&          id,                      \
+        Human&                   human,                   \
+        const World_Resource_ID& resource_id,             \
+        World_Resource&          resource,                \
+        MCTX                                              \
+    )
+
+#define On_Human_Finished_Placing_Resource_function(name_) \
+    void name_(                                            \
+        Game&                    game,                     \
+        const Human_ID&          id,                       \
+        Human&                   human,                    \
+        const World_Resource_ID& resource_id,              \
+        World_Resource&          resource,                 \
+        MCTX                                               \
+    )
+
 On_Item_Built_function(On_Item_Built);
 On_Human_Created_function(On_Human_Created);
 On_Human_Removed_function(On_Human_Removed);
+On_Human_Started_Picking_Up_Resource_function(On_Human_Started_Picking_Up_Resource);
+On_Human_Finished_Picking_Up_Resource_function(On_Human_Finished_Picking_Up_Resource);
+On_Human_Started_Placing_Resource_function(On_Human_Started_Placing_Resource);
+On_Human_Finished_Placing_Resource_function(On_Human_Finished_Placing_Resource);
 
 struct Editor_Data {
     bool changed = {};

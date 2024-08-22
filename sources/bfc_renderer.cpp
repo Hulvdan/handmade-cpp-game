@@ -1992,3 +1992,44 @@ On_Human_Removed_function(Renderer_OnHumanRemoved) {
 
     renderer.sprites.Unstable_Remove(id);
 }
+
+// Game&                    game
+// const Human_ID&          id
+// Human&                   human
+// const World_Resource_ID& resource_id
+// World_Resource&          resource
+// MCTX
+On_Human_Started_Picking_Up_Resource_function(Renderer_OnHumanStartedPickingUpResource) {
+    //
+}
+
+// Game&                    game
+// const Human_ID&          id
+// Human&                   human
+// const World_Resource_ID& resource_id
+// World_Resource&          resource
+// MCTX
+On_Human_Finished_Picking_Up_Resource_function(Renderer_OnHumanFinishedPickingUpResource
+) {
+    //
+}
+
+// Game&                    game
+// const Human_ID&          id
+// Human&                   human
+// const World_Resource_ID& resource_id
+// World_Resource&          resource
+// MCTX
+On_Human_Started_Placing_Resource_function(Renderer_OnHumanStartedPlacingResource) {
+    //
+}
+
+// Game&                    game
+// const Human_ID&          id
+// Human&                   human
+// const World_Resource_ID& resource_id
+// World_Resource&          resource
+// MCTX
+On_Human_Finished_Placing_Resource_function(Renderer_OnHumanFinishedPlacingResource) {
+    //
+}

@@ -305,6 +305,32 @@ On_Human_Removed_function(On_Human_Removed) {
 #endif
 }
 
+On_Human_Started_Picking_Up_Resource_function(On_Human_Started_Picking_Up_Resource) {
+#if BF_CLIENT
+    Renderer_OnHumanStartedPickingUpResource(game, id, human, resource_id, resource, ctx);
+#endif
+}
+
+On_Human_Finished_Picking_Up_Resource_function(On_Human_Finished_Picking_Up_Resource) {
+#if BF_CLIENT
+    Renderer_OnHumanFinishedPickingUpResource(
+        game, id, human, resource_id, resource, ctx
+    );
+#endif
+}
+
+On_Human_Started_Placing_Resource_function(On_Human_Started_Placing_Resource) {
+#if BF_CLIENT
+    Renderer_OnHumanStartedPlacingResource(game, id, human, resource_id, resource, ctx);
+#endif
+}
+
+On_Human_Finished_Placing_Resource_function(On_Human_Finished_Placing_Resource) {
+#if BF_CLIENT
+    Renderer_OnHumanFinishedPlacingResource(game, id, human, resource_id, resource, ctx);
+#endif
+}
+
 // f32                       dt
 // void*                     memory_ptr
 // size_t                    memory_size
