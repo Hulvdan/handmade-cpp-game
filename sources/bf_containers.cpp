@@ -191,8 +191,9 @@ struct Queue {
 
         T result = *base;
         count--;
+
         if (count > 0)
-            memmove(base, base + 1, sizeof(T) * count);
+            memmove((void*)base, (void*)(base + 1), sizeof(T) * count);
 
         return result;
     }
@@ -204,9 +205,8 @@ struct Queue {
         i32 delta_count = count - i - 1;
         Assert(delta_count >= 0);
 
-        if (delta_count > 0) {
-            memmove(base + i, base + i + 1, sizeof(T) * delta_count);
-        }
+        if (delta_count > 0)
+            memmove((void*)(base + i), (void*)(base + i + 1), sizeof(T) * delta_count);
 
         count--;
     }
@@ -299,7 +299,11 @@ struct Vector {
         Assert(move_from_right_count >= 0);
 
         if (move_from_right_count > 0)
-            memmove(base + i, base + i + 1, sizeof(T) * move_from_right_count);
+            memmove(
+                (void*)(base + i),
+                (void*)(base + i + 1),
+                sizeof(T) * move_from_right_count
+            );
 
         count--;
     }
@@ -491,7 +495,7 @@ struct Sparse_Array_Of_Ids {
         ids = rcast<T*>(ALLOC(sizeof(T) * new_max_count));
 
         if (old_ids_ptr)
-            memcpy(ids, old_ids_ptr, old_ids_size);
+            memcpy((void*)ids, (void*)old_ids_ptr, old_ids_size);
 
         if (old_ids_ptr)
             FREE(old_ids_ptr, old_ids_size);
@@ -585,9 +589,9 @@ struct Sparse_Array {
         base = rcast<U*>(ALLOC(sizeof(U) * new_max_count));
 
         if (old_ids_ptr)
-            memcpy(ids, old_ids_ptr, old_ids_size);
+            memcpy((void*)ids, (void*)old_ids_ptr, old_ids_size);
         if (old_base_ptr)
-            memcpy(base, old_base_ptr, old_base_size);
+            memcpy((void*)base, (void*)old_base_ptr, old_base_size);
 
         if (old_ids_ptr)
             FREE(old_ids_ptr, old_ids_size);

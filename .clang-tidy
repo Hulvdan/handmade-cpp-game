@@ -30,6 +30,7 @@ Checks: '
          -cppcoreguidelines-pro-type-union-access,
          -cppcoreguidelines-pro-type-vararg,
          -modernize-avoid-c-arrays,
+         -modernize-use-nodiscard,
          -modernize-use-trailing-return-type
          '
 WarningsAsErrors: true

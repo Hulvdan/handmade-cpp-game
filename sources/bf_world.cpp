@@ -1778,13 +1778,13 @@ void Update_World(Game& game, float dt, MCTX) {
             // using some kind of sets of rules that differ depending on use cases.
             // Preferably without a performance hit.
 
-            const int _MAX_ITERATIONS = 256;
+            const int MAX_ITERATIONS = 256;
 
             Vector<World_Resource_ID> booked_resources{};
 
             int iteration = 0;
-            while ((iteration++ < 10 * _MAX_ITERATIONS)  //
-                   && (found_resource == nullptr)        //
+            while ((iteration++ < 10 * MAX_ITERATIONS)  //
+                   && (found_resource == nullptr)       //
                    && (bfqueue.count > 0))
             {
                 auto [dir, pos] = bfqueue.Dequeue();
@@ -1860,8 +1860,8 @@ void Update_World(Game& game, float dt, MCTX) {
                 }
             }
 
-            Assert(iteration < 10 * _MAX_ITERATIONS);
-            if (iteration >= _MAX_ITERATIONS && !iteration_warning_emitted) {
+            Assert(iteration < 10 * MAX_ITERATIONS);
+            if ((iteration >= MAX_ITERATIONS) && (!iteration_warning_emitted)) {
                 iteration_warning_emitted = true;
                 LOG_WARN("WTF?");
             }
@@ -1875,7 +1875,7 @@ void Update_World(Game& game, float dt, MCTX) {
                 auto destination = found_resource->pos;
 
                 int iteration2 = 0;
-                while ((iteration2++ < 10 * _MAX_ITERATIONS)
+                while ((iteration2++ < (10 * MAX_ITERATIONS))
                        && (WORLD_PTR_OFFSET(bfs_parents, destination) != -v2i16_one))
                 {
                     *path.Vector_Occupy_Slot(ctx)
@@ -1887,8 +1887,8 @@ void Update_World(Game& game, float dt, MCTX) {
                     destination = new_destination;
                 }
 
-                Assert(iteration2 < 10 * _MAX_ITERATIONS);
-                if ((iteration2 >= _MAX_ITERATIONS) && !iteration2_warning_emitted) {
+                Assert(iteration2 < (10 * MAX_ITERATIONS));
+                if ((iteration2 >= MAX_ITERATIONS) && (!iteration2_warning_emitted)) {
                     LOG_WARN("WTF?");
                     iteration2_warning_emitted = true;
                 }
@@ -2151,8 +2151,8 @@ void Deinit_World(Game& game, MCTX) {
         std::destroy_at(&data.pos_2_node_index);
 
         auto n = segment.graph.not_zero_nodes_count;
-        FREE(data.dist, sizeof(i16) * segment.graph.not_zero_nodes_count);
-        FREE(data.prev, sizeof(i16) * segment.graph.not_zero_nodes_count);
+        FREE(data.dist, sizeof(i16) * n);
+        FREE(data.prev, sizeof(i16) * n);
     }
 
     Deinit_Sparse_Array(world.segments, ctx);

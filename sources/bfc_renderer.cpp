@@ -234,7 +234,7 @@ void Add_Building_Sprite(
     Assert(scriptable.texture != Texture_ID_Missing);
     building_sprite.z = 0;
 
-    if (building.remaining_construction_points)
+    if (building.remaining_construction_points > 0)
         building_sprite.texture = renderer.building_in_progress_texture;
     else
         building_sprite.texture = scriptable.texture;
