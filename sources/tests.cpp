@@ -39,37 +39,6 @@ global_var Context _ctx(0, nullptr, nullptr, nullptr, nullptr, nullptr);
         root_allocator = nullptr;                                               \
     }
 
-global_var std::vector<u8*> virtual_allocations;
-global_var std::vector<void*> heap_allocations;
-
-void* heap_allocate(size_t n, size_t alignment) {
-    void* result = _aligned_malloc(n, alignment);
-    heap_allocations.push_back(result);
-    return result;
-}
-void heap_free(void* ptr) {
-    heap_allocations.erase(
-        std::remove(heap_allocations.begin(), heap_allocations.end(), ptr),
-        heap_allocations.end()
-    );
-    _aligned_free(ptr);
-}
-
-void Free_Allocations() {
-    for (auto ptr : virtual_allocations)
-        VirtualFree((void*)ptr, 0, MEM_RELEASE);
-
-    virtual_allocations.clear();
-
-    for (auto ptr : heap_allocations) {
-        // NOTE: Специально не вызываю heap_free,
-        // чтобы не удаляло из массива по ходу итерирования.
-        _aligned_free(ptr);
-    }
-
-    heap_allocations.clear();
-}
-
 //----------------------------------------------------------------------------------
 // Tests.
 //----------------------------------------------------------------------------------
@@ -293,46 +262,44 @@ int Process_Segments(
         ctx                                  \
     );
 
-#define Update_Tiles_Macro(updated_tiles)                                       \
-    REQUIRE(segments != nullptr);                                               \
-    auto [added_segments_count, removed_segments_count] = Update_Tiles(         \
-        gsize,                                                                  \
-        element_tiles,                                                          \
-        segments,                                                               \
-        trash_arena,                                                            \
-        (updated_tiles),                                                        \
-        [&segments, &trash_arena, &last_entity_id](                             \
-            Graph_Segments_To_Add&    segments_to_add,                          \
-            Graph_Segments_To_Delete& segments_to_delete,                       \
-            MCTX                                                                \
-        ) {                                                                     \
-            CTX_ALLOCATOR;                                                      \
-                                                                                \
-            FOR_RANGE (u32, i, segments_to_delete.count) {                      \
-                auto [id, segment_ptr] = segments_to_delete.items[i];           \
-                auto& segment          = *segment_ptr;                          \
-                                                                                \
-                FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count); \
-                FREE(                                                           \
-                    segment.graph.nodes,                                        \
-                    sizeof(u8) * segment.graph.nodes_allocation_count           \
-                );                                                              \
-                segments->Unstable_Remove(id);                                  \
-            }                                                                   \
-                                                                                \
-            FOR_RANGE (u32, i, segments_to_add.count) {                         \
-                Add_And_Link_Segment(                                           \
-                    last_entity_id,                                             \
-                    *segments,                                                  \
-                    segments_to_add.items[i],                                   \
-                    trash_arena,                                                \
-                    ctx                                                         \
-                );                                                              \
-            }                                                                   \
-                                                                                \
-            SANITIZE;                                                           \
-        },                                                                      \
-        ctx                                                                     \
+#define Update_Tiles_Macro(updated_tiles)                                            \
+    REQUIRE(segments != nullptr);                                                    \
+    auto [added_segments_count, removed_segments_count] = Update_Tiles(              \
+        gsize,                                                                       \
+        element_tiles,                                                               \
+        segments,                                                                    \
+        trash_arena,                                                                 \
+        (updated_tiles),                                                             \
+        [&segments, &trash_arena, &last_entity_id](                                  \
+            Graph_Segments_To_Add&    segments_to_add,                               \
+            Graph_Segments_To_Delete& segments_to_delete,                            \
+            MCTX                                                                     \
+        ) {                                                                          \
+            CTX_ALLOCATOR;                                                           \
+                                                                                     \
+            FOR_RANGE (u32, i, segments_to_delete.count) {                           \
+                auto [id, segment_ptr] = segments_to_delete.items[i];                \
+                auto& segment          = *segment_ptr;                               \
+                auto  graph_size       = segment.graph.size;                         \
+                                                                                     \
+                FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);      \
+                FREE(segment.graph.nodes, sizeof(u8) * graph_size.x * graph_size.y); \
+                segments->Unstable_Remove(id);                                       \
+            }                                                                        \
+                                                                                     \
+            FOR_RANGE (u32, i, segments_to_add.count) {                              \
+                Add_And_Link_Segment(                                                \
+                    last_entity_id,                                                  \
+                    *segments,                                                       \
+                    segments_to_add.items[i],                                        \
+                    trash_arena,                                                     \
+                    ctx                                                              \
+                );                                                                   \
+            }                                                                        \
+                                                                                     \
+            SANITIZE;                                                                \
+        },                                                                           \
+        ctx                                                                          \
     );
 
 #define Test_Declare_Updated_Tiles(...)                                            \
@@ -399,14 +366,17 @@ TEST_CASE ("Bit operations") {
 
 TEST_CASE ("Update_Tiles") {
     INITIALIZE_CTX;
+    CTX_ALLOCATOR;
 
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
 
     Arena trash_arena{};
-    auto  trash_size = Megabytes((size_t)2);
-    trash_arena.size = trash_size;
-    trash_arena.base = new u8[trash_size];
+    trash_arena.size = Megabytes((size_t)2);
+    trash_arena.base = (u8*)ALLOC(trash_arena.size);
+    defer {
+        FREE(trash_arena.base, trash_arena.size);
+    };
 
     auto          last_entity_id      = (Entity_ID)0;
     Building*     building_sawmill    = nullptr;
@@ -1133,9 +1103,78 @@ TEST_CASE ("Update_Tiles") {
             CHECK(removed_segments_count == 0);
         }
     }
+}
 
-    delete[] trash_arena.base;
-    Free_Allocations();
+TEST_CASE ("Find_Path_Inside_Graph") {
+    INITIALIZE_CTX;
+    CTX_ALLOCATOR;
+
+    Arena trash_arena{};
+    trash_arena.size = 4096;
+    trash_arena.base = (u8*)ALLOC(trash_arena.size);
+    defer {
+        FREE(trash_arena.base, trash_arena.size);
+    };
+
+    {
+        TEMP_USAGE(trash_arena);
+
+        Graph graph{};
+        graph.size = {3, 1};
+
+        graph.nodes = Allocate_Zeros_Array(trash_arena, u8, graph.size.x * graph.size.y);
+
+        Graph_Update(graph, {0, 0}, Direction::Right, true);
+
+        Graph_Update(graph, {1, 0}, Direction::Right, true);
+        Graph_Update(graph, {1, 0}, Direction::Left, true);
+
+        Graph_Update(graph, {2, 0}, Direction::Left, true);
+
+        Assert(graph.nodes[0] == (u8)1);
+
+        Calculate_Graph_Data(graph, trash_arena, ctx);
+
+        {
+            auto result = Find_Path_Inside_Graph(trash_arena, graph, {0, 0}, {2, 0});
+            CHECK(result.success);
+            CHECK(result.path_count == 3);
+            CHECK(result.path[0] == v2i16(0, 0));
+            CHECK(result.path[1] == v2i16(1, 0));
+            CHECK(result.path[2] == v2i16(2, 0));
+        }
+    }
+
+    {
+        TEMP_USAGE(trash_arena);
+
+        Graph graph{};
+        graph.size = {3, 2};
+
+        graph.nodes = Allocate_Zeros_Array(trash_arena, u8, graph.size.x * graph.size.y);
+
+        Graph_Update(graph, {0, 1}, Direction::Right, true);
+
+        Graph_Update(graph, {1, 1}, Direction::Right, true);
+        Graph_Update(graph, {1, 1}, Direction::Left, true);
+
+        Graph_Update(graph, {2, 1}, Direction::Left, true);
+        Graph_Update(graph, {2, 1}, Direction::Down, true);
+
+        Graph_Update(graph, {2, 0}, Direction::Up, true);
+
+        Calculate_Graph_Data(graph, trash_arena, ctx);
+
+        {
+            auto result = Find_Path_Inside_Graph(trash_arena, graph, {0, 1}, {2, 0});
+            CHECK(result.success);
+            CHECK(result.path_count == 4);
+            CHECK(result.path[0] == v2i16(0, 1));
+            CHECK(result.path[1] == v2i16(1, 1));
+            CHECK(result.path[2] == v2i16(2, 1));
+            CHECK(result.path[3] == v2i16(2, 0));
+        }
+    }
 }
 
 TEST_CASE ("Queue") {
@@ -1229,8 +1268,6 @@ TEST_CASE ("Queue") {
         CHECK(queue.Dequeue() == 10);
         REQUIRE(queue.count == 0);
     }
-
-    Free_Allocations();
 }
 
 TEST_CASE ("Array functions") {

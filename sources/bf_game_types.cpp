@@ -98,8 +98,7 @@ struct Calculated_Graph_Data {
 };
 
 struct Graph {
-    u16    nodes_count            = {};
-    size_t nodes_allocation_count = {};
+    u16 not_zero_nodes_count = {};
 
     // 0  0   0000
     // 1  1   0001 R
@@ -303,10 +302,6 @@ struct Graph_Segment {
     Queue<World_Resource_ID> resources_to_transport = {};
 };
 
-struct Graph_Segment_Precalculated_Data {
-    // TODO: Reimplement `CalculatedGraphPathData` calculation from the old repo
-};
-
 [[nodiscard]] BF_FORCE_INLINE u8 Graph_Node_Has(u8 node, Direction d) {
     Assert((u8)d >= 0);
     Assert((u8)d < 4);
@@ -339,9 +334,9 @@ void Graph_Update(Graph& graph, v2i16 pos, Direction dir, bool value) {
         = (!value) && (node != 0) && (Graph_Node_Mark(node, dir, false) == 0);
 
     if (node_is_zero_but_wont_be_after)
-        graph.nodes_count += 1;
+        graph.not_zero_nodes_count += 1;
     else if (node_is_not_zero_but_will_be)
-        graph.nodes_count -= 1;
+        graph.not_zero_nodes_count -= 1;
 
     node = Graph_Node_Mark(node, dir, value);
 }

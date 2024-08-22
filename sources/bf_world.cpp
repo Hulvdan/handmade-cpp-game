@@ -134,32 +134,36 @@ Path_Find_Result Find_Path_Inside_Graph(
     v2i16  destination  // NOTE: in the world
 ) {
     Assert(graph.data != nullptr);
-    auto& data = *graph.data;
+    Assert(source.x - graph.offset.x >= 0);
+    Assert(source.y - graph.offset.y >= 0);
+    Assert(source.x - graph.offset.x < graph.size.x);
+    Assert(source.y - graph.offset.y < graph.size.y);
 
     if (source == destination)
-        return {true, {}, 0};
+        return {true, nullptr, 0};
 
     TEMP_USAGE(trash_arena);
 
-    i32 graph_tiles_count = graph.size.x * graph.size.y;
+    auto path = Allocate_Array(trash_arena, v2i16, graph.not_zero_nodes_count);
 
-    auto path       = Allocate_Array(trash_arena, v2i16, graph_tiles_count);
     *(path + 0)     = destination;
     auto path_count = 1;
 
-    auto origin_node_index      = data.pos_2_node_index[source - graph.offset];
+    auto& data = *graph.data;
+
+    auto source_node_index      = data.pos_2_node_index[source - graph.offset];
     auto destination_node_index = data.pos_2_node_index[destination - graph.offset];
 
-    auto& sx = graph.size.x;
+    auto current_iteration = 0;
 
-    const auto _MAX_ITERATIONS   = 256;
-    auto       current_iteration = 0;
-
-    while ((current_iteration++ < _MAX_ITERATIONS)
-           && (origin_node_index != destination_node_index))
+    while ((current_iteration++ < graph.not_zero_nodes_count)
+           && (source_node_index != destination_node_index))
     {
-        auto i = *(data.prev + sx * origin_node_index + destination_node_index);
-        Assert(i != i16_min);
+        auto i
+            = *(data.prev + graph.not_zero_nodes_count * source_node_index
+                + destination_node_index);
+        Assert(i >= 0);
+        Assert(i < graph.not_zero_nodes_count);
 
         destination_node_index = i;
 
@@ -168,8 +172,33 @@ Path_Find_Result Find_Path_Inside_Graph(
         path_count++;
     }
 
-    Assert(current_iteration < _MAX_ITERATIONS);
+    Assert(current_iteration <= graph.not_zero_nodes_count);
+
     Array_Reverse(path, path_count);
+
+    // Валидация допустимых значений клеток пути.
+    FOR_RANGE (int, i, path_count) {
+        auto& a = path[i];
+        Assert(a.x >= graph.offset.x);
+        Assert(a.y >= graph.offset.y);
+        Assert(a.x < graph.size.x + graph.offset.x);
+        Assert(a.y < graph.size.y + graph.offset.y);
+    }
+
+    // Валидация, что все клетки в пути - это последовательность соседствующих клеток.
+    FOR_RANGE (int, i, path_count - 1) {
+        auto& a = path[i];
+        auto& b = path[i + 1];
+        auto  d = b - a;
+
+        auto only_one_tile_difference =  //
+            (d == v2i16_right)           //
+            || (d == v2i16_up)           //
+            || (d == v2i16_left)         //
+            || (d == v2i16_down);
+
+        Assert(only_one_tile_difference);
+    }
 
     return {true, path, path_count};
 }
@@ -871,14 +900,8 @@ HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
     auto& world        = *data.world;
 
     if ((res.pos != will_move_to) && graph_contains && node_is_walkable) {
-        auto [success, path, path_count] = Find_Path(
-            *data.trash_arena,
-            world.size,
-            world.terrain_tiles,
-            world.element_tiles,
-            will_move_to,
-            res.pos,
-            true
+        auto [success, path, path_count] = Find_Path_Inside_Graph(
+            *data.trash_arena, segment.graph, will_move_to, res.pos
         );
 
         Assert(success);
@@ -2108,10 +2131,11 @@ void Deinit_World(Game& game, MCTX) {
     auto& world = game.world;
 
     for (auto [id, segment_p] : Iter(&world.segments)) {
-        auto& segment = *segment_p;
+        auto& segment    = *segment_p;
+        auto  graph_size = segment.graph.size;
 
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
-        FREE(segment.graph.nodes, sizeof(u8) * segment.graph.nodes_allocation_count);
+        FREE(segment.graph.nodes, sizeof(u8) * graph_size.x * graph_size.y);
 
         segment.linked_segments.Reset();
         Deinit_Queue(segment.resources_to_transport, ctx);
@@ -2123,12 +2147,12 @@ void Deinit_World(Game& game, MCTX) {
         Assert(data.dist != nullptr);
         Assert(data.prev != nullptr);
 
-        data.node_index_2_pos.clear();
-        data.pos_2_node_index.clear();
+        std::destroy_at(&data.node_index_2_pos);
+        std::destroy_at(&data.pos_2_node_index);
 
-        auto n = segment.graph.nodes_count;
-        FREE(data.dist, sizeof(i16) * n * n);
-        FREE(data.prev, sizeof(i16) * n * n);
+        auto n = segment.graph.not_zero_nodes_count;
+        FREE(data.dist, sizeof(i16) * segment.graph.not_zero_nodes_count);
+        FREE(data.prev, sizeof(i16) * segment.graph.not_zero_nodes_count);
     }
 
     Deinit_Sparse_Array(world.segments, ctx);
@@ -2468,11 +2492,14 @@ void Assert_Is_Undirected(Graph& graph) {
 }
 
 void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
-    TEMP_USAGE(trash_arena);
+    Assert(graph.nodes != nullptr);
+    Assert(graph.not_zero_nodes_count > 0);
 
     CTX_ALLOCATOR;
 
-    auto n     = graph.nodes_count;
+    TEMP_USAGE(trash_arena);
+
+    auto n     = graph.not_zero_nodes_count;
     auto nodes = graph.nodes;
     auto sy    = graph.size.y;
     auto sx    = graph.size.x;
@@ -2748,7 +2775,10 @@ BF_FORCE_INLINE void Update_Segments(
 
         // NOTE: Уничтожаем сегмент.
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
-        FREE(segment.graph.nodes, segment.graph.nodes_allocation_count);
+        FREE(segment.graph.nodes, segment.graph.not_zero_nodes_count);
+        Assert(segment.graph.data != nullptr);
+        std::destroy_at(&segment.graph.data->node_index_2_pos);
+        std::destroy_at(&segment.graph.data->pos_2_node_index);
 
         SANITIZE;
     }
@@ -2981,7 +3011,7 @@ void Update_Graphs(
             continue;
 
         // NOTE: Adding a new segment.
-        Assert(temp_graph.nodes_count > 0);
+        Assert(temp_graph.not_zero_nodes_count > 0);
 
         // TODO: Add_Unsafe()?
         auto& segment          = added_segments.items[added_segments.count];
@@ -2991,7 +3021,7 @@ void Update_Graphs(
         segment.vertices = (v2i16*)ALLOC(sizeof(v2i16) * vertices_count);
         memcpy(segment.vertices, vertices, sizeof(v2i16) * vertices_count);
 
-        segment.graph.nodes_count = temp_graph.nodes_count;
+        segment.graph.not_zero_nodes_count = temp_graph.not_zero_nodes_count;
 
         // NOTE: Вычисление size и offset графа.
         auto& gr_size = segment.graph.size;
@@ -3022,10 +3052,8 @@ void Update_Graphs(
 
         // NOTE: Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти.
-        auto nodes_allocation_count          = gr_size.x * gr_size.y;
-        segment.graph.nodes_allocation_count = nodes_allocation_count;
-
-        segment.graph.nodes = (u8*)ALLOC(nodes_allocation_count);
+        segment.graph.not_zero_nodes_count = gr_size.x * gr_size.y;
+        segment.graph.nodes = (u8*)ALLOC(segment.graph.not_zero_nodes_count);
 
         auto rows   = gr_size.y;
         auto stride = gsize.x;
