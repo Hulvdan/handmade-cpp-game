@@ -1,4 +1,9 @@
 {
+    "humans": {
+        "moving_one_tile_duration": 1.0,
+        "picking_up_duration": 1.0,
+        "placing_duration": 1.0,
+    },
     "buildings": [
         {
             "code": "city_hall",

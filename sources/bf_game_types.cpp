@@ -585,6 +585,9 @@ struct Human {
     Graph_Segment_ID  segment_id  = {};
     Building_ID       building_id = {};
     World_Resource_ID resource_id = {};
+
+    f64 action_started_at = {};
+    f32 action_progress   = {};
 };
 
 struct Building {
@@ -603,7 +606,9 @@ struct City_Hall {
 };
 
 struct World_Data {
-    f32 human_moving_one_tile_duration = {};
+    f32 humans_moving_one_tile_duration = {};
+    f32 humans_picking_up_duration      = {};
+    f32 humans_placing_duration         = {};
 };
 
 struct World {

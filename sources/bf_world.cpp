@@ -976,20 +976,39 @@ HumanState_UpdateStates_function(HumanState_MovingToResource_UpdateStates) {
 HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    human.action_started_at = global_library_integration_data->Get_Time();
+    human.action_progress   = 0;
+    human.moving.to.reset();
+    human.moving.path.Reset();
+    human.moving.elapsed  = 0;
+    human.moving.progress = 0;
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_PickingUpResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    human.action_started_at = -f64_inf;
+    human.action_progress   = 0;
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_PickingUpResource_Update) {
     CTX_LOGGER;
-    // TODO:
+
+    human.action_progress
+        = (global_library_integration_data->Get_Time() - human.action_started_at)
+          / data.world->data.humans_moving_one_tile_duration;
+
+    if (human.action_progress >= 1) {
+        human.action_progress = 1;
+
+        HumanState_MovingResources_SetSubstate(
+            state, human, Moving_Resources_Substate::Moving_Resource, data, ctx
+        );
+    }
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -998,7 +1017,8 @@ HumanState_OnCurrentSegmentChanged_function(
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    // NOTE: Специально оставлено пустым.
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -1006,7 +1026,8 @@ HumanState_OnMovedToTheNextTile_function(HumanState_PickingUpResource_OnMovedToT
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    // NOTE: Специально оставлено пустым.
 }
 
 // Human_State&      state
@@ -1027,7 +1048,22 @@ HumanState_UpdateStates_function(HumanState_PickingUpResource_UpdateStates) {
 HumanState_OnEnter_function(HumanState_MovingResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
+
+    Assert(!human.moving.to.has_value());
+
+    auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
+
+    Assert(res.transportation_vertices.count > 0);
+    auto to = *(res.transportation_vertices.base + 0);
+
+    auto [success, path, path_count]
+        = Find_Path_Inside_Graph(*data.trash_arena, segment.graph, human.moving.pos, to);
+
+    Assert(success);
+    Assert(path_count > 0);
+    Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -1422,23 +1458,20 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 
     CTX_LOGGER;
     LOG_SCOPE;
-    LOG_DEBUG("Creating a new human...");
 
-    Human human{};
-    human.player_id       = player_id;
-    human.moving.pos      = pos;
-    human.moving.elapsed  = 0;
-    human.moving.progress = 0;
-    human.moving.from     = pos;
-    human.moving.to.reset();
-    human.moving.path.count         = 0;
-    human.moving.path.max_count     = 0;
-    human.moving.path.base          = nullptr;
-    human.segment_id                = segment_id;
-    human.type                      = Human_Type::Transporter;
-    human.state                     = Human_States::None;
-    human.state_moving_in_the_world = Moving_In_The_World_State::None;
-    human.building_id               = Building_ID_Missing;
+    Human human{
+        .moving = {
+            .pos = pos,
+        },
+        .player_id                 = player_id,
+        .type                      = Human_Type::Transporter,
+        .state                     = Human_States::None,
+        .state_moving_in_the_world = Moving_In_The_World_State::None,
+        .segment_id                = segment_id,
+        .building_id               = Building_ID_Missing,
+        .resource_id               = World_Resource_ID_Missing,
+        .action_started_at         = -f64_inf,
+    };
 
     auto [human_id, human_p] = world.humans_to_add.Add(ctx);
 
@@ -1572,7 +1605,7 @@ void Update_Human_Moving_Component(
     auto& moving = human.moving;
     Assert(moving.to.has_value());
 
-    const auto duration = world.data.human_moving_one_tile_duration;
+    const auto duration = world.data.humans_moving_one_tile_duration;
 
     moving.elapsed += dt;
 
@@ -2081,8 +2114,11 @@ void Init_World(
 
     auto& world = game.world;
 
-    world.last_entity_id                      = 0;
-    world.data.human_moving_one_tile_duration = 0.3f;
+    world.last_entity_id = 0;
+    world.data.humans_moving_one_tile_duration
+        = game.gamelib->humans()->moving_one_tile_duration();
+    world.data.humans_picking_up_duration = game.gamelib->humans()->picking_up_duration();
+    world.data.humans_placing_duration    = game.gamelib->humans()->placing_duration();
 
     {
         auto human_data         = Allocate_For(arena, Human_Data);

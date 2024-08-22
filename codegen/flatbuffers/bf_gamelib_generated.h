@@ -35,6 +35,9 @@ struct ArtBuilder;
 struct UI;
 struct UIBuilder;
 
+struct Humans;
+struct HumansBuilder;
+
 struct Game_Library;
 struct Game_LibraryBuilder;
 
@@ -703,13 +706,78 @@ inline ::flatbuffers::Offset<UI> CreateUI(
   return builder_.Finish();
 }
 
+struct Humans FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef HumansBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_MOVING_ONE_TILE_DURATION = 4,
+    VT_PICKING_UP_DURATION = 6,
+    VT_PLACING_DURATION = 8
+  };
+  float moving_one_tile_duration() const {
+    return GetField<float>(VT_MOVING_ONE_TILE_DURATION, 0.0f);
+  }
+  float picking_up_duration() const {
+    return GetField<float>(VT_PICKING_UP_DURATION, 0.0f);
+  }
+  float placing_duration() const {
+    return GetField<float>(VT_PLACING_DURATION, 0.0f);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_MOVING_ONE_TILE_DURATION, 4) &&
+           VerifyField<float>(verifier, VT_PICKING_UP_DURATION, 4) &&
+           VerifyField<float>(verifier, VT_PLACING_DURATION, 4) &&
+           verifier.EndTable();
+  }
+};
+
+struct HumansBuilder {
+  typedef Humans Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_moving_one_tile_duration(float moving_one_tile_duration) {
+    fbb_.AddElement<float>(Humans::VT_MOVING_ONE_TILE_DURATION, moving_one_tile_duration, 0.0f);
+  }
+  void add_picking_up_duration(float picking_up_duration) {
+    fbb_.AddElement<float>(Humans::VT_PICKING_UP_DURATION, picking_up_duration, 0.0f);
+  }
+  void add_placing_duration(float placing_duration) {
+    fbb_.AddElement<float>(Humans::VT_PLACING_DURATION, placing_duration, 0.0f);
+  }
+  explicit HumansBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Humans> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Humans>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Humans> CreateHumans(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    float moving_one_tile_duration = 0.0f,
+    float picking_up_duration = 0.0f,
+    float placing_duration = 0.0f) {
+  HumansBuilder builder_(_fbb);
+  builder_.add_placing_duration(placing_duration);
+  builder_.add_picking_up_duration(picking_up_duration);
+  builder_.add_moving_one_tile_duration(moving_one_tile_duration);
+  return builder_.Finish();
+}
+
 struct Game_Library FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef Game_LibraryBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BUILDINGS = 4,
-    VT_RESOURCES = 6,
-    VT_ART = 8
+    VT_HUMANS = 4,
+    VT_BUILDINGS = 6,
+    VT_RESOURCES = 8,
+    VT_ART = 10
   };
+  const BFGame::Humans *humans() const {
+    return GetPointer<const BFGame::Humans *>(VT_HUMANS);
+  }
   const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>> *buildings() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>> *>(VT_BUILDINGS);
   }
@@ -721,6 +789,8 @@ struct Game_Library FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_HUMANS) &&
+           verifier.VerifyTable(humans()) &&
            VerifyOffset(verifier, VT_BUILDINGS) &&
            verifier.VerifyVector(buildings()) &&
            verifier.VerifyVectorOfTables(buildings()) &&
@@ -737,6 +807,9 @@ struct Game_LibraryBuilder {
   typedef Game_Library Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
+  void add_humans(::flatbuffers::Offset<BFGame::Humans> humans) {
+    fbb_.AddOffset(Game_Library::VT_HUMANS, humans);
+  }
   void add_buildings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>>> buildings) {
     fbb_.AddOffset(Game_Library::VT_BUILDINGS, buildings);
   }
@@ -759,6 +832,7 @@ struct Game_LibraryBuilder {
 
 inline ::flatbuffers::Offset<Game_Library> CreateGame_Library(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<BFGame::Humans> humans = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Building>>> buildings = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<BFGame::Resource>>> resources = 0,
     ::flatbuffers::Offset<BFGame::Art> art = 0) {
@@ -766,11 +840,13 @@ inline ::flatbuffers::Offset<Game_Library> CreateGame_Library(
   builder_.add_art(art);
   builder_.add_resources(resources);
   builder_.add_buildings(buildings);
+  builder_.add_humans(humans);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<Game_Library> CreateGame_LibraryDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<BFGame::Humans> humans = 0,
     std::vector<::flatbuffers::Offset<BFGame::Building>> *buildings = nullptr,
     std::vector<::flatbuffers::Offset<BFGame::Resource>> *resources = nullptr,
     ::flatbuffers::Offset<BFGame::Art> art = 0) {
@@ -778,6 +854,7 @@ inline ::flatbuffers::Offset<Game_Library> CreateGame_LibraryDirect(
   auto resources__ = resources ? _fbb.CreateVectorOfSortedTables<BFGame::Resource>(resources) : 0;
   return BFGame::CreateGame_Library(
       _fbb,
+      humans,
       buildings__,
       resources__,
       art);

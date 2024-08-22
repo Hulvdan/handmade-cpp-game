@@ -68,7 +68,14 @@ table UI {
     buildables_placeholder: uint;
 }
 
+table Humans {
+    moving_one_tile_duration: float;
+    picking_up_duration:      float;
+    placing_duration:         float;
+}
+
 table Game_Library {
+    humans: Humans;
     buildings: [Building];
     resources: [Resource];
     art: Art;
