@@ -888,7 +888,7 @@ HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
 
     if ((res.pos == human.moving.pos) && (human.moving.elapsed == 0)) {
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::Picking_Up_Resource, data, ctx
+            state, human, Moving_Resources_Substate::PickingUpResource, data, ctx
         );
         return;
     }
@@ -954,7 +954,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTh
     auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
     if (human.moving.pos == res.pos)
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::Picking_Up_Resource, data, ctx
+            state, human, Moving_Resources_Substate::PickingUpResource, data, ctx
         );
 }
 
@@ -1006,7 +1006,7 @@ HumanState_Update_function(HumanState_PickingUpResource_Update) {
         human.action_progress = 1;
 
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::Moving_Resource, data, ctx
+            state, human, Moving_Resources_Substate::MovingResource, data, ctx
         );
     }
 }
@@ -1171,43 +1171,26 @@ void HumanState_MovingResources_SetSubstate(
     auto old_state = human.substate_moving_resources;
     if (old_state != Moving_Resources_Substate::None) {
         switch (human.substate_moving_resources) {
-        case Moving_Resources_Substate::Moving_To_Resource: {
-            HumanState_MovingToResource_OnExit(state, human, data, ctx);
-        } break;
-
-        case Moving_Resources_Substate::Picking_Up_Resource: {
-            HumanState_PickingUpResource_OnExit(state, human, data, ctx);
-        } break;
-
-        case Moving_Resources_Substate::Moving_Resource: {
-            HumanState_MovingResource_OnExit(state, human, data, ctx);
-        } break;
-
-        case Moving_Resources_Substate::Placing_Resource: {
-            HumanState_PlacingResource_OnExit(state, human, data, ctx);
-        } break;
+#define X(name)                                              \
+    case Moving_Resources_Substate::name: {                  \
+        HumanState_##name##_OnExit(state, human, data, ctx); \
+    } break;
+            Human_MovingResources_Substates_Table;
+#undef X
 
         default:
             INVALID_PATH;
         }
     }
+    human.substate_moving_resources = new_state_value;
 
     switch (new_state_value) {
-    case Moving_Resources_Substate::Moving_To_Resource: {
-        HumanState_MovingToResource_OnEnter(state, human, data, ctx);
+#define X(name)                                               \
+    case Moving_Resources_Substate::name: {                   \
+        HumanState_##name##_OnEnter(state, human, data, ctx); \
     } break;
-
-    case Moving_Resources_Substate::Picking_Up_Resource: {
-        HumanState_PickingUpResource_OnEnter(state, human, data, ctx);
-    } break;
-
-    case Moving_Resources_Substate::Moving_Resource: {
-        HumanState_MovingResource_OnEnter(state, human, data, ctx);
-    } break;
-
-    case Moving_Resources_Substate::Placing_Resource: {
-        HumanState_PlacingResource_OnEnter(state, human, data, ctx);
-    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
 
     default:
         INVALID_PATH;
@@ -1221,21 +1204,12 @@ void HumanState_MovingResources_Exit(
     MCTX
 ) {
     switch (human.substate_moving_resources) {
-    case Moving_Resources_Substate::Moving_To_Resource: {
-        HumanState_MovingToResource_OnExit(state, human, data, ctx);
+#define X(name)                                              \
+    case Moving_Resources_Substate::name: {                  \
+        HumanState_##name##_OnExit(state, human, data, ctx); \
     } break;
-
-    case Moving_Resources_Substate::Picking_Up_Resource: {
-        HumanState_PickingUpResource_OnExit(state, human, data, ctx);
-    } break;
-
-    case Moving_Resources_Substate::Moving_Resource: {
-        HumanState_MovingResource_OnExit(state, human, data, ctx);
-    } break;
-
-    case Moving_Resources_Substate::Placing_Resource: {
-        HumanState_PlacingResource_OnExit(state, human, data, ctx);
-    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
 
     default:
         INVALID_PATH;
@@ -1255,7 +1229,7 @@ HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
     Assert(segment.resource_ids_to_transport.count > 0);
 
     HumanState_MovingResources_SetSubstate(
-        state, human, Moving_Resources_Substate::Moving_To_Resource, data, ctx
+        state, human, Moving_Resources_Substate::MovingToResource, data, ctx
     );
 }
 
@@ -1269,7 +1243,18 @@ HumanState_OnExit_function(HumanState_MovingResources_OnExit) {
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_MovingResources_Update) {
     CTX_LOGGER;
-    // TODO:
+
+    switch (human.substate_moving_resources) {
+#define X(name)                                                  \
+    case Moving_Resources_Substate::name: {                      \
+        HumanState_##name##_Update(state, human, data, dt, ctx); \
+    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
+
+    default:
+        INVALID_PATH;
+    }
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -1278,7 +1263,18 @@ HumanState_OnCurrentSegmentChanged_function(
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    switch (human.substate_moving_resources) {
+#define X(name)                                                               \
+    case Moving_Resources_Substate::name: {                                   \
+        HumanState_##name##_OnCurrentSegmentChanged(state, human, data, ctx); \
+    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
+
+    default:
+        INVALID_PATH;
+    }
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -1286,7 +1282,18 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToThe
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    switch (human.substate_moving_resources) {
+#define X(name)                                                            \
+    case Moving_Resources_Substate::name: {                                \
+        HumanState_##name##_OnMovedToTheNextTile(state, human, data, ctx); \
+    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
+
+    default:
+        INVALID_PATH;
+    }
 }
 
 // Human_State&      state

@@ -384,20 +384,6 @@ struct Human_Moving_Component {
     Queue<v2i16>         path = {};
 };
 
-enum class Moving_In_The_World_State {
-    None = 0,
-    Moving_To_The_City_Hall,
-    Moving_To_Destination,
-};
-
-enum class Moving_Resources_Substate {
-    None = 0,
-    Moving_To_Resource,
-    Picking_Up_Resource,
-    Moving_Resource,
-    Placing_Resource,
-};
-
 struct World_Resource_To_Book : public Equatable<World_Resource_To_Book> {
     Scriptable_Resource* scriptable  = {};
     u8                   count       = {};
@@ -553,6 +539,25 @@ enum class Human_States {
     Human_States_Table
 #undef X
         COUNT
+};
+
+enum class Moving_In_The_World_State {
+    None = 0,
+    Moving_To_The_City_Hall,
+    Moving_To_Destination,
+};
+
+#define Human_MovingResources_Substates_Table \
+    X(MovingToResource)                       \
+    X(PickingUpResource)                      \
+    X(MovingResource)                         \
+    X(PlacingResource)
+
+enum class Moving_Resources_Substate {
+    None = 0,
+#define X(state_name) state_name,
+    Human_MovingResources_Substates_Table
+#undef X
 };
 
 struct Human_State {
