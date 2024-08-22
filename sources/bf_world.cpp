@@ -58,6 +58,7 @@ std::tuple<v2i16*, i32> Build_Path(
     return {path, path_count};
 }
 
+// NOTE: Обязательно нужно копировать path, если результат успешен.
 Path_Find_Result Find_Path(
     Arena&        trash_arena,
     v2i16         gsize,
@@ -123,6 +124,54 @@ Path_Find_Result Find_Path(
 
     result.success = false;
     return result;
+}
+
+// NOTE: Обязательно нужно копировать path, если результат успешен.
+Path_Find_Result Find_Path_Inside_Graph(
+    Arena& trash_arena,
+    Graph& graph,
+    v2i16  source,      // NOTE: in the world
+    v2i16  destination  // NOTE: in the world
+) {
+    Assert(graph.data != nullptr);
+    auto& data = *graph.data;
+
+    if (source == destination)
+        return {true, {}, 0};
+
+    TEMP_USAGE(trash_arena);
+
+    i32 graph_tiles_count = graph.size.x * graph.size.y;
+
+    auto path       = Allocate_Array(trash_arena, v2i16, graph_tiles_count);
+    *(path + 0)     = destination;
+    auto path_count = 1;
+
+    auto origin_node_index      = data.pos_2_node_index[source - graph.offset];
+    auto destination_node_index = data.pos_2_node_index[destination - graph.offset];
+
+    auto& sx = graph.size.x;
+
+    const auto _MAX_ITERATIONS   = 256;
+    auto       current_iteration = 0;
+
+    while ((current_iteration++ < _MAX_ITERATIONS)
+           && (origin_node_index != destination_node_index))
+    {
+        auto i = *(data.prev + sx * origin_node_index + destination_node_index);
+        Assert(i != i16_min);
+
+        destination_node_index = i;
+
+        *(path + path_count)
+            = data.node_index_2_pos[destination_node_index] + graph.offset;
+        path_count++;
+    }
+
+    Assert(current_iteration < _MAX_ITERATIONS);
+    Array_Reverse(path, path_count);
+
+    return {true, path, path_count};
 }
 
 Terrain_Tile& Get_Terrain_Tile(World& world, v2i16 pos) {
@@ -1706,13 +1755,13 @@ void Update_World(Game& game, float dt, MCTX) {
             // using some kind of sets of rules that differ depending on use cases.
             // Preferably without a performance hit.
 
-            const int _DEV_MAX_ITERATIONS = 256;
+            const int _MAX_ITERATIONS = 256;
 
             Vector<World_Resource_ID> booked_resources{};
 
             int iteration = 0;
-            while ((iteration++ < 10 * _DEV_MAX_ITERATIONS)  //
-                   && (found_resource == nullptr)            //
+            while ((iteration++ < 10 * _MAX_ITERATIONS)  //
+                   && (found_resource == nullptr)        //
                    && (bfqueue.count > 0))
             {
                 auto [dir, pos] = bfqueue.Dequeue();
@@ -1788,8 +1837,8 @@ void Update_World(Game& game, float dt, MCTX) {
                 }
             }
 
-            Assert(iteration < 10 * _DEV_MAX_ITERATIONS);
-            if (iteration >= _DEV_MAX_ITERATIONS && !iteration_warning_emitted) {
+            Assert(iteration < 10 * _MAX_ITERATIONS);
+            if (iteration >= _MAX_ITERATIONS && !iteration_warning_emitted) {
                 iteration_warning_emitted = true;
                 LOG_WARN("WTF?");
             }
@@ -1803,7 +1852,7 @@ void Update_World(Game& game, float dt, MCTX) {
                 auto destination = found_resource->pos;
 
                 int iteration2 = 0;
-                while ((iteration2++ < 10 * _DEV_MAX_ITERATIONS)
+                while ((iteration2++ < 10 * _MAX_ITERATIONS)
                        && (WORLD_PTR_OFFSET(bfs_parents, destination) != -v2i16_one))
                 {
                     *path.Vector_Occupy_Slot(ctx)
@@ -1815,8 +1864,8 @@ void Update_World(Game& game, float dt, MCTX) {
                     destination = new_destination;
                 }
 
-                Assert(iteration2 < 10 * _DEV_MAX_ITERATIONS);
-                if ((iteration2 >= _DEV_MAX_ITERATIONS) && !iteration2_warning_emitted) {
+                Assert(iteration2 < 10 * _MAX_ITERATIONS);
+                if ((iteration2 >= _MAX_ITERATIONS) && !iteration2_warning_emitted) {
                     LOG_WARN("WTF?");
                     iteration2_warning_emitted = true;
                 }
@@ -2423,10 +2472,10 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 
     CTX_ALLOCATOR;
 
-    auto n      = graph.nodes_count;
-    auto nodes  = graph.nodes;
-    auto height = graph.size.y;
-    auto width  = graph.size.x;
+    auto n     = graph.nodes_count;
+    auto nodes = graph.nodes;
+    auto sy    = graph.size.y;
+    auto sx    = graph.size.x;
 
     graph.data = (Calculated_Graph_Data*)ALLOC(sizeof(Calculated_Graph_Data));
     auto& data = *graph.data;
@@ -2436,9 +2485,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
 
     {
         int node_index = 0;
-        FOR_RANGE (int, y, height) {
-            FOR_RANGE (int, x, width) {
-                auto node = nodes[y * width + x];
+        FOR_RANGE (int, y, sy) {
+            FOR_RANGE (int, x, sx) {
+                auto node = nodes[sx * y + x];
                 if (node == 0)
                     continue;
 
@@ -2471,9 +2520,9 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
     // >     prev[u][v] ← u
     {
         i16 node_index = 0;
-        FOR_RANGE (int, y, height) {
-            FOR_RANGE (int, x, width) {
-                u8 node = nodes[y * width + x];
+        FOR_RANGE (int, y, sy) {
+            FOR_RANGE (int, x, sx) {
+                u8 node = nodes[sx * y + x];
                 if (!node)
                     continue;
 
