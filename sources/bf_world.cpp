@@ -360,7 +360,7 @@ void Place_Building(
             *world.resources_to_book.Vector_Occupy_Slot(ctx) = to_book;
         }
 
-        *world.not_constructed_buildings.Add(ctx) = id;
+        *world.not_constructed_building_ids.Add(ctx) = id;
     }
 
     auto& tile = *(world.element_tiles + gsize.x * pos.y + pos.x);
@@ -501,8 +501,8 @@ HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     if (human.segment_id != Graph_Segment_ID_Missing) {
         // TODO: After implementing resources.
         // LOG_DEBUG(
-        //     "human.segment.resources_to_transport.size() = %d",
-        //     human.segment.resources_to_transport.size()
+        //     "human.segment.resource_ids_to_transport.size() = %d",
+        //     human.segment.resource_ids_to_transport.size()
         // );
     }
 
@@ -755,7 +755,7 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
 
     auto& segment = *Query_Graph_Segment(world, human.segment_id);
 
-    if (segment.resources_to_transport.count == 0) {
+    if (segment.resource_ids_to_transport.count == 0) {
         TEMP_USAGE(*data.trash_arena);
         LOG_DEBUG("Calculating path to the center of the segment");
 
@@ -837,7 +837,7 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 
     auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
 
-    if (segment.resources_to_transport.count > 0) {
+    if (segment.resource_ids_to_transport.count > 0) {
         if (!human.moving.to.has_value()) {
             // TODO:
             // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
@@ -878,7 +878,7 @@ HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
 
     auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
 
-    human.resource_id = *segment.resources_to_transport.First();
+    human.resource_id = *segment.resource_ids_to_transport.First();
 
     auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
     // res.targeted_human_id = TODO: это нужно???
@@ -1252,7 +1252,7 @@ HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
     Assert(human.segment_id != Graph_Segment_ID_Missing);
 
     auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
-    Assert(segment.resources_to_transport.count > 0);
+    Assert(segment.resource_ids_to_transport.count > 0);
 
     HumanState_MovingResources_SetSubstate(
         state, human, Moving_Resources_Substate::Moving_To_Resource, data, ctx
@@ -1513,10 +1513,10 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
 //         if (since_created > delay)
 //             since_created = delay;
 //
-//         if (world.segments_wo_humans.count > 0) {
+//         if (world.segment_ids_wo_humans.count > 0) {
 //             if (since_created >= delay) {
 //                 since_created -= delay;
-//                 Graph_Segment* segment = Dequeue(world.segments_wo_humans);
+//                 Graph_Segment* segment = Dequeue(world.segment_ids_wo_humans);
 //                 Create_Human_Transporter(world, building, segment, data, ctx);
 //             }
 //         }
@@ -1543,11 +1543,15 @@ void Process_City_Halls(Game& game, f32 dt, const Human_Data& data, MCTX) {
             if (since_created > delay)
                 since_created = delay;
 
-            if (world.segments_wo_humans.count > 0) {
+            if (world.segment_ids_wo_humans.count > 0) {
                 if (since_created >= delay) {
                     since_created -= delay;
                     Create_Human_Transporter(
-                        game, building->pos, world.segments_wo_humans.Dequeue(), data, ctx
+                        game,
+                        building->pos,
+                        world.segment_ids_wo_humans.Dequeue(),
+                        data,
+                        ctx
                     );
                 }
             }
@@ -1564,7 +1568,7 @@ void Remove_Humans(Game& game, MCTX) {
 
         if (reason == Human_Removal_Reason::Transporter_Returned_To_City_Hall) {
             // TODO: on_Human_Reached_City_Hall.On_Next(new (){human = human});
-            world.humans_going_to_city_hall.Unstable_Remove(id);
+            world.human_ids_going_to_city_hall.Unstable_Remove(id);
         }
         else if (reason == Human_Removal_Reason::Employee_Reached_Building) {
             // TODO: on_Employee_Reached_Building.On_Next(new (){human = human});
@@ -1726,7 +1730,8 @@ void Update_Humans(Game& game, f32 dt, const Human_Data& data, MCTX) {
 
         ImGui::Text("world.humans.count %d", world.humans.count);
         ImGui::Text(
-            "world.humans_going_to_city_hall %d", world.humans_going_to_city_hall.count
+            "world.human_ids_going_to_city_hall %d",
+            world.human_ids_going_to_city_hall.count
         );
         ImGui::Text("humans_moving_to_destination %d", humans_moving_to_destination);
         ImGui::Text("humans_moving_inside_segment %d", humans_moving_inside_segment);
@@ -1935,7 +1940,7 @@ void Update_World(Game& game, float dt, MCTX) {
 
             auto& res = *res_p;
 
-            Assert(res.transportation_segments.count == 0);
+            Assert(res.transportation_segment_ids.count == 0);
             Assert(res.transportation_vertices.count == 0);
 
             FOR_RANGE (int, path_section_idx, path.count - 1) {
@@ -1985,11 +1990,12 @@ void Update_World(Game& game, float dt, MCTX) {
                         auto& vertex = *(seg.vertices + vertex_idx);
 
                         if (vertex == b) {
-                            // Hulvdan: transportation_segments can contain duplicates.
+                            // Hulvdan: transportation_segment_ids can contain duplicates.
                             // Consider the case:
                             //     CrFFrB
                             //      rrrr
-                            *res.transportation_segments.Vector_Occupy_Slot(ctx) = seg_id;
+                            *res.transportation_segment_ids.Vector_Occupy_Slot(ctx)
+                                = seg_id;
                             *res.transportation_vertices.Vector_Occupy_Slot(ctx) = b;
                             SANITIZE;
                             break;
@@ -2001,15 +2007,15 @@ void Update_World(Game& game, float dt, MCTX) {
             SANITIZE;
 
             Assert(
-                res.transportation_vertices.count == res.transportation_segments.count
+                res.transportation_vertices.count == res.transportation_segment_ids.count
             );
 
-            FOR_RANGE (int, i, res.transportation_segments.count) {
-                const auto  seg_id = *(res.transportation_segments.base + i);
+            FOR_RANGE (int, i, res.transportation_segment_ids.count) {
+                const auto  seg_id = *(res.transportation_segment_ids.base + i);
                 const auto& seg    = *Strict_Query_Graph_Segment(world, seg_id);
 
-                Assert_False(seg.resources_to_transport.Contains(res_id));
-                Assert_False(seg.linked_resources.Contains(res_id));
+                Assert_False(seg.resource_ids_to_transport.Contains(res_id));
+                Assert_False(seg.linked_resource_ids.Contains(res_id));
             }
 
             World_Resource_Booking booking{
@@ -2026,18 +2032,19 @@ void Update_World(Game& game, float dt, MCTX) {
             }
             res.booking_id = booking_id;
 
-            auto& starting_segment_id = *(res.transportation_segments.base + 0);
+            auto& starting_segment_id = *(res.transportation_segment_ids.base + 0);
             auto& starting_segment
                 = *Strict_Query_Graph_Segment(world, starting_segment_id);
-            *starting_segment.resources_to_transport.Enqueue(ctx) = res_id;
+            *starting_segment.resource_ids_to_transport.Enqueue(ctx) = res_id;
 
-            FOR_RANGE (int, transportation_seg_idx, res.transportation_segments.count) {
+            FOR_RANGE (int, transportation_seg_idx, res.transportation_segment_ids.count)
+            {
                 auto seg_id
-                    = *(res.transportation_segments.base + transportation_seg_idx);
+                    = *(res.transportation_segment_ids.base + transportation_seg_idx);
                 auto& seg = *Strict_Query_Graph_Segment(world, seg_id);
 
-                if (!seg.linked_resources.Contains(res_id))
-                    *seg.linked_resources.Vector_Occupy_Slot(ctx) = res_id;
+                if (!seg.linked_resource_ids.Contains(res_id))
+                    *seg.linked_resource_ids.Vector_Occupy_Slot(ctx) = res_id;
             }
         }
 
@@ -2162,8 +2169,8 @@ void Deinit_World(Game& game, MCTX) {
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
         FREE(segment.graph.nodes, sizeof(u8) * graph_size.x * graph_size.y);
 
-        segment.linked_segments.Reset();
-        Deinit_Queue(segment.resources_to_transport, ctx);
+        segment.linked_segment_ids.Reset();
+        Deinit_Queue(segment.resource_ids_to_transport, ctx);
 
         Assert(segment.graph.nodes != nullptr);
         Assert(segment.graph.data != nullptr);
@@ -2181,17 +2188,17 @@ void Deinit_World(Game& game, MCTX) {
     }
 
     Deinit_Sparse_Array(world.segments, ctx);
-    Deinit_Queue(world.segments_wo_humans, ctx);
+    Deinit_Queue(world.segment_ids_wo_humans, ctx);
 
     Deinit_Sparse_Array(world.buildings, ctx);
-    Deinit_Sparse_Array_Of_Ids(world.not_constructed_buildings, ctx);
+    Deinit_Sparse_Array_Of_Ids(world.not_constructed_building_ids, ctx);
     Deinit_Sparse_Array(world.city_halls, ctx);
 
     for (auto [_, human] : Iter(&world.humans))
         Deinit_Queue(human->moving.path, ctx);
     Deinit_Sparse_Array(world.humans, ctx);
 
-    Deinit_Sparse_Array_Of_Ids(world.humans_going_to_city_hall, ctx);
+    Deinit_Sparse_Array_Of_Ids(world.human_ids_going_to_city_hall, ctx);
     Deinit_Sparse_Array(world.humans_to_add, ctx);
     Deinit_Sparse_Array(world.humans_to_remove, ctx);
     Deinit_Sparse_Array(world.resources, ctx);
@@ -2692,11 +2699,11 @@ std::tuple<Graph_Segment_ID, Graph_Segment*> Add_And_Link_Segment(
         auto& segment1 = *segment1_p;
         auto& segment2 = *segment2_p;
         if (Have_Some_Of_The_Same_Vertices(segment1, segment2)) {
-            if (segment2.linked_segments.Index_Of(id) == -1)
-                *segment2.linked_segments.Vector_Occupy_Slot(ctx) = id;
+            if (segment2.linked_segment_ids.Index_Of(id) == -1)
+                *segment2.linked_segment_ids.Vector_Occupy_Slot(ctx) = id;
 
-            if (segment1.linked_segments.Index_Of(segment2_id) == -1)
-                *segment1.linked_segments.Vector_Occupy_Slot(ctx) = segment2_id;
+            if (segment1.linked_segment_ids.Index_Of(segment2_id) == -1)
+                *segment1.linked_segment_ids.Vector_Occupy_Slot(ctx) = segment2_id;
         }
     }
 
@@ -2762,7 +2769,7 @@ BF_FORCE_INLINE void Update_Segments(
                 == Moving_In_The_World_State::Moving_To_The_City_Hall
             );
 
-            *world.humans_going_to_city_hall.Add(ctx) = segment.assigned_human_id;
+            *world.human_ids_going_to_city_hall.Add(ctx) = segment.assigned_human_id;
 
             segment.assigned_human_id = Human_ID_Missing;
         }
@@ -2770,7 +2777,7 @@ BF_FORCE_INLINE void Update_Segments(
         SANITIZE;
 
         // Отвязываем сегмент от других сегментов.
-        for (auto linked_segment_id_p : Iter(&segment.linked_segments)) {
+        for (auto linked_segment_id_p : Iter(&segment.linked_segment_ids)) {
             auto linked_segment_id = *linked_segment_id_p;
             LOG_DEBUG(
                 "Update_Segments: Unlinking %d from %d", linked_segment_id, segment_id
@@ -2779,9 +2786,9 @@ BF_FORCE_INLINE void Update_Segments(
             Graph_Segment& linked_segment
                 = *Strict_Query_Graph_Segment(world, linked_segment_id);
 
-            auto found_index = linked_segment.linked_segments.Index_Of(segment_id);
+            auto found_index = linked_segment.linked_segment_ids.Index_Of(segment_id);
             if (found_index != -1)
-                linked_segment.linked_segments.Remove_At(found_index);
+                linked_segment.linked_segment_ids.Remove_At(found_index);
         }
 
         SANITIZE;
@@ -2791,7 +2798,7 @@ BF_FORCE_INLINE void Update_Segments(
         // Удаляем сегмент из очереди сегментов на добавление чувачков,
         // если этот сегмент ранее был в неё добавлен.
         // PERF: Много memmove происходит.
-        auto& queue = world.segments_wo_humans;
+        auto& queue = world.segment_ids_wo_humans;
         auto  index = queue.Index_Of(segment_id);
         if (index != -1)
             queue.Remove_At(index);
@@ -2838,13 +2845,13 @@ BF_FORCE_INLINE void Update_Segments(
     Assert(world.human_data != nullptr);
 
     // По возможности назначаем чувачков на сегменты без них.
-    while ((world.segments_wo_humans.count > 0)  //
-           && (world.humans_going_to_city_hall.count > 0))
+    while ((world.segment_ids_wo_humans.count > 0)  //
+           && (world.human_ids_going_to_city_hall.count > 0))
     {
-        auto  segment_id = world.segments_wo_humans.Dequeue();
+        auto  segment_id = world.segment_ids_wo_humans.Dequeue();
         auto& segment    = *Strict_Query_Graph_Segment(world, segment_id);
 
-        auto  human_id = world.humans_going_to_city_hall.Pop();
+        auto  human_id = world.human_ids_going_to_city_hall.Pop();
         auto& human    = *Strict_Query_Human(world, human_id);
 
         segment.assigned_human_id = human_id;
@@ -2857,12 +2864,12 @@ BF_FORCE_INLINE void Update_Segments(
     // Если нет чувачков - сохраняем сегменты как те, которым нужны чувачки.
     auto added_segments_count = segments_to_add.count;
     while ((added_segments_count > 0)  //
-           && (world.humans_going_to_city_hall.count > 0))
+           && (world.human_ids_going_to_city_hall.count > 0))
     {
         auto [segment_id, segment_p] = added_segments[--added_segments_count];
         auto& segment                = *segment_p;
 
-        auto  human_id = world.humans_going_to_city_hall.Pop();
+        auto  human_id = world.human_ids_going_to_city_hall.Pop();
         auto& human    = *Strict_Query_Human(world, human_id);
 
         segment.assigned_human_id = human_id;
@@ -2873,8 +2880,8 @@ BF_FORCE_INLINE void Update_Segments(
 
     while (added_segments_count > 0) {
         added_segments_count--;
-        auto [id, _]                           = added_segments[added_segments_count];
-        *world.segments_wo_humans.Enqueue(ctx) = id;
+        auto [id, _]                              = added_segments[added_segments_count];
+        *world.segment_ids_wo_humans.Enqueue(ctx) = id;
     }
 }
 

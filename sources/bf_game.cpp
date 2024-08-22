@@ -67,7 +67,7 @@ bool UI_Clicked(Game& game) {
     const auto& pad_v         = sprite_params.stretch_paddings_v;
 
     const auto& placeholder_texture
-        = *Get_Texture(renderer.atlas, ui_state.buildables_placeholder_texture);
+        = *Get_Texture(renderer.atlas, ui_state.buildables_placeholder_texture_id);
 
     const v2f psize = v2f(placeholder_texture.size);
 

@@ -239,8 +239,8 @@ struct World_Resource {
 
     World_Resource_Booking_ID booking_id = {};
 
-    Vector<Graph_Segment_ID> transportation_segments = {};
-    Vector<v2i16>            transportation_vertices = {};
+    Vector<Graph_Segment_ID> transportation_segment_ids = {};
+    Vector<v2i16>            transportation_vertices    = {};
 
     Human_ID targeted_human_id = {};  // optional
     Human_ID carrying_human_id = {};  // optional
@@ -293,11 +293,11 @@ struct Graph_Segment {
 
     Graph graph = {};
 
-    Human_ID                  assigned_human_id = {};  // optional
-    Vector<Graph_Segment_ID>  linked_segments   = {};
-    Vector<World_Resource_ID> linked_resources  = {};
+    Human_ID                  assigned_human_id   = {};  // optional
+    Vector<Graph_Segment_ID>  linked_segment_ids  = {};
+    Vector<World_Resource_ID> linked_resource_ids = {};
 
-    Queue<World_Resource_ID> resources_to_transport = {};
+    Queue<World_Resource_ID> resource_ids_to_transport = {};
 };
 
 [[nodiscard]] BF_FORCE_INLINE u8 Graph_Node_Has(u8 node, Direction d) {
@@ -364,7 +364,7 @@ struct Scriptable_Building {
     Vector<std::tuple<Scriptable_Resource*, i16>> construction_resources = {};
 
 #if BF_CLIENT
-    Texture_ID texture = {};
+    Texture_ID texture_id = {};
 #endif
 };
 
@@ -458,8 +458,8 @@ struct Scriptable_Resource {
     const char* code = {};
 
 #if BF_CLIENT
-    Texture_ID texture       = {};
-    Texture_ID small_texture = {};
+    Texture_ID texture_id       = {};
+    Texture_ID small_texture_id = {};
 #endif
 };
 
@@ -591,7 +591,7 @@ struct Building {
     v2i16                pos        = {};
     Scriptable_Building* scriptable = {};
 
-    Human_Constructor_ID constructor                   = {};  // optional
+    Human_Constructor_ID constructor_id                = {};  // optional
     f32                  remaining_construction_points = {};
 };
 
@@ -616,12 +616,12 @@ struct World {
     World_Data  data       = {};
     Human_Data* human_data = {};
 
-    Sparse_Array<Graph_Segment_ID, Graph_Segment> segments                  = {};
-    Sparse_Array<Building_ID, Building>           buildings                 = {};
-    Sparse_Array_Of_Ids<Building_ID>              not_constructed_buildings = {};
-    Sparse_Array<Building_ID, City_Hall>          city_halls                = {};
-    Sparse_Array<Human_ID, Human>                 humans                    = {};
-    Sparse_Array_Of_Ids<Human_ID>                 humans_going_to_city_hall = {};
+    Sparse_Array<Graph_Segment_ID, Graph_Segment> segments                     = {};
+    Sparse_Array<Building_ID, Building>           buildings                    = {};
+    Sparse_Array_Of_Ids<Building_ID>              not_constructed_building_ids = {};
+    Sparse_Array<Building_ID, City_Hall>          city_halls                   = {};
+    Sparse_Array<Human_ID, Human>                 humans                       = {};
+    Sparse_Array_Of_Ids<Human_ID>                 human_ids_going_to_city_hall = {};
     // Sparse_Array<Human_ID, Human_Transporter>           transporters = {};
     // Sparse_Array<Human_ID, Human_Constructor>           constructors = {};
     Sparse_Array<Human_ID, Human>                humans_to_add    = {};
@@ -631,8 +631,8 @@ struct World {
     Sparse_Array<World_Resource_Booking_ID, World_Resource_Booking> resource_bookings
         = {};
 
-    Queue<Graph_Segment_ID>        segments_wo_humans = {};
-    Vector<World_Resource_To_Book> resources_to_book  = {};
+    Queue<Graph_Segment_ID>        segment_ids_wo_humans = {};
+    Vector<World_Resource_To_Book> resources_to_book     = {};
 };
 
 #define On_Item_Built_function(name_) \
@@ -746,22 +746,22 @@ enum class Tile_State_Condition {
 };
 
 struct Tile_Rule {
-    Texture_ID           texture   = {};
-    Tile_State_Condition states[8] = {};
+    Texture_ID           texture_id = {};
+    Tile_State_Condition states[8]  = {};
 };
 
 struct Smart_Tile {
-    Tile_ID    id               = {};
-    Texture_ID fallback_texture = {};
+    Tile_ID    id                  = {};
+    Texture_ID fallback_texture_id = {};
 
     u32        rules_count = {};
     Tile_Rule* rules       = {};
 };
 
 struct Tilemap {
-    Tile_ID*    tiles    = {};
-    Texture_ID* textures = {};
-    v2i         size     = {};
+    Tile_ID*    tile_ids    = {};
+    Texture_ID* texture_ids = {};
+    v2i         size        = {};
 
     bool debug_rendering_enabled = {};
 };
@@ -773,12 +773,12 @@ struct C_Texture {
 };
 
 struct C_Sprite {
-    v2f        pos      = {};
-    v2f        scale    = {};
-    v2f        anchor   = {};
-    f32        rotation = {};
-    Texture_ID texture  = {};
-    i8         z        = {};
+    v2f        pos        = {};
+    v2f        scale      = {};
+    v2f        anchor     = {};
+    f32        rotation   = {};
+    Texture_ID texture_id = {};
+    i8         z          = {};
     // left   = pos.x + texture.size.x * (anchor.x - 1)
     // right  = pos.x + texture.size.x *  anchor.x
     // bottom = pos.y + texture.size.y * (anchor.y - 1)
@@ -835,8 +835,8 @@ struct Game_UI_State {
     // Loaded_Texture   buildables_panel_background;
     // Loaded_Texture   buildables_placeholder_background;
 
-    Texture_ID buildables_panel_texture       = {};
-    Texture_ID buildables_placeholder_texture = {};
+    Texture_ID buildables_panel_texture_id       = {};
+    Texture_ID buildables_placeholder_texture_id = {};
 
     u32            buildables_count = {};
     Item_To_Build* buildables       = {};
@@ -877,12 +877,12 @@ struct Renderer {
     Tile_ID    forest_top_tile_id = {};
     Tile_ID    flag_tile_id       = {};
 
-    Texture_ID human_texture                = {};
-    Texture_ID building_in_progress_texture = {};
-    Texture_ID forest_textures[3]           = {};
-    Texture_ID grass_textures[17]           = {};
-    Texture_ID road_textures[16]            = {};
-    Texture_ID flag_textures[4]             = {};
+    Texture_ID human_texture_id                = {};
+    Texture_ID building_in_progress_texture_id = {};
+    Texture_ID forest_texture_ids[3]           = {};
+    Texture_ID grass_texture_ids[17]           = {};
+    Texture_ID road_texture_ids[16]            = {};
+    Texture_ID flag_texture_ids[4]             = {};
 
     Atlas atlas = {};
 

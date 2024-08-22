@@ -230,14 +230,14 @@ void Add_Building_Sprite(
     // building_sprite.anchor   = {0.5f, 0.5f};
     building_sprite.anchor   = {1, 1};
     building_sprite.rotation = 0;
-    Assert(scriptable.texture != 0);
-    Assert(scriptable.texture != Texture_ID_Missing);
+    Assert(scriptable.texture_id != 0);
+    Assert(scriptable.texture_id != Texture_ID_Missing);
     building_sprite.z = 0;
 
     if (building.remaining_construction_points > 0)
-        building_sprite.texture = renderer.building_in_progress_texture;
+        building_sprite.texture_id = renderer.building_in_progress_texture_id;
     else
-        building_sprite.texture = scriptable.texture;
+        building_sprite.texture_id = scriptable.texture_id;
 
     {
         auto [pid, pvalue] = renderer.sprites.Add(ctx);
@@ -251,11 +251,11 @@ void Set_Flag_Tile(Renderer& renderer, World& /* world */, v2i pos, MCTX_) {
 
     auto t = pos.y * placeables_tilemap.size.x + pos.x;
 
-    auto& tile_id    = placeables_tilemap.tiles[t];
-    auto& texture_id = placeables_tilemap.textures[t];
+    auto& tile_id    = placeables_tilemap.tile_ids[t];
+    auto& texture_id = placeables_tilemap.texture_ids[t];
 
     tile_id    = renderer.flag_tile_id;
-    texture_id = renderer.flag_textures[0];
+    texture_id = renderer.flag_texture_ids[0];
 }
 
 void Print_Shader_Compilation_Logs(BFGL_Create_Shader_Result result) {
@@ -542,25 +542,25 @@ void main() {
     {
         auto& art = *game.gamelib->art();
 
-        renderer.human_texture                = art.human();
-        renderer.building_in_progress_texture = art.building_in_progress();
+        renderer.human_texture_id                = art.human();
+        renderer.building_in_progress_texture_id = art.building_in_progress();
 
         FOR_RANGE (int, i, 3) {
-            renderer.forest_textures[i] = art.forest()->Get(i);
+            renderer.forest_texture_ids[i] = art.forest()->Get(i);
         }
         FOR_RANGE (int, i, 17) {
-            renderer.grass_textures[i] = art.grass()->Get(i);
+            renderer.grass_texture_ids[i] = art.grass()->Get(i);
         }
         FOR_RANGE (int, i, 16) {
-            renderer.road_textures[i] = art.road()->Get(i);
+            renderer.road_texture_ids[i] = art.road()->Get(i);
         }
         FOR_RANGE (int, i, 4) {
-            renderer.flag_textures[i] = art.flag()->Get(i);
+            renderer.flag_texture_ids[i] = art.flag()->Get(i);
         }
 
-        auto& ui                                = *art.ui();
-        ui_state.buildables_panel_texture       = ui.buildables_panel();
-        ui_state.buildables_placeholder_texture = ui.buildables_placeholder();
+        auto& ui                                   = *art.ui();
+        ui_state.buildables_panel_texture_id       = ui.buildables_panel();
+        ui_state.buildables_placeholder_texture_id = ui.buildables_placeholder();
 
         Load_Smart_Tile_Rule(
             renderer.grass_smart_tile, non_persistent_arena, art.tile_rule_grass()
@@ -580,16 +580,16 @@ void main() {
         FOR_RANGE (int, i, game.scriptable_resources_count) {
             const auto& lib_instance = *resources.Get(i);
 
-            auto& resource         = game.scriptable_resources[i];
-            resource.texture       = lib_instance.texture();
-            resource.small_texture = lib_instance.small_texture();
+            auto& resource            = game.scriptable_resources[i];
+            resource.texture_id       = lib_instance.texture();
+            resource.small_texture_id = lib_instance.small_texture();
         }
 
         FOR_RANGE (int, i, game.scriptable_buildings_count) {
             const auto& lib_instance = *game.gamelib->buildings()->Get(i);
 
-            auto& building   = game.scriptable_buildings[i];
-            building.texture = lib_instance.texture();
+            auto& building      = game.scriptable_buildings[i];
+            building.texture_id = lib_instance.texture();
         }
     }
 
@@ -629,8 +629,9 @@ void main() {
         tilemap.size     = gsize + v2i16(0, 1);
         auto tiles_count = tilemap.size.x * tilemap.size.y;
 
-        tilemap.tiles = Allocate_Zeros_Array(non_persistent_arena, Tile_ID, tiles_count);
-        tilemap.textures
+        tilemap.tile_ids
+            = Allocate_Zeros_Array(non_persistent_arena, Tile_ID, tiles_count);
+        tilemap.texture_ids
             = Allocate_Zeros_Array(non_persistent_arena, Texture_ID, tiles_count);
         tilemap.debug_rendering_enabled = true;
     }
@@ -641,11 +642,11 @@ void main() {
 
         FOR_RANGE (i32, y, gsize.y) {
             FOR_RANGE (i32, x, gsize.x) {
-                auto& tile         = world.terrain_tiles[y * gsize.x + x];
-                auto& tilemap_tile = tilemap.tiles[y * gsize.x + x];
+                auto& tile            = world.terrain_tiles[y * gsize.x + x];
+                auto& tilemap_tile_id = tilemap.tile_ids[y * gsize.x + x];
 
-                bool grass   = tile.terrain == Terrain::Grass && tile.height >= h;
-                tilemap_tile = grass * renderer.grass_smart_tile.id;
+                bool grass      = tile.terrain == Terrain::Grass && tile.height >= h;
+                tilemap_tile_id = grass * renderer.grass_smart_tile.id;
             }
         }
 
@@ -653,14 +654,14 @@ void main() {
             FOR_RANGE (i32, x, gsize.x) {
                 Texture_ID id = 0;
 
-                if (tilemap.tiles[y * gsize.x + x])
+                if (tilemap.tile_ids[y * gsize.x + x])
                     id = Test_Smart_Tile(
                         tilemap, world.size, {x, y}, renderer.grass_smart_tile
                     );
                 else
                     id = Texture_ID_Missing;
 
-                tilemap.textures[y * gsize.x + x] = id;
+                tilemap.texture_ids[y * gsize.x + x] = id;
             }
         }
     }
@@ -675,8 +676,8 @@ void main() {
             const bool forest = resource.amount > 0;
 
             if (forest) {
-                auto& tile = resources_tilemap.tiles[y * gsize.x + x];
-                tile       = renderer.forest_smart_tile.id;
+                auto& tile_id = resources_tilemap.tile_ids[y * gsize.x + x];
+                tile_id       = renderer.forest_smart_tile.id;
             }
         }
     }
@@ -688,23 +689,23 @@ void main() {
             const auto t       = y * gsize.x + x;
             const auto t_above = (y + 1) * gsize.x + x;
 
-            const auto& tile = resources_tilemap.tiles[t];
-            if (!tile)
+            const auto& tile_id = resources_tilemap.tile_ids[t];
+            if (!tile_id)
                 continue;
 
-            resources_tilemap.textures[t] = Test_Smart_Tile(
+            resources_tilemap.texture_ids[t] = Test_Smart_Tile(
                 resources_tilemap, gsize, {x, y}, renderer.forest_smart_tile
             );
 
             bool forest_is_above = false;
             if (!is_last_row) {
-                auto& tile_above = resources_tilemap.tiles[t_above];
+                auto& tile_above = resources_tilemap.tile_ids[t_above];
                 forest_is_above  = tile_above == renderer.forest_smart_tile.id;
             }
 
             if (!forest_is_above) {
-                resources_tilemap2.tiles[t_above]    = renderer.forest_top_tile_id;
-                resources_tilemap2.textures[t_above] = renderer.forest_textures[0];
+                resources_tilemap2.tile_ids[t_above]    = renderer.forest_top_tile_id;
+                resources_tilemap2.texture_ids[t_above] = renderer.forest_texture_ids[0];
             }
         }
     }
@@ -725,9 +726,9 @@ void main() {
             {
                 auto tex
                     = Get_Road_Texture_Number(world.element_tiles, v2i16(x, y), gsize);
-                auto& tile_id               = element_tilemap.tiles[t];
-                tile_id                     = global_road_starting_tile_id + tex;
-                element_tilemap.textures[t] = renderer.road_textures[tex];
+                auto& tile_id                  = element_tilemap.tile_ids[t];
+                tile_id                        = global_road_starting_tile_id + tex;
+                element_tilemap.texture_ids[t] = renderer.road_texture_ids[tex];
 
                 if (element_tile.type == Element_Tile_Type::Building)
                     Add_Building_Sprite(
@@ -751,10 +752,10 @@ void main() {
         auto& scriptable = *resource.scriptable;
 
         C_Sprite sprite{};
-        sprite.texture = scriptable.small_texture;
-        sprite.pos     = v2f(resource.pos) + v2f_half;
-        sprite.scale   = v2f_half;
-        sprite.anchor  = v2f_half;
+        sprite.texture_id = scriptable.small_texture_id;
+        sprite.pos        = v2f(resource.pos) + v2f_half;
+        sprite.scale      = v2f_half;
+        sprite.anchor     = v2f_half;
 
         {
             auto [id_p, sprite_p] = renderer.sprites.Add(ctx);
@@ -821,10 +822,10 @@ void Deinit_Renderer(Game& game, MCTX) {
 
         auto tiles_count = tilemap.size.x * tilemap.size.y;
 
-        FREE(tilemap.tiles, sizeof(Tile_ID) * tiles_count);
-        FREE(tilemap.textures, sizeof(Texture_ID) * tiles_count);
-        tilemap.tiles    = nullptr;
-        tilemap.textures = nullptr;
+        FREE(tilemap.tile_ids, sizeof(Tile_ID) * tiles_count);
+        FREE(tilemap.texture_ids, sizeof(Texture_ID) * tiles_count);
+        tilemap.tile_ids    = nullptr;
+        tilemap.texture_ids = nullptr;
     }
 
     if (renderer.rendering_indices_buffer_size > 0) {
@@ -1113,11 +1114,11 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game& g
 
         switch (buildable.type) {
         case Item_To_Build_Type::Road: {
-            res.textures[i] = renderer.road_textures[15];
+            res.textures[i] = renderer.road_texture_ids[15];
         } break;
 
         case Item_To_Build_Type::Building: {
-            res.textures[i] = buildable.scriptable_building->texture;
+            res.textures[i] = buildable.scriptable_building->texture_id;
         } break;
 
         default:
@@ -1129,7 +1130,7 @@ Get_Buildable_Textures_Result Get_Buildable_Textures(Arena& trash_arena, Game& g
 }
 
 v2f Query_Texture_Pos_Inside_Atlas(Atlas& atlas, Tilemap& tilemap, i32 x, i32 y) {
-    auto id = tilemap.textures[y * tilemap.size.x + x];
+    auto id = tilemap.texture_ids[y * tilemap.size.x + x];
     Assert(id != 0);
     Assert(id != Texture_ID_Missing);
     auto result = Get_Texture(atlas, id)->pos_inside_atlas;
@@ -1234,10 +1235,10 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
         const auto& pad_v         = sprite_params.stretch_paddings_v;
 
         const auto& panel_texture
-            = *Get_Texture(renderer.atlas, ui_state.buildables_panel_texture);
+            = *Get_Texture(renderer.atlas, ui_state.buildables_panel_texture_id);
 
         const auto& placeholder_texture
-            = *Get_Texture(renderer.atlas, ui_state.buildables_placeholder_texture);
+            = *Get_Texture(renderer.atlas, ui_state.buildables_placeholder_texture_id);
 
         const v2f psize = v2f(placeholder_texture.size);
 
@@ -1276,7 +1277,7 @@ void Render_UI(Game& game, f32 /* dt */, MCTX_) {
 
             Draw_Stretchable_Sprite(
                 renderer.atlas,
-                ui_state.buildables_panel_texture,
+                ui_state.buildables_panel_texture_id,
                 p0.x,
                 p1.x,
                 p0.y,
@@ -1672,8 +1673,8 @@ void Render(Game& game, f32 dt, MCTX) {
                     GLfloat* px = ((GLfloat*)renderer.rendering_indices_buffer) + t;
                     GLfloat* py = ((GLfloat*)renderer.rendering_indices_buffer) + t + 1;
 
-                    auto tile = tilemap.tiles[y * tilemap.size.x + x];
-                    if (tile) {
+                    auto tile_id = tilemap.tile_ids[y * tilemap.size.x + x];
+                    if (tile_id) {
                         auto pos = Query_Texture_Pos_Inside_Atlas(
                             renderer.atlas, tilemap, x, y
                         );
@@ -1787,10 +1788,10 @@ void Render(Game& game, f32 dt, MCTX) {
         FOR_RANGE (int, sprites_i, renderer.sprites.count) {
             auto& s = *(renderer.sprites.base + sprites_i);
 
-            Assert(s.texture != 0);
-            Assert(s.texture != Texture_ID_Missing);
+            Assert(s.texture_id != 0);
+            Assert(s.texture_id != Texture_ID_Missing);
 
-            auto  texture_index = s.texture - 1;
+            auto  texture_index = s.texture_id - 1;
             auto& tex           = *(renderer.atlas.textures.base + texture_index);
 
             // TODO: rotation
@@ -1906,11 +1907,12 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
     switch (element_tile.type) {
     case Element_Tile_Type::Building:
     case Element_Tile_Type::Road: {
-        placeables_tilemap.tiles[pos.y * gsize.x + pos.x] = 0;
+        placeables_tilemap.tile_ids[pos.y * gsize.x + pos.x] = 0;
     } break;
 
     case Element_Tile_Type::Flag: {
-        placeables_tilemap.tiles[pos.y * gsize.x + pos.x] = global_flag_starting_tile_id;
+        placeables_tilemap.tile_ids[pos.y * gsize.x + pos.x]
+            = global_flag_starting_tile_id;
     } break;
 
     default:
@@ -1940,10 +1942,10 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
         case Element_Tile_Type::Flag:
         case Element_Tile_Type::Road: {
             auto  tex     = Get_Road_Texture_Number(world.element_tiles, new_pos, gsize);
-            auto& tile_id = roads_tilemap.tiles[t];
+            auto& tile_id = roads_tilemap.tile_ids[t];
             tile_id       = global_road_starting_tile_id + tex;
-            auto& texture_id = roads_tilemap.textures[t];
-            texture_id       = renderer.road_textures[tex];
+            auto& texture_id = roads_tilemap.texture_ids[t];
+            texture_id       = renderer.road_texture_ids[tex];
         } break;
 
         case Element_Tile_Type::None:
@@ -1960,12 +1962,12 @@ On_Human_Created_function(Renderer_OnHumanCreated) {
     auto& renderer = *game.renderer;
 
     C_Sprite human_sprite{};
-    human_sprite.pos      = v2f(human.moving.pos) + v2f_half;
-    human_sprite.scale    = v2f_half;
-    human_sprite.anchor   = {0.5f, 0.5f + 2.0f / 7.0f};
-    human_sprite.rotation = 0;
-    human_sprite.texture  = renderer.human_texture;
-    human_sprite.z        = 0;
+    human_sprite.pos        = v2f(human.moving.pos) + v2f_half;
+    human_sprite.scale      = v2f_half;
+    human_sprite.anchor     = {0.5f, 0.5f + 2.0f / 7.0f};
+    human_sprite.rotation   = 0;
+    human_sprite.texture_id = renderer.human_texture_id;
+    human_sprite.z          = 0;
 
     {
         auto [pid, pvalue] = renderer.sprites.Add(ctx);
