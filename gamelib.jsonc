@@ -8,13 +8,13 @@
         {
             "code": "city_hall",
             "type": "City_Hall",
-            "texture": "tiles/building_house",
+            "texture_id": "tiles/building_house",
             "human_spawning_delay": 1,
         },
         {
             "code": "lumberjacks_hut",
             "type": "Harvest",
-            "texture": "tiles/building_lumberjack",
+            "texture_id": "tiles/building_lumberjack",
             "construction_resources": [
                 ["planks", 2],
             ],
@@ -25,19 +25,19 @@
     "resources": [
         {
             "code": "planks",
-            "texture": "items/planks_thumb",
-            "small_texture": "items/planks",
+            "texture_id": "items/planks_thumb",
+            "small_texture_id": "items/planks",
         },
     ],
     "art": {
-        "human": "other/human",
-        "building_in_progress": "tiles/building_in_progress",
-        "forest": [
+        "human_texture_id": "other/human",
+        "building_in_progress_texture_id": "tiles/building_in_progress",
+        "forest_texture_ids": [
             "tiles/forest_0",
             "tiles/forest_1",
             "tiles/forest_2",
         ],
-        "grass": [
+        "grass_texture_ids": [
             "tiles/grass_0",
             "tiles/grass_1",
             "tiles/grass_2",
@@ -56,7 +56,7 @@
             "tiles/grass_15",
             "tiles/grass_16",
         ],
-        "road": [
+        "road_texture_ids": [
             "tiles/road_0",
             "tiles/road_1",
             "tiles/road_2",
@@ -74,15 +74,15 @@
             "tiles/road_14",
             "tiles/road_15",
         ],
-        "flag": [
+        "flag_texture_ids": [
             "tiles/flag_0",
             "tiles/flag_1",
             "tiles/flag_2",
             "tiles/flag_3",
         ],
         "ui": {
-            "buildables_panel": "ui/buildables_panel",
-            "buildables_placeholder": "ui/buildables_placeholder",
+            "buildables_panel_texture_id": "ui/buildables_panel",
+            "buildables_placeholder_texture_id": "ui/buildables_placeholder",
         },
     },
 }

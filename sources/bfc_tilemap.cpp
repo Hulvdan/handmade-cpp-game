@@ -3,7 +3,7 @@
 #endif
 
 void Load_Smart_Tile_Rule(Smart_Tile& tile, Arena& arena, const BFGame::Tile_Rule* rule) {
-    tile.fallback_texture_id = rule->default_texture();
+    tile.fallback_texture_id = rule->default_texture_id();
 
     tile.rules_count = rule->states()->size();
     tile.rules       = Allocate_Array(arena, Tile_Rule, tile.rules_count);
@@ -11,7 +11,7 @@ void Load_Smart_Tile_Rule(Smart_Tile& tile, Arena& arena, const BFGame::Tile_Rul
     FOR_RANGE (int, i, tile.rules_count) {
         Tile_Rule*  r     = tile.rules + i;
         const auto& state = rule->states()->Get(i);
-        r->texture_id     = state->texture();
+        r->texture_id     = state->texture_id();
 
         FOR_RANGE (int, k, 8) {
             auto condition = (i32)state->condition()->Get(k);

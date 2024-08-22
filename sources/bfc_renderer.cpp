@@ -542,25 +542,27 @@ void main() {
     {
         auto& art = *game.gamelib->art();
 
-        renderer.human_texture_id                = art.human();
-        renderer.building_in_progress_texture_id = art.building_in_progress();
+        renderer.human_texture_id                = art.human_texture_id();
+        renderer.building_in_progress_texture_id = art.building_in_progress_texture_id();
 
         FOR_RANGE (int, i, 3) {
-            renderer.forest_texture_ids[i] = art.forest()->Get(i);
+            renderer.forest_texture_ids[i] = art.forest_texture_ids()->Get(i);
         }
         FOR_RANGE (int, i, 17) {
-            renderer.grass_texture_ids[i] = art.grass()->Get(i);
+            renderer.grass_texture_ids[i] = art.grass_texture_ids()->Get(i);
         }
         FOR_RANGE (int, i, 16) {
-            renderer.road_texture_ids[i] = art.road()->Get(i);
+            renderer.road_texture_ids[i] = art.road_texture_ids()->Get(i);
         }
         FOR_RANGE (int, i, 4) {
-            renderer.flag_texture_ids[i] = art.flag()->Get(i);
+            renderer.flag_texture_ids[i] = art.flag_texture_ids()->Get(i);
         }
 
-        auto& ui                                   = *art.ui();
-        ui_state.buildables_panel_texture_id       = ui.buildables_panel();
-        ui_state.buildables_placeholder_texture_id = ui.buildables_placeholder();
+        auto& ui = *art.ui();
+        ui_state.buildables_panel_texture_id  //
+            = ui.buildables_panel_texture_id();
+        ui_state.buildables_placeholder_texture_id  //
+            = ui.buildables_placeholder_texture_id();
 
         Load_Smart_Tile_Rule(
             renderer.grass_smart_tile, non_persistent_arena, art.tile_rule_grass()
@@ -581,15 +583,15 @@ void main() {
             const auto& lib_instance = *resources.Get(i);
 
             auto& resource            = game.scriptable_resources[i];
-            resource.texture_id       = lib_instance.texture();
-            resource.small_texture_id = lib_instance.small_texture();
+            resource.texture_id       = lib_instance.texture_id();
+            resource.small_texture_id = lib_instance.small_texture_id();
         }
 
         FOR_RANGE (int, i, game.scriptable_buildings_count) {
             const auto& lib_instance = *game.gamelib->buildings()->Get(i);
 
             auto& building      = game.scriptable_buildings[i];
-            building.texture_id = lib_instance.texture();
+            building.texture_id = lib_instance.texture_id();
         }
     }
 

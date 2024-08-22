@@ -118,24 +118,24 @@ inline const char *EnumNameTile_State_Condition(Tile_State_Condition e) {
 
 FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Tile_State FLATBUFFERS_FINAL_CLASS {
  private:
-  uint32_t texture_;
+  uint32_t texture_id_;
   int8_t condition_[8];
 
  public:
   Tile_State()
-      : texture_(0),
+      : texture_id_(0),
         condition_() {
   }
-  Tile_State(uint32_t _texture)
-      : texture_(::flatbuffers::EndianScalar(_texture)),
+  Tile_State(uint32_t _texture_id)
+      : texture_id_(::flatbuffers::EndianScalar(_texture_id)),
         condition_() {
   }
-  Tile_State(uint32_t _texture, ::flatbuffers::span<const BFGame::Tile_State_Condition, 8> _condition)
-      : texture_(::flatbuffers::EndianScalar(_texture)) {
+  Tile_State(uint32_t _texture_id, ::flatbuffers::span<const BFGame::Tile_State_Condition, 8> _condition)
+      : texture_id_(::flatbuffers::EndianScalar(_texture_id)) {
     ::flatbuffers::CastToArrayOfEnum<BFGame::Tile_State_Condition>(condition_).CopyFromSpan(_condition);
   }
-  uint32_t texture() const {
-    return ::flatbuffers::EndianScalar(texture_);
+  uint32_t texture_id() const {
+    return ::flatbuffers::EndianScalar(texture_id_);
   }
   const ::flatbuffers::Array<BFGame::Tile_State_Condition, 8> *condition() const {
     return &::flatbuffers::CastToArrayOfEnum<BFGame::Tile_State_Condition>(condition_);
@@ -147,8 +147,8 @@ struct Resource FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ResourceBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CODE = 4,
-    VT_TEXTURE = 6,
-    VT_SMALL_TEXTURE = 8
+    VT_TEXTURE_ID = 6,
+    VT_SMALL_TEXTURE_ID = 8
   };
   const ::flatbuffers::String *code() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CODE);
@@ -165,18 +165,18 @@ struct Resource FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     if (_code < code()->c_str()) return 1;
     return 0;
   }
-  uint32_t texture() const {
-    return GetField<uint32_t>(VT_TEXTURE, 0);
+  uint32_t texture_id() const {
+    return GetField<uint32_t>(VT_TEXTURE_ID, 0);
   }
-  uint32_t small_texture() const {
-    return GetField<uint32_t>(VT_SMALL_TEXTURE, 0);
+  uint32_t small_texture_id() const {
+    return GetField<uint32_t>(VT_SMALL_TEXTURE_ID, 0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_CODE) &&
            verifier.VerifyString(code()) &&
-           VerifyField<uint32_t>(verifier, VT_TEXTURE, 4) &&
-           VerifyField<uint32_t>(verifier, VT_SMALL_TEXTURE, 4) &&
+           VerifyField<uint32_t>(verifier, VT_TEXTURE_ID, 4) &&
+           VerifyField<uint32_t>(verifier, VT_SMALL_TEXTURE_ID, 4) &&
            verifier.EndTable();
   }
 };
@@ -188,11 +188,11 @@ struct ResourceBuilder {
   void add_code(::flatbuffers::Offset<::flatbuffers::String> code) {
     fbb_.AddOffset(Resource::VT_CODE, code);
   }
-  void add_texture(uint32_t texture) {
-    fbb_.AddElement<uint32_t>(Resource::VT_TEXTURE, texture, 0);
+  void add_texture_id(uint32_t texture_id) {
+    fbb_.AddElement<uint32_t>(Resource::VT_TEXTURE_ID, texture_id, 0);
   }
-  void add_small_texture(uint32_t small_texture) {
-    fbb_.AddElement<uint32_t>(Resource::VT_SMALL_TEXTURE, small_texture, 0);
+  void add_small_texture_id(uint32_t small_texture_id) {
+    fbb_.AddElement<uint32_t>(Resource::VT_SMALL_TEXTURE_ID, small_texture_id, 0);
   }
   explicit ResourceBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -209,11 +209,11 @@ struct ResourceBuilder {
 inline ::flatbuffers::Offset<Resource> CreateResource(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> code = 0,
-    uint32_t texture = 0,
-    uint32_t small_texture = 0) {
+    uint32_t texture_id = 0,
+    uint32_t small_texture_id = 0) {
   ResourceBuilder builder_(_fbb);
-  builder_.add_small_texture(small_texture);
-  builder_.add_texture(texture);
+  builder_.add_small_texture_id(small_texture_id);
+  builder_.add_texture_id(texture_id);
   builder_.add_code(code);
   return builder_.Finish();
 }
@@ -221,14 +221,14 @@ inline ::flatbuffers::Offset<Resource> CreateResource(
 inline ::flatbuffers::Offset<Resource> CreateResourceDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *code = nullptr,
-    uint32_t texture = 0,
-    uint32_t small_texture = 0) {
+    uint32_t texture_id = 0,
+    uint32_t small_texture_id = 0) {
   auto code__ = code ? _fbb.CreateString(code) : 0;
   return BFGame::CreateResource(
       _fbb,
       code__,
-      texture,
-      small_texture);
+      texture_id,
+      small_texture_id);
 }
 
 struct Construction_Resource_Pair FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -300,7 +300,7 @@ struct Building FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CODE = 4,
     VT_TYPE = 6,
-    VT_TEXTURE = 8,
+    VT_TEXTURE_ID = 8,
     VT_HUMAN_SPAWNING_DELAY = 10,
     VT_CONSTRUCTION_POINTS = 12,
     VT_CAN_BE_BUILT = 14,
@@ -324,8 +324,8 @@ struct Building FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   BFGame::Building_Type type() const {
     return static_cast<BFGame::Building_Type>(GetField<int8_t>(VT_TYPE, 0));
   }
-  uint32_t texture() const {
-    return GetField<uint32_t>(VT_TEXTURE, 0);
+  uint32_t texture_id() const {
+    return GetField<uint32_t>(VT_TEXTURE_ID, 0);
   }
   float human_spawning_delay() const {
     return GetField<float>(VT_HUMAN_SPAWNING_DELAY, 0.0f);
@@ -344,7 +344,7 @@ struct Building FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffsetRequired(verifier, VT_CODE) &&
            verifier.VerifyString(code()) &&
            VerifyField<int8_t>(verifier, VT_TYPE, 1) &&
-           VerifyField<uint32_t>(verifier, VT_TEXTURE, 4) &&
+           VerifyField<uint32_t>(verifier, VT_TEXTURE_ID, 4) &&
            VerifyField<float>(verifier, VT_HUMAN_SPAWNING_DELAY, 4) &&
            VerifyField<float>(verifier, VT_CONSTRUCTION_POINTS, 4) &&
            VerifyField<uint8_t>(verifier, VT_CAN_BE_BUILT, 1) &&
@@ -365,8 +365,8 @@ struct BuildingBuilder {
   void add_type(BFGame::Building_Type type) {
     fbb_.AddElement<int8_t>(Building::VT_TYPE, static_cast<int8_t>(type), 0);
   }
-  void add_texture(uint32_t texture) {
-    fbb_.AddElement<uint32_t>(Building::VT_TEXTURE, texture, 0);
+  void add_texture_id(uint32_t texture_id) {
+    fbb_.AddElement<uint32_t>(Building::VT_TEXTURE_ID, texture_id, 0);
   }
   void add_human_spawning_delay(float human_spawning_delay) {
     fbb_.AddElement<float>(Building::VT_HUMAN_SPAWNING_DELAY, human_spawning_delay, 0.0f);
@@ -396,7 +396,7 @@ inline ::flatbuffers::Offset<Building> CreateBuilding(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> code = 0,
     BFGame::Building_Type type = BFGame::Building_Type_Undefined,
-    uint32_t texture = 0,
+    uint32_t texture_id = 0,
     float human_spawning_delay = 0.0f,
     float construction_points = 0.0f,
     bool can_be_built = false,
@@ -405,7 +405,7 @@ inline ::flatbuffers::Offset<Building> CreateBuilding(
   builder_.add_construction_resources(construction_resources);
   builder_.add_construction_points(construction_points);
   builder_.add_human_spawning_delay(human_spawning_delay);
-  builder_.add_texture(texture);
+  builder_.add_texture_id(texture_id);
   builder_.add_code(code);
   builder_.add_can_be_built(can_be_built);
   builder_.add_type(type);
@@ -416,7 +416,7 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *code = nullptr,
     BFGame::Building_Type type = BFGame::Building_Type_Undefined,
-    uint32_t texture = 0,
+    uint32_t texture_id = 0,
     float human_spawning_delay = 0.0f,
     float construction_points = 0.0f,
     bool can_be_built = false,
@@ -427,7 +427,7 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
       _fbb,
       code__,
       type,
-      texture,
+      texture_id,
       human_spawning_delay,
       construction_points,
       can_be_built,
@@ -437,18 +437,18 @@ inline ::flatbuffers::Offset<Building> CreateBuildingDirect(
 struct Tile_Rule FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef Tile_RuleBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_DEFAULT_TEXTURE = 4,
+    VT_DEFAULT_TEXTURE_ID = 4,
     VT_STATES = 6
   };
-  uint32_t default_texture() const {
-    return GetField<uint32_t>(VT_DEFAULT_TEXTURE, 0);
+  uint32_t default_texture_id() const {
+    return GetField<uint32_t>(VT_DEFAULT_TEXTURE_ID, 0);
   }
   const ::flatbuffers::Vector<const BFGame::Tile_State *> *states() const {
     return GetPointer<const ::flatbuffers::Vector<const BFGame::Tile_State *> *>(VT_STATES);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_DEFAULT_TEXTURE, 4) &&
+           VerifyField<uint32_t>(verifier, VT_DEFAULT_TEXTURE_ID, 4) &&
            VerifyOffset(verifier, VT_STATES) &&
            verifier.VerifyVector(states()) &&
            verifier.EndTable();
@@ -459,8 +459,8 @@ struct Tile_RuleBuilder {
   typedef Tile_Rule Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_default_texture(uint32_t default_texture) {
-    fbb_.AddElement<uint32_t>(Tile_Rule::VT_DEFAULT_TEXTURE, default_texture, 0);
+  void add_default_texture_id(uint32_t default_texture_id) {
+    fbb_.AddElement<uint32_t>(Tile_Rule::VT_DEFAULT_TEXTURE_ID, default_texture_id, 0);
   }
   void add_states(::flatbuffers::Offset<::flatbuffers::Vector<const BFGame::Tile_State *>> states) {
     fbb_.AddOffset(Tile_Rule::VT_STATES, states);
@@ -478,55 +478,55 @@ struct Tile_RuleBuilder {
 
 inline ::flatbuffers::Offset<Tile_Rule> CreateTile_Rule(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t default_texture = 0,
+    uint32_t default_texture_id = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<const BFGame::Tile_State *>> states = 0) {
   Tile_RuleBuilder builder_(_fbb);
   builder_.add_states(states);
-  builder_.add_default_texture(default_texture);
+  builder_.add_default_texture_id(default_texture_id);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<Tile_Rule> CreateTile_RuleDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t default_texture = 0,
+    uint32_t default_texture_id = 0,
     const std::vector<BFGame::Tile_State> *states = nullptr) {
   auto states__ = states ? _fbb.CreateVectorOfStructs<BFGame::Tile_State>(*states) : 0;
   return BFGame::CreateTile_Rule(
       _fbb,
-      default_texture,
+      default_texture_id,
       states__);
 }
 
 struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ArtBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_HUMAN = 4,
-    VT_GRASS = 6,
-    VT_FOREST = 8,
-    VT_BUILDING_IN_PROGRESS = 10,
-    VT_ROAD = 12,
-    VT_FLAG = 14,
+    VT_HUMAN_TEXTURE_ID = 4,
+    VT_GRASS_TEXTURE_IDS = 6,
+    VT_FOREST_TEXTURE_IDS = 8,
+    VT_BUILDING_IN_PROGRESS_TEXTURE_ID = 10,
+    VT_ROAD_TEXTURE_IDS = 12,
+    VT_FLAG_TEXTURE_IDS = 14,
     VT_UI = 16,
     VT_TILE_RULE_FOREST = 18,
     VT_TILE_RULE_GRASS = 20
   };
-  uint32_t human() const {
-    return GetField<uint32_t>(VT_HUMAN, 0);
+  uint32_t human_texture_id() const {
+    return GetField<uint32_t>(VT_HUMAN_TEXTURE_ID, 0);
   }
-  const ::flatbuffers::Vector<uint32_t> *grass() const {
-    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_GRASS);
+  const ::flatbuffers::Vector<uint32_t> *grass_texture_ids() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_GRASS_TEXTURE_IDS);
   }
-  const ::flatbuffers::Vector<uint32_t> *forest() const {
-    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FOREST);
+  const ::flatbuffers::Vector<uint32_t> *forest_texture_ids() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FOREST_TEXTURE_IDS);
   }
-  uint32_t building_in_progress() const {
-    return GetField<uint32_t>(VT_BUILDING_IN_PROGRESS, 0);
+  uint32_t building_in_progress_texture_id() const {
+    return GetField<uint32_t>(VT_BUILDING_IN_PROGRESS_TEXTURE_ID, 0);
   }
-  const ::flatbuffers::Vector<uint32_t> *road() const {
-    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_ROAD);
+  const ::flatbuffers::Vector<uint32_t> *road_texture_ids() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_ROAD_TEXTURE_IDS);
   }
-  const ::flatbuffers::Vector<uint32_t> *flag() const {
-    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FLAG);
+  const ::flatbuffers::Vector<uint32_t> *flag_texture_ids() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_FLAG_TEXTURE_IDS);
   }
   const BFGame::UI *ui() const {
     return GetPointer<const BFGame::UI *>(VT_UI);
@@ -539,16 +539,16 @@ struct Art FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_HUMAN, 4) &&
-           VerifyOffset(verifier, VT_GRASS) &&
-           verifier.VerifyVector(grass()) &&
-           VerifyOffset(verifier, VT_FOREST) &&
-           verifier.VerifyVector(forest()) &&
-           VerifyField<uint32_t>(verifier, VT_BUILDING_IN_PROGRESS, 4) &&
-           VerifyOffset(verifier, VT_ROAD) &&
-           verifier.VerifyVector(road()) &&
-           VerifyOffset(verifier, VT_FLAG) &&
-           verifier.VerifyVector(flag()) &&
+           VerifyField<uint32_t>(verifier, VT_HUMAN_TEXTURE_ID, 4) &&
+           VerifyOffset(verifier, VT_GRASS_TEXTURE_IDS) &&
+           verifier.VerifyVector(grass_texture_ids()) &&
+           VerifyOffset(verifier, VT_FOREST_TEXTURE_IDS) &&
+           verifier.VerifyVector(forest_texture_ids()) &&
+           VerifyField<uint32_t>(verifier, VT_BUILDING_IN_PROGRESS_TEXTURE_ID, 4) &&
+           VerifyOffset(verifier, VT_ROAD_TEXTURE_IDS) &&
+           verifier.VerifyVector(road_texture_ids()) &&
+           VerifyOffset(verifier, VT_FLAG_TEXTURE_IDS) &&
+           verifier.VerifyVector(flag_texture_ids()) &&
            VerifyOffset(verifier, VT_UI) &&
            verifier.VerifyTable(ui()) &&
            VerifyOffsetRequired(verifier, VT_TILE_RULE_FOREST) &&
@@ -563,23 +563,23 @@ struct ArtBuilder {
   typedef Art Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_human(uint32_t human) {
-    fbb_.AddElement<uint32_t>(Art::VT_HUMAN, human, 0);
+  void add_human_texture_id(uint32_t human_texture_id) {
+    fbb_.AddElement<uint32_t>(Art::VT_HUMAN_TEXTURE_ID, human_texture_id, 0);
   }
-  void add_grass(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> grass) {
-    fbb_.AddOffset(Art::VT_GRASS, grass);
+  void add_grass_texture_ids(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> grass_texture_ids) {
+    fbb_.AddOffset(Art::VT_GRASS_TEXTURE_IDS, grass_texture_ids);
   }
-  void add_forest(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest) {
-    fbb_.AddOffset(Art::VT_FOREST, forest);
+  void add_forest_texture_ids(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest_texture_ids) {
+    fbb_.AddOffset(Art::VT_FOREST_TEXTURE_IDS, forest_texture_ids);
   }
-  void add_building_in_progress(uint32_t building_in_progress) {
-    fbb_.AddElement<uint32_t>(Art::VT_BUILDING_IN_PROGRESS, building_in_progress, 0);
+  void add_building_in_progress_texture_id(uint32_t building_in_progress_texture_id) {
+    fbb_.AddElement<uint32_t>(Art::VT_BUILDING_IN_PROGRESS_TEXTURE_ID, building_in_progress_texture_id, 0);
   }
-  void add_road(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road) {
-    fbb_.AddOffset(Art::VT_ROAD, road);
+  void add_road_texture_ids(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road_texture_ids) {
+    fbb_.AddOffset(Art::VT_ROAD_TEXTURE_IDS, road_texture_ids);
   }
-  void add_flag(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag) {
-    fbb_.AddOffset(Art::VT_FLAG, flag);
+  void add_flag_texture_ids(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag_texture_ids) {
+    fbb_.AddOffset(Art::VT_FLAG_TEXTURE_IDS, flag_texture_ids);
   }
   void add_ui(::flatbuffers::Offset<BFGame::UI> ui) {
     fbb_.AddOffset(Art::VT_UI, ui);
@@ -605,12 +605,12 @@ struct ArtBuilder {
 
 inline ::flatbuffers::Offset<Art> CreateArt(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t human = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> grass = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest = 0,
-    uint32_t building_in_progress = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag = 0,
+    uint32_t human_texture_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> grass_texture_ids = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> forest_texture_ids = 0,
+    uint32_t building_in_progress_texture_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> road_texture_ids = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> flag_texture_ids = 0,
     ::flatbuffers::Offset<BFGame::UI> ui = 0,
     ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_forest = 0,
     ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_grass = 0) {
@@ -618,38 +618,38 @@ inline ::flatbuffers::Offset<Art> CreateArt(
   builder_.add_tile_rule_grass(tile_rule_grass);
   builder_.add_tile_rule_forest(tile_rule_forest);
   builder_.add_ui(ui);
-  builder_.add_flag(flag);
-  builder_.add_road(road);
-  builder_.add_building_in_progress(building_in_progress);
-  builder_.add_forest(forest);
-  builder_.add_grass(grass);
-  builder_.add_human(human);
+  builder_.add_flag_texture_ids(flag_texture_ids);
+  builder_.add_road_texture_ids(road_texture_ids);
+  builder_.add_building_in_progress_texture_id(building_in_progress_texture_id);
+  builder_.add_forest_texture_ids(forest_texture_ids);
+  builder_.add_grass_texture_ids(grass_texture_ids);
+  builder_.add_human_texture_id(human_texture_id);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<Art> CreateArtDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t human = 0,
-    const std::vector<uint32_t> *grass = nullptr,
-    const std::vector<uint32_t> *forest = nullptr,
-    uint32_t building_in_progress = 0,
-    const std::vector<uint32_t> *road = nullptr,
-    const std::vector<uint32_t> *flag = nullptr,
+    uint32_t human_texture_id = 0,
+    const std::vector<uint32_t> *grass_texture_ids = nullptr,
+    const std::vector<uint32_t> *forest_texture_ids = nullptr,
+    uint32_t building_in_progress_texture_id = 0,
+    const std::vector<uint32_t> *road_texture_ids = nullptr,
+    const std::vector<uint32_t> *flag_texture_ids = nullptr,
     ::flatbuffers::Offset<BFGame::UI> ui = 0,
     ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_forest = 0,
     ::flatbuffers::Offset<BFGame::Tile_Rule> tile_rule_grass = 0) {
-  auto grass__ = grass ? _fbb.CreateVector<uint32_t>(*grass) : 0;
-  auto forest__ = forest ? _fbb.CreateVector<uint32_t>(*forest) : 0;
-  auto road__ = road ? _fbb.CreateVector<uint32_t>(*road) : 0;
-  auto flag__ = flag ? _fbb.CreateVector<uint32_t>(*flag) : 0;
+  auto grass_texture_ids__ = grass_texture_ids ? _fbb.CreateVector<uint32_t>(*grass_texture_ids) : 0;
+  auto forest_texture_ids__ = forest_texture_ids ? _fbb.CreateVector<uint32_t>(*forest_texture_ids) : 0;
+  auto road_texture_ids__ = road_texture_ids ? _fbb.CreateVector<uint32_t>(*road_texture_ids) : 0;
+  auto flag_texture_ids__ = flag_texture_ids ? _fbb.CreateVector<uint32_t>(*flag_texture_ids) : 0;
   return BFGame::CreateArt(
       _fbb,
-      human,
-      grass__,
-      forest__,
-      building_in_progress,
-      road__,
-      flag__,
+      human_texture_id,
+      grass_texture_ids__,
+      forest_texture_ids__,
+      building_in_progress_texture_id,
+      road_texture_ids__,
+      flag_texture_ids__,
       ui,
       tile_rule_forest,
       tile_rule_grass);
@@ -658,19 +658,19 @@ inline ::flatbuffers::Offset<Art> CreateArtDirect(
 struct UI FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef UIBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BUILDABLES_PANEL = 4,
-    VT_BUILDABLES_PLACEHOLDER = 6
+    VT_BUILDABLES_PANEL_TEXTURE_ID = 4,
+    VT_BUILDABLES_PLACEHOLDER_TEXTURE_ID = 6
   };
-  uint32_t buildables_panel() const {
-    return GetField<uint32_t>(VT_BUILDABLES_PANEL, 0);
+  uint32_t buildables_panel_texture_id() const {
+    return GetField<uint32_t>(VT_BUILDABLES_PANEL_TEXTURE_ID, 0);
   }
-  uint32_t buildables_placeholder() const {
-    return GetField<uint32_t>(VT_BUILDABLES_PLACEHOLDER, 0);
+  uint32_t buildables_placeholder_texture_id() const {
+    return GetField<uint32_t>(VT_BUILDABLES_PLACEHOLDER_TEXTURE_ID, 0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_BUILDABLES_PANEL, 4) &&
-           VerifyField<uint32_t>(verifier, VT_BUILDABLES_PLACEHOLDER, 4) &&
+           VerifyField<uint32_t>(verifier, VT_BUILDABLES_PANEL_TEXTURE_ID, 4) &&
+           VerifyField<uint32_t>(verifier, VT_BUILDABLES_PLACEHOLDER_TEXTURE_ID, 4) &&
            verifier.EndTable();
   }
 };
@@ -679,11 +679,11 @@ struct UIBuilder {
   typedef UI Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_buildables_panel(uint32_t buildables_panel) {
-    fbb_.AddElement<uint32_t>(UI::VT_BUILDABLES_PANEL, buildables_panel, 0);
+  void add_buildables_panel_texture_id(uint32_t buildables_panel_texture_id) {
+    fbb_.AddElement<uint32_t>(UI::VT_BUILDABLES_PANEL_TEXTURE_ID, buildables_panel_texture_id, 0);
   }
-  void add_buildables_placeholder(uint32_t buildables_placeholder) {
-    fbb_.AddElement<uint32_t>(UI::VT_BUILDABLES_PLACEHOLDER, buildables_placeholder, 0);
+  void add_buildables_placeholder_texture_id(uint32_t buildables_placeholder_texture_id) {
+    fbb_.AddElement<uint32_t>(UI::VT_BUILDABLES_PLACEHOLDER_TEXTURE_ID, buildables_placeholder_texture_id, 0);
   }
   explicit UIBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -698,11 +698,11 @@ struct UIBuilder {
 
 inline ::flatbuffers::Offset<UI> CreateUI(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t buildables_panel = 0,
-    uint32_t buildables_placeholder = 0) {
+    uint32_t buildables_panel_texture_id = 0,
+    uint32_t buildables_placeholder_texture_id = 0) {
   UIBuilder builder_(_fbb);
-  builder_.add_buildables_placeholder(buildables_placeholder);
-  builder_.add_buildables_panel(buildables_panel);
+  builder_.add_buildables_placeholder_texture_id(buildables_placeholder_texture_id);
+  builder_.add_buildables_panel_texture_id(buildables_panel_texture_id);
   return builder_.Finish();
 }
 

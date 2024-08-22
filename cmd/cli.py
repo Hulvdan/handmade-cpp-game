@@ -197,37 +197,39 @@ def listfiles_with_hashes_in_dir(path: str | Path) -> dict[str, int]:
     return res
 
 
-def convert_gamelib_json_to_binary(texture_name_2_id: dict[str, int]) -> None:
+def convert_gamelib_json_to_binary(texture_name_2_index: dict[str, int]) -> None:
     # Загрузка json
     with open(PROJECT_DIR / "gamelib.jsonc") as in_file:
         data = json.load(in_file)
 
     # Хеширование названий текстур с проверкой на то, что они есть в атласе
-    transform_texture = lambda data, key: transform_to_texture_index(
-        data, key, texture_name_2_id=texture_name_2_id
+    transform_texture_id = lambda data, key: transform_to_texture_index(
+        data, key, texture_name_2_index=texture_name_2_index
     )
-    transform_textures_list = lambda data, key: transform_to_texture_indexes_list(
-        data, key, texture_name_2_id=texture_name_2_id
+    transform_texture_ids_list = lambda data, key: transform_to_texture_indexes_list(
+        data, key, texture_name_2_index=texture_name_2_index
     )
 
     for instance in data["buildings"]:
-        transform_texture(instance, "texture")
+        transform_texture_id(instance, "texture_id")
     for instance in data["resources"]:
-        transform_texture(instance, "texture")
-        transform_texture(instance, "small_texture")
-    transform_texture(data["art"]["ui"], "buildables_panel")
-    transform_texture(data["art"]["ui"], "buildables_placeholder")
-    transform_texture(data["art"], "human")
-    transform_texture(data["art"], "building_in_progress")
-    transform_textures_list(data["art"], "forest")
-    transform_textures_list(data["art"], "grass")
-    transform_textures_list(data["art"], "road")
-    transform_textures_list(data["art"], "flag")
+        transform_texture_id(instance, "texture_id")
+        transform_texture_id(instance, "small_texture_id")
+    transform_texture_id(data["art"]["ui"], "buildables_panel_texture_id")
+    transform_texture_id(data["art"]["ui"], "buildables_placeholder_texture_id")
+    transform_texture_id(data["art"], "human_texture_id")
+    transform_texture_id(data["art"], "building_in_progress_texture_id")
+    transform_texture_ids_list(data["art"], "forest_texture_ids")
+    transform_texture_ids_list(data["art"], "grass_texture_ids")
+    transform_texture_ids_list(data["art"], "road_texture_ids")
+    transform_texture_ids_list(data["art"], "flag_texture_ids")
 
     data["art"]["tile_rule_forest"] = load_tile_rule(
-        "tile_rule_forest", texture_name_2_id
+        "tile_rule_forest", texture_name_2_index
     )
-    data["art"]["tile_rule_grass"] = load_tile_rule("tile_rule_grass", texture_name_2_id)
+    data["art"]["tile_rule_grass"] = load_tile_rule(
+        "tile_rule_grass", texture_name_2_index
+    )
 
     # Создание файла
     intermediate_path = PROJECT_DIR / "gamelib.intermediate.jsonc"
@@ -241,7 +243,7 @@ def convert_gamelib_json_to_binary(texture_name_2_id: dict[str, int]) -> None:
     os.rename(intermediate_binary_path, final_binary_path)
 
 
-def load_tile_rule(name: str, texture_name_2_id: dict[str, int]) -> Any:
+def load_tile_rule(name: str, texture_name_2_index: dict[str, int]) -> Any:
     with open(PROJECT_DIR / "assets" / "art" / "tiles" / f"{name}.txt") as in_file:
         data = in_file.readlines()
 
@@ -250,7 +252,7 @@ def load_tile_rule(name: str, texture_name_2_id: dict[str, int]) -> Any:
     ]
 
     default_texture_name = data[0]
-    default_texture_id = texture_name_2_id[default_texture_name]
+    default_texture_id = texture_name_2_index[default_texture_name]
     assert ((len(data) - 1) % 4) == 0, "Incorrect file format!"
 
     rules_count = (len(data) - 1) // 4
@@ -260,7 +262,7 @@ def load_tile_rule(name: str, texture_name_2_id: dict[str, int]) -> Any:
 
     for i in range(rules_count):
         texture_name = data[1 + i * 4]
-        texture_id = texture_name_2_id[texture_name]
+        texture_index = texture_name_2_index[texture_name]
 
         rule_lines = (
             data[2 + i * 4],
@@ -290,13 +292,13 @@ def load_tile_rule(name: str, texture_name_2_id: dict[str, int]) -> Any:
 
         states.append(
             {
-                "texture": texture_id,
+                "texture_id": texture_index,
                 "condition": condition,
             }
         )
 
     result = {
-        "default_texture": default_texture_id,
+        "default_texture_id": default_texture_id,
         "states": states,
     }
     return result
@@ -346,7 +348,7 @@ def make_atlas(path: Path) -> set[int]:
         }
         textures.append(texture_data)
 
-    texture_name_2_id: dict[str, int] = dict()
+    texture_name_2_index: dict[str, int] = dict()
 
     textures.sort(key=lambda x: x["debug_name"])
 
@@ -355,7 +357,7 @@ def make_atlas(path: Path) -> set[int]:
         textures[i]["id"] = new_id
 
         name = textures[i]["debug_name"]
-        texture_name_2_id[name] = new_id
+        texture_name_2_index[name] = new_id
 
     json_intermediate_path = directory / (filename_wo_extension + ".intermediate.json")
     better_json_dump(
@@ -394,7 +396,7 @@ def make_atlas(path: Path) -> set[int]:
     img = Image.open(png_path)
     img.save(bmp_path)
 
-    return texture_name_2_id
+    return texture_name_2_index
 
 
 def remove_intermediate_generation_files() -> None:
@@ -405,7 +407,7 @@ def remove_intermediate_generation_files() -> None:
         os.remove(file)
 
 
-def validate_tilerules(texture_name_2_id: dict[str, int]) -> None:
+def validate_tilerules(texture_name_2_index: dict[str, int]) -> None:
     glob_pattern = PROJECT_DIR / "assets" / "art" / "tiles" / "tilerule_*.txt"
     files = glob.glob(str(glob_pattern), recursive=True, include_hidden=True)
 
@@ -418,39 +420,39 @@ def validate_tilerules(texture_name_2_id: dict[str, int]) -> None:
             if line.startswith("|"):
                 continue
 
-            assert line in texture_name_2_id, f"Texture '{line}' not found in atlas!"
+            assert line in texture_name_2_index, f"Texture '{line}' not found in atlas!"
 
 
 def transform_to_texture_indexes_list(
     data: dict[str, Any],
     key: str,
-    texture_name_2_id: dict[str, int],
+    texture_name_2_index: dict[str, int],
 ) -> None:
     textures = data[key]
     assert isinstance(textures, list)
 
     for i, texture_name in enumerate(textures):
         assert (
-            texture_name in texture_name_2_id
+            texture_name in texture_name_2_index
         ), f"Texture '{texture_name}' not found in atlas!"
 
-        texture_index = texture_name_2_id[texture_name]
+        texture_index = texture_name_2_index[texture_name]
         textures[i] = texture_index
 
 
 def transform_to_texture_index(
     data: dict[str, Any],
     key: str,
-    texture_name_2_id: dict[str, int],
+    texture_name_2_index: dict[str, int],
 ) -> None:
     texture_name = data[key]
     assert isinstance(texture_name, str)
 
     assert (
-        texture_name in texture_name_2_id
+        texture_name in texture_name_2_index
     ), f"Texture '{texture_name}' not found in atlas!"
 
-    texture_index = texture_name_2_id[texture_name]
+    texture_index = texture_name_2_index[texture_name]
     data[key] = texture_index
 
 
@@ -580,12 +582,12 @@ def do_generate() -> None:
                 shutil.copyfile(Path(td) / file, FLATBUFFERS_GENERATED_DIR / file)
 
     # Собираем атлас.
-    texture_name_2_id = make_atlas(Path("assets") / "art" / "atlas.ftpp")
+    texture_name_2_index = make_atlas(Path("assets") / "art" / "atlas.ftpp")
 
-    validate_tilerules(texture_name_2_id)
+    validate_tilerules(texture_name_2_index)
 
     # Конвертим gamelib.jsonc в бинарю.
-    convert_gamelib_json_to_binary(texture_name_2_id)
+    convert_gamelib_json_to_binary(texture_name_2_index)
 
 
 def do_test() -> None:
