@@ -16,7 +16,7 @@
     - tracy
     - flatbuffers
     - Прикручивал, а потом выкинул spdlog и fmt, т.к. они существенно замедляли время компиляции.
-4. Использую линтер - [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) и [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
+4. Использую линтер и форматтер - [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) и [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
 
 ## Разработка
 
