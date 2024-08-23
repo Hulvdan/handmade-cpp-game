@@ -60,14 +60,14 @@ struct Fixed_Size_Slice {
     i32 max_count = 0;
     T*  items     = nullptr;
 
-    [[nodiscard]] T* Add_Unsafe() {
+    inline [[nodiscard]] T* Add_Unsafe() {
         Assert(count < max_count);
         auto result = items + count;
         count++;
         return result;
     }
 
-    T Pop() {
+    inline T Pop() {
         Assert(count > 0);
         auto result = *(items + count - 1);
         count--;
@@ -81,7 +81,7 @@ struct Fixed_Size_Queue {
     i32    count       = 0;
     T*     base        = nullptr;
 
-    T* Enqueue() {
+    inline T* Enqueue() {
         Assert(memory_size >= (count + 1) * sizeof(T));
         auto result = base + count;
         count++;
@@ -89,7 +89,7 @@ struct Fixed_Size_Queue {
     }
 
     // PERF: Переписать на ring buffer! Много memmove происходит.
-    T Dequeue() {
+    inline T Dequeue() {
         Assert(base != nullptr);
         Assert(count > 0);
 
@@ -127,7 +127,7 @@ struct Queue {
         return result;
     }
 
-    T* Enqueue(MCTX) {
+    inline T* Enqueue(MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         if (base == nullptr) {
@@ -152,7 +152,7 @@ struct Queue {
         return base + (count - 1);
     }
 
-    T* Bulk_Enqueue(const u32 values_count, MCTX) {
+    inline T* Bulk_Enqueue(const u32 values_count, MCTX) {
         CONTAINER_MEMBER_ALLOCATOR;
 
         // TODO: Test!
@@ -185,7 +185,7 @@ struct Queue {
     }
 
     // PERF: Много memmove происходит
-    T Dequeue() {
+    inline T Dequeue() {
         Assert(base != nullptr);
         Assert(count > 0);
 
@@ -198,7 +198,7 @@ struct Queue {
         return result;
     }
 
-    void Remove_At(i32 i) {
+    inline void Remove_At(i32 i) {
         Assert(i >= 0);
         Assert(i < count);
 
@@ -211,7 +211,7 @@ struct Queue {
         count--;
     }
 
-    void Reset() {
+    inline void Reset() {
         count = 0;
     }
 };
@@ -254,7 +254,7 @@ struct Vector {
         return result;
     }
 
-    i32 Index_By_Ptr(const T* const value_ptr) {
+    inline i32 Index_By_Ptr(const T* const value_ptr) {
         Assert(base <= value_ptr);
         Assert(value_ptr < base + count * sizeof(T));
         Assert((value_ptr - base) % sizeof(T) == 0);
@@ -378,7 +378,7 @@ struct Memory_Buffer {
     Allocator_function((*allocator_)) = nullptr;
     void* allocator_data_             = nullptr;
 
-    void Add(void* ptr, size_t size, MCTX) {
+    inline void Add(void* ptr, size_t size, MCTX) {
         Assert(size > 0);
         Assert(ptr != nullptr);
 
@@ -398,7 +398,7 @@ struct Memory_Buffer {
         count += size;
     }
 
-    void Add_Unsafe(void* ptr, size_t size) {
+    inline void Add_Unsafe(void* ptr, size_t size) {
         Assert(size > 0);
         Assert(ptr != nullptr);
 
@@ -406,7 +406,7 @@ struct Memory_Buffer {
         count += size;
     }
 
-    void Reset() {
+    inline void Reset() {
         count = 0;
     }
 
@@ -445,7 +445,7 @@ struct Sparse_Array_Of_Ids {
     i32 count     = 0;
     i32 max_count = 0;
 
-    T* Add(MCTX) {
+    inline T* Add(MCTX) {
         if (max_count == count)
             Enlarge(ctx);
 
@@ -454,13 +454,13 @@ struct Sparse_Array_Of_Ids {
         return result;
     }
 
-    T Pop() {
+    inline T Pop() {
         auto result = *(ids + count - 1);
         count--;
         return result;
     }
 
-    void Unstable_Remove(const T id) {
+    inline void Unstable_Remove(const T id) {
         FOR_RANGE (i32, i, count) {
             if (ids[i] == id) {
                 if (i != count - 1)
@@ -503,7 +503,7 @@ struct Sparse_Array_Of_Ids {
         max_count = new_max_count;
     }
 
-    void Reset() {
+    inline void Reset() {
         count = 0;
     }
 };
@@ -601,7 +601,7 @@ struct Sparse_Array {
         max_count = new_max_count;
     }
 
-    void Reset() {
+    inline void Reset() {
         count = 0;
     }
 };

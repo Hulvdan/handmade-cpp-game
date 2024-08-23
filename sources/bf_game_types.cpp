@@ -237,6 +237,7 @@ struct World_Resource {
 
     v2i16 pos = {};
 
+    // TODO: устанавливать это в missing после инвалидации сегментов
     World_Resource_Booking_ID booking_id = {};
 
     Vector<Graph_Segment_ID> transportation_segment_ids = {};

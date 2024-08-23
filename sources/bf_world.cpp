@@ -483,6 +483,23 @@ Strict_Query_World_Resource(World& world, World_Resource_ID world_resource_id) {
     return result;
 }
 
+World_Resource_Booking* Query_World_Resource_Booking(
+    World&                    world,
+    World_Resource_Booking_ID world_resource_booking_id
+) {
+    auto result = world.resource_bookings.Find(world_resource_booking_id);
+    return result;
+}
+
+World_Resource_Booking* String_Query_World_Resource_Booking(
+    World&                    world,
+    World_Resource_Booking_ID world_resource_booking_id
+) {
+    auto result = Query_World_Resource_Booking(world, world_resource_booking_id);
+    Assert(result != nullptr);
+    return result;
+}
+
 //----------------------------------------------------------------------------------
 // MovingInTheWorld State Functions.
 //----------------------------------------------------------------------------------
@@ -938,8 +955,8 @@ HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
 
     human.resource_id = *segment.resource_ids_to_transport.First();
 
-    auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
-    // res.targeted_human_id = TODO: это нужно???
+    auto& res             = *Strict_Query_World_Resource(*data.world, human.resource_id);
+    res.targeted_human_id = human_id;
 
     if (human.moving.elapsed == 0)
         human.moving.to.reset();
@@ -1308,7 +1325,12 @@ HumanState_Update_function(HumanState_PlacingResource_Update) {
     if (human.action_progress >= 1) {
         human.action_progress = 1;
 
-        // TODO: EVENT!
+        auto& resource = *Strict_Query_World_Resource(*data.world, human.resource_id);
+        resource.targeted_human_id = Human_ID_Missing;
+
+        On_Human_Finished_Placing_Resource(
+            *data.game, human_id, human, human.resource_id, resource, ctx
+        );
 
         HumanState_MovingResources_Exit(state, human_id, human, data, ctx);
     }
@@ -2144,6 +2166,10 @@ void Update_World(Game& game, float dt, MCTX) {
                     const auto& res_id  = *(world.resources.ids + k);
                     const auto  res_ptr = world.resources.base + k;
                     auto&       res     = *res_ptr;
+
+                    // Ресурс уже был забронен.
+                    if (res.booking_id != World_Resource_Booking_ID_Missing)
+                        continue;
 
                     if (booked_resources.Contains(res_id))
                         continue;
@@ -3816,5 +3842,76 @@ On_Human_Finished_Picking_Up_Resource_function(World_OnHumanFinishedPickingUpRes
 // World_Resource&          resource
 // MCTX
 On_Human_Finished_Placing_Resource_function(World_OnHumanFinishedPlacingResource) {
-    //
+    CTX_LOGGER;
+
+    auto& world  = game.world;
+    auto& res_id = resource_id;
+    auto& res    = resource;
+
+    auto placed_inside_building = false;
+
+    res.pos = human.moving.pos;
+
+    if (res.booking_id != World_Resource_Booking_ID_Missing) {
+        auto& booking  = *String_Query_World_Resource_Booking(world, res.booking_id);
+        auto& building = *Strict_Query_Building(world, booking.building_id);
+
+        placed_inside_building = (building.pos == res.pos);
+    }
+
+    auto moved_to_the_next_segment_in_path = false;
+    if (res.transportation_vertices.count > 0) {
+        auto vertex = *(res.transportation_vertices.base + 0);
+        res.transportation_segment_ids.Remove_At(0);
+        res.transportation_vertices.Remove_At(0);
+
+        moved_to_the_next_segment_in_path
+            = (res.pos == vertex) && (res.transportation_segment_ids.count > 0);
+    }
+
+    if (human.segment_id != Graph_Segment_ID_Missing) {
+        auto& seg = *Strict_Query_Graph_Segment(game.world, human.segment_id);
+        seg.linked_resource_ids.Unstable_Remove_At(seg.linked_resource_ids.Index_Of(res_id
+        ));
+
+        if (seg.resource_ids_to_transport.Contains(res_id)) {
+            seg.resource_ids_to_transport.Remove_At(
+                seg.resource_ids_to_transport.Index_Of(res_id)
+            );
+            Assert(!seg.resource_ids_to_transport.Contains(res_id));
+        }
+    }
+
+    if (placed_inside_building) {
+        LOG_INFO("placed_inside_building");
+
+        Assert(res.booking_id != World_Resource_Booking_ID_Missing);
+        auto& booking  = *String_Query_World_Resource_Booking(world, res.booking_id);
+        auto& building = *Strict_Query_Building(world, booking.building_id);
+
+        // TODO:
+        // building.placedResourcesForConstruction.Add(res);
+        // _map.OnResourcePlacedInsideBuilding(res, building);
+    }
+    else if (moved_to_the_next_segment_in_path) {
+        LOG_INFO("moved_to_the_next_segment_in_path");
+
+        Assert(res.booking_id != World_Resource_Booking_ID_Missing);
+
+        auto  seg_id = *(res.transportation_segment_ids.base + 0);
+        auto& seg    = *Strict_Query_Graph_Segment(world, seg_id);
+        Assert(!seg.resource_ids_to_transport.Contains(res_id));
+
+        *seg.resource_ids_to_transport.Enqueue(ctx) = res_id;
+    }
+    else {
+        LOG_INFO("Resource was placed on the map");
+
+        if (res.booking_id != World_Resource_Booking_ID_Missing) {
+            game.world.resource_bookings.Unstable_Remove(res.booking_id);
+            res.booking_id = World_Resource_Booking_ID_Missing;
+        }
+
+        res.targeted_human_id = Human_ID_Missing;
+    }
 }
