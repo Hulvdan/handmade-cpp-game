@@ -977,12 +977,12 @@ HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
 
+    Assert(!human.moving.to.has_value());
+    Assert(human.moving.path.count == 0);
+    Assert(human.action_progress == 0);
+
+    human.moving.elapsed    = 0;
     human.action_started_at = global_library_integration_data->Get_Time();
-    human.action_progress   = 0;
-    human.moving.to.reset();
-    human.moving.path.Reset();
-    human.moving.elapsed  = 0;
-    human.moving.progress = 0;
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
@@ -1004,6 +1004,8 @@ HumanState_Update_function(HumanState_PickingUpResource_Update) {
 
     if (human.action_progress >= 1) {
         human.action_progress = 1;
+
+        // TODO: EVENT!
 
         HumanState_MovingResources_SetSubstate(
             state, human, Moving_Resources_Substate::MovingResource, data, ctx
@@ -1092,7 +1094,11 @@ HumanState_OnCurrentSegmentChanged_function(
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingResource_OnMovedToTheNextTile) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    if (!human.moving.to.has_value())
+        HumanState_MovingResources_SetSubstate(
+            state, human, Moving_Resources_Substate::PlacingResource, data, ctx
+        );
 }
 
 // Human_State&      state
@@ -1113,20 +1119,40 @@ HumanState_UpdateStates_function(HumanState_MovingResource_UpdateStates) {
 HumanState_OnEnter_function(HumanState_PlacingResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    Assert(!human.moving.to.has_value());
+    Assert(human.moving.path.count == 0);
+    Assert(human.moving.progress == 0);
+    Assert(human.action_progress == 0);
+
+    human.moving.elapsed    = 0;
+    human.action_started_at = global_library_integration_data->Get_Time();
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
 HumanState_OnExit_function(HumanState_PlacingResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
-    // TODO:
+
+    human.action_started_at = -f64_inf;
+    human.action_progress   = 0;
 }
 
 // Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
 HumanState_Update_function(HumanState_PlacingResource_Update) {
     CTX_LOGGER;
-    // TODO:
+
+    human.action_progress
+        = (global_library_integration_data->Get_Time() - human.action_started_at)
+          / data.world->data.humans_moving_one_tile_duration;
+
+    if (human.action_progress >= 1) {
+        human.action_progress = 1;
+
+        // TODO: EVENT!
+
+        HumanState_MovingResources_Exit(state, human, data, ctx);
+    }
 }
 
 // Human_State& state, Human& human, const Human_Data& data, MCTX
