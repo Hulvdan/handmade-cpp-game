@@ -388,6 +388,7 @@ struct Human_Data {
 };
 
 void Root_Set_Human_State(
+    Human_ID          human_id,
     Human&            human,
     Human_States      new_state,
     const Human_Data& data,
@@ -446,11 +447,11 @@ Building* Strict_Query_Building(World& world, Building_ID id) {
     return nullptr;
 }
 
-Human* Strict_Query_Human(World& world, Human_ID id) {
-    Assert(id != Human_ID_Missing);
+Human* Strict_Query_Human(World& world, Human_ID human_id) {
+    Assert(human_id != Human_ID_Missing);
 
     for (auto [instance_id, instance] : Iter(&world.humans)) {
-        if (instance_id == id)
+        if (instance_id == human_id)
             return instance;
     }
 
@@ -458,24 +459,26 @@ Human* Strict_Query_Human(World& world, Human_ID id) {
     return nullptr;
 }
 
-Graph_Segment* Query_Graph_Segment(World& world, Graph_Segment_ID id) {
-    auto result = world.segments.Find(id);
+Graph_Segment* Query_Graph_Segment(World& world, Graph_Segment_ID graph_segment_id) {
+    auto result = world.segments.Find(graph_segment_id);
     return result;
 }
 
-Graph_Segment* Strict_Query_Graph_Segment(World& world, Graph_Segment_ID id) {
-    auto result = Query_Graph_Segment(world, id);
+Graph_Segment*
+Strict_Query_Graph_Segment(World& world, Graph_Segment_ID graph_segment_id) {
+    auto result = Query_Graph_Segment(world, graph_segment_id);
     Assert(result != nullptr);
     return result;
 }
 
-World_Resource* Query_World_Resource(World& world, World_Resource_ID id) {
-    auto result = world.resources.Find(id);
+World_Resource* Query_World_Resource(World& world, World_Resource_ID world_resource_id) {
+    auto result = world.resources.Find(world_resource_id);
     return result;
 }
 
-World_Resource* Strict_Query_World_Resource(World& world, World_Resource_ID id) {
-    auto result = Query_World_Resource(world, id);
+World_Resource*
+Strict_Query_World_Resource(World& world, World_Resource_ID world_resource_id) {
+    auto result = Query_World_Resource(world, world_resource_id);
     Assert(result != nullptr);
     return result;
 }
@@ -493,7 +496,11 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTh
 );
 HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates);
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -509,11 +516,15 @@ HumanState_OnEnter_function(HumanState_MovingInTheWorld_OnEnter) {
     human.moving.path.Reset();
 
     HumanState_MovingInTheWorld_UpdateStates(
-        state, human, data, Building_ID_Missing, nullptr, ctx
+        state, human_id, human, data, Building_ID_Missing, nullptr, ctx
     );
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -529,10 +540,16 @@ HumanState_OnExit_function(HumanState_MovingInTheWorld_OnExit) {
     }
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
     HumanState_MovingInTheWorld_UpdateStates(
         state,
+        human_id,
         human,
         data,
         human.building_id,
@@ -541,7 +558,11 @@ HumanState_Update_function(HumanState_MovingInTheWorld_Update) {
     );
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingInTheWorld_OnCurrentSegmentChanged
 ) {
@@ -550,11 +571,15 @@ HumanState_OnCurrentSegmentChanged_function(
 
     Assert(human.type == Human_Type::Transporter);
     HumanState_MovingInTheWorld_UpdateStates(
-        state, human, data, Building_ID_Missing, nullptr, ctx
+        state, human_id, human, data, Building_ID_Missing, nullptr, ctx
     );
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
@@ -584,6 +609,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingInTheWorld_OnMovedToTh
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -615,7 +641,9 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
             && (Graph_Node(segment.graph, human.moving.pos) != 0))
         {
             human.moving.path.Reset();
-            Root_Set_Human_State(human, Human_States::MovingInsideSegment, data, ctx);
+            Root_Set_Human_State(
+                human_id, human, Human_States::MovingInsideSegment, data, ctx
+            );
             return;
         }
 
@@ -744,7 +772,11 @@ HumanState_OnMovedToTheNextTile_function(
 );
 HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates);
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -782,7 +814,11 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
     }
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -790,24 +826,37 @@ HumanState_OnExit_function(HumanState_MovingInsideSegment_OnExit) {
     human.moving.path.Reset();
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_MovingInsideSegment_Update) {
     HumanState_MovingInsideSegment_UpdateStates(
-        state, human, data, Building_ID_Missing, nullptr, ctx
+        state, human_id, human, data, Building_ID_Missing, nullptr, ctx
     );
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingInsideSegment_OnCurrentSegmentChanged
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
 
-    Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
+    Root_Set_Human_State(human_id, human, Human_States::MovingInTheWorld, data, ctx);
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(
     HumanState_MovingInsideSegment_OnMovedToTheNextTile
 ) {
@@ -818,6 +867,7 @@ HumanState_OnMovedToTheNextTile_function(
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -831,7 +881,7 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 
     if (human.segment_id == Graph_Segment_ID_Missing) {
         human.moving.path.Reset();
-        Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
+        Root_Set_Human_State(human_id, human, Human_States::MovingInTheWorld, data, ctx);
         return;
     }
 
@@ -841,7 +891,9 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
         if (!human.moving.to.has_value()) {
             // TODO:
             // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
-            Root_Set_Human_State(human, Human_States::MovingResources, data, ctx);
+            Root_Set_Human_State(
+                human_id, human, Human_States::MovingResources, data, ctx
+            );
             return;
         }
 
@@ -855,6 +907,7 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
 
 void HumanState_MovingResources_SetSubstate(
     Human_State&              state,
+    Human_ID                  human_id,
     Human&                    human,
     Moving_Resources_Substate new_state_value,
     const Human_Data&         data,
@@ -863,6 +916,7 @@ void HumanState_MovingResources_SetSubstate(
 
 void HumanState_MovingResources_Exit(
     Human_State&      state,
+    Human_ID          human_id,
     Human&            human,
     const Human_Data& data,
     MCTX
@@ -871,7 +925,11 @@ void HumanState_MovingResources_Exit(
 // MovingToResource Substate.
 //----------------------------------------------------------------------------------
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -888,7 +946,12 @@ HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
 
     if ((res.pos == human.moving.pos) && (human.moving.elapsed == 0)) {
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::PickingUpResource, data, ctx
+            state,
+            human_id,
+            human,
+            Moving_Resources_Substate::PickingUpResource,
+            data,
+            ctx
         );
         return;
     }
@@ -909,10 +972,14 @@ HumanState_OnEnter_function(HumanState_MovingToResource_OnEnter) {
         Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
     }
     else if ((!graph_contains) || (!node_is_walkable))
-        HumanState_MovingResources_Exit(state, human, data, ctx);
+        HumanState_MovingResources_Exit(state, human_id, human, data, ctx);
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_MovingToResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -920,31 +987,44 @@ HumanState_OnExit_function(HumanState_MovingToResource_OnExit) {
     human.moving.path.Reset();
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_MovingToResource_Update) {
     CTX_LOGGER;
 
     // NOTE: Специально оставлено пустым.
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingToResource_OnCurrentSegmentChanged
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
 
-    HumanState_MovingResources_Exit(state, human, data, ctx);
+    HumanState_MovingResources_Exit(state, human_id, human, data, ctx);
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
     LOG_SCOPE;
 
     if ((human.resource_id == World_Resource_ID_Missing) || (human.resource_id == 0)) {
-        HumanState_MovingResources_Exit(state, human, data, ctx);
+        HumanState_MovingResources_Exit(state, human_id, human, data, ctx);
         return;
     }
 
@@ -954,11 +1034,17 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingToResource_OnMovedToTh
     auto& res = *Strict_Query_World_Resource(*data.world, human.resource_id);
     if (human.moving.pos == res.pos)
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::PickingUpResource, data, ctx
+            state,
+            human_id,
+            human,
+            Moving_Resources_Substate::PickingUpResource,
+            data,
+            ctx
         );
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -972,7 +1058,11 @@ HumanState_UpdateStates_function(HumanState_MovingToResource_UpdateStates) {
 // PickingUpResource Substate.
 //----------------------------------------------------------------------------------
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -983,9 +1073,22 @@ HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
 
     human.moving.elapsed    = 0;
     human.action_started_at = global_library_integration_data->Get_Time();
+
+    On_Human_Started_Picking_Up_Resource(
+        *data.game,
+        human_id,
+        human,
+        human.resource_id,
+        *Strict_Query_World_Resource(*data.world, human.resource_id),
+        ctx
+    );
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_PickingUpResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -994,26 +1097,42 @@ HumanState_OnExit_function(HumanState_PickingUpResource_OnExit) {
     human.action_progress   = 0;
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_PickingUpResource_Update) {
     CTX_LOGGER;
 
     human.action_progress
-        = (global_library_integration_data->Get_Time() - human.action_started_at)
+        = (f32)(global_library_integration_data->Get_Time() - human.action_started_at)
           / data.world->data.humans_moving_one_tile_duration;
 
     if (human.action_progress >= 1) {
         human.action_progress = 1;
 
-        // TODO: EVENT!
+        On_Human_Finished_Picking_Up_Resource(
+            *data.game,
+            human_id,
+            human,
+            human.resource_id,
+            *Strict_Query_World_Resource(*data.world, human.resource_id),
+            ctx
+        );
 
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::MovingResource, data, ctx
+            state, human_id, human, Moving_Resources_Substate::MovingResource, data, ctx
         );
     }
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_PickingUpResource_OnCurrentSegmentChanged
 ) {
@@ -1023,7 +1142,11 @@ HumanState_OnCurrentSegmentChanged_function(
     // NOTE: Специально оставлено пустым.
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_PickingUpResource_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
@@ -1033,6 +1156,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_PickingUpResource_OnMovedToT
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -1046,7 +1170,11 @@ HumanState_UpdateStates_function(HumanState_PickingUpResource_UpdateStates) {
 // MovingResource Substate.
 //----------------------------------------------------------------------------------
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_MovingResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -1068,20 +1196,33 @@ HumanState_OnEnter_function(HumanState_MovingResource_OnEnter) {
     Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_MovingResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_MovingResource_Update) {
     CTX_LOGGER;
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_MovingResource_OnCurrentSegmentChanged
 ) {
@@ -1090,18 +1231,23 @@ HumanState_OnCurrentSegmentChanged_function(
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_MovingResource_OnMovedToTheNextTile) {
     CTX_LOGGER;
     LOG_SCOPE;
 
     if (!human.moving.to.has_value())
         HumanState_MovingResources_SetSubstate(
-            state, human, Moving_Resources_Substate::PlacingResource, data, ctx
+            state, human_id, human, Moving_Resources_Substate::PlacingResource, data, ctx
         );
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -1115,7 +1261,11 @@ HumanState_UpdateStates_function(HumanState_MovingResource_UpdateStates) {
 // PlacingResource Substate.
 //----------------------------------------------------------------------------------
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_PlacingResource_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -1129,7 +1279,11 @@ HumanState_OnEnter_function(HumanState_PlacingResource_OnEnter) {
     human.action_started_at = global_library_integration_data->Get_Time();
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_PlacingResource_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -1138,12 +1292,17 @@ HumanState_OnExit_function(HumanState_PlacingResource_OnExit) {
     human.action_progress   = 0;
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_PlacingResource_Update) {
     CTX_LOGGER;
 
     human.action_progress
-        = (global_library_integration_data->Get_Time() - human.action_started_at)
+        = (f32)(global_library_integration_data->Get_Time() - human.action_started_at)
           / data.world->data.humans_moving_one_tile_duration;
 
     if (human.action_progress >= 1) {
@@ -1151,11 +1310,15 @@ HumanState_Update_function(HumanState_PlacingResource_Update) {
 
         // TODO: EVENT!
 
-        HumanState_MovingResources_Exit(state, human, data, ctx);
+        HumanState_MovingResources_Exit(state, human_id, human, data, ctx);
     }
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_PlacingResource_OnCurrentSegmentChanged
 ) {
@@ -1164,7 +1327,11 @@ HumanState_OnCurrentSegmentChanged_function(
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_PlacingResource_OnMovedToTheNextTile
 ) {
     CTX_LOGGER;
@@ -1173,6 +1340,7 @@ HumanState_OnMovedToTheNextTile_function(HumanState_PlacingResource_OnMovedToThe
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -1189,6 +1357,7 @@ HumanState_UpdateStates_function(HumanState_PlacingResource_UpdateStates) {
 
 void HumanState_MovingResources_SetSubstate(
     Human_State&              state,
+    Human_ID                  human_id,
     Human&                    human,
     Moving_Resources_Substate new_state_value,
     const Human_Data&         data,
@@ -1197,9 +1366,9 @@ void HumanState_MovingResources_SetSubstate(
     auto old_state = human.substate_moving_resources;
     if (old_state != Moving_Resources_Substate::None) {
         switch (human.substate_moving_resources) {
-#define X(name)                                              \
-    case Moving_Resources_Substate::name: {                  \
-        HumanState_##name##_OnExit(state, human, data, ctx); \
+#define X(name)                                                        \
+    case Moving_Resources_Substate::name: {                            \
+        HumanState_##name##_OnExit(state, human_id, human, data, ctx); \
     } break;
             Human_MovingResources_Substates_Table;
 #undef X
@@ -1211,9 +1380,9 @@ void HumanState_MovingResources_SetSubstate(
     human.substate_moving_resources = new_state_value;
 
     switch (new_state_value) {
-#define X(name)                                               \
-    case Moving_Resources_Substate::name: {                   \
-        HumanState_##name##_OnEnter(state, human, data, ctx); \
+#define X(name)                                                         \
+    case Moving_Resources_Substate::name: {                             \
+        HumanState_##name##_OnEnter(state, human_id, human, data, ctx); \
     } break;
         Human_MovingResources_Substates_Table;
 #undef X
@@ -1225,14 +1394,15 @@ void HumanState_MovingResources_SetSubstate(
 
 void HumanState_MovingResources_Exit(
     Human_State&      state,
+    Human_ID          human_id,
     Human&            human,
     const Human_Data& data,
     MCTX
 ) {
     switch (human.substate_moving_resources) {
-#define X(name)                                              \
-    case Moving_Resources_Substate::name: {                  \
-        HumanState_##name##_OnExit(state, human, data, ctx); \
+#define X(name)                                                        \
+    case Moving_Resources_Substate::name: {                            \
+        HumanState_##name##_OnExit(state, human_id, human, data, ctx); \
     } break;
         Human_MovingResources_Substates_Table;
 #undef X
@@ -1241,10 +1411,14 @@ void HumanState_MovingResources_Exit(
         INVALID_PATH;
     }
 
-    Root_Set_Human_State(human, Human_States::MovingInTheWorld, data, ctx);
+    Root_Set_Human_State(human_id, human, Human_States::MovingInTheWorld, data, ctx);
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
     CTX_LOGGER;
     LOG_SCOPE;
@@ -1255,64 +1429,34 @@ HumanState_OnEnter_function(HumanState_MovingResources_OnEnter) {
     Assert(segment.resource_ids_to_transport.count > 0);
 
     HumanState_MovingResources_SetSubstate(
-        state, human, Moving_Resources_Substate::MovingToResource, data, ctx
+        state, human_id, human, Moving_Resources_Substate::MovingToResource, data, ctx
     );
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_MovingResources_OnExit) {
     CTX_LOGGER;
     LOG_SCOPE;
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_MovingResources_Update) {
     CTX_LOGGER;
 
     switch (human.substate_moving_resources) {
-#define X(name)                                                  \
-    case Moving_Resources_Substate::name: {                      \
-        HumanState_##name##_Update(state, human, data, dt, ctx); \
-    } break;
-        Human_MovingResources_Substates_Table;
-#undef X
-
-    default:
-        INVALID_PATH;
-    }
-}
-
-// Human_State& state, Human& human, const Human_Data& data, MCTX
-HumanState_OnCurrentSegmentChanged_function(
-    HumanState_MovingResources_OnCurrentSegmentChanged
-) {
-    CTX_LOGGER;
-    LOG_SCOPE;
-
-    switch (human.substate_moving_resources) {
-#define X(name)                                                               \
-    case Moving_Resources_Substate::name: {                                   \
-        HumanState_##name##_OnCurrentSegmentChanged(state, human, data, ctx); \
-    } break;
-        Human_MovingResources_Substates_Table;
-#undef X
-
-    default:
-        INVALID_PATH;
-    }
-}
-
-// Human_State& state, Human& human, const Human_Data& data, MCTX
-HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToTheNextTile
-) {
-    CTX_LOGGER;
-    LOG_SCOPE;
-
-    switch (human.substate_moving_resources) {
 #define X(name)                                                            \
     case Moving_Resources_Substate::name: {                                \
-        HumanState_##name##_OnMovedToTheNextTile(state, human, data, ctx); \
+        HumanState_##name##_Update(state, human_id, human, data, dt, ctx); \
     } break;
         Human_MovingResources_Substates_Table;
 #undef X
@@ -1323,6 +1467,54 @@ HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToThe
 }
 
 // Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
+HumanState_OnCurrentSegmentChanged_function(
+    HumanState_MovingResources_OnCurrentSegmentChanged
+) {
+    CTX_LOGGER;
+    LOG_SCOPE;
+
+    switch (human.substate_moving_resources) {
+#define X(name)                                                                         \
+    case Moving_Resources_Substate::name: {                                             \
+        HumanState_##name##_OnCurrentSegmentChanged(state, human_id, human, data, ctx); \
+    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
+
+    default:
+        INVALID_PATH;
+    }
+}
+
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
+HumanState_OnMovedToTheNextTile_function(HumanState_MovingResources_OnMovedToTheNextTile
+) {
+    CTX_LOGGER;
+    LOG_SCOPE;
+
+    switch (human.substate_moving_resources) {
+#define X(name)                                                                      \
+    case Moving_Resources_Substate::name: {                                          \
+        HumanState_##name##_OnMovedToTheNextTile(state, human_id, human, data, ctx); \
+    } break;
+        Human_MovingResources_Substates_Table;
+#undef X
+
+    default:
+        INVALID_PATH;
+    }
+}
+
+// Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -1337,34 +1529,56 @@ HumanState_UpdateStates_function(HumanState_MovingResources_UpdateStates) {
 // Construction State Functions.
 //----------------------------------------------------------------------------------
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_Construction_OnEnter) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_Construction_OnExit) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_Construction_Update) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(
     HumanState_Construction_OnCurrentSegmentChanged
 ) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_Construction_OnMovedToTheNextTile) {
     // TODO:
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -1378,32 +1592,54 @@ HumanState_UpdateStates_function(HumanState_Construction_UpdateStates) {
 // Employee State Functions.
 //----------------------------------------------------------------------------------
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnEnter_function(HumanState_Employee_OnEnter) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnExit_function(HumanState_Employee_OnExit) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// f32               dt
+// MCTX
 HumanState_Update_function(HumanState_Employee_Update) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnCurrentSegmentChanged_function(HumanState_Employee_OnCurrentSegmentChanged) {
     // TODO:
 }
 
-// Human_State& state, Human& human, const Human_Data& data, MCTX
+// Human_State&      state
+// Human_ID          human_id
+// Human&            human
+// const Human_Data& data
+// MCTX
 HumanState_OnMovedToTheNextTile_function(HumanState_Employee_OnMovedToTheNextTile) {
     // TODO:
 }
 
 // Human_State&      state
+// Human_ID          human_id
 // Human&            human
 // const Human_Data& data
 // Building_ID       old_building_id
@@ -1416,17 +1652,23 @@ HumanState_UpdateStates_function(HumanState_Employee_UpdateStates) {
 //----------------------------------------------------------------------------------
 // Root State Functions.
 //----------------------------------------------------------------------------------
-void Human_Root_Update(Human& human, const Human_Data& data, f32 dt, MCTX) {
+void Human_Root_Update(
+    Human_ID          human_id,
+    Human&            human,
+    const Human_Data& data,
+    f32               dt,
+    MCTX
+) {
     auto index = human.state;
     Assert((int)index >= 0);
     Assert((int)index < (int)Human_States::COUNT);
 
     auto state = human_states[(int)index];
-    state.Update(state, human, data, dt, ctx);
+    state.Update(state, human_id, human, data, dt, ctx);
 }
 
 void Root_OnCurrentSegmentChanged(
-    Human_ID /* id */,
+    Human_ID          human_id,
     Human&            human,
     const Human_Data& data,
     MCTX
@@ -1436,19 +1678,25 @@ void Root_OnCurrentSegmentChanged(
     Assert(index < (int)Human_States::COUNT);
 
     auto state = human_states[index];
-    state.OnCurrentSegmentChanged(state, human, data, ctx);
+    state.OnCurrentSegmentChanged(state, human_id, human, data, ctx);
 }
 
-void Root_OnMovedToTheNextTile(Human& human, const Human_Data& data, MCTX) {
+void Root_OnMovedToTheNextTile(
+    Human_ID          human_id,
+    Human&            human,
+    const Human_Data& data,
+    MCTX
+) {
     auto index = (int)human.state;
     Assert(index >= 0);
     Assert(index < (int)Human_States::COUNT);
 
     auto state = human_states[index];
-    state.OnMovedToTheNextTile(state, human, data, ctx);
+    state.OnMovedToTheNextTile(state, human_id, human, data, ctx);
 }
 
 void Root_Set_Human_State(
+    Human_ID          human_id,
     Human&            human,
     Human_States      new_state_value,
     const Human_Data& data,
@@ -1469,11 +1717,11 @@ void Root_Set_Human_State(
 
     if (old_state_value != Human_States::None) {
         auto old_state = human_states[old_state_index];
-        old_state.OnExit(old_state, human, data, ctx);
+        old_state.OnExit(old_state, human_id, human, data, ctx);
     }
 
     auto new_state = human_states[new_state_index];
-    new_state.OnEnter(new_state, human, data, ctx);
+    new_state.OnEnter(new_state, human_id, human, data, ctx);
 }
 
 // NOTE: Создание чувачка-грузчика.
@@ -1509,7 +1757,7 @@ std::tuple<Human_ID, Human*> Create_Human_Transporter(
     *human_id = Next_Human_ID(world.last_entity_id);
     *human_p  = human;
 
-    Root_Set_Human_State(*human_p, Human_States::MovingInTheWorld, data, ctx);
+    Root_Set_Human_State(*human_id, *human_p, Human_States::MovingInTheWorld, data, ctx);
 
     On_Human_Created(game, *human_id, *human_p, ctx);
 
@@ -1595,13 +1843,13 @@ void Process_City_Halls(Game& game, f32 dt, const Human_Data& data, MCTX) {
 void Remove_Humans(Game& game, MCTX) {
     auto& world = game.world;
 
-    for (auto [id, reason_p] : Iter(&world.humans_to_remove)) {
+    for (auto [human_id, reason_p] : Iter(&world.humans_to_remove)) {
         auto& reason = *reason_p;
-        auto& human  = *Strict_Query_Human(world, id);
+        auto& human  = *Strict_Query_Human(world, human_id);
 
         if (reason == Human_Removal_Reason::Transporter_Returned_To_City_Hall) {
             // TODO: on_Human_Reached_City_Hall.On_Next(new (){human = human});
-            world.human_ids_going_to_city_hall.Unstable_Remove(id);
+            world.human_ids_going_to_city_hall.Unstable_Remove(human_id);
         }
         else if (reason == Human_Removal_Reason::Employee_Reached_Building) {
             // TODO: on_Employee_Reached_Building.On_Next(new (){human = human});
@@ -1611,8 +1859,8 @@ void Remove_Humans(Game& game, MCTX) {
 
         Deinit_Queue(human.moving.path, ctx);
 
-        world.humans.Unstable_Remove(id);
-        On_Human_Removed(game, id, human, reason, ctx);
+        world.humans.Unstable_Remove(human_id);
+        On_Human_Removed(game, human_id, human, reason, ctx);
     }
 
     world.humans_to_remove.Reset();
@@ -1620,6 +1868,7 @@ void Remove_Humans(Game& game, MCTX) {
 
 void Update_Human_Moving_Component(
     World&            world,
+    Human_ID          human_id,
     Human&            human,
     float             dt,
     const Human_Data& data,
@@ -1646,7 +1895,7 @@ void Update_Human_Moving_Component(
         moving.from = moving.pos;
         Advance_Moving_To(moving);
 
-        Root_OnMovedToTheNextTile(human, data, ctx);
+        Root_OnMovedToTheNextTile(human_id, human, data, ctx);
         // TODO: on_Human_Moved_To_The_Next_Tile.On_Next(new (){ human = human });
     }
 
@@ -1660,7 +1909,7 @@ void Update_Human_Moving_Component(
 
 void Update_Human(
     World&            world,
-    Human_ID          id,
+    Human_ID          human_id,
     Human*            human_p,
     float             dt,
     const Human_Data& data,
@@ -1676,16 +1925,16 @@ void Update_Human(
     if (human.moving.to.has_value()) {
         ZoneScopedN("Update_Human_Moving_Component");
 
-        Update_Human_Moving_Component(world, human, dt, data, ctx);
+        Update_Human_Moving_Component(world, human_id, human, dt, data, ctx);
     }
 
-    if (humans_to_remove.count > 0 && humans_to_remove.Contains(id))
+    if ((humans_to_remove.count > 0) && humans_to_remove.Contains(human_id))
         return;
 
     {
         ZoneScopedN("Human_Root_Update");
 
-        Human_Root_Update(human, data, dt, ctx);
+        Human_Root_Update(human_id, human, data, dt, ctx);
     }
 
     {
@@ -1698,7 +1947,7 @@ void Update_Human(
         {
             auto [id_p, r_value] = humans_to_remove.Add(ctx);
 
-            *id_p    = id;
+            *id_p    = human_id;
             *r_value = Human_Removal_Reason::Transporter_Returned_To_City_Hall;
         }
     }
@@ -1713,30 +1962,30 @@ void Update_Humans(Game& game, f32 dt, const Human_Data& data, MCTX) {
 
     auto& world = game.world;
 
-    for (auto [id, reason_p] : Iter(&world.humans_to_remove))
+    for (auto [human_id, reason_p] : Iter(&world.humans_to_remove))
         Assert(*reason_p != Human_Removal_Reason::Transporter_Returned_To_City_Hall);
 
     Remove_Humans(game, ctx);
 
-    for (auto [id, human_p] : Iter(&world.humans))
-        Update_Human(world, id, human_p, dt, data, ctx);
+    for (auto [human_id, human_p] : Iter(&world.humans))
+        Update_Human(world, human_id, human_p, dt, data, ctx);
 
     auto prev_count = world.humans_to_add.count;
-    for (auto [id, human_to_move] : Iter(&world.humans_to_add)) {
+    for (auto [human_id, human_to_move] : Iter(&world.humans_to_add)) {
         LOG_DEBUG("Update_Humans: moving human from humans_to_add to humans");
-        auto [id_p, phuman] = world.humans.Add(ctx);
+        auto [id_p, human_p] = world.humans.Add(ctx);
 
-        *id_p   = id;
-        *phuman = *human_to_move;
+        *id_p    = human_id;
+        *human_p = *human_to_move;
 
-        auto& human = *phuman;
+        auto& human = *human_p;
 
         if (human.segment_id != Graph_Segment_ID_Missing) {
             auto& segment             = *Query_Graph_Segment(world, human.segment_id);
-            segment.assigned_human_id = id;
+            segment.assigned_human_id = human_id;
         }
 
-        Update_Human(world, id, phuman, dt, data, ctx);
+        Update_Human(world, human_id, human_p, dt, data, ctx);
     }
 
     Assert(prev_count == world.humans_to_add.count);
@@ -1747,7 +1996,7 @@ void Update_Humans(Game& game, f32 dt, const Human_Data& data, MCTX) {
     {  // NOTE: Debug shiet.
         int humans_moving_to_destination = 0;
         int humans_moving_inside_segment = 0;
-        for (auto [id, human_p] : Iter(&world.humans)) {
+        for (auto [human_id, human_p] : Iter(&world.humans)) {
             auto& human = *human_p;
 
             if (human.state == Human_States::MovingInTheWorld  //
@@ -2195,7 +2444,7 @@ void Deinit_World(Game& game, MCTX) {
     CTX_ALLOCATOR;
     auto& world = game.world;
 
-    for (auto [id, segment_p] : Iter(&world.segments)) {
+    for (auto [segment_id, segment_p] : Iter(&world.segments)) {
         auto& segment    = *segment_p;
         auto  graph_size = segment.graph.size;
 
@@ -2786,7 +3035,8 @@ BF_FORCE_INLINE void Update_Segments(
         //
         // Возможно, что ему далее по коду будет назначен новый сегмент.
         if (segment.assigned_human_id != Human_ID_Missing) {
-            auto& human = *Strict_Query_Human(world, segment.assigned_human_id);
+            auto  human_id = segment.assigned_human_id;
+            auto& human    = *Strict_Query_Human(world, segment.assigned_human_id);
 
             human.segment_id = Graph_Segment_ID_Missing;
             bool moving_in_the_world_or_inside_segment
@@ -2795,7 +3045,7 @@ BF_FORCE_INLINE void Update_Segments(
             Assert(moving_in_the_world_or_inside_segment);
 
             Root_Set_Human_State(
-                human, Human_States::MovingInTheWorld, *world.human_data, ctx
+                human_id, human, Human_States::MovingInTheWorld, *world.human_data, ctx
             );
             Assert(
                 human.state_moving_in_the_world
@@ -3547,4 +3797,24 @@ bool Try_Build(Game& game, v2i16 pos, const Item_To_Build& item, MCTX) {
     On_Item_Built(game, pos, item, ctx);
 
     return true;
+}
+
+// Game&                    game
+// const Human_ID&          human_id
+// Human&                   human
+// const World_Resource_ID& resource_id
+// World_Resource&          resource
+// MCTX
+On_Human_Finished_Picking_Up_Resource_function(World_OnHumanFinishedPickingUpResource) {
+    //
+}
+
+// Game&                    game
+// const Human_ID&          human_id
+// Human&                   human
+// const World_Resource_ID& resource_id
+// World_Resource&          resource
+// MCTX
+On_Human_Finished_Placing_Resource_function(World_OnHumanFinishedPlacingResource) {
+    //
 }

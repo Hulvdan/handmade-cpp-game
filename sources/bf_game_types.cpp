@@ -491,34 +491,56 @@ enum class Human_Removal_Reason {
     /* NOLINTBEGIN(misc-unused-parameters) */ \
     code /* NOLINTEND(misc-unused-parameters) */
 
-#define HumanState_OnEnter_function(name_)                                         \
-    NOLINT_UNUSED_PARAMETERS(                                                      \
-        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
-    )
-
-#define HumanState_OnExit_function(name_)                                          \
-    NOLINT_UNUSED_PARAMETERS(                                                      \
-        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
-    )
-
-#define HumanState_Update_function(name_)                                      \
-    NOLINT_UNUSED_PARAMETERS(void name_(                                       \
-        Human_State& state, Human& human, const Human_Data& data, f32 dt, MCTX \
+#define HumanState_OnEnter_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(   \
+        Human_State&      state,           \
+        Human_ID          human_id,        \
+        Human&            human,           \
+        const Human_Data& data,            \
+        MCTX                               \
     ))
 
-#define HumanState_OnCurrentSegmentChanged_function(name_)                         \
-    NOLINT_UNUSED_PARAMETERS(                                                      \
-        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
-    )
+#define HumanState_OnExit_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(  \
+        Human_State&      state,          \
+        Human_ID          human_id,       \
+        Human&            human,          \
+        const Human_Data& data,           \
+        MCTX                              \
+    ))
 
-#define HumanState_OnMovedToTheNextTile_function(name_)                            \
-    NOLINT_UNUSED_PARAMETERS(                                                      \
-        void name_(Human_State& state, Human& human, const Human_Data& data, MCTX) \
-    )
+#define HumanState_Update_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(  \
+        Human_State&      state,          \
+        Human_ID          human_id,       \
+        Human&            human,          \
+        const Human_Data& data,           \
+        f32               dt,             \
+        MCTX                              \
+    ))
+
+#define HumanState_OnCurrentSegmentChanged_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(                   \
+        Human_State&      state,                           \
+        Human_ID          human_id,                        \
+        Human&            human,                           \
+        const Human_Data& data,                            \
+        MCTX                                               \
+    ))
+
+#define HumanState_OnMovedToTheNextTile_function(name_) \
+    NOLINT_UNUSED_PARAMETERS(void name_(                \
+        Human_State&      state,                        \
+        Human_ID          human_id,                     \
+        Human&            human,                        \
+        const Human_Data& data,                         \
+        MCTX                                            \
+    ))
 
 #define HumanState_UpdateStates_function(name_) \
     NOLINT_UNUSED_PARAMETERS(void name_(        \
         Human_State&      state,                \
+        Human_ID          human_id,             \
         Human&            human,                \
         const Human_Data& data,                 \
         Building_ID       old_building_id,      \
@@ -644,17 +666,21 @@ struct World {
     void name_(Game& game, v2i16 pos, const Item_To_Build& item, MCTX)
 
 #define On_Human_Created_function(name_) \
-    void name_(Game& game, const Human_ID& id, Human& human, MCTX)
+    void name_(Game& game, const Human_ID& human_id, Human& human, MCTX)
 
-#define On_Human_Removed_function(name_)                                                \
-    void name_(                                                                         \
-        Game& game, const Human_ID& id, Human& human, Human_Removal_Reason reason, MCTX \
+#define On_Human_Removed_function(name_) \
+    void name_(                          \
+        Game&                game,       \
+        const Human_ID&      human_id,   \
+        Human&               human,      \
+        Human_Removal_Reason reason,     \
+        MCTX                             \
     )
 
 #define On_Human_Started_Picking_Up_Resource_function(name_) \
     void name_(                                              \
         Game&                    game,                       \
-        const Human_ID&          id,                         \
+        const Human_ID&          human_id,                   \
         Human&                   human,                      \
         const World_Resource_ID& resource_id,                \
         World_Resource&          resource,                   \
@@ -664,7 +690,7 @@ struct World {
 #define On_Human_Finished_Picking_Up_Resource_function(name_) \
     void name_(                                               \
         Game&                    game,                        \
-        const Human_ID&          id,                          \
+        const Human_ID&          human_id,                    \
         Human&                   human,                       \
         const World_Resource_ID& resource_id,                 \
         World_Resource&          resource,                    \
@@ -674,7 +700,7 @@ struct World {
 #define On_Human_Started_Placing_Resource_function(name_) \
     void name_(                                           \
         Game&                    game,                    \
-        const Human_ID&          id,                      \
+        const Human_ID&          human_id,                \
         Human&                   human,                   \
         const World_Resource_ID& resource_id,             \
         World_Resource&          resource,                \
@@ -684,7 +710,7 @@ struct World {
 #define On_Human_Finished_Placing_Resource_function(name_) \
     void name_(                                            \
         Game&                    game,                     \
-        const Human_ID&          id,                       \
+        const Human_ID&          human_id,                 \
         Human&                   human,                    \
         const World_Resource_ID& resource_id,              \
         World_Resource&          resource,                 \

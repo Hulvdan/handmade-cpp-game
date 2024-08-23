@@ -295,39 +295,51 @@ On_Item_Built_function(On_Item_Built) {
 
 On_Human_Created_function(On_Human_Created) {
 #if BF_CLIENT
-    Renderer_OnHumanCreated(game, id, human, ctx);
+    Renderer_OnHumanCreated(game, human_id, human, ctx);
 #endif
 }
 
 On_Human_Removed_function(On_Human_Removed) {
 #if BF_CLIENT
-    Renderer_OnHumanRemoved(game, id, human, reason, ctx);
+    Renderer_OnHumanRemoved(game, human_id, human, reason, ctx);
 #endif
 }
 
 On_Human_Started_Picking_Up_Resource_function(On_Human_Started_Picking_Up_Resource) {
 #if BF_CLIENT
-    Renderer_OnHumanStartedPickingUpResource(game, id, human, resource_id, resource, ctx);
+    Renderer_OnHumanStartedPickingUpResource(
+        game, human_id, human, resource_id, resource, ctx
+    );
 #endif
 }
 
 On_Human_Finished_Picking_Up_Resource_function(On_Human_Finished_Picking_Up_Resource) {
+    World_OnHumanFinishedPickingUpResource(
+        game, human_id, human, resource_id, resource, ctx
+    );
 #if BF_CLIENT
     Renderer_OnHumanFinishedPickingUpResource(
-        game, id, human, resource_id, resource, ctx
+        game, human_id, human, resource_id, resource, ctx
     );
 #endif
 }
 
 On_Human_Started_Placing_Resource_function(On_Human_Started_Placing_Resource) {
 #if BF_CLIENT
-    Renderer_OnHumanStartedPlacingResource(game, id, human, resource_id, resource, ctx);
+    Renderer_OnHumanStartedPlacingResource(
+        game, human_id, human, resource_id, resource, ctx
+    );
 #endif
 }
 
 On_Human_Finished_Placing_Resource_function(On_Human_Finished_Placing_Resource) {
+    World_OnHumanFinishedPlacingResource(
+        game, human_id, human, resource_id, resource, ctx
+    );
 #if BF_CLIENT
-    Renderer_OnHumanFinishedPlacingResource(game, id, human, resource_id, resource, ctx);
+    Renderer_OnHumanFinishedPlacingResource(
+        game, human_id, human, resource_id, resource, ctx
+    );
 #endif
 }
 

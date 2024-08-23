@@ -1959,27 +1959,28 @@ On_Item_Built_function(Renderer_OnItemBuilt) {
     }
 }
 
-// Game& game, const Human_ID& id, Human& human, MCTX
+// Game& game, const Human_ID& human_id, Human& human, MCTX
 On_Human_Created_function(Renderer_OnHumanCreated) {
     auto& renderer = *game.renderer;
 
-    C_Sprite human_sprite{};
-    human_sprite.pos        = v2f(human.moving.pos) + v2f_half;
-    human_sprite.scale      = v2f_half;
-    human_sprite.anchor     = {0.5f, 0.5f + 2.0f / 7.0f};
-    human_sprite.rotation   = 0;
-    human_sprite.texture_id = renderer.human_texture_id;
-    human_sprite.z          = 0;
+    C_Sprite human_sprite{
+        .pos        = v2f(human.moving.pos) + v2f_half,
+        .scale      = v2f_half,
+        .anchor     = {0.5f, 0.5f + 2.0f / 7.0f},
+        .rotation   = 0,
+        .texture_id = renderer.human_texture_id,
+        .z          = 0,
+    };
 
     {
         auto [pid, pvalue] = renderer.sprites.Add(ctx);
-        *pid               = id;
+        *pid               = human_id;
         *pvalue            = human_sprite;
     }
 }
 
 // Game&          game,
-// const Human_ID&      id,
+// const Human_ID&      human_id,
 // Human&               human,
 // Human_Removal_Reason reason,
 // MCTX
@@ -1992,11 +1993,11 @@ On_Human_Removed_function(Renderer_OnHumanRemoved) {
 
     auto& renderer = *game.renderer;
 
-    renderer.sprites.Unstable_Remove(id);
+    renderer.sprites.Unstable_Remove(human_id);
 }
 
 // Game&                    game
-// const Human_ID&          id
+// const Human_ID&          human_id
 // Human&                   human
 // const World_Resource_ID& resource_id
 // World_Resource&          resource
@@ -2006,7 +2007,7 @@ On_Human_Started_Picking_Up_Resource_function(Renderer_OnHumanStartedPickingUpRe
 }
 
 // Game&                    game
-// const Human_ID&          id
+// const Human_ID&          human_id
 // Human&                   human
 // const World_Resource_ID& resource_id
 // World_Resource&          resource
@@ -2017,7 +2018,7 @@ On_Human_Finished_Picking_Up_Resource_function(Renderer_OnHumanFinishedPickingUp
 }
 
 // Game&                    game
-// const Human_ID&          id
+// const Human_ID&          human_id
 // Human&                   human
 // const World_Resource_ID& resource_id
 // World_Resource&          resource
@@ -2027,7 +2028,7 @@ On_Human_Started_Placing_Resource_function(Renderer_OnHumanStartedPlacingResourc
 }
 
 // Game&                    game
-// const Human_ID&          id
+// const Human_ID&          human_id
 // Human&                   human
 // const World_Resource_ID& resource_id
 // World_Resource&          resource
