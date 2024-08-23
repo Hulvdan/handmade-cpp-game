@@ -1599,7 +1599,7 @@ void Render(Game& game, f32 dt, MCTX) {
                     pos = Lerp_v2f(
                         {human.moving.pos},
                         {human.moving.to.value()},
-                        human.moving.progress
+                        Ease_Out_Quad(human.moving.progress)
                     );
 
                 sprite_ptr->pos = pos + v2f_half;
@@ -1627,17 +1627,19 @@ void Render(Game& game, f32 dt, MCTX) {
                     pos = Lerp_v2f(
                         {human.moving.pos},
                         {human.moving.to.value()},
-                        human.moving.progress
+                        Ease_Out_Quad(human.moving.progress)
                     );
 
                 using S = Moving_Resources_Substate;
 
+                auto t = Ease_Out_Quad(human.action_progress);
+
                 if (human.substate_moving_resources == S::PickingUpResource)
-                    pos.y += picked_up_offset * human.action_progress;
+                    pos.y += picked_up_offset * t;
                 else if (human.substate_moving_resources == S::MovingResource)
                     pos.y += picked_up_offset;
                 else if (human.substate_moving_resources == S::PlacingResource)
-                    pos.y += picked_up_offset * (1 - human.action_progress);
+                    pos.y += picked_up_offset * (1 - t);
                 else
                     INVALID_PATH;
 

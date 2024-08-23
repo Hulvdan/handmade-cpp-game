@@ -154,3 +154,75 @@ v2f Lerp_v2f(v2f from, v2f to, f32 t) {
     result.y = from.y + (to.y - from.y) * t;
     return result;
 }
+
+f32 Ease_In_Quad(f32 t) {
+    return t * t;
+}
+
+f32 Ease_Out_Quad(f32 t) {
+    return t * (2.0f - t);
+}
+
+f32 Ease_In_Out_Quad(f32 t) {
+    if (t < 0.5f)
+        return 2.0f * t * t;
+    else
+        return t * (4.0f - 2.0f * t) - 1.0f;
+}
+
+f32 Ease_In_Cubic(f32 t) {
+    return t * t * t;
+}
+
+f32 Ease_Out_Cubic(f32 t) {
+    return 1.0f + (--t) * t * t;
+}
+
+f32 Ease_In_Out_Cubic(f32 t) {
+    if (t < 0.5f)
+        return 4.0f * t * t * t;
+    else
+        return 1.0f + (--t) * (2.0f * (--t)) * (2.0f * t);
+}
+
+f32 Ease_In_Quart(f32 t) {
+    t *= t;
+    return t * t;
+}
+
+f32 Ease_Out_Quart(f32 t) {
+    t = (--t) * t;
+    return 1.0f - t * t;
+}
+
+f32 Ease_In_Out_Quart(f32 t) {
+    if (t < 0.5f) {
+        t *= t;
+        return 8.0f * t * t;
+    }
+    else {
+        t = (--t) * t;
+        return 1.0f - 8.0f * t * t;
+    }
+}
+
+f32 Ease_In_Quint(f32 t) {
+    f32 t2 = t * t;
+    return t * t2 * t2;
+}
+
+f32 Ease_Out_Quint(f32 t) {
+    f32 t2 = (--t) * t;
+    return 1 + t * t2 * t2;
+}
+
+f32 Ease_In_Out_Quint(f32 t) {
+    if (t < 0.5f) {
+        f32 t2 = t * t;
+        return 16.0f * t * t2 * t2;
+    }
+    else {
+        f32 t2 = (--t) * t;
+        return 1.0f + 16.0f * t * t2 * t2;
+    }
+}
