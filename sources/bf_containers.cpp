@@ -318,6 +318,10 @@ struct Vector {
         count--;
     }
 
+    inline void Unstable_Remove_First(const T& value) {
+        Unstable_Remove_At(Index_Of(value));
+    }
+
     inline T Pop() {
         Assert(count > 0);
 

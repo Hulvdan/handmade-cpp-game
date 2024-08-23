@@ -422,7 +422,6 @@ void* Win32_Open_File(const char* filename) noexcept {
 void Win32_Write_To_File(void* file_handle, const char* text) noexcept {
     fprintf((FILE*)file_handle, "%s\n", text);
     fflush((FILE*)file_handle);
-    OutputDebugStringA(Text_Format("%s\n", text));
 }
 
 void* Win32_Open_Binary_File(const char* filename) noexcept {

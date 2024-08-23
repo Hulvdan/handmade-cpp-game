@@ -194,25 +194,25 @@ Logger_function(Tracing_Logger_Routine) {
     switch (log_type) {
     case Log_Type::DEBUG:
         common_log(data, message, [&data](const char* message) {
-            DEBUG_Print("D: %s", message);
+            DEBUG_Print("D:\t%s", message);
             Log_To_File(&data.file, Text_Format2("D:\t%s", message));
         });
         break;
     case Log_Type::INFO:
         common_log(data, message, [&data](const char* message) {
-            DEBUG_Print("I: %s", message);
+            DEBUG_Print("I:\t%s", message);
             Log_To_File(&data.file, Text_Format2("I:\t%s", message));
         });
         break;
     case Log_Type::WARN:
         common_log(data, message, [&data](const char* message) {
-            DEBUG_Print("W: %s", message);
+            DEBUG_Print("W:\t%s", message);
             Log_To_File(&data.file, Text_Format2("W:\t%s", message));
         });
         break;
     case Log_Type::ERR:
         common_log(data, message, [&data](const char* message) {
-            DEBUG_Print("E: %s", message);
+            DEBUG_Print("E:\t%s", message);
             Log_To_File(&data.file, Text_Format2("E:\t%s", message));
         });
         break;

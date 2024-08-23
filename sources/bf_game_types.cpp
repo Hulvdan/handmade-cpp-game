@@ -948,6 +948,8 @@ struct Renderer {
 
     Sparse_Array<Entity_ID, C_Sprite> sprites = {};
 
+    Vector<Human_ID> humans_that_move_resource = {};
+
     Smart_Tile grass_smart_tile   = {};
     Smart_Tile forest_smart_tile  = {};
     Tile_ID    forest_top_tile_id = {};

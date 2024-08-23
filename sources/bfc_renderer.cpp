@@ -1607,6 +1607,45 @@ void Render(Game& game, f32 dt, MCTX) {
         }
     }
 
+    // Обновление позиций ресурсов.
+    {
+        FOR_RANGE (int, i, renderer.humans_that_move_resource.count) {
+            auto  human_id = *(renderer.humans_that_move_resource.base + i);
+            auto& human    = *Strict_Query_Human(world, human_id);
+
+            auto& resource = *Strict_Query_World_Resource(world, human.resource_id);
+
+            for (auto [sprite_id, sprite_ptr] : Iter(&renderer.sprites)) {
+                if (human.resource_id != sprite_id)
+                    continue;
+
+                const auto picked_up_offset = 0.5f;
+
+                auto pos = v2f(human.moving.pos);
+
+                if (human.moving.to.has_value())
+                    pos = Lerp_v2f(
+                        {human.moving.pos},
+                        {human.moving.to.value()},
+                        human.moving.progress
+                    );
+
+                using S = Moving_Resources_Substate;
+
+                if (human.substate_moving_resources == S::PickingUpResource)
+                    pos.y += picked_up_offset * human.action_progress;
+                else if (human.substate_moving_resources == S::MovingResource)
+                    pos.y += picked_up_offset;
+                else if (human.substate_moving_resources == S::PlacingResource)
+                    pos.y += picked_up_offset * (1 - human.action_progress);
+                else
+                    INVALID_PATH;
+
+                sprite_ptr->pos = pos + v2f_half;
+            }
+        }
+    }
+
     // Рисование tilemap.
     if (!renderer.shaders_compilation_failed) {
         ZoneScopedN("Tilemaps rendering");
@@ -2003,7 +2042,7 @@ On_Human_Removed_function(Renderer_OnHumanRemoved) {
 // World_Resource&          resource
 // MCTX
 On_Human_Started_Picking_Up_Resource_function(Renderer_OnHumanStartedPickingUpResource) {
-    //
+    *game.renderer->humans_that_move_resource.Vector_Occupy_Slot(ctx) = human_id;
 }
 
 // Game&                    game
@@ -2034,5 +2073,5 @@ On_Human_Started_Placing_Resource_function(Renderer_OnHumanStartedPlacingResourc
 // World_Resource&          resource
 // MCTX
 On_Human_Finished_Placing_Resource_function(Renderer_OnHumanFinishedPlacingResource) {
-    //
+    game.renderer->humans_that_move_resource.Unstable_Remove_First(human_id);
 }
