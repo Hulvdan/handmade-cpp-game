@@ -618,40 +618,6 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         INVALID_PATH;
 
     Assert(bitmap.bits_per_pixel == 32);
-    auto pixel = (u32*)bitmap.memory;
-
-    auto offset_x = (i32)game.offset_x;
-    auto offset_y = (i32)game.offset_y;
-
-    game.offset_y += dt * 24.0f;
-    game.offset_x += dt * 32.0f;
-
-    const auto player_radius = 24;
-
-    FOR_RANGE (i32, y, bitmap.height) {
-        FOR_RANGE (i32, x, bitmap.width) {
-            // u32 red  = 0;
-            u32 red = (u8)(x + offset_x);
-            // u32 red  = (u8)(y + offset_y);
-            u32 green = (u8)0;
-            // u32 green = (u8)(x + offset_x);
-            // u32 green = (u8)(y + offset_y);
-            // u32 blue = 0;
-            // u32 blue = (u8)(x + offset_x);
-            u32 blue = (u8)(y + offset_y);
-
-            auto dx = x - (i32)game.player_pos.x;
-            auto dy = y - (i32)game.player_pos.y;
-            if (dx * dx + dy * dy < player_radius * player_radius) {
-                const auto player_color = 255;
-                red                     = player_color;
-                green                   = player_color;
-                blue                    = player_color;
-            }
-
-            (*pixel++) = (blue << 0) | (green << 8) | (red << 0);
-        }
-    }
 
     TEMP_USAGE(trash_arena);
 
