@@ -473,8 +473,13 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         Deinit_World(game, ctx);
     }
 
-    if (first_time_initializing)
+    if (first_time_initializing) {
+#if 0
         game.speed = 1.0f;
+#else
+        game.speed = 4.0f;
+#endif
+    }
 
     if (first_time_initializing || editor_data.changed || game.hot_reloaded) {
         SCOPED_LOG_INIT(

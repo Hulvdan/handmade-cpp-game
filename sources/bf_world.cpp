@@ -2083,158 +2083,164 @@ void Update_World(Game& game, float dt, MCTX) {
             Vector<v2i16>>;
         Vector<Found_Resource_t> found_pairs{};
 
+        Vector<World_Resource_ID> booked_resources{};
+
         FOR_RANGE (int, i, world.resources_to_book.count) {
             auto& resource_to_book = *(world.resources_to_book.base + i);
+
             auto& building = *Strict_Query_Building(world, resource_to_book.building_id);
             auto  destination_pos = building.pos;
 
-            FOR_DIRECTION (d) {
-                *bfqueue.Enqueue(ctx) = {d, destination_pos};
-            }
+            FOR_RANGE (int, lll, resource_to_book.count) {
+                FOR_DIRECTION (d) {
+                    *bfqueue.Enqueue(ctx) = {d, destination_pos};
+                }
 
-            auto min_x = destination_pos.x;
-            auto max_x = destination_pos.x;
-            auto min_y = destination_pos.y;
-            auto max_y = destination_pos.y;
+                auto min_x = destination_pos.x;
+                auto max_x = destination_pos.x;
+                auto min_y = destination_pos.y;
+                auto max_y = destination_pos.y;
 
-            auto node_with_all_directions_marked       = 0b00001111;
-            WORLD_PTR_OFFSET(visited, destination_pos) = node_with_all_directions_marked;
+                auto node_with_all_directions_marked = 0b00001111;
+                WORLD_PTR_OFFSET(visited, destination_pos)
+                    = node_with_all_directions_marked;
 
-            World_Resource_ID found_resource_id = World_Resource_ID_Missing;
-            World_Resource*   found_resource    = nullptr;
+                World_Resource_ID found_resource_id = World_Resource_ID_Missing;
+                World_Resource*   found_resource    = nullptr;
 
-            // TODO(Hulvdan): Investigate ways of refactoring pathfinding algorithms
-            // using some kind of sets of rules that differ depending on use cases.
-            // Preferably without a performance hit.
+                // TODO(Hulvdan): Investigate ways of refactoring pathfinding algorithms
+                // using some kind of sets of rules that differ depending on use cases.
+                // Preferably without a performance hit.
 
-            const int MAX_ITERATIONS = 256;
+                const int MAX_ITERATIONS = 256;
 
-            Vector<World_Resource_ID> booked_resources{};
+                int iteration = 0;
+                while ((iteration++ < 10 * MAX_ITERATIONS)  //
+                       && (found_resource == nullptr)       //
+                       && (bfqueue.count > 0))
+                {
+                    auto [dir, pos] = bfqueue.Dequeue();
 
-            int iteration = 0;
-            while ((iteration++ < 10 * MAX_ITERATIONS)  //
-                   && (found_resource == nullptr)       //
-                   && (bfqueue.count > 0))
-            {
-                auto [dir, pos] = bfqueue.Dequeue();
+                    auto new_pos = pos + As_Offset(dir);
 
-                auto new_pos = pos + As_Offset(dir);
-
-                if (!Pos_Is_In_Bounds(new_pos, gsize))
-                    continue;
-
-                if (Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir)))
-                    continue;
-
-                min_x = MIN(min_x, new_pos.x);
-                max_x = MAX(max_x, new_pos.x);
-                min_y = MIN(min_y, new_pos.y);
-                max_y = MAX(max_y, new_pos.y);
-
-                WORLD_PTR_OFFSET(visited, new_pos) = Graph_Node_Mark(
-                    WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir), true
-                );
-                WORLD_PTR_OFFSET(visited, pos)
-                    = Graph_Node_Mark(WORLD_PTR_OFFSET(visited, pos), dir, true);
-
-                auto& tile = WORLD_PTR_OFFSET(world.element_tiles, pos);
-
-                auto& new_tile = WORLD_PTR_OFFSET(world.element_tiles, new_pos);
-
-                if ((tile.type == Element_Tile_Type::Building)
-                    && (new_tile.type == Element_Tile_Type::Building))
-                    continue;
-
-                if ((tile.type == Element_Tile_Type::None)
-                    || (new_tile.type == Element_Tile_Type::None))
-                    continue;
-
-                Building* new_tile_building = nullptr;
-                if (new_tile.type == Element_Tile_Type::Building)
-                    new_tile_building
-                        = Strict_Query_Building(world, new_tile.building_id);
-
-                if ((new_tile.type == Element_Tile_Type::Building)
-                    && (new_tile_building->scriptable->type != Building_Type::City_Hall))
-                    continue;
-
-                WORLD_PTR_OFFSET(bfs_parents, new_pos) = pos;
-
-                FOR_RANGE (int, k, world.resources.count) {
-                    const auto& res_id  = *(world.resources.ids + k);
-                    const auto  res_ptr = world.resources.base + k;
-                    auto&       res     = *res_ptr;
-
-                    // Ресурс уже был забронен.
-                    if (res.booking_id != World_Resource_Booking_ID_Missing)
+                    if (!Pos_Is_In_Bounds(new_pos, gsize))
                         continue;
 
-                    if (booked_resources.Contains(res_id))
+                    if (Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir)))
                         continue;
 
-                    if ((res.pos == new_pos)
-                        && (resource_to_book.scriptable == res.scriptable))
-                    {
-                        found_resource                            = res_ptr;
-                        found_resource_id                         = res_id;
-                        *booked_resources.Vector_Occupy_Slot(ctx) = res_id;
-                        break;
+                    min_x = MIN(min_x, new_pos.x);
+                    max_x = MAX(max_x, new_pos.x);
+                    min_y = MIN(min_y, new_pos.y);
+                    max_y = MAX(max_y, new_pos.y);
+
+                    WORLD_PTR_OFFSET(visited, new_pos) = Graph_Node_Mark(
+                        WORLD_PTR_OFFSET(visited, new_pos), Opposite(dir), true
+                    );
+                    WORLD_PTR_OFFSET(visited, pos)
+                        = Graph_Node_Mark(WORLD_PTR_OFFSET(visited, pos), dir, true);
+
+                    auto& tile = WORLD_PTR_OFFSET(world.element_tiles, pos);
+
+                    auto& new_tile = WORLD_PTR_OFFSET(world.element_tiles, new_pos);
+
+                    if ((tile.type == Element_Tile_Type::Building)
+                        && (new_tile.type == Element_Tile_Type::Building))
+                        continue;
+
+                    if ((tile.type == Element_Tile_Type::None)
+                        || (new_tile.type == Element_Tile_Type::None))
+                        continue;
+
+                    Building* new_tile_building = nullptr;
+                    if (new_tile.type == Element_Tile_Type::Building)
+                        new_tile_building
+                            = Strict_Query_Building(world, new_tile.building_id);
+
+                    if ((new_tile.type == Element_Tile_Type::Building)
+                        && (new_tile_building->scriptable->type
+                            != Building_Type::City_Hall))
+                        continue;
+
+                    WORLD_PTR_OFFSET(bfs_parents, new_pos) = pos;
+
+                    FOR_RANGE (int, k, world.resources.count) {
+                        const auto& res_id  = *(world.resources.ids + k);
+                        const auto  res_ptr = world.resources.base + k;
+                        auto&       res     = *res_ptr;
+
+                        // Ресурс уже был забронен.
+                        if (res.booking_id != World_Resource_Booking_ID_Missing)
+                            continue;
+
+                        if (booked_resources.Contains(res_id))
+                            continue;
+
+                        // PERF: Накинуть индексы.
+                        if ((res.pos == new_pos)
+                            && (resource_to_book.scriptable == res.scriptable))
+                        {
+                            found_resource                            = res_ptr;
+                            found_resource_id                         = res_id;
+                            *booked_resources.Vector_Occupy_Slot(ctx) = res_id;
+                            break;
+                        }
+                    }
+
+                    FOR_DIRECTION (queue_dir) {
+                        if (queue_dir == Opposite(dir))
+                            continue;
+
+                        if (Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), queue_dir))
+                            continue;
+
+                        *bfqueue.Enqueue(ctx) = {queue_dir, new_pos};
                     }
                 }
 
-                FOR_DIRECTION (queue_dir) {
-                    if (queue_dir == Opposite(dir))
-                        continue;
-
-                    if (Graph_Node_Has(WORLD_PTR_OFFSET(visited, new_pos), queue_dir))
-                        continue;
-
-                    *bfqueue.Enqueue(ctx) = {queue_dir, new_pos};
+                Assert(iteration < 10 * MAX_ITERATIONS);
+                if ((iteration >= MAX_ITERATIONS) && (!iteration_warning_emitted)) {
+                    iteration_warning_emitted = true;
+                    LOG_WARN("WTF?");
                 }
-            }
 
-            Assert(iteration < 10 * MAX_ITERATIONS);
-            if ((iteration >= MAX_ITERATIONS) && (!iteration_warning_emitted)) {
-                iteration_warning_emitted = true;
-                LOG_WARN("WTF?");
+                if (found_resource != nullptr) {
+                    Vector<v2i16> path{};
+                    *path.Vector_Occupy_Slot(ctx) = found_resource->pos;
+
+                    auto destination = found_resource->pos;
+
+                    int iteration2 = 0;
+                    while ((iteration2++ < (10 * MAX_ITERATIONS))
+                           && (WORLD_PTR_OFFSET(bfs_parents, destination) != -v2i16_one))
+                    {
+                        *path.Vector_Occupy_Slot(ctx)
+                            = WORLD_PTR_OFFSET(bfs_parents, destination);
+
+                        auto new_destination = WORLD_PTR_OFFSET(bfs_parents, destination);
+                        Assert(destination != new_destination);
+
+                        destination = new_destination;
+                    }
+
+                    Assert(iteration2 < (10 * MAX_ITERATIONS));
+                    if ((iteration2 >= MAX_ITERATIONS) && (!iteration2_warning_emitted)) {
+                        LOG_WARN("WTF?");
+                        iteration2_warning_emitted = true;
+                    }
+
+                    if (WORLD_PTR_OFFSET(bfs_parents, destination) == -v2i16_one)
+                        *found_pairs.Vector_Occupy_Slot(ctx)
+                            = {resource_to_book, found_resource_id, found_resource, path};
+                }
+
+                for (int y = min_y; y <= max_y; y++) {
+                    for (int x = min_x; x <= max_x; x++)
+                        WORLD_PTR_OFFSET(bfs_parents, v2i16(x, y)) = -v2i16_one;
+                }
             }
 
             bfqueue.Reset();
-
-            if (found_resource != nullptr) {
-                Vector<v2i16> path{};
-                *path.Vector_Occupy_Slot(ctx) = found_resource->pos;
-
-                auto destination = found_resource->pos;
-
-                int iteration2 = 0;
-                while ((iteration2++ < (10 * MAX_ITERATIONS))
-                       && (WORLD_PTR_OFFSET(bfs_parents, destination) != -v2i16_one))
-                {
-                    *path.Vector_Occupy_Slot(ctx)
-                        = WORLD_PTR_OFFSET(bfs_parents, destination);
-
-                    auto new_destination = WORLD_PTR_OFFSET(bfs_parents, destination);
-                    Assert(destination != new_destination);
-
-                    destination = new_destination;
-                }
-
-                Assert(iteration2 < (10 * MAX_ITERATIONS));
-                if ((iteration2 >= MAX_ITERATIONS) && (!iteration2_warning_emitted)) {
-                    LOG_WARN("WTF?");
-                    iteration2_warning_emitted = true;
-                }
-
-                if (WORLD_PTR_OFFSET(bfs_parents, destination) == -v2i16_one)
-                    *found_pairs.Vector_Occupy_Slot(ctx)
-                        = {resource_to_book, found_resource_id, found_resource, path};
-            }
-
-            for (int y = min_y; y <= max_y; y++) {
-                for (int x = min_x; x <= max_x; x++)
-                    WORLD_PTR_OFFSET(bfs_parents, v2i16(x, y)) = -v2i16_one;
-            }
         }
 
         FOR_RANGE (int, i, found_pairs.count) {
@@ -2356,10 +2362,14 @@ void Update_World(Game& game, float dt, MCTX) {
 
         FOR_RANGE (int, i, found_pairs.count) {
             auto& [resource_to_book, res_id, res_p, path] = *(found_pairs.base + i);
+            Assert(resource_to_book.count > 0);
 
-            world.resources_to_book.Unstable_Remove_At(
-                world.resources_to_book.Index_Of(resource_to_book)
-            );
+            resource_to_book.count--;
+
+            if (resource_to_book.count == 0)
+                world.resources_to_book.Unstable_Remove_At(
+                    world.resources_to_book.Index_Of(resource_to_book)
+                );
         }
     }
 
