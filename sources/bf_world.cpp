@@ -2472,9 +2472,9 @@ void Post_Init_World(
     MCTX
 ) {
     // Ставим здание на след. кадр после начального.
-    static bool placed_building = false;
-    if (!first_time_initializing && !placed_building) {
-        placed_building = true;
+    static bool next_frame_actions_executed = false;
+    if (!first_time_initializing && !next_frame_actions_executed) {
+        next_frame_actions_executed = true;
 
         Item_To_Build flag{
             .type = Item_To_Build_Type::Flag,
