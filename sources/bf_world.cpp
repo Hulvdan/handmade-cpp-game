@@ -757,21 +757,25 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
         if (human.moving.elapsed == 0)
             human.moving.to.reset();
 
-        LOG_DEBUG("Calculating path to the city hall");
-        auto [success, path, path_count] = Find_Path(
-            *data.trash_arena,
-            world.size,
-            world.terrain_tiles,
-            world.element_tiles,
-            human.moving.to.value_or(human.moving.pos),
-            city_hall.pos,
-            true
-        );
+        human.moving.path.Reset();
 
-        Assert(success);
-        Assert(path_count > 0);
+        if (human.moving.to.value_or(human.moving.pos) != city_hall.pos) {
+            LOG_DEBUG("Calculating path to the city hall");
+            auto [success, path, path_count] = Find_Path(
+                *data.trash_arena,
+                world.size,
+                world.terrain_tiles,
+                world.element_tiles,
+                human.moving.to.value_or(human.moving.pos),
+                city_hall.pos,
+                true
+            );
 
-        Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+            Assert(success);
+            Assert(path_count > 0);
+
+            Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
+        }
     }
 }
 
@@ -2091,15 +2095,15 @@ void Update_World(Game& game, float dt, MCTX) {
             auto& building = *Strict_Query_Building(world, resource_to_book.building_id);
             auto  destination_pos = building.pos;
 
+            auto min_x = destination_pos.x;
+            auto max_x = destination_pos.x;
+            auto min_y = destination_pos.y;
+            auto max_y = destination_pos.y;
+
             FOR_RANGE (int, lll, resource_to_book.count) {
                 FOR_DIRECTION (d) {
                     *bfqueue.Enqueue(ctx) = {d, destination_pos};
                 }
-
-                auto min_x = destination_pos.x;
-                auto max_x = destination_pos.x;
-                auto min_y = destination_pos.y;
-                auto max_y = destination_pos.y;
 
                 auto node_with_all_directions_marked = 0b00001111;
                 WORLD_PTR_OFFSET(visited, destination_pos)
@@ -2169,6 +2173,20 @@ void Update_World(Game& game, float dt, MCTX) {
                         const auto  res_ptr = world.resources.base + k;
                         auto&       res     = *res_ptr;
 
+                        // На этой клетке должны быть сегменты.
+                        auto should_skip = true;
+                        FOR_RANGE (int, kk, world.segments.count) {
+                            auto& ssss = *(world.segments.base + kk);
+                            if (Graph_Contains(ssss.graph, new_pos)
+                                && Graph_Node(ssss.graph, new_pos))
+                            {
+                                should_skip = false;
+                                break;
+                            }
+                        }
+                        if (should_skip)
+                            continue;
+
                         // Ресурс уже был забронен.
                         if (res.booking_id != World_Resource_Booking_ID_Missing)
                             continue;
@@ -2233,11 +2251,11 @@ void Update_World(Game& game, float dt, MCTX) {
                         *found_pairs.Vector_Occupy_Slot(ctx)
                             = {resource_to_book, found_resource_id, found_resource, path};
                 }
+            }
 
-                for (int y = min_y; y <= max_y; y++) {
-                    for (int x = min_x; x <= max_x; x++)
-                        WORLD_PTR_OFFSET(bfs_parents, v2i16(x, y)) = -v2i16_one;
-                }
+            for (int y = min_y; y <= max_y; y++) {
+                for (int x = min_x; x <= max_x; x++)
+                    WORLD_PTR_OFFSET(bfs_parents, v2i16(x, y)) = -v2i16_one;
             }
 
             bfqueue.Reset();
@@ -2276,7 +2294,7 @@ void Update_World(Game& game, float dt, MCTX) {
                     //       rrr
                     //
                     // We don't wanna see the F (flag) in our vertices list.
-                    // We need only ending vertex per segment.
+                    // The ending vertex is the only one we need per segment.
                     // In this example there should only be B (building) added in the
                     // list of vertices
                     //
@@ -2343,6 +2361,8 @@ void Update_World(Game& game, float dt, MCTX) {
                 *booking_p    = booking;
             }
             res.booking_id = booking_id;
+
+            Assert(res.transportation_segment_ids.count > 0);
 
             auto& starting_segment_id = *(res.transportation_segment_ids.base + 0);
             auto& starting_segment
@@ -2454,11 +2474,19 @@ void Post_Init_World(
     // Ставим здание на след. кадр после начального.
     static bool placed_building = false;
     if (!first_time_initializing && !placed_building) {
+        placed_building = true;
+
+        Item_To_Build flag{
+            .type = Item_To_Build_Type::Flag,
+        };
+        Try_Build(game, {8, 1}, flag, ctx);
+
         Item_To_Build lumberjacks_hut{
             .type                = Item_To_Build_Type::Building,
             .scriptable_building = game.scriptable_buildings + 1,
         };
         Try_Build(game, {0, 3}, lumberjacks_hut, ctx);
+        Try_Build(game, {10, 2}, lumberjacks_hut, ctx);
 
         Assert(game.scriptable_resources_count > 0);
     }
@@ -2473,6 +2501,9 @@ void Post_Init_World(
 
     Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
     Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
+
+    Add_World_Resource(game, game.scriptable_resources + 0, {5, 1}, ctx);
+    Add_World_Resource(game, game.scriptable_resources + 0, {6, 1}, ctx);
 }
 
 void Deinit_World(Game& game, MCTX) {
@@ -2663,7 +2694,14 @@ void Regenerate_Element_Tiles(
         {1, 2},
         {2, 2},
 
-        {3, 1},
+        // {3, 1},
+
+        {5, 1},
+        {6, 1},
+        {7, 1},
+        {8, 1},
+        {9, 1},
+        {10, 1},
     };
 
     auto base_offset = v2i16(0, 0);
@@ -2694,10 +2732,11 @@ void Regenerate_Element_Tiles(
         }
     }
 
-#if 0
+#if 1
     v2i16 flag_tiles[] = {
-        {0, 2},
-        {2, 0},
+        {11, 1},
+        // {0, 2},
+        // {2, 0},
     };
 
     for (auto offset : flag_tiles) {
