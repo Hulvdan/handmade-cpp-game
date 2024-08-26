@@ -60,7 +60,7 @@ struct Fixed_Size_Slice {
     i32 max_count = 0;
     T*  items     = nullptr;
 
-    inline [[nodiscard]] T* Add_Unsafe() {
+    [[nodiscard]] inline T* Add_Unsafe() {
         Assert(count < max_count);
         auto result = items + count;
         count++;

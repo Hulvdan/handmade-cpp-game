@@ -758,8 +758,8 @@ struct Game {
     bool hot_reloaded      = {};
     u16  dll_reloads_count = {};
 
-    f32 offset_x = {};
-    f32 offset_y = {};
+    f32 speed = {};
+    f64 time  = {};
 
     v2f   player_pos = {};
     World world      = {};

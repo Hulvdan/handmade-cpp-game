@@ -1599,7 +1599,7 @@ void Render(Game& game, f32 dt, MCTX) {
                     pos = Lerp_v2f(
                         {human.moving.pos},
                         {human.moving.to.value()},
-                        Ease_Out_Quad(human.moving.progress)
+                        Ease_Out_Quart(human.moving.progress)
                     );
 
                 sprite_ptr->pos = pos + v2f_half;
@@ -1627,7 +1627,7 @@ void Render(Game& game, f32 dt, MCTX) {
                     pos = Lerp_v2f(
                         {human.moving.pos},
                         {human.moving.to.value()},
-                        Ease_Out_Quad(human.moving.progress)
+                        Ease_Out_Quart(human.moving.progress)
                     );
 
                 using S = Moving_Resources_Substate;
@@ -2044,6 +2044,9 @@ On_Human_Removed_function(Renderer_OnHumanRemoved) {
 // World_Resource&          resource
 // MCTX
 On_Human_Started_Picking_Up_Resource_function(Renderer_OnHumanStartedPickingUpResource) {
+    UNUSED(human);
+    UNUSED(resource_id);
+    UNUSED(resource);
     *game.renderer->humans_that_move_resource.Vector_Occupy_Slot(ctx) = human_id;
 }
 
@@ -2075,5 +2078,9 @@ On_Human_Started_Placing_Resource_function(Renderer_OnHumanStartedPlacingResourc
 // World_Resource&          resource
 // MCTX
 On_Human_Finished_Placing_Resource_function(Renderer_OnHumanFinishedPlacingResource) {
+    UNUSED(human);
+    UNUSED(resource_id);
+    UNUSED(resource);
+    UNUSED(ctx);
     game.renderer->humans_that_move_resource.Unstable_Remove_First(human_id);
 }

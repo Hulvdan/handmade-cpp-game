@@ -155,6 +155,12 @@ v2f Lerp_v2f(v2f from, v2f to, f32 t) {
     return result;
 }
 
+//----------------------------------------------------------------------------------
+// Easings.
+//----------------------------------------------------------------------------------
+// Preview: https://easings.net/
+// Source: https://github.com/nicolausYes/easing-functions/blob/master/src/easing.cpp
+
 f32 Ease_In_Quad(f32 t) {
     return t * t;
 }
@@ -175,14 +181,15 @@ f32 Ease_In_Cubic(f32 t) {
 }
 
 f32 Ease_Out_Cubic(f32 t) {
-    return 1.0f + (--t) * t * t;
+    t -= 1;
+    return 1.0f + t * t * t;
 }
 
 f32 Ease_In_Out_Cubic(f32 t) {
     if (t < 0.5f)
         return 4.0f * t * t * t;
     else
-        return 1.0f + (--t) * (2.0f * (--t)) * (2.0f * t);
+        return 1.0f + (t - 1) * (2.0f * (t - 2)) * (2.0f * (t - 2));
 }
 
 f32 Ease_In_Quart(f32 t) {
@@ -191,7 +198,7 @@ f32 Ease_In_Quart(f32 t) {
 }
 
 f32 Ease_Out_Quart(f32 t) {
-    t = (--t) * t;
+    t = (t - 1) * (t - 1);
     return 1.0f - t * t;
 }
 
@@ -201,28 +208,43 @@ f32 Ease_In_Out_Quart(f32 t) {
         return 8.0f * t * t;
     }
     else {
-        t = (--t) * t;
+        t = (t - 1) * (t - 1);
         return 1.0f - 8.0f * t * t;
     }
 }
 
 f32 Ease_In_Quint(f32 t) {
-    f32 t2 = t * t;
+    auto t2 = t * t;
     return t * t2 * t2;
 }
 
 f32 Ease_Out_Quint(f32 t) {
-    f32 t2 = (--t) * t;
-    return 1 + t * t2 * t2;
+    auto t2 = (t - 1) * (t - 1);
+    return 1 + (t - 1) * t2 * t2;
 }
 
 f32 Ease_In_Out_Quint(f32 t) {
     if (t < 0.5f) {
-        f32 t2 = t * t;
+        auto t2 = t * t;
         return 16.0f * t * t2 * t2;
     }
     else {
-        f32 t2 = (--t) * t;
-        return 1.0f + 16.0f * t * t2 * t2;
+        auto t2 = (t - 1) * (t - 1);
+        return 1.0f + 16.0f * (t - 1) * t2 * t2;
     }
+}
+
+f32 Ease_In_Back(f32 t) {
+    return t * t * (2.70158f * t - 1.70158f);
+}
+
+f32 Ease_Out_Back(f32 t) {
+    return 1.0f + (t - 1) * (t - 1) * (2.70158f * (t - 1) + 1.70158f);
+}
+
+f32 Ease_In_Out_Back(f32 t) {
+    if (t < 0.5f)
+        return t * t * (7.0f * t - 2.5f) * 2.0f;
+    else
+        return 1.0f + (t - 1) * (t - 1) * 2.0f * (7.0f * (t - 1) + 2.5f);
 }

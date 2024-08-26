@@ -717,12 +717,19 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         {
             running = false;
         }
+        else if (is_up) {
+            Keyboard_Released event{};
+            event.id  = 0;
+            event.key = vk_code;
+            Push_Event(event);
+        }
+        else {
+            Keyboard_Pressed event{};
+            event.id  = 0;
+            event.key = vk_code;
+            Push_Event(event);
+        }
 
-        // if (is_up) {
-        //     // OnKeyReleased
-        // } else {
-        //     // OnKeyPressed
-        // }
     } break;
 
     default: {

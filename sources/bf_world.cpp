@@ -1089,7 +1089,7 @@ HumanState_OnEnter_function(HumanState_PickingUpResource_OnEnter) {
     Assert(human.action_progress == 0);
 
     human.moving.elapsed    = 0;
-    human.action_started_at = global_library_integration_data->Get_Time();
+    human.action_started_at = data.game->time;
 
     On_Human_Started_Picking_Up_Resource(
         *data.game,
@@ -1123,9 +1123,8 @@ HumanState_OnExit_function(HumanState_PickingUpResource_OnExit) {
 HumanState_Update_function(HumanState_PickingUpResource_Update) {
     CTX_LOGGER;
 
-    human.action_progress
-        = (f32)(global_library_integration_data->Get_Time() - human.action_started_at)
-          / data.world->data.humans_moving_one_tile_duration;
+    human.action_progress = (f32)(data.game->time - human.action_started_at)
+                            / data.world->data.humans_moving_one_tile_duration;
 
     if (human.action_progress >= 1) {
         human.action_progress = 1;
@@ -1293,7 +1292,7 @@ HumanState_OnEnter_function(HumanState_PlacingResource_OnEnter) {
     Assert(human.action_progress == 0);
 
     human.moving.elapsed    = 0;
-    human.action_started_at = global_library_integration_data->Get_Time();
+    human.action_started_at = data.game->time;
 }
 
 // Human_State&      state
@@ -1318,9 +1317,8 @@ HumanState_OnExit_function(HumanState_PlacingResource_OnExit) {
 HumanState_Update_function(HumanState_PlacingResource_Update) {
     CTX_LOGGER;
 
-    human.action_progress
-        = (f32)(global_library_integration_data->Get_Time() - human.action_started_at)
-          / data.world->data.humans_moving_one_tile_duration;
+    human.action_progress = (f32)(data.game->time - human.action_started_at)
+                            / data.world->data.humans_moving_one_tile_duration;
 
     if (human.action_progress >= 1) {
         human.action_progress = 1;
@@ -2463,6 +2461,7 @@ void Post_Init_World(
 
     Place_Building(game, {4, 1}, game.scriptable_buildings + 0, true, ctx);  // built=true
 
+    Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
     Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
 }
 
@@ -3842,6 +3841,8 @@ On_Human_Finished_Picking_Up_Resource_function(World_OnHumanFinishedPickingUpRes
 // World_Resource&          resource
 // MCTX
 On_Human_Finished_Placing_Resource_function(World_OnHumanFinishedPlacingResource) {
+    UNUSED(human_id);
+
     CTX_LOGGER;
 
     auto& world  = game.world;

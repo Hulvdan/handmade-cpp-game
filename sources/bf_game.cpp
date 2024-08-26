@@ -232,6 +232,15 @@ void Process_Events(
 
         case Event_Type::Keyboard_Pressed: {
             PROCESS_EVENTS_CONSUME(Keyboard_Pressed, event);
+
+            if (event.key == BF_KEY_1)
+                game.speed = 1.0f;
+            if (event.key == BF_KEY_2)
+                game.speed = 2.0f;
+            if (event.key == BF_KEY_3)
+                game.speed = 4.0f;
+            if (event.key == BF_KEY_4)
+                game.speed = 8.0f;
         } break;
 
         case Event_Type::Keyboard_Released: {
@@ -464,6 +473,9 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         Deinit_World(game, ctx);
     }
 
+    if (first_time_initializing)
+        game.speed = 1.0f;
+
     if (first_time_initializing || editor_data.changed || game.hot_reloaded) {
         SCOPED_LOG_INIT(
             "first_time_initializing || editor_data.changed || game.hot_reloaded"
@@ -608,18 +620,17 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         ctx
     );
 
-    if (game.renderer != nullptr && game.renderer->shaders_compilation_failed)
+    if (game.renderer->shaders_compilation_failed)
         ImGui::Text("ERROR: Shaders compilation failed!");
 
-    // TODO: Оно ругается на null-pointer dereference. Если так написать, норм?
-    if (game.renderer != nullptr)
-        game.renderer->bitmap = &bitmap;
-    else
-        INVALID_PATH;
+    game.renderer->bitmap = &bitmap;
 
     Assert(bitmap.bits_per_pixel == 32);
 
     TEMP_USAGE(trash_arena);
+
+    dt *= game.speed;
+    game.time += dt;
 
     Process_Events(game, (u8*)input_events_bytes_ptr, input_events_count, dt, ctx);
     Update_World(game, dt, ctx);

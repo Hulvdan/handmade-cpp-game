@@ -1,6 +1,10 @@
 #pragma once
 #include "bf_base.h"
 
+// NOLINTBEGIN(bugprone-suspicious-include)
+#include "bf_keys.cpp"
+// NOLINTEND(bugprone-suspicious-include)
+
 #define Kilobytes(value) ((value) * 1024)
 #define Megabytes(value) (Kilobytes(value) * 1024)
 #define Gigabytes(value) (Megabytes(value) * 1024)
