@@ -2955,6 +2955,7 @@ void Calculate_Graph_Data(Graph& graph, Arena& trash_arena, MCTX) {
                 node_index += 1;
             }
         }
+        Assert(node_index == graph.non_zero_nodes_count);   
     }
 
     // NOTE: vertex v = nodeIndex
@@ -3163,7 +3164,7 @@ BF_FORCE_INLINE void Update_Segments(
 
         // NOTE: Уничтожаем сегмент.
         FREE(segment.vertices, sizeof(v2i16) * segment.vertices_count);
-        FREE(segment.graph.nodes, segment.graph.non_zero_nodes_count);
+        FREE(segment.graph.nodes, segment.graph.size.x * segment.graph.size.y);
         Assert(segment.graph.data != nullptr);
         std::destroy_at(&segment.graph.data->node_index_2_pos);
         std::destroy_at(&segment.graph.data->pos_2_node_index);
@@ -3440,8 +3441,7 @@ void Update_Graphs(
 
         // NOTE: Копирование нод из временного графа
         // с небольшой оптимизацией по требуемой памяти.
-        segment.graph.non_zero_nodes_count = gr_size.x * gr_size.y;
-        segment.graph.nodes = (u8*)ALLOC(segment.graph.non_zero_nodes_count);
+        segment.graph.nodes = (u8*)ALLOC(gr_size.x * gr_size.y);
 
         auto rows   = gr_size.y;
         auto stride = gsize.x;
