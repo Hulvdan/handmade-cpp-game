@@ -89,6 +89,7 @@ struct Calculated_Graph_Data {
     i16* dist = {};
     i16* prev = {};
 
+    // TODO: Своя HashMap.
     std::unordered_map<u16, v2i16> node_index_2_pos = {};
     std::unordered_map<v2i16, u16> pos_2_node_index = {};
 

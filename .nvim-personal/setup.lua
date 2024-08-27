@@ -59,12 +59,24 @@ vim.keymap.set("n", "<leader>0", function()
     end
 end, opts)
 
+-- Убирание `*(...)` вокруг участка кода
 vim.keymap.set("n", "<leader><leader>*", function()
     vim.api.nvim_input("ds)hx")
 end, opts)
 
+-- Оборачивание участка кода в `*(...)`
 vim.keymap.set("v", "<leader>*", function()
     vim.api.nvim_input("S)i*<ESC>")
+end, opts)
+
+-- Замена `.`  на `->`
+vim.keymap.set("n", "<leader>>", function()
+    vim.api.nvim_input([[b/\.<CR>i<DEL>-><ESC>h]])
+end, opts)
+
+-- Замена `->` на `.`
+vim.keymap.set("n", "<leader>.", function()
+    vim.api.nvim_input([[b/-><CR>i<DEL><DEL>.<ESC>]])
 end, opts)
 
 ------------------------------------------------------------------------------------

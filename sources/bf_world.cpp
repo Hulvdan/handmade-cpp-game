@@ -679,7 +679,8 @@ HumanState_UpdateStates_function(HumanState_MovingInTheWorld_UpdateStates) {
                 human.moving.to.reset();
             auto moving_from = human.moving.to.value_or(human.moving.pos);
 
-            auto segment_center = Assert_Deref(segment.graph.data).center;
+            Assert(segment.graph.data != nullptr);
+            auto segment_center = segment.graph.data->center;
             if (segment_center != moving_from) {
                 LOG_DEBUG("Calculating path to the segment");
                 auto [success, path, path_count] = Find_Path(
@@ -816,22 +817,13 @@ HumanState_OnEnter_function(HumanState_MovingInsideSegment_OnEnter) {
             human.moving.to.reset();
         auto moving_from = human.moving.to.value_or(human.moving.pos);
 
-        auto [success, path, path_count] = Find_Path(
-            *data.trash_arena,
-            world.size,
-            world.terrain_tiles,
-            world.element_tiles,
-            moving_from,
-            Assert_Deref(segment.graph.data).center,
-            true
+        auto [success, path, path_count] = Find_Path_Inside_Graph(
+            *data.trash_arena, segment.graph, moving_from, segment.graph.data->center
         );
 
         Assert(success);
 
         Human_Moving_Component_Add_Path(human.moving, path, path_count, ctx);
-    }
-    else {
-        // TODO: moving.path.Reset(), moving.to.reset() и идём до вертекса с ресурсом
     }
 }
 
@@ -909,6 +901,11 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
     auto& segment = *Strict_Query_Graph_Segment(*data.world, human.segment_id);
 
     if (segment.resource_ids_to_transport.count > 0) {
+        human.moving.path.Reset();
+
+        if (human.moving.elapsed == 0)
+            human.moving.to.reset();
+
         if (!human.moving.to.has_value()) {
             // TODO:
             // Tracing.Log("_controller.SetState(human, HumanState.MovingItem)");
@@ -917,8 +914,6 @@ HumanState_UpdateStates_function(HumanState_MovingInsideSegment_UpdateStates) {
             );
             return;
         }
-
-        human.moving.path.Reset();
     }
 }
 
@@ -2471,9 +2466,13 @@ void Post_Init_World(
     Arena& /* arena */,
     MCTX
 ) {
+    CTX_LOGGER;
+
     // Ставим здание на след. кадр после начального.
     static bool next_frame_actions_executed = false;
     if (!first_time_initializing && !next_frame_actions_executed) {
+        SCOPED_LOG_INIT("Post_Init_World - !next_frame_actions_executed");
+
         next_frame_actions_executed = true;
 
         Item_To_Build flag{
@@ -2491,19 +2490,19 @@ void Post_Init_World(
         Assert(game.scriptable_resources_count > 0);
     }
 
-    if (!first_time_initializing)
-        return;
+    if (first_time_initializing) {
+        SCOPED_LOG_INIT("Post_Init_World - first_time_initializing");
 
-    CTX_LOGGER;
-    SCOPED_LOG_INIT("Post_Init_World");
+        Place_Building(
+            game, {4, 1}, game.scriptable_buildings + 0, true, ctx
+        );  // built=true
 
-    Place_Building(game, {4, 1}, game.scriptable_buildings + 0, true, ctx);  // built=true
+        Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
+        Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
 
-    Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
-    Add_World_Resource(game, game.scriptable_resources + 0, {1, 0}, ctx);
-
-    Add_World_Resource(game, game.scriptable_resources + 0, {5, 1}, ctx);
-    Add_World_Resource(game, game.scriptable_resources + 0, {6, 1}, ctx);
+        Add_World_Resource(game, game.scriptable_resources + 0, {5, 1}, ctx);
+        Add_World_Resource(game, game.scriptable_resources + 0, {6, 1}, ctx);
+    }
 }
 
 void Deinit_World(Game& game, MCTX) {

@@ -1924,6 +1924,23 @@ void Render(Game& game, f32 dt, MCTX) {
     Render_UI(game, dt, ctx);
 
     SANITIZE;
+
+    // Дебаг рисование центров сегментов.
+    {
+        for (auto [_, segment_p] : Iter(&world.segments)) {
+            auto& seg = *segment_p;
+            auto  pp  = v2f(seg.graph.data->center) + v2f_half;
+            auto  p   = W2GL * v3f(pp, 1);
+
+            glPointSize(12);
+
+            glBlendFunc(GL_ONE, GL_ZERO);
+
+            glBegin(GL_POINTS);
+            glVertex2f(p.x, p.y);
+            glEnd();
+        }
+    }
 }
 
 // NOTE: Game& game, v2i16 pos, Item_To_Build item
