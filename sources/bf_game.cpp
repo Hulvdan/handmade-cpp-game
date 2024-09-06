@@ -31,8 +31,8 @@ Library_Integration_Data* global_library_integration_data = nullptr;
 #include "bf_memory_arena.cpp"
 #include "bf_strings.cpp"
 
-#include "bf_file_h.cpp"
-#include "bf_log_h.cpp"
+#include "bf_file.h"
+#include "bf_log.h"
 
 #include "bf_math.cpp"
 #include "bf_rand.cpp"
@@ -382,6 +382,10 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
     root_arena.size       = memory_size;
     root_arena.used       = 0;
 
+    struct Game_Memory {
+        bool is_initialized = {};
+        Game game           = {};
+    };
     auto& memory = *Allocate_For(root_arena, Game_Memory);
 
     Game& game        = memory.game;

@@ -783,11 +783,6 @@ struct Game {
     const BFGame::Game_Library* gamelib = {};
 };
 
-struct Game_Memory {
-    bool is_initialized = {};
-    Game game           = {};
-};
-
 enum class Tile_Updated_Type {
     Road_Placed,
     Flag_Placed,

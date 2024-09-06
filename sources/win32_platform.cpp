@@ -29,8 +29,8 @@ global_var Library_Integration_Data* global_library_integration_data = {};
 #include "bf_memory_arena.cpp"
 #include "bf_strings.cpp"
 
-#include "bf_file_h.cpp"
-#include "bf_log_h.cpp"
+#include "bf_file.h"
+#include "bf_log.h"
 
 #include "bf_math.cpp"
 #include "bf_file.cpp"
