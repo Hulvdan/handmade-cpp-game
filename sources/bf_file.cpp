@@ -14,7 +14,7 @@ Debug_Load_File(const char* filename, u8* output, size_t output_max_bytes, MCTX)
     Assert(!failed);
     if (failed) {
         LOG_ERROR("Could not load file: %s", filename);
-        global_library_integration_data->Die();
+        global_platform->Die();
     }
 
     auto read_bytes = fread((void*)output, 1, output_max_bytes, file);

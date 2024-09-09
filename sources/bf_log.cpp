@@ -136,9 +136,9 @@ BF_FORCE_INLINE void common_log(
 
 void Log_To_File(void** file, const char* text) {
     if (*file == nullptr)
-        *file = global_library_integration_data->Open_File("latest.log");
+        *file = global_platform->Open_File("latest.log");
 
-    global_library_integration_data->Write_To_File(*file, text);
+    global_platform->Write_To_File(*file, text);
 }
 
 Logger_function(Tracing_Logger_Routine) {

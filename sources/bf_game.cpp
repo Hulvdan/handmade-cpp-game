@@ -18,7 +18,7 @@
 #include "bf_base.h"
 #include "bf_game.h"
 
-Library_Integration_Data* global_library_integration_data = nullptr;
+Platform* global_platform = nullptr;
 
 #include <optional>
 
@@ -352,25 +352,25 @@ On_Human_Finished_Placing_Resource_function(On_Human_Finished_Placing_Resource) 
 #endif
 }
 
-// f32                       dt
-// void*                     memory_ptr
-// size_t                    memory_size
-// Game_Bitmap&              bitmap
-// void*                     input_events_bytes_ptr
-// size_t                    input_events_count
-// Library_Integration_Data& library_integration_data
-// bool                      hot_reloaded
+// f32          dt
+// void*        memory_ptr
+// size_t       memory_size
+// Game_Bitmap& bitmap
+// void*        input_events_bytes_ptr
+// size_t       input_events_count
+// Platform&    platform
+// bool         hot_reloaded
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render) {
     Context _ctx{};
-    _ctx.logger_data          = library_integration_data.logger_data;
-    _ctx.logger_routine       = library_integration_data.logger_routine;
-    _ctx.logger_scope_routine = library_integration_data.logger_scope_routine;
+    _ctx.logger_data          = platform.logger_data;
+    _ctx.logger_routine       = platform.logger_routine;
+    _ctx.logger_scope_routine = platform.logger_scope_routine;
 
     auto ctx = &_ctx;
     CTX_LOGGER;
 
     ZoneScoped;
-    global_library_integration_data = &library_integration_data;
+    global_platform = &platform;
 
     const float MAX_DT = 1.0f / (f32)10;
     if (dt > MAX_DT)
@@ -400,11 +400,11 @@ extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_R
         std::construct_at(root_allocator);
     }
 
-    if (!library_integration_data.game_context_set) {
+    if (!platform.game_context_set) {
         SCOPED_LOG_INIT("Setting ImGui context");
 
-        ImGui::SetCurrentContext(library_integration_data.imgui_context);
-        library_integration_data.game_context_set = true;
+        ImGui::SetCurrentContext(platform.imgui_context);
+        platform.game_context_set = true;
     }
 
     auto& editor_data = game.editor_data;

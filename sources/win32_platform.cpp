@@ -21,7 +21,7 @@
 #include "bf_base.h"
 #include "bf_game.h"
 
-global_var Library_Integration_Data* global_library_integration_data = {};
+global_var Platform* global_platform = {};
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "bf_context.cpp"
@@ -170,9 +170,9 @@ void Load_Or_Update_Game_Dll() {
     }
 
 #if BF_DEBUG
-    global_library_integration_data->game_context_set = false;
-    last_game_dll_write_time                          = filetime.filetime;
-    global_library_integration_data->dll_reloads_count++;
+    global_platform->game_context_set = false;
+    last_game_dll_write_time          = filetime.filetime;
+    global_platform->dll_reloads_count++;
 #endif
 
     game_lib                = lib;
@@ -371,7 +371,7 @@ void Win32Paint(f32 dt, HWND /* window_handle */, HDC device_context) {
         screen_bitmap.bitmap,
         (void*)events.data(),
         events_count,
-        *global_library_integration_data,
+        *global_platform,
         hot_reloaded
     );
 
@@ -564,9 +564,8 @@ WindowEventsHandler(HWND window_handle, UINT messageType, WPARAM wParam, LPARAM 
         return 1;
 
     auto mouse_captured = false;
-    if (global_library_integration_data->imgui_context != nullptr)
-        mouse_captured
-            = global_library_integration_data->imgui_context->IO.WantCaptureMouse;
+    if (global_platform->imgui_context != nullptr)
+        mouse_captured = global_platform->imgui_context->IO.WantCaptureMouse;
 
     switch (messageType) {
     case WM_CLOSE: {  // NOLINT(bugprone-branch-clone)
@@ -810,15 +809,15 @@ private:
 #if 1
 using Root_Logger_Type = Tracing_Logger;
 
-#    define SET_LOGGER                                                               \
-        Root_Logger_Type logger{};                                                   \
-        Initialize_Tracing_Logger(logger, initial_game_memory_arena);                \
-        ctx_.logger_data          = (void*)&logger;                                  \
-        ctx_.logger_routine       = (void_func)Tracing_Logger_Routine;               \
-        ctx_.logger_scope_routine = (void_func)Tracing_Logger_Scope_Routine;         \
-        global_library_integration_data->logger_data          = ctx_.logger_data;    \
-        global_library_integration_data->logger_routine       = ctx_.logger_routine; \
-        global_library_integration_data->logger_scope_routine = ctx_.logger_scope_routine;
+#    define SET_LOGGER                                                                   \
+        Root_Logger_Type logger{};                                                       \
+        Initialize_Tracing_Logger(logger, initial_game_memory_arena);                    \
+        ctx_.logger_data                      = (void*)&logger;                          \
+        ctx_.logger_routine                   = (void_func)Tracing_Logger_Routine;       \
+        ctx_.logger_scope_routine             = (void_func)Tracing_Logger_Scope_Routine; \
+        global_platform->logger_data          = ctx_.logger_data;                        \
+        global_platform->logger_routine       = ctx_.logger_routine;                     \
+        global_platform->logger_scope_routine = ctx_.logger_scope_routine;
 
 #else
 // NOTE: Отключение логирования
@@ -833,13 +832,13 @@ static int WinMain(
     LPSTR /* command_line */,
     int show_command
 ) {
-    Library_Integration_Data l{};
-    global_library_integration_data = &l;
+    Platform p{};
+    global_platform = &p;
 
-    global_library_integration_data->Open_File     = Win32_Open_File;
-    global_library_integration_data->Write_To_File = Win32_Write_To_File;
-    global_library_integration_data->Get_Time      = Win32_Get_Time;
-    global_library_integration_data->Die           = Win32_Die;
+    global_platform->Open_File     = Win32_Open_File;
+    global_platform->Write_To_File = Win32_Write_To_File;
+    global_platform->Get_Time      = Win32_Get_Time;
+    global_platform->Die           = Win32_Die;
 
     initial_game_memory_arena.size = Megabytes(64LL);
     initial_game_memory_arena.base = (u8*)VirtualAlloc(
@@ -1133,7 +1132,7 @@ static int WinMain(
 
     ImGui::StyleColorsDark();
 
-    global_library_integration_data->imgui_context = ImGui::GetCurrentContext();
+    global_platform->imgui_context = ImGui::GetCurrentContext();
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(window_handle);

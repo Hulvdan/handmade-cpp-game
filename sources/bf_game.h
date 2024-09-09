@@ -57,7 +57,7 @@ struct ImGuiContext;
 #define OS_Get_Time_function(name_) f64 name_() noexcept
 #define OS_Die_function(name_) void name_() noexcept
 
-struct GAME_LIBRARY_EXPORT Library_Integration_Data {
+struct GAME_LIBRARY_EXPORT Platform {
     bool          game_context_set  = {};
     ImGuiContext* imgui_context     = {};
     int           dll_reloads_count = {};
@@ -172,16 +172,16 @@ struct Controller_Axis_Changed {
 // --- EVENTS END ---
 
 // --- EXPORTED FUNCTIONS ---
-#define Game_Update_And_Render_function(name_)              \
-    void name_(                                             \
-        f32                       dt,                       \
-        void*                     memory_ptr,               \
-        size_t                    memory_size,              \
-        Game_Bitmap&              bitmap,                   \
-        void*                     input_events_bytes_ptr,   \
-        size_t                    input_events_count,       \
-        Library_Integration_Data& library_integration_data, \
-        bool                      hot_reloaded              \
+#define Game_Update_And_Render_function(name_) \
+    void name_(                                \
+        f32          dt,                       \
+        void*        memory_ptr,               \
+        size_t       memory_size,              \
+        Game_Bitmap& bitmap,                   \
+        void*        input_events_bytes_ptr,   \
+        size_t       input_events_count,       \
+        Platform&    platform,                 \
+        bool         hot_reloaded              \
     ) noexcept
 
 extern "C" GAME_LIBRARY_EXPORT Game_Update_And_Render_function(Game_Update_And_Render);
