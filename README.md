@@ -39,6 +39,12 @@ Jonathan Blow, [Constructors, Destructors](https://www.youtube.com/watch?v=8C6zu
 #### Философия
 
 - [Записи стримов. Handmade Hero](https://guide.handmadehero.org/code/)
+    - Хотя бы первые 20 видосов
+    - [Handmade Hero Day 122 - Introduction to Multithreading](https://guide.handmadehero.org/code/day122/)
+    - [Handmade Hero Day 123 - Interlocked Operations](https://guide.handmadehero.org/code/day123/)
+    - [Handmade Hero Day 124 - Memory Barriers and Semaphores](https://guide.handmadehero.org/code/day124/)
+    - [Handmade Hero Day 125 - Abstracting the Work Queue](https://guide.handmadehero.org/code/day125/)
+    - [Handmade Hero Day 126 - Circular FIFO Work Queue](https://guide.handmadehero.org/code/day126/)
 - [Статья. Orthodox C++](https://gist.github.com/bkaradzic/2e39896bc7d8c34e042b)
 - [Статья. Casey Muratori. Semantic Compression](https://caseymuratori.com/blog_0015)
 - [Статья. Jonathan Blow's blog, John Carmack on Inlined Code](http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html)
