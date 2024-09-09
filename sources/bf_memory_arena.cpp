@@ -1,3 +1,14 @@
+//
+// Арены памяти.
+//
+// Ссылки:
+// - Handmade Hero. То, как Casey Muratori использует арены.
+// - Ryan Fleury "Enter The Arena"
+//      https://www.rfleury.com/p/enter-the-arena-talk
+// - Ryan Fleury "Untangling Lifetimes: The Arena Allocator"
+//      https://www.rfleury.com/p/untangling-lifetimes-the-arena-allocator
+//
+
 struct Arena {
     size_t used;
     size_t size;

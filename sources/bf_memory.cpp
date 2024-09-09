@@ -1,3 +1,13 @@
+//
+// Аллокаторы и стратегии аллокации памяти.
+//
+// Ссылки:
+// - Jonathan Blow "Demo: Implicit Context"
+//      https://www.youtube.com/watch?v=ciGQCP6HgqI
+// - Andrei Alexandrescu "std::allocator Is to Allocation what std::vector Is to Vexation"
+//      https://www.youtube.com/watch?v=LIb3L4vKZ7U
+//
+
 #ifndef Root_Allocator_Type
 #    if BF_SANITIZATION_ENABLED
 #        define Root_Allocator_Type  \
